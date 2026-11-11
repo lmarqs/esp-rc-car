@@ -22,3 +22,16 @@ recipes:
         - ".agents/skills/agents-layout/templates/AGENTS.template.md"
         - ".agents/skills/agents-layout/templates/README.template.md"
         - ".agents/skills/agents-layout/templates/policy.template.yaml"
+  - name: "io.github.lmarqs.cookbook:git#worktrees"
+    source: "io.github.lmarqs.cookbook:git:11.0.2#worktrees"
+    sha256: "f7423fc4a23e095201def4311c844448e8038c33a269028eff185c9a19d86130"
+    arguments:
+      "instructions": ["AGENTS.md","README.md"]
+    owns:
+      sections:
+        - file: ".gitignore"
+          id: "io.github.lmarqs.cookbook:git#worktrees/worktrees"
+        - file: "AGENTS.md"
+          id: "io.github.lmarqs.cookbook:git#worktrees/worktrees"
+        - file: "README.md"
+          id: "io.github.lmarqs.cookbook:git#worktrees/worktrees"

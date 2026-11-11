@@ -79,3 +79,8 @@ At most five traps any task can hit.
 ## Deep dive (read on demand)
 
 - [[fill: topic, and the document, skill or memory file that covers it]]
+<!-- cook:begin io.github.lmarqs.cookbook:git#worktrees/worktrees -->
+<!-- io.github.lmarqs.cookbook:git#worktrees --instructions=AGENTS.md --instructions=README.md -->
+- Worktrees: branch `<branch>` is checked out at `.worktrees/<branch>`; `.worktrees/README.md` says how to
+  create one ready to run and remove it.
+<!-- cook:end io.github.lmarqs.cookbook:git#worktrees/worktrees -->

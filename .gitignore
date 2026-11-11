@@ -1,4 +1,10 @@
 .env
 .venv/
 .arduino/
-.worktrees/
+# cook:begin io.github.lmarqs.cookbook:git#worktrees/worktrees
+# io.github.lmarqs.cookbook:git#worktrees --instructions=AGENTS.md --instructions=README.md
+/.worktrees/*
+!/.worktrees/README.md
+!/.worktrees/setup
+!/.worktrees/teardown
+# cook:end io.github.lmarqs.cookbook:git#worktrees/worktrees
