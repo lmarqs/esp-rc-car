@@ -2,7 +2,7 @@
 #include <Arduino.h>
 #include <esp32-hal-ledc.h>
 
-#include "this_esp_ledc_pin.h"
+#include "esp_ledc_pin.h"
 
 EspLedcOutPin::EspLedcOutPin(uint8_t pin, uint8_t channel, uint32_t frequency, uint8_t resolution) {
   this->pin = pin;

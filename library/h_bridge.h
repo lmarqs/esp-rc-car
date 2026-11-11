@@ -2,8 +2,8 @@
 
 #include <Arduino.h>
 
-#include "this_analog_pin.h"
-#include "this_digital_pin.h"
+#include "analog_pin.h"
+#include "digital_pin.h"
 
 class HBridge {
  private:

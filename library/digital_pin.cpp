@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include "this_digital_pin.h"
+#include "digital_pin.h"
 
 DigitalInPin::DigitalInPin(uint8_t pin) {
   this->pin = pin;

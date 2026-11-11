@@ -2,7 +2,7 @@
 
 #include <Arduino.h>
 
-#include "this_pin.h"
+#include "pin.h"
 
 class AnalogInPin : public InPin {
  private:

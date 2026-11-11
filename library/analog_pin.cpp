@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include "this_analog_pin.h"
+#include "analog_pin.h"
 
 AnalogInPin::AnalogInPin(uint8_t pin) {
   this->pin = pin;
