@@ -1,15 +1,15 @@
 # esp-rc-car
 
-Arduino firmware library for an ESP32 RC car driven through Bluepad32; the [README](README.md) links the chassis
-and the parts it is based on.
+Firmware for an ESP32 RC car: drivers in `lib/` and sketches in `sketches/`. The [README](README.md) says what is
+built so far and how to build and flash it.
 
-Stack: C++ on the Arduino `esp32-bluepad32:esp32` 4.2.0 core (each sketch's `sketch.yaml`); arduino-cli 1.6.0,
-Python 3.10, uv 0.11.25 and the-cook 11.0.2 (`mise.toml`); pyserial 3.5 (`pyproject.toml`).
+Stack: C++ on the Arduino `esp32-bluepad32:esp32` 4.1.0 core (each sketch's `sketch.yaml`); arduino-cli 1.6.0,
+Python 3.10, uv 0.11.25, clang-format 23.1.5 and the-cook 11.0.2 (`mise.toml`); pyserial 3.5 (`pyproject.toml`).
 
 ## Quick reference
 
-- Install or add a dependency: `mise install && mise exec -- uv sync --locked`, which esptool needs; a Python
-  package: `uv add <package>` (unverified); a core or Arduino library: add it to the sketch's `sketch.yaml` profile
+- Install or add a dependency: `mise install && mise run setup`, [Build a sketch](README.md#build-a-sketch) says
+  why; a Python package: `uv add <package>` (unverified); a core or Arduino library: add it to the sketch's `sketch.yaml` profile
   (unverified)
 - Run: `mise run arduino:run <sketch> --port <port>` (unverified)
 - Build: `mise run arduino:compile <sketch>`, such as `sketches/blink`
@@ -48,8 +48,8 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 
 ## Where things go
 
-- New code: reusable drivers in `lib/`, which a sketch's `sketch.yaml` lists under `libraries`; each sketch in its
-  own folder under `sketches/` with a `sketch.yaml`; no design document
+- New code: drivers in `lib/`, sketches in `sketches/`, laid out as [Code layout](README.md#code-layout) says; no
+  design document
 - Tests: none
 - Settings: `.env` (gitignored, loaded by mise), arduino-cli in `arduino-cli.yaml`, board profile in `sketch.yaml`;
   no secrets yet
