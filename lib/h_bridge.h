@@ -2,9 +2,9 @@
 
 #include <Arduino.h>
 
-#include "analog_pin.h"
-#include "digital_pin.h"
+#include "pin.h"
 
+/** A motor driver; `value` is a duty from 0 to PwmOutPin::DUTY_MAX, and its sign in move() sets the direction. */
 class HBridge {
  private:
   uint8_t noSignalCount;
@@ -22,11 +22,12 @@ class HBridge {
 
 class FullHBridge : public HBridge {
  private:
-  OutPin *pwm, *in1, *in2;
+  PwmOutPin* pwm;
+  OutPin *in1, *in2;
 
  public:
-  FullHBridge(OutPin* pwm, OutPin* in1, OutPin* in2);
-  void begin();
+  FullHBridge(PwmOutPin* pwm, OutPin* in1, OutPin* in2);
+  bool begin();
   void stop();
   void forward(int32_t value);
   void backward(int32_t value);
@@ -34,11 +35,11 @@ class FullHBridge : public HBridge {
 
 class HalfHBridge : public HBridge {
  private:
-  OutPin *pwm, *in1, *in2;
+  PwmOutPin *in1, *in2;
 
  public:
-  HalfHBridge(OutPin* in1, OutPin* in2);
-  void begin();
+  HalfHBridge(PwmOutPin* in1, PwmOutPin* in2);
+  bool begin();
   void stop();
   void forward(int32_t value);
   void backward(int32_t value);

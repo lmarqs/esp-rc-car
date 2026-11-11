@@ -7,17 +7,31 @@
 EspLedcOutPin::EspLedcOutPin(uint8_t pin, uint8_t channel, uint32_t frequency, uint8_t resolution) {
   this->pin = pin;
   this->channel = channel;
-  this->frequency = frequency;
+  this->requestedFrequency = frequency;
   this->resolution = resolution;
 }
 
-void EspLedcOutPin::begin() {
+bool EspLedcOutPin::begin() {
   pinMode(pin, OUTPUT);
 
-  ledcSetup(channel, frequency, resolution);
+  actualFrequency = ledcSetup(channel, requestedFrequency, resolution);
+
+  if (!actualFrequency) {
+    log_e("LEDC channel %u cannot run at %u Hz with %u bits", channel, requestedFrequency, resolution);
+    return false;
+  }
 
   ledcAttachPin(pin, channel);
+  return true;
 }
 
-void EspLedcOutPin::write(uint32_t duty) { ledcWrite(channel, duty); }
+void EspLedcOutPin::write(uint16_t duty) {
+  if (!actualFrequency) {
+    return;
+  }
+
+  ledcWrite(channel, ((uint64_t)duty << resolution) / DUTY_MAX);
+}
+
+uint32_t EspLedcOutPin::frequency() { return actualFrequency; }
 #endif

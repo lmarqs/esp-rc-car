@@ -2,24 +2,22 @@
 
 #include <Arduino.h>
 
-Servo::Servo(OutPin* pwm, uint32_t frequency, uint8_t resolution, uint32_t minPulseUs, uint32_t maxPulseUs) {
+Servo::Servo(PwmOutPin* pwm, uint32_t minPulseUs, uint32_t maxPulseUs) {
   this->pwm = pwm;
-  this->periodUs = 1000000 / frequency;
-  this->resolution = resolution;
   this->minPulseUs = minPulseUs;
   this->maxPulseUs = maxPulseUs;
 }
 
-void Servo::begin() { pwm->begin(); }
+bool Servo::begin() { return pwm->begin(); }
 
 void Servo::writeMicroseconds(uint32_t pulseUs) {
   pulseUs = constrain(pulseUs, minPulseUs, maxPulseUs);
-  pwm->write(((uint64_t)pulseUs << resolution) / periodUs);
+  uint64_t duty = (uint64_t)pulseUs * PwmOutPin::DUTY_MAX * pwm->frequency() / 1000000;
+  pwm->write(min(duty, (uint64_t)PwmOutPin::DUTY_MAX));
 }
 
-PositionalServo::PositionalServo(OutPin* pwm, uint32_t frequency, uint8_t resolution, uint16_t range,
-                                 uint32_t minPulseUs, uint32_t maxPulseUs)
-    : Servo(pwm, frequency, resolution, minPulseUs, maxPulseUs) {
+PositionalServo::PositionalServo(PwmOutPin* pwm, uint16_t range, uint32_t minPulseUs, uint32_t maxPulseUs)
+    : Servo(pwm, minPulseUs, maxPulseUs) {
   this->range = range;
 }
 
@@ -28,9 +26,8 @@ void PositionalServo::write(int32_t angle) {
   writeMicroseconds(map(angle, 0, range, minPulseUs, maxPulseUs));
 }
 
-ContinuousServo::ContinuousServo(OutPin* pwm, uint32_t frequency, uint8_t resolution, uint32_t minPulseUs,
-                                 uint32_t maxPulseUs)
-    : Servo(pwm, frequency, resolution, minPulseUs, maxPulseUs) {}
+ContinuousServo::ContinuousServo(PwmOutPin* pwm, uint32_t minPulseUs, uint32_t maxPulseUs)
+    : Servo(pwm, minPulseUs, maxPulseUs) {}
 
 void ContinuousServo::move(int32_t speed) {
   speed = constrain(speed, -100, 100);

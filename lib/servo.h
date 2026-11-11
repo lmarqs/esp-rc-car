@@ -4,22 +4,17 @@
 
 #include "pin.h"
 
-/**
- * A hobby servo driven by pulse width on a PWM pin. The pin must already run at `frequency` Hz with `resolution`
- * bits of duty, such as an EspLedcOutPin at 50 Hz and 16 bits.
- */
+/** A hobby servo driven by pulse width on a PWM pin, such as an EspLedcOutPin at 50 Hz. */
 class Servo {
  private:
-  OutPin* pwm;
-  uint32_t periodUs;
-  uint8_t resolution;
+  PwmOutPin* pwm;
 
  protected:
   uint32_t minPulseUs, maxPulseUs;
 
  public:
-  Servo(OutPin* pwm, uint32_t frequency, uint8_t resolution, uint32_t minPulseUs, uint32_t maxPulseUs);
-  void begin();
+  Servo(PwmOutPin* pwm, uint32_t minPulseUs, uint32_t maxPulseUs);
+  bool begin();
   void writeMicroseconds(uint32_t pulseUs);
 };
 
@@ -29,8 +24,7 @@ class PositionalServo : public Servo {
   uint16_t range;
 
  public:
-  PositionalServo(OutPin* pwm, uint32_t frequency, uint8_t resolution, uint16_t range = 180, uint32_t minPulseUs = 544,
-                  uint32_t maxPulseUs = 2400);
+  PositionalServo(PwmOutPin* pwm, uint16_t range = 180, uint32_t minPulseUs = 544, uint32_t maxPulseUs = 2400);
   void write(int32_t angle);
 };
 
@@ -40,8 +34,7 @@ class PositionalServo : public Servo {
  */
 class ContinuousServo : public Servo {
  public:
-  ContinuousServo(OutPin* pwm, uint32_t frequency, uint8_t resolution, uint32_t minPulseUs = 1000,
-                  uint32_t maxPulseUs = 2000);
+  ContinuousServo(PwmOutPin* pwm, uint32_t minPulseUs = 1000, uint32_t maxPulseUs = 2000);
   void move(int32_t speed);
   void stop();
 };

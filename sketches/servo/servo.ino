@@ -2,11 +2,8 @@
 #include <ledc_pin.h>
 #include <servo.h>
 
-const uint32_t SERVO_FREQUENCY_HZ = 50;
-const uint8_t SERVO_RESOLUTION_BITS = 16;
-
-EspLedcOutPin servoPin(13, 0, SERVO_FREQUENCY_HZ, SERVO_RESOLUTION_BITS);
-PositionalServo servo(&servoPin, SERVO_FREQUENCY_HZ, SERVO_RESOLUTION_BITS);
+EspLedcOutPin servoPin(13, 0, 50, 16);
+PositionalServo servo(&servoPin);
 
 void setup() { servo.begin(); }
 

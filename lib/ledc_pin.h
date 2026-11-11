@@ -5,16 +5,18 @@
 
 #include "pin.h"
 
-class EspLedcOutPin : public OutPin {
+class EspLedcOutPin : public PwmOutPin {
  private:
   uint8_t pin;
   uint8_t channel;
-  uint32_t frequency;
+  uint32_t requestedFrequency;
+  uint32_t actualFrequency = 0;
   uint8_t resolution;
 
  public:
   EspLedcOutPin(uint8_t pin, uint8_t channel, uint32_t frequency, uint8_t resolution);
-  void begin();
-  void write(uint32_t value);
+  bool begin();
+  void write(uint16_t duty);
+  uint32_t frequency();
 };
 #endif
