@@ -12,6 +12,8 @@ Python 3.12, uv, clang-format and the-cook, pinned in `mise.toml`; pyserial 3, p
   why; a Python package: `uv add <package>` (unverified); a core or Arduino library: add it to the sketch's
   `sketch.yaml` profile (unverified)
 - Run: `mise run arduino:run <sketch> --port <port>` (unverified)
+- Flash a compiled sketch: `mise run arduino:upload <sketch> --port <port>`, with the port from
+  `mise exec -- arduino-cli board list`
 - Build: `mise run arduino:compile <sketch>`, such as `sketches/blink`
 - Test one file: none
 - Lint or format one file: `mise exec -- clang-format -i <file>`
@@ -74,8 +76,8 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 
 At most five traps any task can hit.
 
-- Leave `arduino:upload`, `arduino:monitor` and `arduino:run` to the developer: each needs the board connected to
-  the developer's machine.
+- Upload only to a port `arduino-cli board list` shows; with none listed, ask the developer to connect the board.
+  Leave `arduino:monitor` to the developer: it streams until stopped.
 - Name each `lib/` header apart from every core header: one named `esp_camera.h` would shadow `<esp_camera.h>`.
 
 ## Deep dive (read on demand)
