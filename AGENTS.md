@@ -21,9 +21,9 @@ Python 3.10, uv 0.11.25 and the-cook 11.0.2 (`mise.toml`); pyserial 3.5 (`pyproj
   remove with `(cd .worktrees/<branch> && .worktrees/teardown) && git worktree remove .worktrees/<branch>`
 - Quick check, seconds on what changed: `mise exec -- clang-format --dry-run --Werror <file>` on each changed file,
   then the Build command for the sketch the change touches
-- Done check, all that must pass before a change is done: `mise exec -- clang-format --dry-run --Werror lib/* sketches/*/*.ino`,
-  then the Build command for every sketch in `sketches/`; under 10 seconds for one sketch once the core is
-  installed; no services
+- Done check, all that must pass before a change is done:
+  `mise exec -- clang-format --dry-run --Werror lib/* sketches/*/*.ino`, then the Build command for every sketch in
+  `sketches/`; under 10 seconds for one sketch once the core is installed; no services
 
 ## Boundaries
 
