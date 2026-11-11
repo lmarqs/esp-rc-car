@@ -19,17 +19,25 @@ how a `lib/` header is named. A fact belongs here when it constrains code someon
 A good page is named after the sort of file, gives each practice with its reason, and marks what must not vary with
 MUST, SHOULD and MAY. A practice that a check comes to enforce leaves the page, and its reason moves beside the check.
 
+**[Runbooks](runbooks/README.md)**: what to do when a board or robot misbehaves, one symptom per page, named after
+it. A fact belongs here when someone acts on it with a board on the bench. A good runbook opens with what the
+symptom means, gives each step with the output that shows it worked, and tells the likely causes apart with a remedy
+for each. Why the hardware behaves so belongs on the other kinds' pages.
+
 ## Where a fact goes
 
 The kind is the question a reader brings to a fact, not the fact's subject. Take the LEDC peripheral: that the
 camera's clock and the PWM pins draw on one allocator in `lib/ledc_pin.cpp` is architecture, since no one file shows
 both users; that `lib/ledc_pin.h` is wrapped in `#ifdef ESP32` follows a standard every ESP32-only file meets; what
-`EspLedcOutPin::begin()` does belongs in the doc comment in its header, on no page.
+`EspLedcOutPin::begin()` does belongs in the doc comment in its header, on no page. Likewise GPIO 12: that the
+ESP32 reads it at reset is the datasheet's to state; that a motor driver holding it high stops the boot, and what
+to do then, is a runbook.
 
 ## Misfilings
 
 - One driver's behavior written as a standard. Giveaway: it names one class. It belongs in that header's doc
   comment.
-- A build, flash or check command written into a page. It belongs in the README, or in AGENTS.md when only agents
+- How to build or flash a sketch, written into a page. It belongs in the README, or in AGENTS.md when only agents
   need it.
 - A practice that clang-format or the build already enforces. The check is its owner.
+- A procedure written into the architecture page. Giveaway: numbered steps someone follows at the bench.
