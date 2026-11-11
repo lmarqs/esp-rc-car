@@ -15,5 +15,4 @@ fi
 
 mise trust --quiet mise.toml
 mise install
-# mise creates .venv only when it loads the environment, which `mise install` does not do.
-mise exec -- true
+mise run setup
