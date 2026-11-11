@@ -8,6 +8,7 @@ ARDUINO_CONFIG_FILE = "{{config_root}}/arduino-cli.yaml"
 python = "3.10"
 uv = "0.11.25"
 "github:lmarqs/the-cook" = "11.0.2"
+"pipx:clang-format" = "23.1.5"
 
 [tools."http:arduino-cli"]
 version = "1.6.0"
