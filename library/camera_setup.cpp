@@ -3,7 +3,7 @@
 #include <esp_camera.h>
 
 #define CAMERA_MODEL_AI_THINKER
-#include "this_esp_camera_pins.h"
+#include "camera_pins.h"
 
 sensor_t *esp_camera_setup() {
   camera_config_t config;

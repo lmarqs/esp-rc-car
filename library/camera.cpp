@@ -1,10 +1,10 @@
-#include "this_esp_camera.h"
+#include "camera.h"
 
 #ifdef ESP32
 #include <Arduino.h>
 #include <esp_camera.h>
 
-#include "this_esp_camera_setup.h"
+#include "camera_setup.h"
 
 void EspCamera::begin() { sensor = esp_camera_setup(); }
 
