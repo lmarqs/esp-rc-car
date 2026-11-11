@@ -3,7 +3,8 @@
 Firmware for a 1:10 RC car run by an ESP32, built with arduino-cli on the
 [Bluepad32](https://github.com/ricardoquesada/bluepad32) ESP32 core. The repository holds a library of drivers in
 `lib/` and the sketches that use it in `sketches/`. The car's own sketch is not written yet; `sketches/blink` blinks
-the LED on GPIO 2 and proves the toolchain works.
+the LED on GPIO 2 and proves the toolchain works. `sketches/omnidirectional` drives a four-wheel omnidirectional
+robot from a Bluetooth gamepad, or from axis values sent over I2C at address `0x01` while no gamepad is connected.
 
 This README is for someone who knows Arduino basics and wants to build and flash a sketch. It covers the toolchain
 and the code layout; the chassis and its printed parts are in [Hardware](#hardware).
