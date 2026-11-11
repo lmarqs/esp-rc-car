@@ -14,15 +14,16 @@ Python 3.10, uv 0.11.25 and the-cook 11.0.2 (`mise.toml`); pyserial 3.5 (`pyproj
 - Run: `mise run arduino:run <sketch> --port <port>` (unverified)
 - Build: `mise run arduino:compile <sketch>`, such as `sketches/blink`
 - Test one file: none
-- Lint or format one file: `clang-format -i <file>` (unverified)
+- Lint or format one file: `mise exec -- clang-format -i <file>`
 - Generate code: `mise run arduino:hexdump <sketch>`, which turns each file in `<sketch>/data` into a C header
-  (unverified)
 - Local services: none
 - Worktrees: `git worktree add .worktrees/<branch> -b <branch> && (cd .worktrees/<branch> && .worktrees/setup)`;
   remove with `(cd .worktrees/<branch> && .worktrees/teardown) && git worktree remove .worktrees/<branch>`
-- Quick check, seconds on what changed: the Build command for the sketch the change touches
-- Done check, all that must pass before a change is done: the Build command for every sketch in `sketches/`;
-  no services needed
+- Quick check, seconds on what changed: `mise exec -- clang-format --dry-run --Werror <file>` on each changed file,
+  then the Build command for the sketch the change touches
+- Done check, all that must pass before a change is done: `mise exec -- clang-format --dry-run --Werror lib/* sketches/*/*.ino`,
+  then the Build command for every sketch in `sketches/`; under 10 seconds for one sketch once the core is
+  installed; no services
 
 ## Boundaries
 
@@ -70,7 +71,6 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 
 At most five traps any task can hit.
 
-- `mise run setup` fails where `.env` is missing: it copies `.env.example`, which is not committed.
 - `arduino:upload`, `arduino:monitor` and `arduino:run` run `sudo chmod` on the port, so they wait for a password.
 - A header named like a system header shadows it: `lib/camera.h` is not `esp_camera.h` for that reason.
 
