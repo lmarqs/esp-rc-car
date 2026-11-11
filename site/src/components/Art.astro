@@ -1,0 +1,200 @@
+---
+/** Small card illustrations, all in the site's one hand: ink outlines, flat fills, a tinted circle behind. */
+interface Props {
+  name: string;
+}
+
+const { name } = Astro.props;
+const tints: Record<string, string> = {
+  led: '#d9f0e4', servo: '#dbe8f5', wheels: '#fbe7b0', motor: '#fbe0d6', bridge: '#fbe7b0', chip: '#fbe0d6',
+  code: '#dbe8f5', cube: '#d9f0e4', wave: '#fbe0d6', drone: '#dbe8f5', key: '#fbe7b0', scale: '#d9f0e4',
+  relay: '#dbe8f5', camera: '#fbe7b0', web: '#d9f0e4', signal: '#fbe7b0', layers: '#dbe8f5', arm: '#d9f0e4',
+};
+---
+
+<svg viewBox="0 0 160 120" aria-hidden="true">
+  <circle cx="80" cy="60" r="50" fill={tints[name] ?? '#fbe7b0'}></circle>
+  {
+    name === 'led' && (
+      <g>
+        <path d="M60 58 a20 20 0 0 1 40 0 v20 h-40 Z" fill="#2e9e6b" class="ink" />
+        <rect x="55" y="78" width="50" height="8" rx="3" fill="#fff" class="ink" />
+        <path class="ink" fill="none" d="M72 86 v22 M88 86 v16" />
+        <path d="M80 10 v-6 M108 22 l5 -5 M52 22 l-5 -5" stroke="#2e9e6b" stroke-width="2.6" stroke-linecap="round" />
+      </g>
+    )
+  }
+  {
+    name === 'servo' && (
+      <g>
+        <rect x="46" y="58" width="68" height="42" rx="7" fill="#3b82c4" class="ink" />
+        <path d="M80 50 L118 38 a4 4 0 0 1 2 8 L82 64 Z" fill="#fff" class="ink" />
+        <circle cx="80" cy="56" r="10" fill="#fff" class="ink" />
+        <circle cx="80" cy="56" r="3" fill="#1f2d3a" />
+      </g>
+    )
+  }
+  {
+    name === 'wheels' && (
+      <g>
+        <rect x="50" y="34" width="60" height="52" rx="10" fill="#3b82c4" class="ink" />
+        <rect x="34" y="26" width="16" height="26" rx="5" fill="#1f2d3a" class="ink" />
+        <rect x="110" y="26" width="16" height="26" rx="5" fill="#1f2d3a" class="ink" />
+        <rect x="34" y="68" width="16" height="26" rx="5" fill="#1f2d3a" class="ink" />
+        <rect x="110" y="68" width="16" height="26" rx="5" fill="#1f2d3a" class="ink" />
+        <path d="M66 60 h28 M86 52 l8 8 l-8 8" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+      </g>
+    )
+  }
+  {
+    name === 'motor' && (
+      <g>
+        <rect x="36" y="38" width="70" height="46" rx="10" fill="#e2603a" class="ink" />
+        <rect x="26" y="48" width="12" height="26" rx="3" fill="#fff" class="ink" />
+        <rect x="106" y="56" width="16" height="10" rx="2" fill="#c9d3da" class="ink" />
+        <circle cx="130" cy="61" r="9" fill="#fff" class="ink" />
+      </g>
+    )
+  }
+  {
+    name === 'bridge' && (
+      <g>
+        <path class="ink" fill="none" d="M50 22 V98 M110 22 V98 M50 60 H66 M94 60 H110 M40 22 H120 M40 98 H120" />
+        <circle cx="80" cy="60" r="14" fill="#fff" class="ink" />
+        <text x="80" y="65" text-anchor="middle" font-size="13" font-weight="800" fill="#1f2d3a">M</text>
+        <circle cx="50" cy="40" r="5" fill="#f7c948" class="ink" />
+        <circle cx="110" cy="80" r="5" fill="#f7c948" class="ink" />
+      </g>
+    )
+  }
+  {
+    name === 'chip' && (
+      <g>
+        <path class="thin" d="M60 18 v12 M80 18 v12 M100 18 v12 M60 90 v12 M80 90 v12 M100 90 v12 M30 44 h12 M30 60 h12 M30 76 h12 M118 44 h12 M118 60 h12 M118 76 h12" />
+        <rect x="42" y="30" width="76" height="60" rx="9" fill="#1f2d3a" class="ink" />
+        <rect x="52" y="40" width="26" height="40" rx="5" fill="#e2603a" class="ink" />
+        <rect x="84" y="40" width="26" height="40" rx="5" fill="#f7c948" class="ink" />
+      </g>
+    )
+  }
+  {
+    name === 'code' && (
+      <g>
+        <rect x="28" y="22" width="104" height="72" rx="9" fill="#1f2d3a" class="ink" />
+        <path d="M42 50 l10 8 l-10 8" fill="none" stroke="#f7c948" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+        <path d="M60 58 h36 M42 80 h52" stroke="#8fb6dc" stroke-width="2.6" stroke-linecap="round" />
+      </g>
+    )
+  }
+  {
+    name === 'cube' && (
+      <g>
+        <path d="M80 22 L118 42 L80 62 L42 42 Z" fill="#fff" class="ink" />
+        <path d="M42 42 V82 L80 102 V62 Z" fill="#2e9e6b" class="ink" />
+        <path d="M118 42 V82 L80 102 V62 Z" fill="#9ed7bc" class="ink" />
+      </g>
+    )
+  }
+  {
+    name === 'wave' && (
+      <g>
+        <path class="thin" d="M30 96 H132 M30 96 V20" />
+        <path d="M30 30 Q56 30 66 64 T104 80 T132 76" fill="none" stroke="#e2603a" stroke-width="3" stroke-linecap="round" />
+        <path d="M30 76 H132" stroke="#1f2d3a" stroke-width="2" stroke-dasharray="4 5" />
+      </g>
+    )
+  }
+  {
+    name === 'drone' && (
+      <g>
+        <path class="ink" d="M46 34 L114 86 M114 34 L46 86" fill="none" />
+        <rect x="66" y="46" width="28" height="28" rx="6" fill="#3b82c4" class="ink" />
+        <ellipse cx="46" cy="34" rx="18" ry="6" fill="#fff" class="ink" />
+        <ellipse cx="114" cy="34" rx="18" ry="6" fill="#fff" class="ink" />
+        <ellipse cx="46" cy="86" rx="18" ry="6" fill="#fff" class="ink" />
+        <ellipse cx="114" cy="86" rx="18" ry="6" fill="#fff" class="ink" />
+      </g>
+    )
+  }
+  {
+    name === 'key' && (
+      <g>
+        <path d="M52 30 h46 a10 10 0 0 1 10 10 v26 l-16 22 h-30 l-16 -22 v-26 a10 10 0 0 1 10 -10 Z" fill="#e2603a" class="ink" />
+        <rect x="64" y="88" width="22" height="20" rx="2" fill="#c9d3da" class="ink" />
+        <path class="thin" d="M70 94 v8 M80 94 v8" />
+      </g>
+    )
+  }
+  {
+    name === 'scale' && (
+      <g>
+        <path class="ink" fill="none" d="M80 40 V100 M60 100 H100" />
+        <path d="M30 44 L130 34" stroke="#1f2d3a" stroke-width="5" stroke-linecap="round" />
+        <ellipse cx="34" cy="36" rx="14" ry="5" fill="#fff" class="ink" />
+        <ellipse cx="126" cy="26" rx="14" ry="5" fill="#fff" class="ink" />
+        <circle cx="80" cy="39" r="6" fill="#f7c948" class="ink" />
+      </g>
+    )
+  }
+  {
+    name === 'relay' && (
+      <g>
+        <rect x="34" y="34" width="92" height="56" rx="7" fill="#3b82c4" class="ink" />
+        <rect x="48" y="44" width="40" height="34" rx="4" fill="#dbe8f5" class="ink" />
+        <rect x="96" y="70" width="22" height="14" rx="2" fill="#2e9e6b" class="ink" />
+        <circle cx="108" cy="48" r="5" fill="#e2603a" class="ink" />
+      </g>
+    )
+  }
+  {
+    name === 'camera' && (
+      <g>
+        <rect x="38" y="38" width="84" height="56" rx="10" fill="#1f2d3a" class="ink" />
+        <rect x="58" y="28" width="26" height="12" rx="3" fill="#1f2d3a" class="ink" />
+        <circle cx="80" cy="66" r="18" fill="#fff" class="ink" />
+        <circle cx="80" cy="66" r="8" fill="#3b82c4" class="ink" />
+      </g>
+    )
+  }
+  {
+    name === 'web' && (
+      <g>
+        <rect x="30" y="26" width="100" height="70" rx="9" fill="#fff" class="ink" />
+        <path class="ink" d="M30 42 H130" fill="none" />
+        <circle cx="40" cy="34" r="2.5" fill="#e2603a" /><circle cx="49" cy="34" r="2.5" fill="#f7c948" /><circle cx="58" cy="34" r="2.5" fill="#2e9e6b" />
+        <rect x="42" y="54" width="34" height="14" rx="7" fill="#2e9e6b" class="ink" />
+        <rect x="84" y="54" width="34" height="14" rx="7" fill="#e2603a" class="ink" />
+        <path d="M42 82 h60" stroke="#c9d3da" stroke-width="3" stroke-linecap="round" />
+      </g>
+    )
+  }
+  {
+    name === 'signal' && (
+      <g>
+        <path d="M30 50 h14 v-20 h14 v20 h14 v-20 h14 v20 h14 v-20 h14 v20 h14" fill="none" stroke="#3b82c4" stroke-width="3" stroke-linejoin="round" />
+        <path d="M30 94 h10 v-20 h30 v20 h10 v-20 h30 v20 h10 v-20 h10" fill="none" stroke="#e2603a" stroke-width="3" stroke-linejoin="round" />
+      </g>
+    )
+  }
+  {
+    name === 'layers' && (
+      <g>
+        <rect x="38" y="22" width="84" height="18" rx="4" fill="#1f2d3a" class="ink" />
+        <rect x="38" y="46" width="84" height="18" rx="4" fill="#3b82c4" class="ink" />
+        <rect x="38" y="70" width="84" height="18" rx="4" fill="#8fb6dc" class="ink" />
+        <path class="thin" d="M44 98 h14 M66 98 h14 M88 98 h14 M110 98 h8" />
+      </g>
+    )
+  }
+  {
+    name === 'arm' && (
+      <g>
+        <path class="ink" fill="none" d="M44 100 L62 64 L96 50 L118 24" stroke-width="5" />
+        <circle cx="62" cy="64" r="6" fill="#f7c948" class="ink" />
+        <circle cx="96" cy="50" r="6" fill="#f7c948" class="ink" />
+        <path d="M30 100 h30" stroke="#1f2d3a" stroke-width="4" stroke-linecap="round" />
+        <path d="M118 24 l6 -6 M118 24 l8 2" stroke="#e2603a" stroke-width="3" stroke-linecap="round" />
+      </g>
+    )
+  }
+</svg>

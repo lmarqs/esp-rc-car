@@ -1,0 +1,41 @@
+---
+import { getCollection } from 'astro:content';
+import Card from '../../components/Card.astro';
+import LevelFilter from '../../components/LevelFilter.astro';
+import Base from '../../layouts/Base.astro';
+import { href } from '../../lib/href';
+
+const families = ['Electronics', 'Programming', 'Control', 'Inside the ESP32', '3D models'] as const;
+const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+const topics = (await getCollection('topics')).sort((a, b) => a.data.order - b.data.order);
+---
+
+<Base title="Learn" description="The ideas behind the projects: electronics, programming, control, the ESP32 and 3D models.">
+  <h1>Learn</h1>
+  <p class="prose">
+    The ideas the projects are built from. Pick a family, or filter by how deep you want to go.
+  </p>
+  <LevelFilter />
+  {
+    families.map((family) => (
+      <section data-family={family} id={slug(family)}>
+        <h2>{family}</h2>
+        <div class="grid">
+          {topics
+            .filter((t) => t.data.family === family)
+            .map((t) => (
+              <Card
+                to={href(`/learn/${t.id}/`)}
+                title={t.data.title}
+                summary={t.data.summary}
+                art={t.data.art}
+                level={t.data.level}
+                state={t.data.state}
+                extra={t.data.example ? 'Playable' : undefined}
+              />
+            ))}
+        </div>
+      </section>
+    ))
+  }
+</Base>

@@ -1,0 +1,22 @@
+---
+interface Props {
+  state: 'done' | 'draft' | 'coming';
+}
+
+const { state } = Astro.props;
+---
+
+{
+  state === 'draft' && (
+    <p class="notice">
+      A first draft, written from the code and the repository's docs. The author has not reviewed it yet.
+    </p>
+  )
+}
+{
+  state === 'coming' && (
+    <p class="notice">
+      This page is an outline. The dashed boxes mark what will be written here.
+    </p>
+  )
+}

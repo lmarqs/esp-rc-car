@@ -1,0 +1,24 @@
+<div class="filters" role="group" aria-label="Filter by level" data-filter>
+  <button type="button" aria-pressed="true" data-level="all">All levels</button>
+  <button type="button" aria-pressed="false" data-level="beginner">Beginner</button>
+  <button type="button" aria-pressed="false" data-level="intermediate">Intermediate</button>
+  <button type="button" aria-pressed="false" data-level="advanced">Advanced</button>
+</div>
+
+<script>
+  for (const group of document.querySelectorAll<HTMLElement>('[data-filter]')) {
+    const buttons = [...group.querySelectorAll<HTMLButtonElement>('button')];
+    for (const button of buttons) {
+      button.addEventListener('click', () => {
+        const level = button.dataset.level;
+        buttons.forEach((b) => b.setAttribute('aria-pressed', String(b === button)));
+        for (const item of document.querySelectorAll<HTMLElement>('[data-level-item]')) {
+          item.hidden = level !== 'all' && item.dataset.levelItem !== level;
+        }
+        for (const section of document.querySelectorAll<HTMLElement>('[data-family]')) {
+          section.hidden = ![...section.querySelectorAll<HTMLElement>('[data-level-item]')].some((i) => !i.hidden);
+        }
+      });
+    }
+  }
+</script>

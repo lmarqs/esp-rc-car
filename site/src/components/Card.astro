@@ -1,0 +1,23 @@
+---
+import Art from './Art.astro';
+import Meta from './Meta.astro';
+
+interface Props {
+  to: string;
+  title: string;
+  summary: string;
+  art: string;
+  level: 'beginner' | 'intermediate' | 'advanced';
+  state: 'done' | 'draft' | 'coming';
+  extra?: string;
+}
+
+const { to, title, summary, art, level, state, extra } = Astro.props;
+---
+
+<a class="card" href={to} data-level-item={level}>
+  <div class="art"><Art name={art} /></div>
+  <Meta level={level} state={state} extra={extra} />
+  <h3>{title}</h3>
+  <p>{summary}</p>
+</a>

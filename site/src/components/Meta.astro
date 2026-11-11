@@ -1,0 +1,16 @@
+---
+interface Props {
+  level: 'beginner' | 'intermediate' | 'advanced';
+  state: 'done' | 'draft' | 'coming';
+  extra?: string;
+}
+
+const { level, state, extra } = Astro.props;
+const stateLabel = { done: '', draft: 'Draft', coming: 'Coming soon' }[state];
+---
+
+<div class="meta">
+  <span class={`badge level-${level}`}>{level}</span>
+  {extra && <span class="state">{extra}</span>}
+  {stateLabel && <span class="state">{stateLabel}</span>}
+</div>

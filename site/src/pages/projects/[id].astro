@@ -1,0 +1,55 @@
+---
+import { getCollection, getEntry, render } from 'astro:content';
+import Example from '../../components/Example.astro';
+import Meta from '../../components/Meta.astro';
+import StateNotice from '../../components/StateNotice.astro';
+import Base from '../../layouts/Base.astro';
+import { href } from '../../lib/href';
+
+export async function getStaticPaths() {
+  const projects = await getCollection('projects');
+  return projects.map((p) => ({ params: { id: p.id }, props: { project: p } }));
+}
+
+const { project } = Astro.props;
+const { Content } = await render(project);
+const topics = (await Promise.all(project.data.topics.map((id) => getEntry('topics', id)))).filter((t) => t !== undefined);
+const repo = 'https://github.com/lmarqs/robomania/tree/main/';
+---
+
+<Base title={project.data.title} description={project.data.summary}>
+  <article class="prose-page">
+    <p><a href={href('/projects/')}>← Projects</a></p>
+    <Meta level={project.data.level} state={project.data.state} />
+    <h1>{project.data.title}</h1>
+    <p class="lead">{project.data.summary}</p>
+    <Example name={project.data.example} />
+    <StateNotice state={project.data.state} />
+    <div class="prose"><Content /></div>
+    {
+      project.data.sketch && (
+        <p class="prose">
+          The code: <a href={repo + project.data.sketch}><code>{project.data.sketch}</code></a>
+        </p>
+      )
+    }
+    {
+      topics.length > 0 && (
+        <section>
+          <h2>Learn the parts</h2>
+          <ul class="prose">
+            {topics.map((t) => (
+              <li>
+                <a href={href(`/learn/${t.id}/`)}>{t.data.title}</a>: {t.data.summary}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+  </article>
+</Base>
+
+<style>
+  .lead { font-size: 19px; max-width: 60ch; }
+</style>

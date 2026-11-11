@@ -1,0 +1,47 @@
+---
+import { getCollection, render } from 'astro:content';
+import Example from '../../components/Example.astro';
+import Meta from '../../components/Meta.astro';
+import StateNotice from '../../components/StateNotice.astro';
+import Base from '../../layouts/Base.astro';
+import { href } from '../../lib/href';
+
+export async function getStaticPaths() {
+  const topics = await getCollection('topics');
+  return topics.map((t) => ({ params: { id: t.id }, props: { topic: t } }));
+}
+
+const { topic } = Astro.props;
+const { Content } = await render(topic);
+const usedBy = (await getCollection('projects')).filter((p) => p.data.topics.includes(topic.id));
+---
+
+<Base title={topic.data.title} description={topic.data.summary}>
+  <article>
+    <p><a href={href('/learn/')}>← Learn · {topic.data.family}</a></p>
+    <Meta level={topic.data.level} state={topic.data.state} />
+    <h1>{topic.data.title}</h1>
+    <p class="lead">{topic.data.summary}</p>
+    <Example name={topic.data.example} />
+    <StateNotice state={topic.data.state} />
+    <div class="prose"><Content /></div>
+    {
+      usedBy.length > 0 && (
+        <section>
+          <h2>Projects that use it</h2>
+          <ul class="prose">
+            {usedBy.map((p) => (
+              <li>
+                <a href={href(`/projects/${p.id}/`)}>{p.data.title}</a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+  </article>
+</Base>
+
+<style>
+  .lead { font-size: 19px; max-width: 60ch; }
+</style>
