@@ -24,4 +24,11 @@ class EspLedcOutPin : public PwmOutPin {
   void write(uint16_t duty);
   uint32_t frequency();
 };
+
+/**
+ * Reserves one LEDC timer, with every channel it drives in every speed group, for a driver that sets up LEDC through
+ * ESP-IDF itself, such as the camera's XCLK. Returns the timer, whose channels are 2 × timer and the one after, or -1
+ * when every timer drives a channel already.
+ */
+int8_t ledcReserveTimer();
 #endif

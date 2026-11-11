@@ -4,12 +4,20 @@
 
 #define CAMERA_MODEL_AI_THINKER
 #include "camera_pins.h"
+#include "ledc_pin.h"
 
 sensor_t* esp_camera_setup() {
+  int8_t xclkTimer = ledcReserveTimer();
+
+  if (xclkTimer < 0) {
+    Serial.println("No LEDC timer left for the camera clock");
+    return NULL;
+  }
+
   camera_config_t config;
 
-  config.ledc_channel = LEDC_CHANNEL_0;
-  config.ledc_timer = LEDC_TIMER_0;
+  config.ledc_channel = (ledc_channel_t)(xclkTimer * 2);
+  config.ledc_timer = (ledc_timer_t)xclkTimer;
   config.pin_d0 = Y2_GPIO_NUM;
   config.pin_d1 = Y3_GPIO_NUM;
   config.pin_d2 = Y4_GPIO_NUM;
