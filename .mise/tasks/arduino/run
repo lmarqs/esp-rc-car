@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-#MISE description="Compile, upload and monitor a sketch"
+#MISE description="Compile and upload a sketch, then monitor it with --monitor"
 #USAGE arg "<sketch>" help="Sketch folder"
 #USAGE flag "-p --port <port>" env="PORT" help="Serial port of the board"
+#USAGE flag "--monitor" default="false" help="Open the serial monitor after uploading"
 set -euo pipefail
 
 mise run arduino:compile "${usage_sketch}"
 mise run arduino:upload "${usage_sketch}" --port "${usage_port}"
-mise run arduino:monitor --port "${usage_port}"
+if [ "${usage_monitor:-false}" = "true" ]; then
+  mise run arduino:monitor --port "${usage_port}"
+fi

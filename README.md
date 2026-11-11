@@ -38,11 +38,11 @@ The task merges every sketch's arduino-cli compile database and points each sket
 Connect the board over USB and pass its serial port, such as `/dev/ttyUSB0`:
 
 ```sh
-mise run arduino:run sketches/blink --port /dev/ttyUSB0
+mise run arduino:run sketches/blink --port /dev/ttyUSB0 --monitor
 ```
 
-The task compiles, uploads, then opens the serial monitor at 9600 baud. It runs `sudo chmod` on the port first, so
-it asks for your password. Flashing has not been tried on a board yet; report what fails.
+The task compiles and uploads; `--monitor` then opens the serial monitor at 9600 baud. It runs `sudo chmod` on the
+port first, so it asks for your password. Flashing has not been tried on a board yet; report what fails.
 
 ## Code layout
 
