@@ -1,20 +1,22 @@
 # esp-rc-car
 
-Firmware for an ESP32 RC car: drivers in `lib/` and sketches in `sketches/`. The [README](README.md) says what is
-built so far and how to build and flash it.
+Firmware for an ESP32 RC car: drivers in `lib/` and sketches in `sketches/`, and Robomania, the project's website,
+in `site/`. The [README](README.md) says what is built so far and how to build and flash it.
 
 Stack: C++ on the Arduino `esp32-bluepad32:esp32` 4 core, pinned in each sketch's `sketch.yaml`; arduino-cli 1,
-Python 3.12, uv, clang-format and the-cook, pinned in `mise.toml`; pyserial 3, pinned in `pyproject.toml`.
+Python 3.12, uv, clang-format and the-cook, pinned in `mise.toml`; pyserial 3, pinned in `pyproject.toml`. The
+website: Astro 7 on Node 24 and pnpm 12, pinned in `mise.toml` and `package.json`.
 
 ## Quick reference
 
 - Install or add a dependency: `mise install && mise run '*:setup'`, [Build a sketch](README.md#build-a-sketch) says
   why; a Python package: `uv add <package>` (unverified); a core or Arduino library: add it to the sketch's
-  `sketch.yaml` profile (unverified)
+  `sketch.yaml` profile (unverified); a website package: `pnpm add <package>`
 - Run: `mise run arduino:run <sketch> --port <port>` (unverified)
 - Flash a compiled sketch: `mise run arduino:upload <sketch> --port <port>`, with the port from
   `mise exec -- arduino-cli board list`
-- Build: `mise run arduino:compile <sketch>`, such as `sketches/blink`
+- Build: `mise run arduino:compile <sketch>`, such as `sketches/blink`; the website: `mise run site:build`, and
+  `mise run site:dev` to serve it locally
 - Test one file: none
 - Lint or format one file: `mise exec -- clang-format -i <file>`
 - Generate code: `mise run arduino:hexdump <sketch>`, which turns each file in `<sketch>/data` into a C header;
@@ -23,10 +25,10 @@ Python 3.12, uv, clang-format and the-cook, pinned in `mise.toml`; pyserial 3, p
 - Worktrees: `git worktree add .worktrees/<branch> -b <branch> && (cd .worktrees/<branch> && .worktrees/setup)`;
   remove with `(cd .worktrees/<branch> && .worktrees/teardown) && git worktree remove .worktrees/<branch>`
 - Quick check, seconds on what changed: `mise exec -- clang-format --dry-run --Werror <file>` on each changed file,
-  then the Build command for the sketch the change touches
+  then the Build command for the sketch the change touches, or `mise run site:build` for a change to `site/`
 - Done check, all that must pass before a change is done:
   `mise exec -- clang-format --dry-run --Werror lib/* sketches/*/*.ino`, then the Build command for every sketch in
-  `sketches/`; under 10 seconds for one sketch once the core is installed; no services
+  `sketches/`, then `mise run site:build`; under 10 seconds for one sketch once the core is installed; no services
 
 ## Boundaries
 
@@ -52,7 +54,8 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 ## Where things go
 
 - New code: drivers in `lib/`, sketches in `sketches/`, laid out as [Code layout](README.md#code-layout) says; no
-  design document
+  design document; website pages in `site/src/content/projects/` and `site/src/content/topics/`, one Markdown file
+  each, and its playable examples in `site/src/components/examples/`
 - Tests: none
 - Settings: `.env` (gitignored, loaded by mise), arduino-cli in `arduino-cli.yaml`, board profile in `sketch.yaml`;
   no secrets yet
