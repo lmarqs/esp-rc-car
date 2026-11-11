@@ -24,6 +24,9 @@ class DriveCommandSource {
 
   void put(Origin origin, const DriveCommand& command, uint32_t nowMs);
 
+  /** Drops the origin's command, so it counts as none until the next put(). */
+  void forget(Origin origin);
+
   /** Writes the command to follow into `command`; returns false when no origin has a fresh one. */
   bool latest(uint32_t nowMs, DriveCommand* command);
 

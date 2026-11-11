@@ -7,6 +7,11 @@ void DriveCommandSource::put(Origin origin, const DriveCommand& command, uint32_
   slots[origin] = {command, nowMs, true};
 }
 
+void DriveCommandSource::forget(Origin origin) {
+  std::lock_guard<std::mutex> lock(mutex);
+  slots[origin].received = false;
+}
+
 bool DriveCommandSource::latest(uint32_t nowMs, DriveCommand* command) {
   std::lock_guard<std::mutex> lock(mutex);
 

@@ -46,7 +46,12 @@ void setup() {
   Wire.onReceive(receiveEventHandler);
 
   BP32.setup([](Controller* c) { controller = controller == NULL ? c : controller; },
-             [](Controller* c) { controller = controller == c ? NULL : controller; });
+             [](Controller* c) {
+               if (controller == c) {
+                 controller = NULL;
+                 commands.forget(DriveCommandSource::GAMEPAD);
+               }
+             });
 
   BP32.forgetBluetoothKeys();
   BP32.enableVirtualDevice(false);
