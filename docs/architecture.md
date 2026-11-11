@@ -1,5 +1,5 @@
 ---
-description: Maps the parts of the esp-rc-car firmware, what each is for, and which way they depend on each other.
+description: Maps the parts of the esp-rc-car firmware and its website, what each is for, and which way they depend on each other.
 audience: Whoever adds a driver or a sketch, or changes how they connect; knows Arduino sketches and libraries
 ---
 # Architecture
@@ -28,3 +28,14 @@ Dependencies point one way: sketches depend on drivers, pin interfaces and the c
 and the core; nothing in `lib/` depends on a sketch. Drivers reach the hardware only through the pin interfaces, so a
 driver runs on any pin that gives the output it needs. A few drivers call ESP-IDF directly and build only for ESP32;
 the rest use only the Arduino API.
+
+## Website
+
+Robomania, the project's website in `site/`, is an Astro site built apart from the firmware. It depends on `lib/`:
+its Library page reads the driver headers at build time, and nothing in the firmware depends on it. It shares
+`mise.toml` with the firmware but needs only Node and pnpm from it, so the publishing workflow,
+`.github/workflows/site.yaml`, installs only those two and skips the firmware toolchain.
+
+The workflow publishes a new site version to GitHub Pages, at <https://lmarqs.github.io/robomania/>, when a push to
+`main` includes a commit whose message contains `#release`, or when someone runs it by hand. Other pushes leave the
+published site as it is.

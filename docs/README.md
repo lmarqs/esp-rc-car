@@ -9,7 +9,7 @@ a sketch is in the [README](../README.md); what agents run and must not do is in
 
 ## Kinds
 
-**[Architecture](architecture.md)**: the parts of the firmware, what each is for, and which way they depend on each
+**[Architecture](architecture.md)**: the parts of the firmware and the website, what each is for, and which way they depend on each
 other. A fact belongs here when no single file shows it. A good page names each part with its directory and shows
 the dependencies; it names no class, function or constant, since those are implementation and the code holds them.
 

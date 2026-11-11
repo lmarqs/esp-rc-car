@@ -1,6 +1,5 @@
 name: site
 
-# A push to main releases a new site version when any of its commit messages contains #release.
 on:
   push:
     branches: [main]
@@ -21,7 +20,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      # Only the website's tools: the rest of mise.toml builds firmware.
       - uses: jdx/mise-action@v5
         with:
           install_args: node pnpm
