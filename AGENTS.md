@@ -1,16 +1,3 @@
-> **This file is an unfilled template.** Fill it in only when the developer asks. If they ask for other work in an
-> interactive session, say once that it is unfilled, then do that work. To fill it in:
->
-> - Replace every `[[fill: …]]`, table cells included; `grep -n '\[\[fill:' AGENTS.md` finds them all. Write `none`
->   in a row that does not apply. Delete a section only when nothing else in this file points to it.
-> - Link the README section instead of restating it, and fix the README in the same change when it is wrong.
-> - Run every command you write. Mark one you could not run `(unverified)`; the next agent to run it removes the mark.
-> - Never write a rule its source does not state: the code, a config file, the README, CI or the developer.
-> - When replacing an existing `AGENTS.md`, follow `.agents/skills/agents-layout/references/adopt.md`.
-> - `.agents/skills/agents-layout/references/agents-md.md` says why the fixed text is here; keep it unless it is
->   wrong for this repository.
-> - Run `sh .agents/skills/agents-layout/scripts/check.sh`; when this note is all it reports, delete the note.
-
 # esp-rc-car
 
 Arduino firmware library for an ESP32 RC car driven through Bluepad32; the [README](README.md) links the chassis
@@ -59,7 +46,7 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 
 ## Where things go
 
-- New code: reusable drivers in `library/`; each sketch in its own folder with a `sketch.yaml`; no design document
+- New code: reusable drivers in `lib/`, which a sketch's `sketch.yaml` lists under `libraries`; each sketch in its own folder with a `sketch.yaml`; no design document
 - Tests: none
 - Settings: `.env` (gitignored, loaded by mise), arduino-cli in `arduino-cli.yaml`, board profile in `sketch.yaml`;
   no secrets yet
@@ -72,7 +59,7 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 - A behavior change ships with a test; a bug fix with one that failed before the fix.
 - Comments record only reasons the code cannot show.
 - Change only what the task needs, matching the surrounding code.
-- Format with `.clang-format`. Wrap a file that builds only on ESP32 in `#ifdef ESP32`, as `library/esp_ledc_pin.h`
+- Format with `.clang-format`. Wrap a file that builds only on ESP32 in `#ifdef ESP32`, as `lib/esp_ledc_pin.h`
   does.
 - Commits: one change per commit, pushed straight to `main`; no pull requests
 - Deploy: none
@@ -81,10 +68,10 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 
 At most five traps any task can hit.
 
-- `mise run setup` fails: `uv sync --locked` needs a `uv.lock`, which is not committed. The `.env.example` it copies
-  holds another project's `LIBRA_*` settings.
+- `mise run setup` fails: it copies `.env.example` and runs `uv sync --locked`, and neither `.env.example` nor
+  `uv.lock` is committed.
 - `arduino:upload`, `arduino:monitor` and `arduino:run` run `sudo chmod` on the port, so they wait for a password.
-- A header named like a system header shadows it: `library/camera.h` is not `esp_camera.h` for that reason.
+- A header named like a system header shadows it: `lib/camera.h` is not `esp_camera.h` for that reason.
 
 ## Deep dive (read on demand)
 
