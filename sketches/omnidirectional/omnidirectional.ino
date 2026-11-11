@@ -7,42 +7,36 @@
 #include <pin.h>
 
 #include "./car.h"
+#include "./drive_command.h"
 #include "./wheel_mixer.h"
+
+const uint32_t COMMAND_TIMEOUT_MS = 500;
+const uint32_t LED_BLINK_MS = 500;
 
 DigitalOutPin led(2);
 CarPilot pilot;
+DriveCommandSource commands(COMMAND_TIMEOUT_MS);
 Controller* controller = NULL;
 
+// Runs in the core's I2C slave task, not in loop()'s task.
 void receiveEventHandler(int len) {
-  if (controller) {
+  int32_t axis[4];
+
+  if (len != sizeof(axis)) {
     return;
   }
 
-  size_t size = 4 * sizeof(int32_t);
+  uint8_t* bytes = (uint8_t*)axis;
 
-  if (len != size) {
-    return;
+  for (size_t i = 0; i < sizeof(axis); i++) {
+    if (!Wire.available()) {
+      return;
+    }
+
+    bytes[i] = Wire.read();
   }
 
-  int8_t buf[size];
-
-  int8_t i = -1;
-
-  while (++i < size && Wire.available()) {
-    buf[i] = Wire.read();
-  }
-
-  if (i != size) {
-    return;
-  }
-
-  int32_t* axis = (int32_t*)buf;
-
-  move(axis[0], axis[1], axis[2], axis[3]);
-}
-
-void move(int32_t axisLX, int32_t axisLY, int32_t axisRX, int32_t axisRY) {
-  pilot.drive(mixWheels({axisLX, axisLY}, {axisRX, axisRY}));
+  commands.put(DriveCommandSource::I2C, {{axis[0], axis[1]}, {axis[2], axis[3]}}, millis());
 }
 
 void setup() {
@@ -51,8 +45,8 @@ void setup() {
   Wire.begin(0x01);
   Wire.onReceive(receiveEventHandler);
 
-  BP32.setup([controller](Controller* c) { controller = controller == NULL ? c : controller; },
-             [controller](Controller* c) { controller = controller == c ? NULL : controller; });
+  BP32.setup([](Controller* c) { controller = controller == NULL ? c : controller; },
+             [](Controller* c) { controller = controller == c ? NULL : controller; });
 
   BP32.forgetBluetoothKeys();
   BP32.enableVirtualDevice(false);
@@ -65,15 +59,20 @@ void setup() {
 void loop() {
   BP32.update();
 
-  pilot.noSignal();
+  uint32_t now = millis();
 
-  if (!controller) {
-    led.write(LOW);
-    delay(500);
-    led.write(HIGH);
-    delay(500);
-    return;
+  if (controller) {
+    commands.put(DriveCommandSource::GAMEPAD,
+                 {{controller->axisX(), controller->axisY()}, {controller->axisRX(), controller->axisRY()}}, now);
   }
 
-  move(controller->axisX(), controller->axisY(), controller->axisRX(), controller->axisRY());
+  led.write(controller || (now / LED_BLINK_MS) % 2 ? HIGH : LOW);
+
+  DriveCommand command;
+
+  if (commands.latest(now, &command)) {
+    pilot.drive(mixWheels(command.rotation, command.translation));
+  } else {
+    pilot.stop();
+  }
 }

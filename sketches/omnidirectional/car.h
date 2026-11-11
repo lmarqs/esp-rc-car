@@ -51,9 +51,9 @@ class CarPilot {
     }
   }
 
-  void noSignal() {
+  void stop() {
     for (size_t i = 0; i < motors_len; i++) {
-      motors[i].noSignal();
+      motors[i].stop();
     }
   }
 
