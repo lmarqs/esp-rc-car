@@ -5,7 +5,7 @@
 #define CAMERA_MODEL_AI_THINKER
 #include "camera_pins.h"
 
-sensor_t *esp_camera_setup() {
+sensor_t* esp_camera_setup() {
   camera_config_t config;
 
   config.ledc_channel = LEDC_CHANNEL_0;
@@ -55,7 +55,7 @@ sensor_t *esp_camera_setup() {
     return NULL;
   }
 
-  sensor_t *sensor = esp_camera_sensor_get();
+  sensor_t* sensor = esp_camera_sensor_get();
 
   if (sensor->id.PID == OV3660_PID) {
     sensor->set_vflip(sensor, 1);

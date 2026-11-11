@@ -5,7 +5,7 @@
 #include <FS.h>
 #include <esp_http_server.h>
 
-EspWebServerRequest::EspWebServerRequest(httpd_req_t *req) { this->req = req; }
+EspWebServerRequest::EspWebServerRequest(httpd_req_t* req) { this->req = req; }
 
 int EspWebServerRequest::getMethod() { return req->method; }
 
@@ -27,7 +27,7 @@ esp_err_t EspWebServerRequest::frame(EspWebServerFrameHandler handler) {
     return ret;
   }
 
-  uint8_t *buf = (uint8_t *)calloc(1, frame.len + 1);
+  uint8_t* buf = (uint8_t*)calloc(1, frame.len + 1);
 
   if (!buf) {
     return ESP_ERR_NO_MEM;
@@ -46,13 +46,13 @@ esp_err_t EspWebServerRequest::frame(EspWebServerFrameHandler handler) {
 }
 
 esp_err_t EspWebServerRequest::body(EspWebServerBodyHandler handler) {
-  uint8_t *buf = (uint8_t *)calloc(1, req->content_len + 1);
+  uint8_t* buf = (uint8_t*)calloc(1, req->content_len + 1);
 
   if (!buf) {
     return ESP_ERR_NO_MEM;
   }
 
-  int ret = httpd_req_recv(req, (char *)buf, req->content_len);
+  int ret = httpd_req_recv(req, (char*)buf, req->content_len);
 
   if (ret <= 0) {
     return ESP_FAIL;
@@ -66,7 +66,7 @@ esp_err_t EspWebServerRequest::body(EspWebServerBodyHandler handler) {
 }
 
 
-EspWebServerResponse::EspWebServerResponse(httpd_req_t *req) {
+EspWebServerResponse::EspWebServerResponse(httpd_req_t* req) {
   this->req = req;
   this->err = ESP_OK;
 }
@@ -81,7 +81,7 @@ void EspWebServerResponse::fail(esp_err_t reason) { err = reason; }
 
 bool EspWebServerResponse::isConnected() { return err == ESP_OK; }
 
-void EspWebServerResponse::setStatus(const char *status) {
+void EspWebServerResponse::setStatus(const char* status) {
   if (err != ESP_OK) {
     return;
   }
@@ -89,7 +89,7 @@ void EspWebServerResponse::setStatus(const char *status) {
   err = httpd_resp_set_status(req, status);
 }
 
-void EspWebServerResponse::setType(const char *type) {
+void EspWebServerResponse::setType(const char* type) {
   if (err != ESP_OK) {
     return;
   }
@@ -99,7 +99,7 @@ void EspWebServerResponse::setType(const char *type) {
 
 void EspWebServerResponse::setContentLength(size_t len) { req->content_len = len; }
 
-void EspWebServerResponse::setHeader(const char *key, const char *value) {
+void EspWebServerResponse::setHeader(const char* key, const char* value) {
   if (err != ESP_OK) {
     return;
   }
@@ -107,15 +107,15 @@ void EspWebServerResponse::setHeader(const char *key, const char *value) {
   err = httpd_resp_set_hdr(req, key, value);
 }
 
-void EspWebServerResponse::send(const char *status, const char *type, const uint8_t *buf, size_t len) {
+void EspWebServerResponse::send(const char* status, const char* type, const uint8_t* buf, size_t len) {
   this->setStatus(status);
 
   this->setType(type);
 
-  err = httpd_resp_send(req, (char *)buf, len);
+  err = httpd_resp_send(req, (char*)buf, len);
 }
 
-void EspWebServerResponse::send(const char *status, const char *type, FS fs, const char *path) {
+void EspWebServerResponse::send(const char* status, const char* type, FS fs, const char* path) {
   this->setStatus(status);
 
   this->setType(type);
@@ -139,15 +139,15 @@ void EspWebServerResponse::send(const char *status, const char *type, FS fs, con
   file.close();
 }
 
-void EspWebServerResponse::send(const uint8_t *buf, size_t len) {
+void EspWebServerResponse::send(const uint8_t* buf, size_t len) {
   if (err != ESP_OK) {
     return;
   }
 
-  err = httpd_resp_send_chunk(req, (char *)buf, len);
+  err = httpd_resp_send_chunk(req, (char*)buf, len);
 }
 
-void EspWebServerResponse::send(const char *buf) {
+void EspWebServerResponse::send(const char* buf) {
   if (err != ESP_OK) {
     return;
   }
@@ -155,7 +155,7 @@ void EspWebServerResponse::send(const char *buf) {
   err = httpd_resp_send_chunk(req, buf, strlen(buf));
 }
 
-void EspWebServerResponse::send(httpd_ws_frame_t *frame) {
+void EspWebServerResponse::send(httpd_ws_frame_t* frame) {
   if (err != ESP_OK) {
     return;
   }
@@ -172,17 +172,17 @@ void EspWebServer::begin(int port) {
   httpd_start(&httpd, &config);
 }
 
-void EspWebServer::on(char *uri, httpd_method_t method, EspWebServerHandler handler) {
+void EspWebServer::on(char* uri, httpd_method_t method, EspWebServerHandler handler) {
   httpd_uri_t config;
 
   config.uri = uri;
   config.method = method;
 
-  config.handler = [](httpd_req_t *r) -> esp_err_t {
+  config.handler = [](httpd_req_t* r) -> esp_err_t {
     EspWebServerRequest req(r);
     EspWebServerResponse res(r);
 
-    EspWebServerHandler *handler = static_cast<EspWebServerHandler *>(r->user_ctx);
+    EspWebServerHandler* handler = static_cast<EspWebServerHandler*>(r->user_ctx);
 
     (*handler)(&req, &res);
 

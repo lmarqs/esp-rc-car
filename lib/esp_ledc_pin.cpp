@@ -1,8 +1,8 @@
 #ifdef ESP32
+#include "esp_ledc_pin.h"
+
 #include <Arduino.h>
 #include <esp32-hal-ledc.h>
-
-#include "esp_ledc_pin.h"
 
 EspLedcOutPin::EspLedcOutPin(uint8_t pin, uint8_t channel, uint32_t frequency, uint8_t resolution) {
   this->pin = pin;
