@@ -1,26 +1,27 @@
 ---
-description: Maps how the sketches, the drivers in lib/ and the ESP32 core fit together.
+description: Maps the parts of the esp-rc-car firmware, what each is for, and which way they depend on each other.
 audience: Whoever adds a driver or a sketch, or changes how they connect
 ---
 # Architecture
 
-Each sketch in `sketches/` is one firmware image: arduino-cli builds it with every source in `lib/` and with the
-Bluepad32 ESP32 core that its `sketch.yaml` pins. The [README](../README.md#code-layout) lists the drivers.
+The firmware has three parts:
 
-## Pins and the drivers on them
+- **Sketches**, in `sketches/<name>/`: each is one firmware image, for one robot or for trying one driver on a board.
+  A sketch says which device sits on which pin, and holds its robot's control logic.
+- **Drivers**, in `lib/`: one library that every sketch builds with. Each driver runs one sort of device, such as a
+  motor, a servo or a camera, or serves one protocol. The [README](../README.md#code-layout) lists them.
+- **Core**: the Bluepad32 ESP32 Arduino core that each sketch's `sketch.yaml` pins. It gives the Arduino API,
+  ESP-IDF and the Bluetooth gamepad stack.
 
-`lib/pin.h` declares the interfaces drivers take their pins through: `InPin` and `OutPin` for levels, and `PwmOutPin`
-for a square wave whose duty runs from 0 to `PwmOutPin::DUTY_MAX`.
+```mermaid
+flowchart TD
+  sketches[Sketches] --> drivers[Drivers]
+  sketches --> pins[Pin interfaces]
+  drivers --> pins
+  sketches --> core[Core]
+  drivers --> core
+```
 
-| Interface | Pin classes |
-| --- | --- |
-| `InPin` | `DigitalInPin` in `digital_pin.*`, `AnalogInPin` in `analog_pin.*` |
-| `OutPin` | `DigitalOutPin` in `digital_pin.*`, `AnalogOutPin` in `analog_pin.*` |
-| `PwmOutPin` | `EspLedcOutPin` in `ledc_pin.*` |
-
-Drivers depend on the interfaces, never on a pin class: `FullHBridge` takes one `PwmOutPin` and two `OutPin`s,
-`HalfHBridge` two `PwmOutPin`s, and each `Servo` one `PwmOutPin`. A sketch picks the pin classes and passes them in,
-as `sketches/servo/servo.ino` does.
-
-`camera*`, `ledc_pin.*` and `web_server.*` call ESP-IDF and build only for ESP32; the other drivers use only the
-Arduino API.
+Dependencies point one way, from sketches to drivers to the core. Drivers reach the hardware only through the pin
+interfaces in `lib/`, so a driver runs on any pin that gives the output it needs, and the sketch picks the pin. A few
+drivers call ESP-IDF directly and build only for ESP32; the rest use only the Arduino API.
