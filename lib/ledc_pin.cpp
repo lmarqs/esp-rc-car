@@ -5,8 +5,6 @@
 #include <esp32-hal-ledc.h>
 #include <soc/soc_caps.h>
 
-namespace {
-
 #ifdef SOC_LEDC_SUPPORT_HS_MODE
 const uint8_t CHANNEL_COUNT = SOC_LEDC_CHANNEL_NUM * 2;
 #else
@@ -25,15 +23,15 @@ struct ChannelPair {
   uint8_t usedChannels;
 };
 
-ChannelPair pairs[PAIR_COUNT];
+static ChannelPair pairs[PAIR_COUNT];
 
-int8_t takeChannel(uint8_t pair) {
+static int8_t takeChannel(uint8_t pair) {
   uint8_t offset = pairs[pair].usedChannels & 1 ? 1 : 0;
   pairs[pair].usedChannels |= 1 << offset;
   return pair * 2 + offset;
 }
 
-int8_t allocateChannel(uint32_t frequency, uint8_t resolution) {
+static int8_t allocateChannel(uint32_t frequency, uint8_t resolution) {
   for (uint8_t pair = 0; pair < PAIR_COUNT; pair++) {
     ChannelPair& p = pairs[pair];
     if (p.usedChannels && p.usedChannels != BOTH_CHANNELS && p.frequency == frequency && p.resolution == resolution) {
@@ -52,9 +50,7 @@ int8_t allocateChannel(uint32_t frequency, uint8_t resolution) {
   return -1;
 }
 
-void releaseChannel(int8_t channel) { pairs[channel / 2].usedChannels &= ~(1 << (channel % 2)); }
-
-}  // namespace
+static void releaseChannel(int8_t channel) { pairs[channel / 2].usedChannels &= ~(1 << (channel % 2)); }
 
 int8_t ledcReserveTimer() {
   for (uint8_t timer = 0; timer < TIMERS_PER_GROUP; timer++) {
