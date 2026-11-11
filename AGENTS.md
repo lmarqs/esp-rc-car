@@ -56,7 +56,8 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 - Tests: none
 - Settings: `.env` (gitignored, loaded by mise), arduino-cli in `arduino-cli.yaml`, board profile in `sketch.yaml`;
   no secrets yet
-- Decisions and domain rules: none
+- How the parts fit and coding standards: `docs/`, by the map in `docs/README.md`; write and review pages with the
+  `docs-layout` skill
 - A mise task: an executable file at `.mise/tasks/<namespace>/<task>`, run as `mise run <namespace>:<task>`.
 - A procedure an agent repeats: a skill in `.agents/skills/`.
 - A trap in one area: `.agents/memory/`, listed under Deep dive.
@@ -80,6 +81,7 @@ At most five traps any task can hit.
 
 ## Deep dive (read on demand)
 
+- How the sketches, `lib/` and the core fit together: `docs/architecture.md`.
 - Changing what agents may run, or how Claude or Codex is wired: the `agents-layout` skill and `.agents/README.md`.
 <!-- cook:begin io.github.lmarqs.cookbook:git#worktrees/worktrees -->
 <!-- io.github.lmarqs.cookbook:git#worktrees --instructions=AGENTS.md --instructions=README.md -->

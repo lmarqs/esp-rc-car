@@ -58,8 +58,8 @@ The drivers in `lib/`:
 | `camera*` | The camera of an AI Thinker ESP32-CAM |
 | `web_server.*` | An HTTP and WebSocket server on the ESP-IDF `httpd` |
 
-Code that builds only on ESP32 is wrapped in `#ifdef ESP32`. `.clang-format` sets the style; apply it with
-`mise exec -- clang-format -i <file>`.
+[docs/](docs/README.md) explains [how the parts fit](docs/architecture.md) and the [standards](docs/standards/README.md)
+the code follows. `.clang-format` sets the layout; apply it with `mise exec -- clang-format -i <file>`.
 
 ## Hardware
 
