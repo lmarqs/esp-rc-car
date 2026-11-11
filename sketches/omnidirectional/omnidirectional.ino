@@ -7,7 +7,7 @@
 #include <pin.h>
 
 #include "./car.h"
-#include "./controller.h"
+#include "./wheel_mixer.h"
 
 DigitalOutPin led(2);
 CarPilot pilot;
@@ -42,19 +42,7 @@ void receiveEventHandler(int len) {
 }
 
 void move(int32_t axisLX, int32_t axisLY, int32_t axisRX, int32_t axisRY) {
-  axisLX = hardcapControllerAxisValue(ignoreControllerAxisDeathZone(axisLX));
-  axisLY = hardcapControllerAxisValue(ignoreControllerAxisDeathZone(axisLY));
-  axisRX = hardcapControllerAxisValue(ignoreControllerAxisDeathZone(axisRX));
-  axisRY = hardcapControllerAxisValue(ignoreControllerAxisDeathZone(axisRY));
-
-  int32_t normalL = hardcapControllerAxisValue(sqrt((axisLX * axisLX) + (axisLY * axisLY)));
-  int32_t normalR = hardcapControllerAxisValue(sqrt((axisRX * axisRX) + (axisRY * axisRY)));
-
-  pilot.calculateRotation(axisLX, axisLY, normalL);
-
-  pilot.calculateTranslation(axisRX, axisRY, normalR);
-
-  pilot.drive();
+  pilot.drive(mixWheels({axisLX, axisLY}, {axisRX, axisRY}));
 }
 
 void setup() {
