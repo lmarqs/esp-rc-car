@@ -2,11 +2,9 @@
 
 #include <math.h>
 
-namespace {
-
 const int32_t DEAD_ZONE = 62;
 
-int32_t clampToStickMax(int32_t value) {
+static int32_t clampToStickMax(int32_t value) {
   if (value > STICK_MAX) {
     return STICK_MAX;
   }
@@ -18,7 +16,7 @@ int32_t clampToStickMax(int32_t value) {
   return value;
 }
 
-int32_t shapeAxis(int32_t value) {
+static int32_t shapeAxis(int32_t value) {
   if (value < DEAD_ZONE && value > -DEAD_ZONE) {
     return 0;
   }
@@ -35,7 +33,7 @@ struct Contribution {
  * Wheels a and b turn together, as do wheels c and d. Rotation and translation differ only in how the four wheels
  * pair up.
  */
-Contribution contribution(Stick stick, int a, int b, int c, int d) {
+static Contribution contribution(Stick stick, int a, int b, int c, int d) {
   int32_t x = shapeAxis(stick.x);
   int32_t y = shapeAxis(stick.y);
   int32_t magnitude = clampToStickMax(sqrt((x * x) + (y * y)));
@@ -66,8 +64,6 @@ Contribution contribution(Stick stick, int a, int b, int c, int d) {
 
   return result;
 }
-
-}  // namespace
 
 WheelSpeeds mixWheels(Stick rotation, Stick translation) {
   Contribution r = contribution(rotation, 0, 3, 1, 2);

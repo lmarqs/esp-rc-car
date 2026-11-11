@@ -66,6 +66,7 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 - The repository has no tests yet: report how a behavior change was checked, by the Done check or a run on the
   board.
 - Comments record only reasons the code cannot show.
+- Sketches use no namespaces; a helper private to its file is `static`.
 - Change only what the task needs, matching the surrounding code.
 - Format with `.clang-format`. Wrap a file that builds only on ESP32 in `#ifdef ESP32`, as `lib/ledc_pin.h`
   does.
