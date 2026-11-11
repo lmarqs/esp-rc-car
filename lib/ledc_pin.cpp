@@ -74,6 +74,12 @@ int8_t ledcReserveTimer() {
   return -1;
 }
 
+void ledcReleaseTimer(int8_t timer) {
+  for (uint8_t pair = timer; pair < PAIR_COUNT; pair += TIMERS_PER_GROUP) {
+    pairs[pair].usedChannels = 0;
+  }
+}
+
 EspLedcOutPin::EspLedcOutPin(uint8_t pin, uint32_t frequency, uint8_t resolution) {
   this->pin = pin;
   this->requestedFrequency = frequency;

@@ -62,6 +62,7 @@ bool EspCamera::begin() {
 
   if (err != ESP_OK) {
     Serial.printf("Camera init failed with error 0x%x\n", err);
+    ledcReleaseTimer(xclkTimer);
     return false;
   }
 

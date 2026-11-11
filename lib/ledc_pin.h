@@ -31,4 +31,7 @@ class EspLedcOutPin : public PwmOutPin {
  * when every timer drives a channel already.
  */
 int8_t ledcReserveTimer();
+
+/** Frees a timer that ledcReserveTimer() returned, with every channel it reserved. */
+void ledcReleaseTimer(int8_t timer);
 #endif
