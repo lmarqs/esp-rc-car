@@ -65,11 +65,9 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 
 - The repository has no tests yet: report how a behavior change was checked, by the Done check or a run on the
   board.
-- Comments record only reasons the code cannot show.
-- No namespaces; a helper private to its file is `static`.
+- Write C++ by [the C++ standards](docs/standards/cpp-sources.md).
 - Change only what the task needs, matching the surrounding code.
-- Format with `.clang-format`. Wrap a file that builds only on ESP32 in `#ifdef ESP32`, as `lib/ledc_pin.h`
-  does.
+- Format with `.clang-format`.
 - Commits: one change per commit, pushed straight to `main`; no pull requests
 - Deploy: none
 
@@ -79,7 +77,6 @@ At most five traps any task can hit.
 
 - Upload only to a port `arduino-cli board list` shows; with none listed, ask the developer to connect the board.
   Leave `arduino:monitor` to the developer: it streams until stopped.
-- Name each `lib/` header apart from every core header: one named `esp_camera.h` would shadow `<esp_camera.h>`.
 
 ## Deep dive (read on demand)
 
