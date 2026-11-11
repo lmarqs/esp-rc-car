@@ -29,46 +29,33 @@ FullHBridge motor4(&pwm4, &in14, &in24);
 
 class CarPilot {
  private:
-  FullHBridge* motors;
-
-  size_t motors_len;
+  FullHBridge* motors[4] = {&motor1, &motor2, &motor3, &motor4};
 
  public:
-  CarPilot() {
-    motors = new FullHBridge[4]{
-        motor1,
-        motor2,
-        motor3,
-        motor4,
-    };
-
-    motors_len = 4;
-  }
-
   void begin() {
-    for (size_t i = 0; i < motors_len; i++) {
-      motors[i].begin();
+    for (FullHBridge* motor : motors) {
+      motor->begin();
     }
   }
 
   void stop() {
-    for (size_t i = 0; i < motors_len; i++) {
-      motors[i].stop();
+    for (FullHBridge* motor : motors) {
+      motor->stop();
     }
   }
 
   void drive(const WheelSpeeds& speeds) {
     int32_t maxMotorsValue = PwmOutPin::DUTY_MAX * 4 / 5;
 
-    for (size_t i = 0; i < motors_len; i++) {
+    for (size_t i = 0; i < 4; i++) {
       int32_t speed = speeds.values[i];
 
       if (speed >= 0) {
         uint32_t normal = map(+speed, 0, STICK_MAX, 0, maxMotorsValue);
-        motors[i].forward(normal);
+        motors[i]->forward(normal);
       } else {
         uint32_t normal = map(-speed, 0, STICK_MAX, 0, maxMotorsValue);
-        motors[i].backward(normal);
+        motors[i]->backward(normal);
       }
     }
   }
