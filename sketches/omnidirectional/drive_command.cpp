@@ -13,8 +13,8 @@ bool DriveCommandSource::latest(uint32_t nowMs, DriveCommand* command) {
   for (int origin = 0; origin < ORIGIN_COUNT; origin++) {
     const Slot& slot = slots[origin];
 
-    // Unsigned subtraction keeps the age right when millis() wraps.
-    if (slot.received && nowMs - slot.receivedMs <= timeoutMs) {
+    // A signed age stays right when millis() wraps, and counts as fresh a command another task stamped after nowMs.
+    if (slot.received && (int32_t)(nowMs - slot.receivedMs) <= (int32_t)timeoutMs) {
       *command = slot.command;
       return true;
     }
