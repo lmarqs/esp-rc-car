@@ -8,10 +8,11 @@ Python 3.10, uv 0.11.25 and the-cook 11.0.2 (`mise.toml`); pyserial 3.5 (`pyproj
 
 ## Quick reference
 
-- Install or add a dependency: `mise install`; a Python package: `uv add <package>` (unverified); a core or Arduino
-  library: add it to the sketch's `sketch.yaml` profile (unverified)
+- Install or add a dependency: `mise install && mise exec -- uv sync --locked`, which esptool needs; a Python
+  package: `uv add <package>` (unverified); a core or Arduino library: add it to the sketch's `sketch.yaml` profile
+  (unverified)
 - Run: `mise run arduino:run <sketch> --port <port>` (unverified)
-- Build: `mise run arduino:compile <sketch>` (unverified)
+- Build: `mise run arduino:compile <sketch>`, such as `sketches/blink`
 - Test one file: none
 - Lint or format one file: `clang-format -i <file>` (unverified)
 - Generate code: `mise run arduino:hexdump <sketch>`, which turns each file in `<sketch>/data` into a C header
@@ -19,9 +20,9 @@ Python 3.10, uv 0.11.25 and the-cook 11.0.2 (`mise.toml`); pyserial 3.5 (`pyproj
 - Local services: none
 - Worktrees: `git worktree add .worktrees/<branch> -b <branch> && (cd .worktrees/<branch> && .worktrees/setup)`;
   remove with `(cd .worktrees/<branch> && .worktrees/teardown) && git worktree remove .worktrees/<branch>`
-- Quick check, seconds on what changed: the Build command for the sketch the change touches (unverified)
-- Done check, all that must pass before a change is done: the Build command for every sketch; no services needed
-  (unverified)
+- Quick check, seconds on what changed: the Build command for the sketch the change touches
+- Done check, all that must pass before a change is done: the Build command for every sketch in `sketches/`;
+  no services needed
 
 ## Boundaries
 
@@ -47,7 +48,7 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 ## Where things go
 
 - New code: reusable drivers in `lib/`, which a sketch's `sketch.yaml` lists under `libraries`; each sketch in its
-  own folder with a `sketch.yaml`; no design document
+  own folder under `sketches/` with a `sketch.yaml`; no design document
 - Tests: none
 - Settings: `.env` (gitignored, loaded by mise), arduino-cli in `arduino-cli.yaml`, board profile in `sketch.yaml`;
   no secrets yet
@@ -69,8 +70,7 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 
 At most five traps any task can hit.
 
-- `mise run setup` fails: `uv sync --locked` needs a `uv.lock`, and where `.env` is missing it copies
-  `.env.example`; neither file is committed.
+- `mise run setup` fails where `.env` is missing: it copies `.env.example`, which is not committed.
 - `arduino:upload`, `arduino:monitor` and `arduino:run` run `sudo chmod` on the port, so they wait for a password.
 - A header named like a system header shadows it: `lib/camera.h` is not `esp_camera.h` for that reason.
 
