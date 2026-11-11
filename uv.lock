@@ -12,7 +12,7 @@ wheels = [
 ]
 
 [[package]]
-name = "robomania"
+name = "rc-car"
 version = "0.0.0"
 source = { virtual = "." }
 dependencies = [
