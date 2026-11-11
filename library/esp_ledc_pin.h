@@ -1,5 +1,6 @@
 #pragma once
 
+#ifdef ESP32
 #include <Arduino.h>
 #include "pin.h"
 
@@ -15,3 +16,4 @@ class EspLedcOutPin : public OutPin {
   void begin();
   void write(uint32_t value);
 };
+#endif
