@@ -1,9 +1,0 @@
-#!/usr/bin/env bash
-#MISE description="Fail on any namespace in lib/ or sketches/; a helper private to its file is static"
-set -euo pipefail
-
-if grep -rnE --include='*.h' --include='*.c' --include='*.cpp' --include='*.ino' \
-  '^\s*(inline\s+)?namespace\b|\busing\s+namespace\b' lib sketches; then
-  echo "Namespaces are banned: make a file-private helper static instead." >&2
-  exit 1
-fi

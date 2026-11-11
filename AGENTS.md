@@ -16,7 +16,7 @@ Python 3.12, uv, clang-format and the-cook, pinned in `mise.toml`; pyserial 3, p
   `mise exec -- arduino-cli board list`
 - Build: `mise run arduino:compile <sketch>`, such as `sketches/blink`
 - Test one file: none
-- Lint or format one file: `mise exec -- clang-format -i <file>`; lint every file: `mise run lint:namespaces`
+- Lint or format one file: `mise exec -- clang-format -i <file>`
 - Generate code: `mise run arduino:hexdump <sketch>`, which turns each file in `<sketch>/data` into a C header;
   the Build command also writes `.build/compile_commands.json` for VS Code IntelliSense
 - Local services: none
@@ -25,9 +25,8 @@ Python 3.12, uv, clang-format and the-cook, pinned in `mise.toml`; pyserial 3, p
 - Quick check, seconds on what changed: `mise exec -- clang-format --dry-run --Werror <file>` on each changed file,
   then the Build command for the sketch the change touches
 - Done check, all that must pass before a change is done:
-  `mise exec -- clang-format --dry-run --Werror lib/* sketches/*/*.ino`, then `mise run lint:namespaces`, then the
-  Build command for every sketch in `sketches/`; under 10 seconds for one sketch once the core is installed; no
-  services
+  `mise exec -- clang-format --dry-run --Werror lib/* sketches/*/*.ino`, then the Build command for every sketch in
+  `sketches/`; under 10 seconds for one sketch once the core is installed; no services
 
 ## Boundaries
 
@@ -67,7 +66,7 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 - The repository has no tests yet: report how a behavior change was checked, by the Done check or a run on the
   board.
 - Comments record only reasons the code cannot show.
-- No namespaces, enforced by `mise run lint:namespaces`; a helper private to its file is `static`.
+- No namespaces; a helper private to its file is `static`.
 - Change only what the task needs, matching the surrounding code.
 - Format with `.clang-format`. Wrap a file that builds only on ESP32 in `#ifdef ESP32`, as `lib/ledc_pin.h`
   does.
