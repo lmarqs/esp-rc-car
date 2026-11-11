@@ -1,16 +1,9 @@
 name: Website
 
+# A push to main releases a new site version when any of its commit messages contains #release.
 on:
   push:
     branches: [main]
-    paths:
-      - site/**
-      - lib/**
-      - package.json
-      - pnpm-lock.yaml
-      - mise.toml
-      - .mise/tasks/site/**
-      - .github/workflows/site.yaml
   workflow_dispatch:
 
 permissions:
@@ -24,6 +17,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name == 'workflow_dispatch' || contains(join(github.event.commits.*.message, ' '), '#release')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
