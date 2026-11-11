@@ -3,8 +3,8 @@
 Firmware for an ESP32 RC car: drivers in `lib/` and sketches in `sketches/`. The [README](README.md) says what is
 built so far and how to build and flash it.
 
-Stack: C++ on the Arduino `esp32-bluepad32:esp32` 4.1.0 core (each sketch's `sketch.yaml`); arduino-cli 1.6.0,
-Python 3.12, uv 0.11.25, clang-format 23.1.5 and the-cook 11.0.2 (`mise.toml`); pyserial 3.5 (`pyproject.toml`).
+Stack: C++ on the Arduino `esp32-bluepad32:esp32` 4 core, pinned in each sketch's `sketch.yaml`; arduino-cli 1,
+Python 3.12, uv, clang-format and the-cook, pinned in `mise.toml`; pyserial 3, pinned in `pyproject.toml`.
 
 ## Quick reference
 
@@ -71,12 +71,13 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 
 At most five traps any task can hit.
 
-- `arduino:upload`, `arduino:monitor` and `arduino:run` run `sudo chmod` on the port, so they wait for a password.
-- A header named like a system header shadows it: `lib/camera.h` is not `esp_camera.h` for that reason.
+- Leave `arduino:upload`, `arduino:monitor` and `arduino:run` to the developer: each runs `sudo chmod` on the port
+  and waits for a password.
+- Name each `lib/` header apart from every core header: one named `esp_camera.h` would shadow `<esp_camera.h>`.
 
 ## Deep dive (read on demand)
 
-- The agents layout, permissions and harness setup: `.agents/README.md` and the `agents-layout` skill.
+- Changing what agents may run, or how Claude or Codex is wired: the `agents-layout` skill and `.agents/README.md`.
 <!-- cook:begin io.github.lmarqs.cookbook:git#worktrees/worktrees -->
 <!-- io.github.lmarqs.cookbook:git#worktrees --instructions=AGENTS.md --instructions=README.md -->
 - Worktrees: branch `<branch>` is checked out at `.worktrees/<branch>`; `.worktrees/README.md` says how to
