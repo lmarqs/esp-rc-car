@@ -7,3 +7,13 @@ set -eu
 # The main checkout, where untracked files such as .env live:
 # main=$(git worktree list --porcelain | sed -n '1s/^worktree //p')
 # cp "$main/.env" .env
+
+main=$(git worktree list --porcelain | sed -n '1s/^worktree //p')
+if [ -f "$main/.env" ] && [ ! -e .env ]; then
+  cp "$main/.env" .env
+fi
+
+mise trust --quiet mise.toml
+mise install
+# mise creates .venv only when it loads the environment, which `mise install` does not do.
+mise exec -- true
