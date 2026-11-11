@@ -10,9 +10,8 @@ a sketch is in the [README](../README.md); what agents run and must not do is in
 ## Kinds
 
 **[Architecture](architecture.md)**: how the sketches, the drivers in `lib/` and the ESP32 core fit together: which
-driver depends on which interface, which drivers share a peripheral, and how a sketch's input reaches its motors. A
-fact belongs here when no single file shows it. A good page lets a reader go from a part's name to its directory and
-see what it depends on.
+interface each driver takes its pins through, and which drivers build only for ESP32. A fact belongs here when no
+single file shows it. A good page lets a reader go from a part's name to its directory and see what it depends on.
 
 **[Standards](standards/README.md)**: practices every file of one sort follows where no check enforces them, such as
 how a `lib/` header is named. A fact belongs here when it constrains code someone writes, everywhere they write it.
@@ -26,10 +25,10 @@ for each. Why the hardware behaves so belongs on the other kinds' pages.
 
 ## Where a fact goes
 
-The kind is the question a reader brings to a fact, not the fact's subject. Take the LEDC peripheral: that the
-camera's clock and the PWM pins draw on one allocator in `lib/ledc_pin.cpp` is architecture, since no one file shows
-both users; that `lib/ledc_pin.h` is wrapped in `#ifdef ESP32` follows a standard every ESP32-only file meets; what
-`EspLedcOutPin::begin()` does belongs in the doc comment in its header, on no page. Likewise GPIO 12: that the
+The kind is the question a reader brings to a fact, not the fact's subject. Take the LEDC pin: that
+`EspLedcOutPin` is the `PwmOutPin` every PWM driver runs on is architecture, since no one file shows the drivers and
+the pin together; that `lib/ledc_pin.h` is wrapped in `#ifdef ESP32` follows a standard every ESP32-only file meets;
+what `EspLedcOutPin::begin()` does belongs in the doc comment in its header, on no page. Likewise GPIO 12: that the
 ESP32 reads it at reset is the datasheet's to state; that a motor driver holding it high stops the boot, and what
 to do then, is a runbook.
 
