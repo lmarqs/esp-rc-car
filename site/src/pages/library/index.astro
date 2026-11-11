@@ -1,0 +1,52 @@
+---
+import Base from '../../layouts/Base.astro';
+
+// The headers are read from the repository's lib/ at build time, so this page always shows the current code.
+const headers = import.meta.glob<string>('../../../../lib/*.h', { query: '?raw', import: 'default', eager: true });
+const purpose: Record<string, string> = {
+  'pin.h': 'The kinds of pin output a driver can ask for: a level, or a PWM signal.',
+  'digital_pin.h': 'A GPIO pin set high or low through the Arduino API.',
+  'analog_pin.h': 'A PWM pin through the Arduino API.',
+  'ledc_pin.h': 'A PWM pin through the ESP32 LEDC peripheral, on a channel it allocates.',
+  'h_bridge.h': 'A motor through a full or half H-bridge.',
+  'servo.h': 'A positional (180°) or continuous-rotation (360°) hobby servo on a PWM pin.',
+  'camera.h': 'The camera of an AI Thinker ESP32-CAM.',
+  'camera_pins.h': 'The pins the AI Thinker ESP32-CAM wires its camera to.',
+  'web_server.h': 'An HTTP and WebSocket server on the ESP-IDF httpd.',
+};
+const files = Object.entries(headers)
+  .map(([path, source]) => ({ name: path.split('/').pop()!, source }))
+  .sort((a, b) => a.name.localeCompare(b.name));
+const repo = 'https://github.com/lmarqs/robomania/blob/main/lib/';
+---
+
+<Base title="Library" description="The drivers every Robomania project builds with, straight from the repository's lib/ folder.">
+  <h1>Library</h1>
+  <p class="prose">
+    Every project builds with the same drivers, from the repository's <code>lib/</code> folder. A sketch says which
+    device sits on which pin; the drivers do the talking to the hardware. Below is each driver's header, the part a
+    sketch uses, exactly as it is in the code today.
+  </p>
+  {
+    files.map((f) => (
+      <section>
+        <h2 id={f.name}>
+          <code>{f.name}</code>
+        </h2>
+        <p class="prose">
+          {purpose[f.name] ?? ''} <a href={repo + f.name}>Open on GitHub</a>
+        </p>
+        <details>
+          <summary>Show the header</summary>
+          <pre><code>{f.source}</code></pre>
+        </details>
+      </section>
+    ))
+  }
+</Base>
+
+<style>
+  summary { cursor: pointer; font-weight: 700; }
+  section h2 { margin-top: 36px; }
+  section h2 code { font-size: 22px; }
+</style>
