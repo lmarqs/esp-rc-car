@@ -55,7 +55,7 @@ The drivers in `lib/`:
 | Files | Drives |
 | --- | --- |
 | `pin.h`, `digital_pin.*`, `analog_pin.*` | GPIO pins through the Arduino API |
-| `ledc_pin.*` | A PWM pin through the ESP32 LEDC peripheral |
+| `ledc_pin.*` | A PWM pin through the ESP32 LEDC peripheral, on a channel it allocates |
 | `h_bridge.*` | A motor through a full or half H-bridge |
 | `servo.*` | A positional (180°) or continuous-rotation (360°) hobby servo on a PWM pin |
 | `camera*` | The camera of an AI Thinker ESP32-CAM |

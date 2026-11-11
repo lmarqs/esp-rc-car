@@ -2,7 +2,7 @@
 #include <ledc_pin.h>
 #include <servo.h>
 
-EspLedcOutPin servoPin(13, 0, 50, 16);
+EspLedcOutPin servoPin(13, 50, 16);
 PositionalServo servo(&servoPin);
 
 void setup() { servo.begin(); }

@@ -5,16 +5,21 @@
 
 #include "pin.h"
 
+/**
+ * A PWM pin on the ESP32 LEDC peripheral. begin() picks the channel: one whose timer is free or already runs at the
+ * same frequency and resolution, counting up from channel 0. analogWrite() takes its channels from the top down
+ * without telling this allocator, so the two meet only when the channels run out.
+ */
 class EspLedcOutPin : public PwmOutPin {
  private:
   uint8_t pin;
-  uint8_t channel;
+  int8_t channel = -1;
   uint32_t requestedFrequency;
   uint32_t actualFrequency = 0;
   uint8_t resolution;
 
  public:
-  EspLedcOutPin(uint8_t pin, uint8_t channel, uint32_t frequency, uint8_t resolution);
+  EspLedcOutPin(uint8_t pin, uint32_t frequency, uint8_t resolution);
   bool begin();
   void write(uint16_t duty);
   uint32_t frequency();
