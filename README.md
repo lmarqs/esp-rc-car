@@ -15,11 +15,11 @@ Python, uv and clang-format. From the repository root:
 
 ```sh
 mise install
-mise run setup
+mise run '*:setup'
 mise run arduino:compile sketches/blink
 ```
 
-`mise run setup` installs pyserial into `.venv`: every compile runs the core's esptool, which fails without it. The
+`mise run '*:setup'` installs pyserial into `.venv`: every compile runs the core's esptool, which fails without it. The
 first compile also downloads the ESP32 core into `.arduino/`. `mise tasks` lists every task.
 
 ## Edit in VS Code

@@ -8,7 +8,7 @@ Python 3.12, uv, clang-format and the-cook, pinned in `mise.toml`; pyserial 3, p
 
 ## Quick reference
 
-- Install or add a dependency: `mise install && mise run setup`, [Build a sketch](README.md#build-a-sketch) says
+- Install or add a dependency: `mise install && mise run '*:setup'`, [Build a sketch](README.md#build-a-sketch) says
   why; a Python package: `uv add <package>` (unverified); a core or Arduino library: add it to the sketch's
   `sketch.yaml` profile (unverified)
 - Run: `mise run arduino:run <sketch> --port <port>` (unverified)

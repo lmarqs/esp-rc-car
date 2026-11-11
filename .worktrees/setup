@@ -15,4 +15,4 @@ fi
 
 mise trust --quiet mise.toml
 mise install
-mise run setup
+mise run '*:setup'
