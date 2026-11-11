@@ -4,7 +4,7 @@ Firmware for an ESP32 RC car: drivers in `lib/` and sketches in `sketches/`. The
 built so far and how to build and flash it.
 
 Stack: C++ on the Arduino `esp32-bluepad32:esp32` 4.1.0 core (each sketch's `sketch.yaml`); arduino-cli 1.6.0,
-Python 3.10, uv 0.11.25, clang-format 23.1.5 and the-cook 11.0.2 (`mise.toml`); pyserial 3.5 (`pyproject.toml`).
+Python 3.12, uv 0.11.25, clang-format 23.1.5 and the-cook 11.0.2 (`mise.toml`); pyserial 3.5 (`pyproject.toml`).
 
 ## Quick reference
 
