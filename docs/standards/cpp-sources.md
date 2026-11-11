@@ -1,11 +1,11 @@
 ---
 description: Sets how C++ files in lib/ and the sketches name headers, hide helpers, guard ESP32-only code and use comments.
-audience: Whoever writes or reviews a .h, .cpp or .ino file in lib/ or sketches/
+audience: Whoever writes or reviews a .h, .cpp or .ino file in lib/ or sketches/; knows C++ and Arduino
 ---
 # C++ sources
 
-Every `.h`, `.cpp` and `.ino` file in `lib/` and `sketches/` follows these. `.clang-format` sets the layout, and the
-Done check in [AGENTS.md](../../AGENTS.md) enforces it.
+Every `.h`, `.cpp` and `.ino` file in `lib/` and `sketches/` follows the rules below. `.clang-format` sets the
+layout, and the Done check in [AGENTS.md](../../AGENTS.md) enforces it.
 
 - A file MUST NOT declare a namespace or use `using namespace`, and a helper only its own file uses MUST be `static`.
   The drivers and sketches are small, so a namespace adds nesting and separates nothing. `static` keeps the helper

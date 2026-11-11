@@ -1,13 +1,15 @@
 ---
 description: Maps the parts of the esp-rc-car firmware, what each is for, and which way they depend on each other.
-audience: Whoever adds a driver or a sketch, or changes how they connect
+audience: Whoever adds a driver or a sketch, or changes how they connect; knows Arduino sketches and libraries
 ---
 # Architecture
 
-The firmware has three parts:
+The firmware has four parts:
 
 - **Sketches**, in `sketches/<name>/`: each is one firmware image, for one robot or for trying one driver on a board.
   A sketch says which device sits on which pin, and holds its robot's control logic.
+- **Pin interfaces**, in `lib/`: the kinds of pin output a driver can ask for, such as a level or a PWM signal, each
+  with a class per way the ESP32 produces it.
 - **Drivers**, in `lib/`: one library that every sketch builds with. Each driver runs one sort of device, such as a
   motor, a servo or a camera, or serves one protocol. The [README](../README.md#code-layout) lists them.
 - **Core**: the Bluepad32 ESP32 Arduino core that each sketch's `sketch.yaml` pins. It gives the Arduino API,
@@ -22,6 +24,7 @@ flowchart TD
   drivers --> core
 ```
 
-Dependencies point one way, from sketches to drivers to the core. Drivers reach the hardware only through the pin
-interfaces in `lib/`, so a driver runs on any pin that gives the output it needs, and the sketch picks the pin. A few
-drivers call ESP-IDF directly and build only for ESP32; the rest use only the Arduino API.
+Dependencies point one way: sketches depend on drivers, pin interfaces and the core, and drivers on pin interfaces
+and the core; nothing in `lib/` depends on a sketch. Drivers reach the hardware only through the pin interfaces, so a
+driver runs on any pin that gives the output it needs. A few drivers call ESP-IDF directly and build only for ESP32;
+the rest use only the Arduino API.

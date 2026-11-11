@@ -5,18 +5,18 @@ keywords: gamepad, Bluepad32, I2C, 0x01, failsafe, dead zone
 ---
 # Omnidirectional
 
-The `sketches/omnidirectional` robot drives four wheels from two sticks: the left stick turns it, the right stick
-moves it in any direction. It follows a Bluetooth gamepad or, when none is connected, an I2C master, and it stops
-when neither has sent a command for 500 ms, so a robot whose input goes quiet does not drive on with its last
-command.
+The robot that runs `sketches/omnidirectional` drives four wheels from two sticks: the left stick turns it, the
+right stick moves it in any direction. It follows a Bluetooth gamepad or, when none is connected, an I2C master, and
+it stops when neither has sent a command for 500 ms, so a robot whose input goes quiet does not drive on with its
+last command.
 
 ## Sticks
 
-- Each axis runs from -512 to 512; a larger value counts as 512. A value under 62, about 12% of the travel, counts
-  as zero, so a stick at rest does not creep.
+- Each axis runs from -512 to 512, and a value beyond either end counts as that end. A value within 62 of zero,
+  about 12% of the travel, counts as zero: this dead zone keeps a stick at rest from creeping.
 - Pushing both sticks blends turning and moving, each in proportion to how far its stick is pushed: the left stick
   at half travel and the right at full give one third turning and two thirds moving.
-- A wheel at full speed runs its motor at 80% of full power.
+- A wheel at full speed drives its motor at an 80% PWM duty cycle.
 
 ## Inputs
 
@@ -26,9 +26,9 @@ command.
   `int32_t` values, the left stick's x and y, then the right stick's x and y. A write of any other length is
   dropped.
 - **Which it follows.** The gamepad's command, while it has one from the last 500 ms; otherwise the I2C master's.
-  When the gamepad disconnects, its command is dropped at once and the I2C master's takes over.
+  When the gamepad disconnects, its command is dropped at once, and an I2C command from the last 500 ms takes over.
 
-## Signals
+## LED
 
 The LED on GPIO 2 blinks once a second while no gamepad is connected, and stays lit while one is.
 

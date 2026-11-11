@@ -39,3 +39,5 @@ command has come for 500 ms belongs on its sketch's page; that the LEDC pin driv
 - How to build or flash a sketch, written into a page. It belongs in the README, or in AGENTS.md when only agents
   need it.
 - A practice that clang-format or the build already enforces. The check is its owner.
+
+To write or review a page, run the `docs-layout` skill, such as `/docs-layout sketches servo` in Claude Code.
