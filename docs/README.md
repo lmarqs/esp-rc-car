@@ -13,10 +13,10 @@ a sketch is in the [README](../README.md); what agents run and must not do is in
 other. A fact belongs here when no single file shows it. A good page names each part with its directory and shows
 the dependencies; it names no class, function or constant, since those are implementation and the code holds them.
 
-**[Features](features/README.md)**: what a robot does for whoever drives or commands it, one page per unit of
-behavior. A fact belongs here when it states what the robot owes its user and reading the code would not tell them:
-a threshold, a rule, a timeout. A good page opens with what the unit does and why, follows its inputs, signals and
-outputs, and names what it does not handle, each with its workaround.
+**[Sketches](sketches/README.md)**: what each sketch does for whoever runs it, one page per sketch, named after its
+directory. A fact belongs here when it states what the sketch owes its user and reading the code would not tell them:
+a pin, a threshold, a timeout. A good page opens with what the sketch is for and why, follows its inputs, signals
+and outputs, and names what it does not handle, each with its workaround.
 
 **[Standards](standards/README.md)**: practices every file of one sort follows where no check enforces them, such as
 how a `lib/` header is named. A fact belongs here when it constrains code someone writes, everywhere they write it.
@@ -27,13 +27,13 @@ MUST, SHOULD and MAY. A practice that a check comes to enforce leaves the page, 
 
 The kind is the question a reader brings to a fact, not the fact's subject. Take the omnidirectional robot's
 motors: that sketches reach motors only through the drivers in `lib/` is architecture; that the robot stops when no
-command has come for 500 ms is a feature; that the LEDC pin driving them is wrapped in `#ifdef ESP32` follows a
-standard; how `CarPilot` turns a speed into a duty belongs in the code, on no page.
+command has come for 500 ms belongs on its sketch's page; that the LEDC pin driving them is wrapped in
+`#ifdef ESP32` follows a standard; how `CarPilot` turns a speed into a duty belongs in the code, on no page.
 
 ## Misfilings
 
 - Implementation written into the architecture page. Giveaway: a class, function or constant name. It belongs in
-  the code, or on a feature page when a user relies on it.
+  the code, or on the sketch's page when a user relies on it.
 - One driver's behavior written as a standard. Giveaway: it names one class. It belongs in that header's doc
   comment.
 - How to build or flash a sketch, written into a page. It belongs in the README, or in AGENTS.md when only agents

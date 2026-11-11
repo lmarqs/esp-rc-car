@@ -3,7 +3,7 @@ description: Explains how the omnidirectional robot turns sticks into wheel moti
 audience: Whoever drives the omnidirectional robot, commands it over I2C, or changes its sketch
 keywords: gamepad, Bluepad32, I2C, 0x01, failsafe, dead zone
 ---
-# Omnidirectional driving
+# Omnidirectional
 
 The `sketches/omnidirectional` robot drives four wheels from two sticks: the left stick turns it, the right stick
 moves it in any direction. It follows a Bluetooth gamepad or, when none is connected, an I2C master, and it stops
