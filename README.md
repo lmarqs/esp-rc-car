@@ -25,13 +25,8 @@ first compile also downloads the ESP32 core into `.arduino/`. `mise tasks` lists
 ## Edit in VS Code
 
 `.vscode/` sets up the Microsoft C/C++ extension: IntelliSense reads `.build/compile_commands.json`, and saving a
-C or C++ file formats it with `.clang-format`. Write the database, and again after adding a sketch or a library:
-
-```sh
-mise run vscode:compile-commands
-```
-
-The task merges every sketch's arduino-cli compile database and points each sketch's entry at its `.ino`.
+C or C++ file formats it with `.clang-format`. `arduino:compile` writes the database: it merges the compile database
+of every sketch compiled so far and points each sketch's entry at its `.ino`. Compile a sketch once before editing it.
 
 ## Flash a sketch
 

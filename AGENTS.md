@@ -16,7 +16,7 @@ Python 3.12, uv, clang-format and the-cook, pinned in `mise.toml`; pyserial 3, p
 - Test one file: none
 - Lint or format one file: `mise exec -- clang-format -i <file>`
 - Generate code: `mise run arduino:hexdump <sketch>`, which turns each file in `<sketch>/data` into a C header;
-  `mise run vscode:compile-commands` writes `.build/compile_commands.json` for VS Code IntelliSense
+  the Build command also writes `.build/compile_commands.json` for VS Code IntelliSense
 - Local services: none
 - Worktrees: `git worktree add .worktrees/<branch> -b <branch> && (cd .worktrees/<branch> && .worktrees/setup)`;
   remove with `(cd .worktrees/<branch> && .worktrees/teardown) && git worktree remove .worktrees/<branch>`

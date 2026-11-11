@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-#MISE description="Compile a sketch with its default sketch.yaml profile"
+#MISE description="Compile a sketch with its default sketch.yaml profile and refresh the VS Code compile database"
 #USAGE arg "<sketch>" help="Sketch folder"
 set -euo pipefail
 
 mise run arduino:hexdump "${usage_sketch}"
 arduino-cli compile "${usage_sketch}" --build-path ".build/${usage_sketch}"
+python3 .vscode/merge_compile_commands.py .build/compile_commands.json .build/sketches/*/compile_commands.json
