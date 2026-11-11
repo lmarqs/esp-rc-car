@@ -54,6 +54,25 @@ recipes:
         - ".agents/skills/agents-layout/templates/AGENTS.template.md"
         - ".agents/skills/agents-layout/templates/README.template.md"
         - ".agents/skills/agents-layout/templates/policy.template.yaml"
+  - name: "io.github.lmarqs.cookbook:docs#layout"
+    source: "io.github.lmarqs.cookbook:docs:11.0.2#layout"
+    sha256: "82acf206dbb9a160cc03cb6807fe887eab8d7ff0f9549b02c8c92ab376316f94"
+    arguments:
+      "skills-root": [".agents/skills"]
+    owns:
+      files:
+        - ".agents/skills/docs-layout/SKILL.md"
+        - ".agents/skills/docs-layout/references/adopt.md"
+        - ".agents/skills/docs-layout/references/adr.md"
+        - ".agents/skills/docs-layout/references/api.md"
+        - ".agents/skills/docs-layout/references/architecture.md"
+        - ".agents/skills/docs-layout/references/features.md"
+        - ".agents/skills/docs-layout/references/glossary.md"
+        - ".agents/skills/docs-layout/references/map.md"
+        - ".agents/skills/docs-layout/references/observability.md"
+        - ".agents/skills/docs-layout/references/philosophy.md"
+        - ".agents/skills/docs-layout/references/runbooks.md"
+        - ".agents/skills/docs-layout/references/standards.md"
   - name: "io.github.lmarqs.cookbook:git#worktrees"
     source: "io.github.lmarqs.cookbook:git:11.0.2#worktrees"
     sha256: "f7423fc4a23e095201def4311c844448e8038c33a269028eff185c9a19d86130"
