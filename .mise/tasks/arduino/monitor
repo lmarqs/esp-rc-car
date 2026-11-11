@@ -5,7 +5,6 @@
 #USAGE flag "--describe" help="List the port settings instead of opening it"
 set -euo pipefail
 
-sudo chmod a+rw "${usage_port}"
 if [ "${usage_describe:-false}" = "true" ]; then
   arduino-cli monitor --describe --port "${usage_port}"
 else
