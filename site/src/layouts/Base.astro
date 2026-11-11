@@ -1,0 +1,51 @@
+---
+import '../styles/global.css';
+import Logo from '../components/Logo.astro';
+import { href } from '../lib/href';
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+const fullTitle = title === 'Robomania' ? title : `${title} · Robomania`;
+const path = Astro.url.pathname;
+const links = [
+  { to: '/projects/', label: 'Projects' },
+  { to: '/learn/', label: 'Learn' },
+  { to: '/library/', label: 'Library' },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href={href('/favicon.svg')} />
+    <title>{fullTitle}</title>
+  </head>
+  <body>
+    <header class="wrap">
+      <nav class="site-nav" aria-label="Main">
+        <a class="logo" href={href('/')}><Logo />Robomania</a>
+        {
+          links.map((l) => (
+            <a class="nav-link" href={href(l.to)} aria-current={path.startsWith(href(l.to)) ? 'page' : undefined}>
+              {l.label}
+            </a>
+          ))
+        }
+      </nav>
+    </header>
+    <main class="wrap">
+      <slot />
+    </main>
+    <footer class="wrap site-footer">
+      Robomania is the website of the <a href="https://github.com/lmarqs/robomania">lmarqs/robomania</a> repository,
+      where every project's firmware lives.
+    </footer>
+  </body>
+</html>
