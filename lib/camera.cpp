@@ -9,6 +9,10 @@
 #include "ledc_pin.h"
 
 bool EspCamera::begin() {
+  if (esp_camera_sensor_get()) {
+    return true;
+  }
+
   int8_t xclkTimer = ledcReserveTimer();
 
   if (xclkTimer < 0) {
@@ -16,7 +20,7 @@ bool EspCamera::begin() {
     return false;
   }
 
-  camera_config_t config;
+  camera_config_t config = {};
 
   config.ledc_channel = (ledc_channel_t)(xclkTimer * 2);
   config.ledc_timer = (ledc_timer_t)xclkTimer;
@@ -32,8 +36,8 @@ bool EspCamera::begin() {
   config.pin_pclk = PCLK_GPIO_NUM;
   config.pin_vsync = VSYNC_GPIO_NUM;
   config.pin_href = HREF_GPIO_NUM;
-  config.pin_sscb_sda = SIOD_GPIO_NUM;
-  config.pin_sscb_scl = SIOC_GPIO_NUM;
+  config.pin_sccb_sda = SIOD_GPIO_NUM;
+  config.pin_sccb_scl = SIOC_GPIO_NUM;
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 8000000;
@@ -46,11 +50,7 @@ bool EspCamera::begin() {
   config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
 
   if (psramFound()) {
-    // config.jpeg_quality = 10;
     config.fb_count = 2;
-    // config.fb_location = CAMERA_FB_IN_PSRAM;
-    // config.frame_size = FRAMESIZE_UXGA;
-    // config.grab_mode = CAMERA_GRAB_LATEST;
   }
 
 #if defined(CAMERA_MODEL_ESP_EYE)
