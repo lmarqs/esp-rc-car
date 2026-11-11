@@ -48,7 +48,7 @@ The drivers in `lib/`:
 | `h_bridge.*` | A motor through a full or half H-bridge |
 | `servo.*` | A positional (180°) or continuous-rotation (360°) hobby servo on a PWM pin |
 | `camera*` | The camera of an AI Thinker ESP32-CAM |
-| `esp_web_server.*` | An HTTP and WebSocket server on the ESP-IDF `httpd` |
+| `web_server.*` | An HTTP and WebSocket server on the ESP-IDF `httpd` |
 
 Code that builds only on ESP32 is wrapped in `#ifdef ESP32`. `.clang-format` sets the style; apply it with
 `mise exec -- clang-format -i <file>`.
