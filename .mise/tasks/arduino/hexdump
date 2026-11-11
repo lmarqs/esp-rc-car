@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+#MISE description="Convert files in <sketch>/data into C headers"
+#USAGE arg "<sketch>" help="Sketch folder"
+set -euo pipefail
+
+cd "${usage_sketch}"
+if [ -d data ]; then
+  find data -type f -not -name '*.h' -exec sh -c 'xxd --include "$1" > "$1.h"' _ {} \;
+fi

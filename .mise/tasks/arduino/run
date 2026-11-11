@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+#MISE description="Compile, upload and monitor a sketch"
+#USAGE arg "<sketch>" help="Sketch folder"
+#USAGE flag "-p --port <port>" env="PORT" help="Serial port of the board"
+set -euo pipefail
+
+mise run arduino:compile "${usage_sketch}"
+mise run arduino:upload "${usage_sketch}" --port "${usage_port}"
+mise run arduino:monitor --port "${usage_port}"

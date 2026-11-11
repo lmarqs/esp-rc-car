@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+#MISE description="Open the serial monitor"
+#USAGE flag "-p --port <port>" env="PORT" help="Serial port of the board"
+#USAGE flag "--baudrate <baudrate>" default="9600"
+#USAGE flag "--describe" help="List the port settings instead of opening it"
+set -euo pipefail
+
+sudo chmod a+rw "${usage_port}"
+if [ "${usage_describe:-false}" = "true" ]; then
+  arduino-cli monitor --describe --port "${usage_port}"
+else
+  arduino-cli monitor --config "baudrate=${usage_baudrate}" --port "${usage_port}"
+fi

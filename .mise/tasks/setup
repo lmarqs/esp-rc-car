@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Sync the Python venv used by the board tools"
+set -euo pipefail
+
+uv sync --locked

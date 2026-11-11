@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+#MISE description="Merge every sketch's compile database into .build/compile_commands.json for VS Code IntelliSense"
+set -euo pipefail
+
+for sketch in sketches/*/; do
+  sketch="${sketch%/}"
+  mise run arduino:hexdump "${sketch}"
+  arduino-cli compile "${sketch}" --build-path ".build/${sketch}" --only-compilation-database >/dev/null
+done
+python3 .vscode/merge_compile_commands.py .build/compile_commands.json .build/sketches/*/compile_commands.json

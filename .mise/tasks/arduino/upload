@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#MISE description="Upload a compiled sketch to the board"
+#USAGE arg "<sketch>" help="Sketch folder"
+#USAGE flag "-p --port <port>" env="PORT" help="Serial port of the board"
+set -euo pipefail
+
+sudo chmod a+rw "${usage_port}"
+arduino-cli upload "${usage_sketch}" --input-dir ".build/${usage_sketch}" --port "${usage_port}"

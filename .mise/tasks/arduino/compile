@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Compile a sketch with its default sketch.yaml profile"
+#USAGE arg "<sketch>" help="Sketch folder"
+set -euo pipefail
+
+mise run arduino:hexdump "${usage_sketch}"
+arduino-cli compile "${usage_sketch}" --build-path ".build/${usage_sketch}"
