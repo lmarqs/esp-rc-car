@@ -11,24 +11,30 @@
 >   wrong for this repository.
 > - Run `sh .agents/skills/agents-layout/scripts/check.sh`; when this note is all it reports, delete the note.
 
-# [[fill: project name]]
+# esp-rc-car
 
-[[fill: what this repository is and who uses it, in one or two sentences, with a link to the README]]
+Arduino firmware library for an ESP32 RC car driven through Bluepad32; the [README](README.md) links the chassis
+and the parts it is based on.
 
-Stack: [[fill: each language, framework and service with its major version and the file that pins it]]
+Stack: C++ on the Arduino `esp32-bluepad32:esp32` 4.2.0 core (each sketch's `sketch.yaml`); arduino-cli 1.6.0,
+Python 3.10, uv 0.11.25 and the-cook 11.0.2 (`mise.toml`); pyserial 3.5 (`pyproject.toml`).
 
 ## Quick reference
 
-- Install or add a dependency: [[fill: both commands]]
-- Run: [[fill: command]]
-- Build: [[fill: command]]
-- Test one file: [[fill: command]]
-- Lint or format one file: [[fill: command]]
-- Generate code: [[fill: command, or none]]
-- Local services: [[fill: start and stop commands, or none]]
-- Worktrees: [[fill: where they go, how to create one ready to run and remove one with its data, or none]]
-- Quick check, seconds on what changed: [[fill: command]]
-- Done check, all that must pass before a change is done: [[fill: commands in order, time taken, services needed]]
+- Install or add a dependency: `mise install`; a Python package: `uv add <package>` (unverified); a core or Arduino
+  library: add it to the sketch's `sketch.yaml` profile (unverified)
+- Run: `mise run arduino:run <sketch> --port <port>` (unverified)
+- Build: `mise run arduino:compile <sketch>` (unverified)
+- Test one file: none
+- Lint or format one file: `clang-format -i <file>` (unverified)
+- Generate code: `mise run arduino:hexdump <sketch>`, which turns each file in `<sketch>/data` into a C header
+  (unverified)
+- Local services: none
+- Worktrees: `git worktree add .worktrees/<branch> -b <branch> && (cd .worktrees/<branch> && .worktrees/setup)`;
+  remove with `(cd .worktrees/<branch> && .worktrees/teardown) && git worktree remove .worktrees/<branch>`
+- Quick check, seconds on what changed: the Build command for the sketch the change touches (unverified)
+- Done check, all that must pass before a change is done: the Build command for every sketch; no services needed
+  (unverified)
 
 ## Boundaries
 
@@ -39,25 +45,25 @@ Stack: [[fill: each language, framework and service with its major version and t
 - Update this file in the change that alters a command, path or rule it names.
 - Keep this file under 800 words; past 1,200, move a section into a skill or memory file before adding. All
   `AGENTS.md` files together stay under 16 KiB.
-- [[fill: another rule for every change here, or none]]
 
 **Never**
 
 - Commit secrets or credentials, or put personal data in logs, fixtures or commits.
-- Edit generated files by hand: [[fill: paths, or none]]
+- Edit generated files by hand: `<sketch>/data/*.h`
 - Make a check pass by weakening it: skipping a test, suppressing a warning, loosening an assertion.
 
-**Stop and ask** before [[fill: such as new dependencies, schema changes, rewriting pushed history]], and when a
-check fails again after a fix, a command is refused, or a decision is left open.
+**Stop and ask** before destroying state such as uncommitted work or secrets, and when a check fails again after a
+fix, a command is refused, or a decision is left open.
 
-Enforced by [[fill: the file that makes agent tools refuse these, or none]]. A refusal is the rule working.
+Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 
 ## Where things go
 
-- New code: [[fill: the directory for each kind of code, related repositories, and the design document]]
-- Tests: [[fill: directory and naming, with an example file]]
-- Settings: [[fill: the file a new setting goes in, where secrets live (names only), and which source wins]]
-- Decisions and domain rules: [[fill: directory or document]]
+- New code: reusable drivers in `library/`; each sketch in its own folder with a `sketch.yaml`; no design document
+- Tests: none
+- Settings: `.env` (gitignored, loaded by mise), arduino-cli in `arduino-cli.yaml`, board profile in `sketch.yaml`;
+  no secrets yet
+- Decisions and domain rules: none
 - A procedure an agent repeats: a skill in `.agents/skills/`.
 - A trap in one area: `.agents/memory/`, listed under Deep dive.
 
@@ -66,19 +72,23 @@ Enforced by [[fill: the file that makes agent tools refuse these, or none]]. A r
 - A behavior change ships with a test; a bug fix with one that failed before the fix.
 - Comments record only reasons the code cannot show.
 - Change only what the task needs, matching the surrounding code.
-- [[fill: a convention review enforces, with a file that follows it, or none]]
-- Commits: [[fill: one change per commit; branch, message, pull request and tracker rules]]
-- Deploy: [[fill: what triggers a deploy, where to see it worked, and the rollback runbook, or none]]
+- Format with `.clang-format`. Wrap a file that builds only on ESP32 in `#ifdef ESP32`, as `library/esp_ledc_pin.h`
+  does.
+- Commits: one change per commit, pushed straight to `main`; no pull requests
+- Deploy: none
 
 ## Gotchas
 
 At most five traps any task can hit.
 
-- [[fill: what goes wrong when you do what, and what to do instead]]
+- `mise run setup` fails: `uv sync --locked` needs a `uv.lock`, which is not committed. The `.env.example` it copies
+  holds another project's `LIBRA_*` settings.
+- `arduino:upload`, `arduino:monitor` and `arduino:run` run `sudo chmod` on the port, so they wait for a password.
+- A header named like a system header shadows it: `library/camera.h` is not `esp_camera.h` for that reason.
 
 ## Deep dive (read on demand)
 
-- [[fill: topic, and the document, skill or memory file that covers it]]
+- The agents layout, permissions and harness setup: `.agents/README.md` and the `agents-layout` skill.
 <!-- cook:begin io.github.lmarqs.cookbook:git#worktrees/worktrees -->
 <!-- io.github.lmarqs.cookbook:git#worktrees --instructions=AGENTS.md --instructions=README.md -->
 - Worktrees: branch `<branch>` is checked out at `.worktrees/<branch>`; `.worktrees/README.md` says how to

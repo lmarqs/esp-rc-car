@@ -17,9 +17,15 @@ bypass: refuse
 
 # Commands every session may run, whatever its role.
 commands:
-  allow: []
+  allow:
+    - [git, [status, diff, log, show]]
+    - [mise, run, arduino:compile]
+    - [mise, tasks]
+    - [cook, check]
   ask: []
-  deny: []
+  deny:
+    - [git, push, [--force, -f]]
+    - [git, reset, --hard]
 
 # This starter grants nothing. An example to start from, with a tool that is not a shell command, named as the
 # harness names it, and a role, which only adds denies for one kind of run and is picked at launch:
