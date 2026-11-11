@@ -1,0 +1,59 @@
+<div class="playground motor">
+  <div class="label">Try it</div>
+  <div class="row">
+    <svg viewBox="0 0 220 160" role="img" aria-label="A DC motor whose shaft spins faster as the duty cycle rises">
+      <circle cx="110" cy="80" r="62" fill="#fbe0d6"></circle>
+      <rect x="44" y="50" width="96" height="60" rx="12" fill="#e2603a" class="ink"></rect>
+      <rect x="30" y="62" width="16" height="36" rx="4" fill="#fff" class="ink"></rect>
+      <path class="thin" d="M60 50 v60 M124 50 v60" stroke="#fff"></path>
+      <rect x="140" y="74" width="20" height="12" rx="2" fill="#c9d3da" class="ink"></rect>
+      <g class="rotor"><circle cx="176" cy="80" r="18" fill="#fff" class="ink"></circle><path class="ink" d="M176 64 v32 M160 80 h32" fill="none"></path></g>
+    </svg>
+    <div>
+      <svg class="wave" viewBox="0 0 260 90" aria-hidden="true">
+        <path class="thin" d="M10 74 H250" stroke="#c9d3da"></path>
+        <path class="pulse" fill="none" stroke="#3b82c4" stroke-width="2.6" stroke-linejoin="round"></path>
+      </svg>
+      <div class="readout" aria-live="polite"></div>
+    </div>
+  </div>
+  <div class="controls">
+    <label>Duty cycle <input type="range" min="0" max="100" value="40" data-duty /></label>
+  </div>
+</div>
+
+<style>
+  .row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: center; }
+  @media (max-width: 600px) { .row { grid-template-columns: 1fr; } }
+  svg { width: 100%; max-height: 190px; }
+</style>
+
+<script>
+  for (const root of document.querySelectorAll<HTMLElement>('.motor')) {
+    const rotor = root.querySelector('.rotor')!;
+    const pulse = root.querySelector('.pulse')!;
+    const readout = root.querySelector('.readout')!;
+    const duty = root.querySelector<HTMLInputElement>('[data-duty]')!;
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let angle = 0;
+    let speed = 0;
+
+    function draw() {
+      const d = Number(duty.value) / 100;
+      let path = 'M10 74';
+      for (let x = 10; x < 250; x += 48) path += ` V${d > 0 ? 20 : 74} H${x + 48 * d} V74 H${x + 48}`;
+      pulse.setAttribute('d', path);
+      readout.textContent = `on ${Math.round(d * 100)}% of each 200 µs period (5 kHz)`;
+    }
+    function frame() {
+      // The rotor eases toward its new speed the way a real motor's inertia makes it.
+      speed += (Number(duty.value) / 100 * 14 - speed) * 0.05;
+      angle = (angle + speed) % 360;
+      rotor.setAttribute('transform', `rotate(${angle.toFixed(1)} 176 80)`);
+      if (!still) requestAnimationFrame(frame);
+    }
+    duty.addEventListener('input', draw);
+    draw();
+    frame();
+  }
+</script>

@@ -1,0 +1,105 @@
+<div class="playground hbridge">
+  <div class="label">Try it: close the switches</div>
+  <svg viewBox="0 0 360 250" role="img" aria-label="An H-bridge: four switches around a motor, between the battery's plus and minus">
+    <path class="thin" d="M60 30 H300 M60 220 H300"></path>
+    <text x="20" y="35" font-size="13" font-weight="700" fill="#e2603a">+V</text>
+    <text x="20" y="225" font-size="13" font-weight="700" fill="#3b82c4">GND</text>
+    <path class="thin" d="M100 30 V70 M100 110 V140 M100 180 V220 M260 30 V70 M260 110 V140 M260 180 V220 M100 125 H150 M210 125 H260"></path>
+    <path class="flow" fill="none" stroke="#f7c948" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity="0"></path>
+    <g class="motor-g">
+      <circle cx="180" cy="125" r="28" fill="#fff" class="ink"></circle>
+      <text x="180" y="131" text-anchor="middle" font-size="16" font-weight="800" fill="#1f2d3a">M</text>
+      <path class="spin" fill="none" stroke="#e2603a" stroke-width="2.6" stroke-linecap="round" d="M162 100 a30 30 0 0 1 36 0"></path>
+    </g>
+    <g class="spark" opacity="0"><path d="M168 60 l12 -18 l-2 14 l14 -4 l-14 22 l2 -14 Z" fill="#e2603a" class="ink"></path></g>
+    <g data-sw="0" class="sw" tabindex="0" role="switch" aria-checked="false" aria-label="Switch S1, top left"><rect x="80" y="70" width="40" height="40" rx="8" fill="transparent"></rect><circle cx="100" cy="70" r="4" fill="#1f2d3a"></circle><circle cx="100" cy="110" r="4" fill="#1f2d3a"></circle><path class="lever ink" d="M100 110 L118 76" fill="none"></path><text x="70" y="94" font-size="12" font-weight="700" fill="#48596a" text-anchor="end">S1</text></g>
+    <g data-sw="1" class="sw" tabindex="0" role="switch" aria-checked="false" aria-label="Switch S2, bottom left"><rect x="80" y="140" width="40" height="40" rx="8" fill="transparent"></rect><circle cx="100" cy="140" r="4" fill="#1f2d3a"></circle><circle cx="100" cy="180" r="4" fill="#1f2d3a"></circle><path class="lever ink" d="M100 180 L118 146" fill="none"></path><text x="70" y="164" font-size="12" font-weight="700" fill="#48596a" text-anchor="end">S2</text></g>
+    <g data-sw="2" class="sw" tabindex="0" role="switch" aria-checked="false" aria-label="Switch S3, top right"><rect x="240" y="70" width="40" height="40" rx="8" fill="transparent"></rect><circle cx="260" cy="70" r="4" fill="#1f2d3a"></circle><circle cx="260" cy="110" r="4" fill="#1f2d3a"></circle><path class="lever ink" d="M260 110 L242 76" fill="none"></path><text x="292" y="94" font-size="12" font-weight="700" fill="#48596a">S3</text></g>
+    <g data-sw="3" class="sw" tabindex="0" role="switch" aria-checked="false" aria-label="Switch S4, bottom right"><rect x="240" y="140" width="40" height="40" rx="8" fill="transparent"></rect><circle cx="260" cy="140" r="4" fill="#1f2d3a"></circle><circle cx="260" cy="180" r="4" fill="#1f2d3a"></circle><path class="lever ink" d="M260 180 L242 146" fill="none"></path><text x="292" y="164" font-size="12" font-weight="700" fill="#48596a">S4</text></g>
+  </svg>
+  <div class="readout" aria-live="polite"></div>
+  <div class="controls">
+    <button type="button" class="btn ghost" data-preset="forward">Forward</button>
+    <button type="button" class="btn ghost" data-preset="backward">Backward</button>
+    <button type="button" class="btn ghost" data-preset="brake">Brake</button>
+    <button type="button" class="btn ghost" data-preset="coast">Coast</button>
+  </div>
+</div>
+
+<style>
+  svg { width: 100%; max-height: 300px; }
+  .sw { cursor: pointer; outline: none; }
+  .sw:focus-visible rect { stroke: #3b82c4; stroke-width: 3; }
+  .lever { transition: d .12s; }
+  .spin { opacity: 0; transform-origin: 180px 125px; }
+  .fwd .spin { opacity: 1; animation: turn 0.9s linear infinite; }
+  .bwd .spin { opacity: 1; animation: turn 0.9s linear infinite reverse; }
+  @keyframes turn { to { transform: rotate(360deg); } }
+  .readout { margin-top: 8px; min-height: 3em; }
+</style>
+
+<script>
+  type State = [boolean, boolean, boolean, boolean];
+  // Closed lever positions, per switch: from the lower contact straight up to the upper one.
+  const OPEN = ['M100 110 L118 76', 'M100 180 L118 146', 'M260 110 L242 76', 'M260 180 L242 146'];
+  const CLOSED = ['M100 110 L100 70', 'M100 180 L100 140', 'M260 110 L260 70', 'M260 180 L260 140'];
+  const PRESETS: Record<string, State> = {
+    forward: [true, false, false, true],
+    backward: [false, true, true, false],
+    brake: [false, true, false, true],
+    coast: [false, false, false, false],
+  };
+
+  for (const root of document.querySelectorAll<HTMLElement>('.hbridge')) {
+    const svg = root.querySelector('svg')!;
+    const flow = root.querySelector('.flow')!;
+    const spark = root.querySelector('.spark')!;
+    const readout = root.querySelector('.readout')!;
+    const switches = [...root.querySelectorAll<SVGGElement>('.sw')];
+    let s: State = [false, false, false, false];
+
+    function draw() {
+      switches.forEach((g, i) => {
+        g.querySelector('.lever')!.setAttribute('d', s[i] ? CLOSED[i] : OPEN[i]);
+        g.setAttribute('aria-checked', String(s[i]));
+      });
+      const [s1, s2, s3, s4] = s;
+      svg.classList.remove('fwd', 'bwd');
+      spark.setAttribute('opacity', '0');
+      flow.setAttribute('opacity', '0');
+      let text: string;
+      if ((s1 && s2) || (s3 && s4)) {
+        spark.setAttribute('opacity', '1');
+        flow.setAttribute('d', s1 && s2 ? 'M100 30 V220' : 'M260 30 V220');
+        flow.setAttribute('opacity', '.9');
+        text = 'Short circuit! Both switches on one side connect +V straight to GND. This is called shoot-through, and it burns a real bridge.';
+      } else if (s1 && s4) {
+        svg.classList.add('fwd');
+        flow.setAttribute('d', 'M100 30 V125 H260 V220');
+        flow.setAttribute('opacity', '.9');
+        text = 'Forward: current flows left to right through the motor.';
+      } else if (s2 && s3) {
+        svg.classList.add('bwd');
+        flow.setAttribute('d', 'M260 30 V125 H100 V220');
+        flow.setAttribute('opacity', '.9');
+        text = 'Backward: current flows right to left, so the motor turns the other way.';
+      } else if (s2 && s4) {
+        text = 'Brake: both motor leads tied to GND, so the spinning motor fights itself and stops fast.';
+      } else if (s1 && s3) {
+        text = 'Brake: both motor leads tied to +V, which also stops the motor fast.';
+      } else {
+        text = 'Coast: the motor is disconnected and rolls to a stop on its own.';
+      }
+      readout.textContent = text;
+    }
+    switches.forEach((g, i) => {
+      const flip = () => { s[i] = !s[i]; draw(); };
+      g.addEventListener('click', flip);
+      g.addEventListener('keydown', (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flip(); } });
+    });
+    root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((b) =>
+      b.addEventListener('click', () => { s = [...PRESETS[b.dataset.preset!]] as State; draw(); }),
+    );
+    draw();
+  }
+</script>
