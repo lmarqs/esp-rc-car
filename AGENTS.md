@@ -46,7 +46,8 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 
 ## Where things go
 
-- New code: reusable drivers in `lib/`, which a sketch's `sketch.yaml` lists under `libraries`; each sketch in its own folder with a `sketch.yaml`; no design document
+- New code: reusable drivers in `lib/`, which a sketch's `sketch.yaml` lists under `libraries`; each sketch in its
+  own folder with a `sketch.yaml`; no design document
 - Tests: none
 - Settings: `.env` (gitignored, loaded by mise), arduino-cli in `arduino-cli.yaml`, board profile in `sketch.yaml`;
   no secrets yet
@@ -68,8 +69,8 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 
 At most five traps any task can hit.
 
-- `mise run setup` fails: it copies `.env.example` and runs `uv sync --locked`, and neither `.env.example` nor
-  `uv.lock` is committed.
+- `mise run setup` fails: `uv sync --locked` needs a `uv.lock`, and where `.env` is missing it copies
+  `.env.example`; neither file is committed.
 - `arduino:upload`, `arduino:monitor` and `arduino:run` run `sudo chmod` on the port, so they wait for a password.
 - A header named like a system header shadows it: `lib/camera.h` is not `esp_camera.h` for that reason.
 
