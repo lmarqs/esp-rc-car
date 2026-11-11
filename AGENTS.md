@@ -74,8 +74,8 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 
 At most five traps any task can hit.
 
-- Leave `arduino:upload`, `arduino:monitor` and `arduino:run` to the developer: each runs `sudo chmod` on the port
-  and waits for a password.
+- Leave `arduino:upload`, `arduino:monitor` and `arduino:run` to the developer: each needs the board connected to
+  the developer's machine.
 - Name each `lib/` header apart from every core header: one named `esp_camera.h` would shadow `<esp_camera.h>`.
 
 ## Deep dive (read on demand)
