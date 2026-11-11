@@ -93,6 +93,20 @@ mise run arduino:upload "${usage_sketch}" --port "${usage_port}"
 mise run arduino:monitor --port "${usage_port}"
 """
 
+[tasks."vscode:compile-commands"]
+description = "Merge every sketch's compile database into .build/compile_commands.json for VS Code IntelliSense"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+
+for sketch in sketches/*/; do
+  sketch="${sketch%/}"
+  mise run arduino:hexdump "${sketch}"
+  arduino-cli compile "${sketch}" --build-path ".build/${sketch}" --only-compilation-database >/dev/null
+done
+python3 .vscode/merge_compile_commands.py .build/compile_commands.json .build/sketches/*/compile_commands.json
+"""
+
 [tasks."clean"]
 description = "Remove build output and installed cores and libraries"
 run = "rm -rf .build .arduino"

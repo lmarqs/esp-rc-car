@@ -22,6 +22,17 @@ mise run arduino:compile sketches/blink
 `mise run setup` installs pyserial into `.venv`: every compile runs the core's esptool, which fails without it. The
 first compile also downloads the ESP32 core into `.arduino/`. `mise tasks` lists every task.
 
+## Edit in VS Code
+
+`.vscode/` sets up the Microsoft C/C++ extension: IntelliSense reads `.build/compile_commands.json`, and saving a
+C or C++ file formats it with `.clang-format`. Write the database, and again after adding a sketch or a library:
+
+```sh
+mise run vscode:compile-commands
+```
+
+The task merges every sketch's arduino-cli compile database and points each sketch's entry at its `.ino`.
+
 ## Flash a sketch
 
 Connect the board over USB and pass its serial port, such as `/dev/ttyUSB0`:
