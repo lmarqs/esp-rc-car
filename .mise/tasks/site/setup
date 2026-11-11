@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Install the website's npm dependencies from the lockfile"
+set -euo pipefail
+
+npm ci --prefix site

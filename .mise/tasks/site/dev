@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Serve the website locally with live reload"
+set -euo pipefail
+
+npm run dev --prefix site

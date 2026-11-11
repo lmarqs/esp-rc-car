@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Build the website into site/dist"
+set -euo pipefail
+
+npm run build --prefix site
