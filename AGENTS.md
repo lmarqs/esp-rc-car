@@ -9,8 +9,8 @@ Python 3.12, uv 0.11.25, clang-format 23.1.5 and the-cook 11.0.2 (`mise.toml`); 
 ## Quick reference
 
 - Install or add a dependency: `mise install && mise run setup`, [Build a sketch](README.md#build-a-sketch) says
-  why; a Python package: `uv add <package>` (unverified); a core or Arduino library: add it to the sketch's `sketch.yaml` profile
-  (unverified)
+  why; a Python package: `uv add <package>` (unverified); a core or Arduino library: add it to the sketch's
+  `sketch.yaml` profile (unverified)
 - Run: `mise run arduino:run <sketch> --port <port>` (unverified)
 - Build: `mise run arduino:compile <sketch>`, such as `sketches/blink`
 - Test one file: none
