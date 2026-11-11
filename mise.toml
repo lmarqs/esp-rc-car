@@ -17,17 +17,8 @@ linux-x64 = { url = "https://github.com/arduino/arduino-cli/releases/download/v{
 windows-x64 = { url = "https://github.com/arduino/arduino-cli/releases/download/v{version}/arduino-cli_{version}_Windows_64bit.zip" }
 
 [tasks."setup"]
-description = "Create .env and sync the Python venv used by the board tools"
-run = """
-#!/usr/bin/env bash
-set -euo pipefail
-
-if [ ! -f ".env" ]; then
-  cp .env.example .env
-fi
-
-uv sync --locked
-"""
+description = "Sync the Python venv used by the board tools"
+run = "uv sync --locked"
 
 [tasks."arduino:hexdump"]
 description = "Convert files in <sketch>/data into C headers"
