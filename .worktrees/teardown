@@ -3,3 +3,5 @@
 # worktree's root, by hand or from a runner or hook configured with it, which keeps the worktree when it exits
 # non-zero. Add the steps that undo what setup and use started: containers, databases, caches.
 set -eu
+
+mise trust --untrust --quiet mise.toml
