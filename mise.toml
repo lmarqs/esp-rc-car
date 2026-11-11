@@ -1,6 +1,8 @@
 [env]
 _.file = ".env"
 _.python.venv = { path = ".venv", create = true }
+ARDUINO_CONFIG_FILE = "{{config_root}}/arduino-cli.yaml"
+
 
 [tools]
 python = "3.10"
