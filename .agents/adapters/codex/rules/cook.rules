@@ -1,0 +1,10 @@
+# cook:begin io.github.lmarqs.cookbook:agents#connect/commands
+# io.github.lmarqs.cookbook:agents#connect --harness=claude --harness=codex
+# bypass: refuse reaches Claude only: --ignore-rules or an untrusted project skips these rules, --approve-for-me approves prompts
+prefix_rule(pattern = ["git", ["status", "diff", "log", "show"]], decision = "allow")
+prefix_rule(pattern = ["mise", "run", "arduino:compile"], decision = "allow")
+prefix_rule(pattern = ["mise", "tasks"], decision = "allow")
+prefix_rule(pattern = ["cook", "check"], decision = "allow")
+prefix_rule(pattern = ["git", "push", ["--force", "-f"]], decision = "forbidden")
+prefix_rule(pattern = ["git", "reset", "--hard"], decision = "forbidden")
+# cook:end io.github.lmarqs.cookbook:agents#connect/commands

@@ -1,6 +1,38 @@
 # Written by the-cook; do not edit by hand.
 version: 1
 recipes:
+  - name: "io.github.lmarqs.cookbook:agents#connect"
+    source: "io.github.lmarqs.cookbook:agents:11.0.2#connect"
+    sha256: "3dce6e93e88bbb4e4ade7ec51067760e74308134d46296b9fb0aeca0470b916b"
+    arguments:
+      "harness": ["claude","codex"]
+    owns:
+      sections:
+        - file: ".agents/adapters/codex/rules/cook.rules"
+          id: "io.github.lmarqs.cookbook:agents#connect/commands"
+        - file: ".gitignore"
+          id: "io.github.lmarqs.cookbook:agents#connect/harnesses"
+      keys:
+        - file: ".agents/adapters/claude/settings.json"
+          path: ["hooks","SessionStart"]
+        - file: ".agents/adapters/claude/settings.json"
+          path: ["permissions"]
+        - file: ".agents/adapters/codex/config.toml"
+          path: ["approval_policy"]
+        - file: ".agents/adapters/codex/config.toml"
+          path: ["sandbox_mode"]
+        - file: ".agents/adapters/codex/config.toml"
+          path: ["sandbox_workspace_write","network_access"]
+        - file: ".agents/adapters/codex/hooks.json"
+          path: ["hooks","SessionStart"]
+      files:
+        - ".agents/hooks/session-start"
+      links:
+        - ".claude/settings.json"
+        - ".claude/skills"
+        - ".codex/config.toml"
+        - ".codex/hooks.json"
+        - ".codex/rules"
   - name: "io.github.lmarqs.cookbook:agents#seed"
     source: "io.github.lmarqs.cookbook:agents:11.0.2#seed"
     sha256: "3dce6e93e88bbb4e4ade7ec51067760e74308134d46296b9fb0aeca0470b916b"
