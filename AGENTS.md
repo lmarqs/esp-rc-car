@@ -59,7 +59,8 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 
 ## Rules
 
-- A behavior change ships with a test; a bug fix with one that failed before the fix.
+- The repository has no tests yet: report how a behavior change was checked, by the Done check or a run on the
+  board.
 - Comments record only reasons the code cannot show.
 - Change only what the task needs, matching the surrounding code.
 - Format with `.clang-format`. Wrap a file that builds only on ESP32 in `#ifdef ESP32`, as `lib/esp_ledc_pin.h`
