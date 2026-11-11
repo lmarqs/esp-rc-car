@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <esp_ledc_pin.h>
+#include <ledc_pin.h>
 #include <servo.h>
 
 const uint32_t SERVO_FREQUENCY_HZ = 50;

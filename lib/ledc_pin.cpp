@@ -1,5 +1,5 @@
 #ifdef ESP32
-#include "esp_ledc_pin.h"
+#include "ledc_pin.h"
 
 #include <Arduino.h>
 #include <esp32-hal-ledc.h>

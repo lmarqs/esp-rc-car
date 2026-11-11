@@ -63,7 +63,7 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
   board.
 - Comments record only reasons the code cannot show.
 - Change only what the task needs, matching the surrounding code.
-- Format with `.clang-format`. Wrap a file that builds only on ESP32 in `#ifdef ESP32`, as `lib/esp_ledc_pin.h`
+- Format with `.clang-format`. Wrap a file that builds only on ESP32 in `#ifdef ESP32`, as `lib/ledc_pin.h`
   does.
 - Commits: one change per commit, pushed straight to `main`; no pull requests
 - Deploy: none
