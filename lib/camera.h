@@ -7,11 +7,9 @@
 using EspCameraPictureReader = std::function<void(camera_fb_t*)>;
 
 class EspCamera {
- private:
-  sensor_t* sensor;
-
  public:
-  void begin();
+  /** Returns false when the camera cannot start: no LEDC timer is left for its clock, or the driver fails to init. */
+  bool begin();
   void capture(EspCameraPictureReader reader);
 };
 #endif
