@@ -1,4 +1,4 @@
-name: Website
+name: site
 
 # A push to main releases a new site version when any of its commit messages contains #release.
 on:
