@@ -3,6 +3,7 @@
     {
       "name": "ESP32",
       "compileCommands": "${workspaceFolder}/.build/compile_commands.json",
+      "defines": ["ESP32"],
       "intelliSenseMode": "gcc-x86"
     }
   ],
