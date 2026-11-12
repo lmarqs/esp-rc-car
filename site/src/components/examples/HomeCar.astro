@@ -127,6 +127,10 @@
   :global(.scene .arc2) { animation: ping 1.8s .25s infinite; }
   :global(.scene .arc3) { animation: ping 1.8s .5s infinite; }
   :global(.scene .sending :is(.arc1, .arc2, .arc3)) { animation-duration: .6s; }
+  @media (prefers-reduced-motion: reduce) {
+    :global(.scene :is(.led, .arc1, .arc2, .arc3)) { animation: none; }
+    .ctl:active .cap { transform: none; }
+  }
 </style>
 
 <script>
@@ -143,7 +147,7 @@
   const STICK_CENTRE = { x: -52, y: 44 };
   const REACH = 14;
   const keys: Record<string, boolean> = {};
-  let ax = 0, ay = 0, x = 0, y = 0, vx = 0, vy = 0, dragging = false, hop = false, squash = 0, push = 0;
+  let ax = 0, ay = 0, x = 0, y = 0, vx = 0, vy = 0, dragging = false, hop = false, squash = 0, push = 0, liftedUntil = 0;
 
   function setKnob(dx: number, dy: number) {
     const m = Math.hypot(dx, dy);
@@ -195,10 +199,14 @@
     pad.classList.toggle('sending', ix !== 0 || up);
     vx += (ix * 5 - vx) * (still ? 1 : 0.12);
     x = Math.max(-150, Math.min(120, x + vx));
-    if (up && y === 0 && !still) vy = -8.5;
+    // With reduced motion a jump shows as the car lifted for a moment, with nothing drawn in between.
+    if (still) {
+      if (up && y === 0) liftedUntil = performance.now() + 350;
+      y = performance.now() < liftedUntil ? -40 : 0;
+    } else if (up && y === 0) vy = -8.5;
     const airborne = y < 0;
-    vy += 0.55; y = Math.min(0, y + vy); if (y === 0) vy = 0;
-    if (airborne && y === 0) squash = 1;
+    if (!still) { vy += 0.55; y = Math.min(0, y + vy); if (y === 0) vy = 0; }
+    if (airborne && y === 0 && !still) squash = 1;
     squash *= 0.8;
     const sx = 1 + 0.05 * squash, sy = 1 - 0.1 * squash;
     car.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${(still ? 0 : vx * 0.9).toFixed(2)} 305 290) translate(305 292) scale(${sx.toFixed(3)} ${sy.toFixed(3)}) translate(-305 -292)`);
