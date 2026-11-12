@@ -32,6 +32,14 @@ command for 500 ms, so a robot whose input goes quiet does not drive on with its
   `int32_t` values, the left stick's x and y, then the right stick's x and y.
 - **Which it follows.** The gamepad's command, while it has one from the last 500 ms; otherwise the I2C master's.
 
+## Run it on your board
+
+With the tools installed (the [tooling page](../../learn/tooling/) says how), run from the repository's root:
+
+```sh
+mise run arduino:run sketches/omnidirectional --port /dev/ttyUSB0
+```
+
 ## How the code works
 
 The sketch splits the job into three pieces, each in its own file:
