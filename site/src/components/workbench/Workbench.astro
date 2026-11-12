@@ -363,8 +363,6 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
   .cell[data-status="live"] .status::before { background: var(--green); box-shadow: 0 0 0 3px var(--green-halo); }
   .cell:is([data-status="step"], [data-status="sketch"]) .status { color: var(--coral-text); }
   .cell:is([data-status="step"], [data-status="sketch"]) .status::before { background: var(--coral); }
-  /* Read by a screen reader, not shown: the cell's width has room for the short word only. */
-  .sr { position: absolute; top: 0; left: 0; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   /* As wide as Flash again, its longest word, so the button keeps its width. */
   .connbtn { flex: none; width: 138px; height: 38px; margin: 0 0 2px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; font: inherit; font-size: 14px; font-weight: 700; line-height: 1.5; white-space: nowrap; color: var(--card); background: var(--coral); border: 2px solid var(--ink); border-radius: 999px; box-shadow: 0 3px 0 var(--ink); cursor: pointer; transition: transform .06s, box-shadow .06s; }
   .connbtn:hover:not([aria-disabled="true"]) { background: var(--coral-hover); }

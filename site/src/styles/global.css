@@ -105,6 +105,8 @@ a.card:hover { transform: translateY(-3px); box-shadow: 0 6px 0 rgba(31, 45, 58,
 .gap > :last-child { margin-bottom: 0; }
 .gap > :first-child { margin-top: 0; }
 
+/* Read by a screen reader, not shown. */
+.sr { position: absolute; top: 0; left: 0; width: 1px; height: 1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .notice { border-left: 4px solid var(--yellow); background: #fff8e3; padding: 10px 16px; border-radius: 0 10px 10px 0; font-size: 15px; color: var(--muted); margin: 18px 0; }
 
 .playground { background: var(--card); border: var(--stroke); border-radius: var(--radius); padding: 18px; margin: 24px 0 8px; }
