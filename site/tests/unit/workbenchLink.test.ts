@@ -77,7 +77,7 @@ describe('boardAction', () => {
   });
 
   it('flashes the step, by its number, on a board that runs another sketch or has not named one', () => {
-    const flashStep = { label: 'Flash step 2 to board', icon: 'bolt', event: 'flash', disabled: false };
+    const flashStep = { label: 'Flash step 2 to board', short: 'Flash step 2', icon: 'bolt', event: 'flash', disabled: false };
     expect(boardAction(running, 'blink/simple', input)).toEqual(flashStep);
     expect(boardAction(running, undefined, input)).toEqual(flashStep);
   });

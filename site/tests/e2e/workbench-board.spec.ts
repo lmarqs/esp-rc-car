@@ -48,11 +48,11 @@ test.describe('the Board switch', () => {
     expect(await icon(page)).toBe('plug');
     expect(await pressed(page)).toEqual(['true', 'false']);
     await expect(status(page)).toHaveText('Simulated');
-    await expect(flashAgain(page)).toBeHidden();
+    await expect(flashAgain(page)).toHaveAttribute('aria-disabled', 'true');
     expect(await fakeFlasher.calls()).toEqual([]);
   });
 
-  test('presses My board, live, and offers Flash again in the pane once the board names the selected step', async ({
+  test('presses My board, live, and offers Flash again in the switch once the board names the selected step', async ({
     page,
     fakeFlasher,
   }) => {
@@ -65,7 +65,7 @@ test.describe('the Board switch', () => {
     await expect(boardButton(page)).toHaveAccessibleName('My board, live');
     expect(await icon(page)).toBe('dot');
     expect(await pressed(page)).toEqual(['false', 'true']);
-    await expect(flashAgain(page)).toBeVisible();
+    await expect(flashAgain(page)).not.toHaveAttribute('aria-disabled');
     // The workbench connects by restarting the board into what it holds: nothing is downloaded or written.
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
   });
@@ -84,7 +84,7 @@ test.describe('the Board switch', () => {
     await expect(boardButton(page)).toHaveAccessibleName('Flash step 1 to board');
     expect(await icon(page)).toBe('bolt');
     expect(await pressed(page)).toEqual(['true', 'false']);
-    await expect(flashAgain(page)).toBeHidden();
+    await expect(flashAgain(page)).toHaveAttribute('aria-disabled', 'true');
   });
 
   test('names a sketch from outside the project for a screen reader, and offers to flash the step', async ({
@@ -147,7 +147,7 @@ test.describe('the Board switch', () => {
 
     expect(await pressed(page)).toEqual(['true', 'false']);
     await expect(boardButton(page)).toHaveAccessibleName('My board');
-    await expect(flashAgain(page)).toBeHidden();
+    await expect(flashAgain(page)).toHaveAttribute('aria-disabled', 'true');
 
     await boardButton(page).click();
 
@@ -198,7 +198,7 @@ test.describe('flashing from the workbench', () => {
 
     await expect(status(page)).toHaveText('Live');
     await expect(boardButton(page)).toHaveAccessibleName('My board, live');
-    await expect(flashAgain(page)).toBeVisible();
+    await expect(flashAgain(page)).not.toHaveAttribute('aria-disabled');
     expect(await fakeFlasher.loaded()).toEqual([['blink/input/esp32/input.ino.bootloader.bin', 'blink/input/esp32/input.ino.bin']]);
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200', 'connect reuse', 'load', 'write', 'monitor 115200']);
   });
@@ -257,11 +257,12 @@ test.describe('flashing from the workbench', () => {
       seen.push([(await status(page).textContent())!, (await boardButton(page).textContent())!.trim()]);
     }
 
+    // The switch shows the short label; the button's name, read out, ends in "to board".
     expect(seen).toEqual([
-      ['Runs step 3', 'Flash step 2 to board'],
+      ['Runs step 3', 'Flash step 2'],
       ['Live', 'My board, live'],
-      ['Runs step 3', 'Flash step 4 to board'],
-      ['Runs step 3', 'Flash step 1 to board'],
+      ['Runs step 3', 'Flash step 4'],
+      ['Runs step 3', 'Flash step 1'],
       ['Live', 'My board, live'],
     ]);
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);

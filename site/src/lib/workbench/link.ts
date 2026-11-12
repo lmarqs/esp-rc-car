@@ -20,7 +20,10 @@ export type BoardStatus =
  * simulator, which drives the pane whenever the board does not.
  */
 export interface BoardAction {
+  /** What the button is named, read out in full. */
   readonly label: string;
+  /** What the button shows when that is shorter than its name, so the switch keeps room for Flash again. */
+  readonly short?: string;
   readonly icon: 'plug' | 'bolt' | 'dot';
   /**
    * `connect` connects to a board; `flash` flashes the selected step onto the connected one; `live` hands the board
@@ -75,7 +78,10 @@ export function boardAction(
     return { label: event === 'flash' ? 'Flashing…' : 'Connecting…', icon: ICONS[event], event, disabled: true };
   }
   if (!isConnected(state)) return CONNECT;
-  if (heard !== step.key) return { label: `Flash step ${step.number} to board`, icon: 'bolt', event: 'flash', disabled: false };
+  if (heard !== step.key) {
+    const short = `Flash step ${step.number}`;
+    return { label: `${short} to board`, short, icon: 'bolt', event: 'flash', disabled: false };
+  }
   return { label: detached ? 'My board' : 'My board, live', icon: 'dot', event: 'live', disabled: false };
 }
 

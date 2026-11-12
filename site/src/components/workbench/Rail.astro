@@ -61,6 +61,20 @@ const simulated = boardStatusText({ kind: 'simulated' });
           </button>
         )
       }
+      {
+        flashable && (
+          <button
+            class="half again"
+            type="button"
+            aria-label="Flash again"
+            title="Flash the step to the board again, once the board runs it"
+            aria-disabled="true"
+            data-flash-again
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.5v3h-3" /></svg>
+          </button>
+        )
+      }
       {/* What to do fits the board half's slot; why is in the tooltip and read by a screen reader. */}
       <p class="needs" title={wording.NO_WEB_SERIAL} data-needs-browser hidden>
         <span class="sr">{wording.NO_WEB_SERIAL} </span>{wording.USE_CHROME_OR_EDGE}
@@ -88,8 +102,8 @@ const simulated = boardStatusText({ kind: 'simulated' });
   .switch { display: flex; height: 38px; border: 2px solid var(--ink); border-radius: 999px; overflow: hidden; background: var(--card); box-shadow: 0 3px 0 var(--ink); }
   .half { overflow: hidden; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font: inherit; font-size: 13px; font-weight: 700; line-height: 1.5; white-space: nowrap; color: var(--ink); background: transparent; border: 0; padding: 0 10px; cursor: pointer; }
   .half:first-child { width: 88px; }
-  /* As wide as its longest label, Flash step 4 to board, so the switch keeps its width. */
-  .board-half, .needs { width: 198px; border-left: 2px solid var(--ink); }
+  /* As wide as its longest label, Connect my board, so the switch keeps its width. */
+  .board-half, .needs { width: 162px; border-left: 2px solid var(--ink); }
   .half[aria-pressed="true"] { color: var(--card); background: var(--ink); cursor: default; }
   .half:hover:not([aria-pressed="true"], [aria-disabled="true"]) { background: var(--wash-yellow); }
   .half[aria-disabled="true"] { opacity: .6; cursor: default; }
@@ -98,6 +112,14 @@ const simulated = boardStatusText({ kind: 'simulated' });
   .half svg { width: 14px; height: 14px; flex: none; }
   .half .i-plug path { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .half .i-bolt path { fill: currentColor; }
+  .again { width: 36px; padding: 0; border-left: 2px solid var(--ink); }
+  /* At phone width the switch spans the rail, so the board half takes what the other two leave. */
+  @media (max-width: 480px) {
+    .railend { flex-basis: 100%; }
+    .switch { flex: 1; }
+    .board-half, .needs { flex: 1; width: auto; min-width: 0; }
+  }
+  .again path { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .half .i-dot circle { fill: var(--green); }
   .half:not([data-icon="plug"]) .i-plug, .half:not([data-icon="bolt"]) .i-bolt, .half:not([data-icon="dot"]) .i-dot { display: none; }
   .needs { position: relative; margin: 0; padding: 0 10px; align-self: center; font-size: 11px; line-height: 1.2; color: var(--muted); }

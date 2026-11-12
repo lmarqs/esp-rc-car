@@ -14,8 +14,6 @@ const { project, steps } = Astro.props;
 ---
 
 <div class="board">
-  {/* Kept in the layout while hidden, so the picture does not move when it shows. */}
-  <p class="again-row"><button class="again" type="button" data-flash-again>Flash again</button></p>
   <Stage project={project} firstKey={steps[0].key} />
   <Scope trace={project.trace} />
   <Terminal steps={steps} placeholder={steps[0].placeholder} />
@@ -37,10 +35,6 @@ const { project, steps } = Astro.props;
   /* Side by side, the board stays in view while the visitor reads down a long sketch; in a short window it would
      cover the window, so it scrolls with the page. */
   @media (min-width: 821px) and (min-height: 600px) { .board { position: sticky; top: 0; align-self: start; } }
-  .again-row { margin: 0; display: flex; justify-content: flex-end; line-height: 1; }
-  .again { font: inherit; font-size: 12px; line-height: 1.4; color: var(--muted); background: none; border: 0; padding: 0 2px; text-decoration: underline; cursor: pointer; }
-  .again:hover { color: var(--ink); }
-  .again:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
   .hint { font-size: 13px; color: var(--muted); margin: 0; }
   /* A problem takes the hint's place, which says how to send and does not apply then, so nothing moves. */
   .say { display: grid; }

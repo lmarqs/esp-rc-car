@@ -1,6 +1,6 @@
 import type { LinkView } from './paneView';
 
-/** What the visitor can press in the Board cell's switch and beside the picture. */
+/** What the visitor can press in the Board cell's switch. */
 export interface BoardLinkHandlers {
   /** The board half of the Board switch. */
   action(): void;
@@ -19,7 +19,7 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
   const actionLabel = root.querySelector<HTMLElement>('[data-board-action-label]');
   const needsBrowser = root.querySelector<HTMLElement>('[data-needs-browser]')!;
   const simulatorButton = root.querySelector<HTMLButtonElement>('[data-pane-simulator]')!;
-  const flashAgain = root.querySelector<HTMLButtonElement>('[data-flash-again]')!;
+  const flashAgain = root.querySelector<HTMLButtonElement>('[data-flash-again]');
   const stage = root.querySelector<HTMLElement>('[data-stage]')!;
   const message = root.querySelector<HTMLElement>('[data-board-message]')!;
   const progress = root.querySelector<HTMLElement>('[data-board-progress]')!;
@@ -28,7 +28,9 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
   const progressText = root.querySelector<HTMLElement>('[data-board-percent]')!;
 
   actionButton?.addEventListener('click', handlers.action);
-  flashAgain.addEventListener('click', handlers.flashAgain);
+  flashAgain?.addEventListener('click', () => {
+    if (flashAgain.getAttribute('aria-disabled') !== 'true') handlers.flashAgain();
+  });
   simulatorButton.addEventListener('click', handlers.simulator);
 
   return {
@@ -48,13 +50,18 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
       const { action } = view;
       needsBrowser.hidden = action !== undefined;
       simulatorButton.setAttribute('aria-pressed', String(!view.live));
-      // visibility, not hidden, so the row keeps its height.
-      flashAgain.style.visibility = view.flashAgain ? '' : 'hidden';
+      // A browser that cannot reach a board has the note in the board half's place, and nothing to flash again.
+      if (flashAgain !== null) flashAgain.hidden = action === undefined;
+      // Dimmed, not hidden, so the switch keeps its width; aria-disabled keeps the focus on it while it flashes.
+      if (view.flashAgain) flashAgain?.removeAttribute('aria-disabled');
+      else flashAgain?.setAttribute('aria-disabled', 'true');
       if (actionButton !== null && actionLabel !== null) {
         actionButton.hidden = action === undefined;
         actionButton.setAttribute('aria-pressed', String(view.live));
         if (action !== undefined) {
-          actionLabel.textContent = action.label;
+          actionLabel.textContent = action.short ?? action.label;
+          if (action.short === undefined) actionButton.removeAttribute('aria-label');
+          else actionButton.setAttribute('aria-label', action.label);
           actionButton.dataset.icon = action.icon;
           // aria-disabled, not disabled, so a button pressed from the keyboard keeps the focus while the session works.
           if (action.disabled) actionButton.setAttribute('aria-disabled', 'true');
