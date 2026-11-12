@@ -799,8 +799,8 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
         if (slider.closest<HTMLElement>('[data-for-step]')!.hidden) continue;
         const shortcut = shortcutOf(slider);
         if (shortcut?.kind !== 'slider' || shortcut.follows === undefined) continue;
-        const known = followedSliderValue(shortcut, project!.board.variable(shownBoard, shortcut.follows));
-        const next = followSlider(seenBySlider.get(slider), known, typing || slider === pressedSlider);
+        const reported = followedSliderValue(shortcut, project!.board.variable(shownBoard, shortcut.follows));
+        const next = followSlider(seenBySlider.get(slider), reported, typing || slider === pressedSlider);
         seenBySlider.set(slider, next.remembered);
         if (next.move === undefined || slider.value === String(next.move)) continue;
         slider.value = String(next.move);
