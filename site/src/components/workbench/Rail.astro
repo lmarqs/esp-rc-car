@@ -1,18 +1,16 @@
 ---
 import { wording } from '../../lib/flash';
 import { elementId, type RailStep } from './rail';
-import { paneTag } from './view';
 
 interface Props {
   project: string;
   steps: readonly Pick<RailStep, 'id' | 'number' | 'idea'>[];
-  /** Whether any step has an image to flash, which gives the Board switch its board half. */
+  /** Whether any step has an image to flash, which gives the switch its My board half. */
   flashable: boolean;
 }
 
 const { project, steps, flashable } = Astro.props;
 const id = (part: string) => elementId(project, part);
-const simulated = paneTag('simulator', { kind: 'simulated' }, undefined);
 ---
 
 <div class="rail">
@@ -41,41 +39,23 @@ const simulated = paneTag('simulator', { kind: 'simulated' }, undefined);
     }
   </div>
   <div class="railend">
-    {/* Read out on a change; the switch shows the same state to the eye. */}
-    <span class="sr" data-board-cell data-status="simulated">
-      <span aria-live="polite" data-board-status>
-        <span data-board-word>{simulated.word}</span><span data-board-sentence>: {simulated.title}</span>
-      </span>
-    </span>
-    <div class="switch" role="group" aria-label="What drives the board pane">
+    <div class="switch" role="group" aria-label="What the board pane shows">
       <button class="half" type="button" aria-pressed="true" data-pane-simulator>Simulator</button>
       {
         flashable && (
-          <button class="half board-half" type="button" aria-pressed="false" data-icon="plug" data-board-action>
-            <svg class="i-plug" viewBox="0 0 16 16" aria-hidden="true">
-              <path d="M6 1.6v3M10 1.6v3M4 4.6h8v2.6a4 4 0 0 1-8 0zM8 11.2v3.2" />
-            </svg>
-            <svg class="i-bolt" viewBox="0 0 16 16" aria-hidden="true"><path d="M9.4 1 3.4 9.2h3.9L6.4 15l6.2-8.4H8.6z" /></svg>
-            <svg class="i-dot" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="4" /></svg>
-            <span data-board-action-label>Connect my board</span>
-          </button>
-        )
-      }
-      {
-        flashable && (
           <button
-            class="half again"
+            class="half board-half"
             type="button"
-            aria-label="Flash again"
-            title="Flash the step to the board again, once the board runs it"
-            aria-disabled="true"
-            data-flash-again
+            aria-pressed="false"
+            title="My board: not connected"
+            data-pane-board
           >
-            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.5v3h-3" /></svg>
+            <span class="dot" data-board-dot data-link="off" aria-hidden="true" />
+            My board
           </button>
         )
       }
-      {/* What to do fits the board half's slot; why is in the tooltip and read by a screen reader. */}
+      {/* What to do fits the My board half's slot; why is in the tooltip and read by a screen reader. */}
       <p class="needs" title={wording.NO_WEB_SERIAL} data-needs-browser hidden>
         <span class="sr">{wording.NO_WEB_SERIAL} </span>{wording.USE_CHROME_OR_EDGE}
       </p>
@@ -86,7 +66,7 @@ const simulated = paneTag('simulator', { kind: 'simulated' }, undefined);
 <style>
   [hidden] { display: none !important; }
   .rail { display: flex; flex-wrap: wrap; border-bottom: var(--stroke); background: var(--chrome-light); }
-  /* As wide as four tabs of 150 px, so the Board cell wraps below the tabs before they wrap among themselves. */
+  /* As wide as four tabs of 150 px, so the switch wraps below the tabs before they wrap among themselves. */
   .tabs { display: flex; flex-wrap: wrap; flex: 1 1 600px; min-width: 0; }
   /* Positioned, so the on-board mark can leave the flow and appear without moving the tab's text. */
   .tab { position: relative; font: inherit; font-size: 16px; line-height: 1.5; color: var(--ink); border: 0; border-right: 1px solid var(--line); background: transparent; padding: 10px 16px; cursor: pointer; text-align: left; flex: 1 1 150px; }
@@ -102,25 +82,22 @@ const simulated = paneTag('simulator', { kind: 'simulated' }, undefined);
   .switch { display: flex; height: 38px; border: 2px solid var(--ink); border-radius: 999px; overflow: hidden; background: var(--card); box-shadow: 0 3px 0 var(--ink); }
   .half { overflow: hidden; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font: inherit; font-size: 13px; font-weight: 700; line-height: 1.5; white-space: nowrap; color: var(--ink); background: transparent; border: 0; padding: 0 10px; cursor: pointer; }
   .half:first-child { width: 88px; }
-  /* As wide as its longest label, Flash commands, so the switch keeps its width. */
-  .board-half, .needs { width: 164px; border-left: 2px solid var(--ink); }
+  .board-half { width: 104px; border-left: 2px solid var(--ink); }
+  /* As wide as the note needs at its size, in a browser that has no My board half. */
+  .needs { width: 164px; border-left: 2px solid var(--ink); }
   .half[aria-pressed="true"] { color: var(--card); background: var(--ink); cursor: default; }
-  .half:hover:not([aria-pressed="true"], [aria-disabled="true"]) { background: var(--wash-yellow); }
-  .half[aria-disabled="true"] { opacity: .6; cursor: default; }
+  .half:hover:not([aria-pressed="true"]) { background: var(--wash-yellow); }
   /* Inset, since the switch clips what falls outside it. */
   .half:focus-visible { outline: 3px solid var(--blue); outline-offset: -3px; }
-  .half svg { width: 14px; height: 14px; flex: none; }
-  .half .i-plug path { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-  .half .i-bolt path { fill: currentColor; }
-  .again { width: 36px; padding: 0; border-left: 2px solid var(--ink); }
-  /* At phone width the switch spans the rail, so the board half takes what the other two leave. */
+  /* The dot's colour is not alone: the half's title names the state, and the frame's tag says what the pane shows. */
+  .dot { width: 8px; height: 8px; flex: none; border-radius: 50%; border: 1.5px solid currentColor; }
+  .dot[data-link="busy"] { background: var(--quiet); }
+  .dot[data-link="on"] { background: var(--green); }
+  /* At phone width the switch spans the rail, and each half takes half of it. */
   @media (max-width: 480px) {
     .railend { flex-basis: 100%; }
     .switch { flex: 1; }
-    .board-half, .needs { flex: 1; width: auto; min-width: 0; }
+    .half:first-child, .board-half, .needs { flex: 1; width: auto; min-width: 0; }
   }
-  .again path { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-  .half .i-dot circle { fill: var(--green); }
-  .half:not([data-icon="plug"]) .i-plug, .half:not([data-icon="bolt"]) .i-bolt, .half:not([data-icon="dot"]) .i-dot { display: none; }
   .needs { position: relative; margin: 0; padding: 0 10px; align-self: center; font-size: 11px; line-height: 1.2; color: var(--muted); }
 </style>

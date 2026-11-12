@@ -1,61 +1,85 @@
 import { paintFlashPicture } from '../board/flashPicture';
 import type { LinkView } from './paneView';
 
-/** What the visitor can press in the Board cell's switch. */
+/** What the visitor can press of the switch, the board pane's frame and the My board view. */
 export interface BoardLinkHandlers {
-  /** The board half of the Board switch. */
+  /** The switch's Simulator half. */
+  simulator(): void;
+  /** The switch's My board half. */
+  board(): void;
+  /** The My board view's button. */
   action(): void;
   flashAgain(): void;
-  /** The simulator half of the Board switch. */
-  simulator(): void;
 }
 
-/** The Board cell, its switch and the board pane's message in `root`: writes what `linkView` says. */
+const DOT_TITLES: Readonly<Record<LinkView['dot'], string>> = {
+  off: 'My board: not connected',
+  busy: 'My board: connecting…',
+  on: 'My board: connected',
+};
+
+/** The switch, the board pane's frame and the My board view in `root`: writes what `linkView` says. */
 export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
-  const cell = root.querySelector<HTMLElement>('[data-board-cell]')!;
-  const statusText = root.querySelector<HTMLElement>('[data-board-status]')!;
-  let statusWord = root.querySelector<HTMLElement>('[data-board-word]')!;
-  let statusSentence = root.querySelector<HTMLElement>('[data-board-sentence]')!;
-  const actionButton = root.querySelector<HTMLButtonElement>('[data-board-action]');
-  const actionLabel = root.querySelector<HTMLElement>('[data-board-action-label]');
-  const needsBrowser = root.querySelector<HTMLElement>('[data-needs-browser]')!;
   const simulatorButton = root.querySelector<HTMLButtonElement>('[data-pane-simulator]')!;
-  const flashAgain = root.querySelector<HTMLButtonElement>('[data-flash-again]');
+  const boardButton = root.querySelector<HTMLButtonElement>('[data-pane-board]');
+  const dot = root.querySelector<HTMLElement>('[data-board-dot]');
+  const needsBrowser = root.querySelector<HTMLElement>('[data-needs-browser]')!;
+  const frame = root.querySelector<HTMLElement>('[data-frame]')!;
+  const tag = root.querySelector<HTMLElement>('[data-pane-tag]')!;
+  let tagWord = root.querySelector<HTMLElement>('[data-tag-word]')!;
+  let tagTitle = root.querySelector<HTMLElement>('[data-tag-title]')!;
+  const flashAgain = root.querySelector<HTMLButtonElement>('[data-flash-again]')!;
   const stage = root.querySelector<HTMLElement>('[data-stage]')!;
   const message = root.querySelector<HTMLElement>('[data-board-message]')!;
   const progress = root.querySelector<HTMLElement>('[data-board-progress]')!;
+  const actionButton = root.querySelector<HTMLButtonElement>('[data-board-action]');
+  const actionLabel = root.querySelector<HTMLElement>('[data-board-action-label]');
 
-  actionButton?.addEventListener('click', handlers.action);
-  flashAgain?.addEventListener('click', () => {
-    if (flashAgain.getAttribute('aria-disabled') !== 'true') handlers.flashAgain();
-  });
   simulatorButton.addEventListener('click', handlers.simulator);
+  boardButton?.addEventListener('click', handlers.board);
+  actionButton?.addEventListener('click', handlers.action);
+  flashAgain.addEventListener('click', handlers.flashAgain);
 
   return {
     show(view: LinkView) {
-      cell.dataset.status = view.kind;
-      // Set only on a change, and in one, since the status is a live region: two would be announced twice.
-      if (statusWord.textContent !== view.tag.word || statusSentence.textContent !== `: ${view.tag.title}`) {
-        const word = statusWord.cloneNode() as HTMLElement;
-        const sentence = statusSentence.cloneNode() as HTMLElement;
-        word.textContent = view.tag.word;
-        sentence.textContent = `: ${view.tag.title}`;
-        statusText.replaceChildren(word, sentence);
-        statusWord = word;
-        statusSentence = sentence;
-      }
-
       const { action } = view;
+      // A browser that cannot reach a board has the note in the My board half's place.
       needsBrowser.hidden = action !== undefined;
       simulatorButton.setAttribute('aria-pressed', String(view.chosen === 'simulator'));
-      // A browser that cannot reach a board has the note in the board half's place, and nothing to flash again.
-      if (flashAgain !== null) flashAgain.hidden = action === undefined;
-      // Dimmed, not hidden, so the switch keeps its width; aria-disabled keeps the focus on it while it flashes.
-      if (view.flashAgain) flashAgain?.removeAttribute('aria-disabled');
-      else flashAgain?.setAttribute('aria-disabled', 'true');
+      if (boardButton !== null && dot !== null) {
+        boardButton.hidden = action === undefined;
+        boardButton.setAttribute('aria-pressed', String(view.chosen === 'board'));
+        boardButton.title = DOT_TITLES[view.dot];
+        dot.dataset.link = view.dot;
+      }
+
+      frame.dataset.mode = view.mode;
+      // Set only on a change, and in one, since the tag is a live region: two would be announced twice.
+      if (tagWord.textContent !== view.tag.word || tagTitle.textContent !== view.tag.title) {
+        const word = tagWord.cloneNode() as HTMLElement;
+        const title = tagTitle.cloneNode() as HTMLElement;
+        word.textContent = view.tag.word;
+        title.textContent = view.tag.title;
+        tag.replaceChildren(word, ' ', title);
+        tagWord = word;
+        tagTitle = title;
+      }
+      // The press hides Flash again as the flash starts: the focus goes on to the button that says what it does.
+      const refocus = !view.flashAgain && document.activeElement === flashAgain;
+      flashAgain.hidden = !view.flashAgain;
+
+      const waiting = view.mode === 'waiting';
+      stage.toggleAttribute('data-message', waiting);
+      const shown = view.message;
+      const words = shown?.text ?? '';
+      // Only a change of text is announced: the progress picture carries the percentage.
+      if (message.textContent !== words) message.textContent = words;
+      message.classList.toggle('notice', shown?.notice ?? false);
+      progress.hidden = shown?.progress === undefined;
+      if (shown?.progress !== undefined) paintFlashPicture(progress, shown.progress);
+
       if (actionButton !== null && actionLabel !== null) {
         actionButton.hidden = action === undefined;
-        actionButton.setAttribute('aria-pressed', String(view.chosen === 'board'));
         if (action !== undefined) {
           actionLabel.textContent = action.short ?? action.label;
           if (action.short === undefined) actionButton.removeAttribute('aria-label');
@@ -65,16 +89,8 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
           if (action.disabled) actionButton.setAttribute('aria-disabled', 'true');
           else actionButton.removeAttribute('aria-disabled');
         }
+        if (refocus && waiting && !actionButton.hidden) actionButton.focus();
       }
-
-      const shown = view.message;
-      stage.toggleAttribute('data-message', shown !== undefined);
-      const words = shown?.text ?? '';
-      // Only a change of text is announced: the progress bar carries the percentage.
-      if (message.textContent !== words) message.textContent = words;
-      message.classList.toggle('notice', shown?.notice ?? false);
-      progress.hidden = shown?.progress === undefined;
-      if (shown?.progress !== undefined) paintFlashPicture(progress, shown.progress);
     },
   };
 }

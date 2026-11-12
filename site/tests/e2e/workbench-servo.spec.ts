@@ -26,9 +26,20 @@ const chip = (page: Page, text: string) => shortcutRow(page).getByRole('button',
 const slider = (page: Page, name: string) => shortcutRow(page).getByRole('slider', { name });
 const runningRow = (page: Page) => bench(page).locator('[data-code]:visible [data-running]');
 const railHeight = (page: Page) => bench(page).locator('.rail').boundingBox().then((box) => box!.height);
-const status = (page: Page) => bench(page).locator('[data-board-word]');
+/** The word on the board pane's frame, which names what the pane shows. */
+const tagWord = (page: Page) => bench(page).locator('[data-tag-word]');
+const tag = (page: Page) => bench(page).locator('[data-pane-tag]');
+const boardSwitch = (page: Page) => bench(page).getByRole('group', { name: 'What the board pane shows' });
+const simulatorButton = (page: Page) => bench(page).locator('[data-pane-simulator]');
+const myBoardButton = (page: Page) => bench(page).locator('[data-pane-board]');
+/** The My board view's button, which connects the board or flashes the step. */
 const boardButton = (page: Page) => bench(page).locator('[data-board-action]');
-const cell = (page: Page) => bench(page).locator('[data-board-cell]');
+
+/** Opens My board and connects the board from its view. */
+async function connect(page: Page) {
+  await myBoardButton(page).click();
+  await boardButton(page).click();
+}
 const trace = (page: Page) => bench(page).getByRole('img', { name: /^The servo angle on GPIO 13/ });
 const tracePath = (page: Page, part: 'sent' | 'applied' | 'level') =>
   trace(page).locator(`[data-trace-${part}]`).getAttribute('d').then((d) => d ?? '');
@@ -354,28 +365,29 @@ test.describe('the Servo workbench', () => {
     expect(await horn(page)).toBe(held);
   });
 
-  for (const [state, lines, word] of [
-    ['Live', ['sketch servo/sweep'], 'Live'],
-    ['Runs speed', ['sketch servo/speed'], 'Runs speed'],
-    ['Other sketch', ['sketch blink/simple'], 'Other sketch'],
+  for (const [state, lines, shown] of [
+    ['Live', ['sketch servo/sweep'], 'Live Drawn from what your board prints'],
+    ['Runs speed', ['sketch servo/speed'], 'My board Runs speed'],
+    ['another sketch', ['sketch blink/simple'], 'My board Runs blink/simple'],
   ] as const) {
-    test(`keeps every tab, the Board cell and the button where Simulated has them: ${state}`, async ({
+    test(`keeps every tab and both halves of the switch where Simulated has them: ${state}`, async ({
       page,
       fakeFlasher,
     }) => {
       const boxes = async () => ({
         tabs: await Promise.all((await bench(page).getByRole('tab').all()).map((each) => each.boundingBox())),
-        cell: await cell(page).boundingBox(),
-        button: await boardButton(page).boundingBox(),
+        board: await boardSwitch(page).boundingBox(),
+        simulator: await simulatorButton(page).boundingBox(),
+        myBoard: await myBoardButton(page).boundingBox(),
       });
       await fakeFlasher.install({ lines: [...lines] });
       await page.goto(SERVO);
-      await expect(status(page)).toHaveText('Simulated');
+      await expect(tagWord(page)).toHaveText('Simulated');
       const simulated = await boxes();
       // Each step's idea fits on one line, so the rail is as tall as Blink's.
       expect(await railHeight(page)).toBe(70);
-      await boardButton(page).click();
-      await expect(status(page)).toHaveText(word);
+      await connect(page);
+      await expect(tag(page)).toHaveText(shown);
       expect(await boxes()).toEqual(simulated);
       expect(await railHeight(page)).toBe(70);
     });
@@ -401,9 +413,9 @@ test.describe('the Servo workbench, live', () => {
     await fakeFlasher.install({ lines: ['', 'sketch servo/angle', 'angle 120'] });
     await page.goto(SERVO);
     await tab(page, '2 angle').click();
-    await boardButton(page).click();
+    await connect(page);
 
-    await expect(status(page)).toHaveText('Live');
+    await expect(tagWord(page)).toHaveText('Live');
     await expect(serial(page)).toHaveText('sketch servo/angle\nangle 120');
     expect(await horn(page)).toBe('120');
     await expect(watchValue(page, 'angle')).toHaveText('120°');
@@ -435,8 +447,8 @@ test.describe('the Servo workbench, live', () => {
     await fakeFlasher.install({ lines: ['sketch servo/speed', 'angle 90'] });
     await page.goto(SERVO);
     await tab(page, '4 speed').click();
-    await boardButton(page).click();
-    await expect(status(page)).toHaveText('Live');
+    await connect(page);
+    await expect(tagWord(page)).toHaveText('Live');
     await expect(watchValue(page, 'target')).toHaveText('90°');
 
     await fakeFlasher.print('sweeping', 'angle 91');

@@ -11,7 +11,7 @@ interface Props {
 const { steps, placeholder } = Astro.props;
 ---
 
-<div class="term">
+<div class="term" data-terminal>
   <pre class="serial" role="log" aria-live="off" aria-label="Serial output" data-serial><span class="out">{
     Array.from({ length: SERIAL_LINES }, () => <span data-serial-line />)
   }</span></pre>

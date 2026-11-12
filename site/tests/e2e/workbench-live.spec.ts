@@ -10,8 +10,13 @@ const source = (sketch: string) =>
 
 const bench = (page: Page) => page.getByRole('region', { name: 'Workbench' });
 const tab = (page: Page, name: string) => bench(page).getByRole('tab', { name });
-const status = (page: Page) => bench(page).locator('[data-board-word]');
-const statusLine = (page: Page) => bench(page).locator('[data-board-status]');
+/** The word on the board pane's frame, which names what the pane shows. */
+const tagWord = (page: Page) => bench(page).locator('[data-tag-word]');
+/** The frame's tag: the word and the sentence that says more. */
+const tag = (page: Page) => bench(page).locator('[data-pane-tag]');
+const simulatorButton = (page: Page) => bench(page).locator('[data-pane-simulator]');
+const myBoardButton = (page: Page) => bench(page).locator('[data-pane-board]');
+/** The My board view's button, which connects the board or flashes the step. */
 const boardButton = (page: Page) => bench(page).locator('[data-board-action]');
 const picture = (page: Page) => bench(page).locator('[data-picture]');
 const watchValue = (page: Page, name: string) => bench(page).locator(`[data-watch-row="${name}"] dd`);
@@ -36,13 +41,22 @@ const nextFrame = (page: Page) => page.clock.runFor(20);
 /** The level the trace draws at its right edge. */
 const levelNow = async (page: Page) => Number([...(await tracePath(page, 'level')).matchAll(/(?:^M[\d.]+ |V)(\d+)/g)].at(-1)?.[1]);
 
-/** Connects from the `name` tab to a board that prints `sketch <key>` first, then waits for the cell to read `word`. */
-async function connectTo(page: Page, fakeFlasher: FakeFlasher, key: string, name: string, word: string) {
+/** Opens My board and connects the board from its view. */
+async function connect(page: Page) {
+  await myBoardButton(page).click();
+  await boardButton(page).click();
+}
+
+/**
+ * Connects under My board from the `name` tab to a board that prints `sketch <key>` first, then waits for the frame's
+ * tag to read `shown`, such as `Live` or `Runs input`.
+ */
+async function connectTo(page: Page, fakeFlasher: FakeFlasher, key: string, name: string, shown: string) {
   await fakeFlasher.install({ lines: ['', `sketch ${key}`] });
   await page.goto(BLINK);
   await tab(page, name).click();
-  await boardButton(page).click();
-  await expect(status(page)).toHaveText(word);
+  await connect(page);
+  await expect(tag(page)).toContainText(shown);
 }
 
 test.describe('live mode', () => {
@@ -55,7 +69,7 @@ test.describe('live mode', () => {
 
     // Picking the step the board runs follows the board.
     await tab(page, '2 input').click();
-    await expect(status(page)).toHaveText('Live');
+    await expect(tagWord(page)).toHaveText('Live');
     await expect(serial(page)).toHaveText('');
     await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 500);
 
@@ -132,9 +146,9 @@ test.describe('live mode', () => {
 
     await debuggerButton(page, 'Pause').click();
     await expect(watchValue(page, 'wait')).toHaveText('1000 ms');
-    await boardButton(page).click();
+    await myBoardButton(page).click();
 
-    await expect(boardButton(page)).toHaveAccessibleName('My board, live');
+    await expect(tagWord(page)).toHaveText('Live');
     await expect(watchValue(page, 'wait')).toHaveText('500 ms');
     await expect(livePill(page)).toHaveText('500');
   });
@@ -149,9 +163,9 @@ test.describe('live mode', () => {
     await debuggerButton(page, 'Pause').click();
     // A restart wipes what was sent before, and lines sent meanwhile went to the simulator.
     await fakeFlasher.print('', 'sketch blink/input', 'HIGH');
-    await boardButton(page).click();
+    await myBoardButton(page).click();
 
-    await expect(boardButton(page)).toHaveAccessibleName('My board, live');
+    await expect(tagWord(page)).toHaveText('Live');
     await expect(watchValue(page, 'wait')).toHaveText('1000 ms');
     await expect(livePill(page)).toHaveText('1000');
   });
@@ -166,9 +180,9 @@ test.describe('live mode', () => {
     await fakeFlasher.print('LOW', 'delay 500', 'HIGH');
     await expect(serial(page)).not.toContainText('delay 500');
     await expect(watchValue(page, 'wait')).toHaveText('1000 ms');
-    await boardButton(page).click();
+    await myBoardButton(page).click();
 
-    await expect(boardButton(page)).toHaveAccessibleName('My board, live');
+    await expect(tagWord(page)).toHaveText('Live');
     await expect(watchValue(page, 'wait')).toHaveText('500 ms');
     await expect(livePill(page)).toHaveText('500');
   });
@@ -177,7 +191,7 @@ test.describe('live mode', () => {
     await connectTo(page, fakeFlasher, 'blink/simple', '1 simple', 'Live');
     await debuggerButton(page, 'Pause').click();
     await fakeFlasher.print('sketch blink/simple');
-    await boardButton(page).click();
+    await myBoardButton(page).click();
 
     await expect(watchValue(page, 'wait')).toHaveText('1000 ms (fixed)');
   });
@@ -186,8 +200,8 @@ test.describe('live mode', () => {
     await fakeFlasher.install({ lines: ['', 'sketch blink/input'], failFirst: { send: 'NetworkError' } });
     await page.goto(BLINK);
     await tab(page, '2 input').click();
-    await boardButton(page).click();
-    await expect(status(page)).toHaveText('Live');
+    await connect(page);
+    await expect(tagWord(page)).toHaveText('Live');
 
     const heightBefore = (await bench(page).boundingBox())!.height;
     await commandLine(page).fill('500');
@@ -207,14 +221,14 @@ test.describe('live mode', () => {
     await expect(problem).toBeHidden();
   });
 
-  test('while the board prints nothing, leaves the code, the watch, the output, the status and the alert unwritten', async ({
+  test('while the board prints nothing, leaves the code, watch, output, tag and alert unwritten', async ({
     page,
     fakeFlasher,
   }) => {
     await fakeFlasher.install({ lines: ['', 'sketch blink/input', 'delay 700'], failFirst: { send: 'NetworkError' } });
     await page.goto(BLINK);
     await tab(page, '2 input').click();
-    await boardButton(page).click();
+    await connect(page);
     await expect(watchValue(page, 'wait')).toHaveText('700 ms');
     await commandLine(page).fill('500');
     await commandLine(page).press('Enter');
@@ -222,7 +236,7 @@ test.describe('live mode', () => {
 
     const changes = await bench(page).evaluate(async (workbench) => {
       const seen: string[] = [];
-      const watched = ['[data-serial]', '.watch', '[data-problem]', '[data-board-status]', '[data-code]:not([hidden])'];
+      const watched = ['[data-serial]', '.watch', '[data-problem]', '[data-pane-tag]', '[data-code]:not([hidden])'];
       const observer = new MutationObserver((records) => {
         for (const record of records) seen.push((record.target as Element).nodeName ?? 'text');
       });
@@ -282,7 +296,7 @@ test.describe('live mode', () => {
     await page.clock.runFor(60);
     await expect(commandLine(page)).toHaveAttribute('data-typing', '');
     await fakeFlasher.print('', 'sketch blink/simple');
-    await expect(status(page)).toHaveText('Runs simple');
+    await expect(tag(page)).toHaveText('My board Runs simple');
     await page.clock.runFor(2000);
 
     await expect(commandLine(page)).toHaveValue('');
@@ -328,11 +342,13 @@ test.describe('live mode', () => {
 });
 
 test.describe('a board that runs another step', () => {
-  test('simulates the selected step with every control on, and sends nothing to the board', async ({
+  test('Simulator simulates the selected step beside it with every control on, and sends nothing to the board', async ({
     page,
     fakeFlasher,
   }) => {
     await connectTo(page, fakeFlasher, 'blink/simple', '2 input', 'Runs simple');
+    await simulatorButton(page).click();
+    await expect(tagWord(page)).toHaveText('Simulated');
 
     await expect(commandLine(page)).toBeEnabled();
     await expect(commandLine(page)).toHaveAttribute('placeholder', 'a number, then Enter');
@@ -354,13 +370,13 @@ test.describe('a board that runs another step', () => {
     await fakeFlasher.install({ lines: ['', 'sketch blink/simple'], announce: true });
     await page.goto(BLINK);
     await tab(page, '2 input').click();
-    await boardButton(page).click();
-    await expect(status(page)).toHaveText('Runs simple');
+    await connect(page);
+    await expect(tag(page)).toHaveText('My board Runs simple');
 
     await boardButton(page).click();
 
-    await expect(status(page)).toHaveText('Live');
-    await expect(boardButton(page)).toHaveAccessibleName('My board, live');
+    await expect(tagWord(page)).toHaveText('Live');
+    await expect(bench(page).getByRole('button', { name: 'Flash again' })).toBeVisible();
     await expect(commandLine(page)).toBeEnabled();
     await expect(serial(page)).toHaveText('sketch blink/input');
     await fakeFlasher.print('HIGH');
@@ -386,7 +402,7 @@ test.describe('a board that runs another step', () => {
 
     await tab(page, '4 commands').click();
 
-    await expect(status(page)).toHaveText('Live');
+    await expect(tagWord(page)).toHaveText('Live');
     await expect(commandLine(page)).toBeEnabled();
     await expect(commandLine(page)).toHaveAttribute('placeholder', 'a command, then Enter');
     for (const control of await shortcuts(page).all()) await expect(control).toBeEnabled();
@@ -395,7 +411,7 @@ test.describe('a board that runs another step', () => {
 
 test.describe('back to the board', () => {
   for (const pressed of ['Pause', 'Step', 'Restart'] as const) {
-    test(`${pressed} while live hands the pane to the simulator at the first line, and My board follows the board again`, async ({
+    test(`${pressed} while live presses Simulator, at the first line, and My board follows the board again`, async ({
       page,
       fakeFlasher,
     }) => {
@@ -409,11 +425,10 @@ test.describe('back to the board', () => {
       await debuggerButton(page, pressed).click();
       await nextFrame(page);
 
-      await expect(boardButton(page)).toHaveAccessibleName('My board');
-      await expect(boardButton(page).locator('.i-dot')).toBeVisible();
-      await expect(status(page)).toHaveText('Live');
-      const sentence = 'Live — the pane shows the simulator until My board';
-      await expect(statusLine(page)).toHaveText(`Live: ${sentence}`);
+      await expect(simulatorButton(page)).toHaveAttribute('aria-pressed', 'true');
+      await expect(myBoardButton(page)).toHaveAttribute('aria-pressed', 'false');
+      await expect(tagWord(page)).toHaveText('Simulated');
+      await expect(tag(page)).toHaveText('Simulated Running in the browser; your board runs this step under My board');
       await expect(runningRow(page)).toHaveAttribute(
         'data-line',
         String(lineNumber(source('input'), 'output.begin("blink/input");')),
@@ -428,11 +443,10 @@ test.describe('back to the board', () => {
       await nextFrame(page);
       await expect(serial(page)).not.toContainText('HIGH');
 
-      await boardButton(page).click();
+      await myBoardButton(page).click();
       await nextFrame(page);
 
-      await expect(boardButton(page)).toHaveAccessibleName('My board, live');
-      await expect(statusLine(page)).toHaveText('Live: Your board runs this step');
+      await expect(tag(page)).toHaveText('Live Drawn from what your board prints');
       await expect(debuggerButton(page, 'Slow')).toBeDisabled();
       await fakeFlasher.print('LOW', 'HIGH');
       await nextFrame(page);
@@ -443,15 +457,20 @@ test.describe('back to the board', () => {
     });
   }
 
-  test('a tab pick drops the simulator and follows the board again', async ({ page, fakeFlasher }) => {
+  test('a tab pick keeps the simulator the visitor chose, and My board follows the board again', async ({
+    page,
+    fakeFlasher,
+  }) => {
     await connectTo(page, fakeFlasher, 'blink/input', '2 input', 'Live');
     await debuggerButton(page, 'Pause').click();
-    await expect(boardButton(page)).toHaveAccessibleName('My board');
+    await expect(tagWord(page)).toHaveText('Simulated');
 
     await tab(page, '1 simple').click();
     await tab(page, '2 input').click();
 
-    await expect(boardButton(page)).toHaveAccessibleName('My board, live');
+    await expect(tagWord(page)).toHaveText('Simulated');
+    await myBoardButton(page).click();
+    await expect(tagWord(page)).toHaveText('Live');
     await fakeFlasher.print('HIGH');
     await expect(serial(page)).toHaveText('HIGH');
   });

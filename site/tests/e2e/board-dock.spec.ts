@@ -3,7 +3,14 @@ import { expect, test } from './fake-flasher';
 
 const BLINK = '/robomania/projects/blink/';
 const bench = (page: Page) => page.getByRole('region', { name: 'Workbench' });
-const status = (page: Page) => bench(page).locator('[data-board-word]');
+/** The word on the board pane's frame, which names what the pane shows. */
+const tagWord = (page: Page) => bench(page).locator('[data-tag-word]');
+
+/** Opens the workbench's My board view and connects the board from it. */
+async function connect(page: Page) {
+  await bench(page).locator('[data-pane-board]').click();
+  await bench(page).locator('[data-board-action]').click();
+}
 const nav = (page: Page) => page.getByRole('navigation', { name: 'Main' });
 const dock = (page: Page) => page.getByRole('complementary', { name: 'Your board' });
 const monitor = (page: Page) => dock(page).getByRole('log', { name: 'Board output' });
@@ -15,14 +22,14 @@ test.describe('the board, from page to page', () => {
   }) => {
     await fakeFlasher.install({ lines: ['sketch blink/simple'] });
     await page.goto(BLINK);
-    await bench(page).locator('[data-board-action]').click();
-    await expect(status(page)).toHaveText('Live');
+    await connect(page);
+    await expect(tagWord(page)).toHaveText('Live');
 
     await nav(page).getByRole('link', { name: 'Projects' }).click();
     await expect(page).toHaveURL('/robomania/projects/');
     await page.getByRole('main').getByRole('link', { name: /Blink/ }).click();
 
-    await expect(status(page)).toHaveText('Live');
+    await expect(tagWord(page)).toHaveText('Live');
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
   });
 });
@@ -107,8 +114,8 @@ test.describe('the board dock', () => {
   test('flashes the sketch the board runs again from another page, showing the progress', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['sketch blink/simple'], progress: [40], hold: true });
     await page.goto(BLINK);
-    await bench(page).locator('[data-board-action]').click();
-    await expect(status(page)).toHaveText('Live');
+    await connect(page);
+    await expect(tagWord(page)).toHaveText('Live');
     await nav(page).getByRole('link', { name: 'Learn' }).click();
 
     await dock(page).getByRole('button', { name: 'Flash again' }).click();

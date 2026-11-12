@@ -74,7 +74,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
   <Rail project={project} steps={rail} flashable={flashable} />
   <div class="panes" role="tabpanel" id={id('panel')} aria-labelledby={id(`tab-${first.id}`)}>
     <Editor steps={rail} />
-    <Board project={workbench} steps={rail} />
+    <Board project={workbench} steps={rail} flashable={flashable} />
   </div>
 </section>
 
@@ -133,6 +133,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     const serialLines = [...root.querySelectorAll<HTMLElement>('[data-serial-line]')];
     const commandInput = root.querySelector<HTMLInputElement>('[data-command-line]')!;
     const say = root.querySelector<HTMLElement>('[data-say]')!;
+    const terminal = root.querySelector<HTMLElement>('[data-terminal]')!;
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
     const pauseButton = root.querySelector<HTMLButtonElement>('[data-pause]')!;
     const pauseLabel = root.querySelector<HTMLElement>('[data-pause-label]')!;
@@ -165,7 +166,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       board: project.board,
     };
     const watch = mountWatchPanel(root, project.board.steady);
-    // While the pane follows the board, the simulator waits, paused, and its notices are not the pane's.
+    // While the pane shows My board, the simulator waits, paused, and its notices are not the pane's.
     const simulation = createSimulation(project.board, {
       has: () => pane.mode === 'simulator',
       reduceMotion: () => reducedMotion.matches,
@@ -187,6 +188,10 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       if (pane.following !== before.following) {
         simulation.hold();
         watch.reset();
+      }
+      // A step opened while My board waits is held at its first line too, for the Simulator half to start.
+      if (pane.mode === 'waiting' && (before.mode === 'simulator' || pane.selected !== before.selected)) {
+        simulation.hold();
       }
       showLink();
       draw();
@@ -313,7 +318,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     });
 
     /**
-     * Hands the pane from the board to a fresh simulator, running if `running`. The simulator starts as the pane changes
+     * Hands the pane from My board to a fresh simulator, running if `running`. The simulator starts as the pane changes
      * hands, so the visitor's wish is set first.
      */
     function chooseSimulator(running: boolean) {
@@ -347,24 +352,26 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     });
     let pane: PaneState<unknown> = initialPane(paneProject, session.state, board.record.heard);
     const boardLink = mountBoardLink(root, {
-      action() {
-        const action = paneAction(paneProject, pane);
-        if (action === undefined || action.disabled) return;
-        dispatch({ kind: 'choose', chosen: 'board' });
-        press(action.event);
-      },
-      flashAgain: () => press('flash'),
       // The board keeps running its step; the simulator starts it again in the pane.
       simulator() {
         if (pane.mode === 'simulator') return;
         chooseSimulator(true);
       },
+      board: () => dispatch({ kind: 'choose', chosen: 'board' }),
+      action() {
+        const action = paneAction(paneProject, pane);
+        if (action === undefined || action.disabled) return;
+        press(action.event);
+      },
+      flashAgain: () => press('flash'),
     });
 
-    /** Paints the Board cell, its button and the board pane's message, and marks the rail's step the board runs. */
+    /** Paints the switch, the board pane's frame and the My board view, and marks the rail's step the board runs. */
     function showLink() {
       const link = linkView(paneProject, pane, thePick().model);
       boardLink.show(link);
+      // What the visitor would send has no board to reach until it runs the step.
+      terminal.inert = pane.mode === 'waiting';
       tabs.forEach((tab, at) => {
         tab.querySelector<HTMLElement>('[data-onboard]')!.hidden = paneProject.steps[at].key !== link.onBoard;
       });
@@ -385,7 +392,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       simulation.dispose();
     });
 
-    /** Presses the board half of the Board switch, or Flash again, then asks the session for what the press starts. */
+    /** Presses the My board view's button, or Flash again, then asks the session for what the press starts. */
     function press(action: BoardAction['event']) {
       dispatch({ kind: 'press', action });
       if (action === 'connect') void board.send({ type: 'connect', reset: true });
