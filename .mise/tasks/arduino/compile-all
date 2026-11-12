@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+#MISE description="Compile every sketch with its default sketch.yaml profile, stopping at the first that fails"
+set -euo pipefail
+
+# Sketches sit at sketches/<name> or sketches/<project>/<variant>; a pattern that matches nothing expands to nothing.
+shopt -s nullglob
+for config in sketches/*/sketch.yaml sketches/*/*/sketch.yaml; do
+  mise run arduino:compile "$(dirname "${config}")"
+done

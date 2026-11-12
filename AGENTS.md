@@ -16,7 +16,8 @@ website: Astro 7 in `site/package.json`, Node 24 in `mise.toml`, pnpm 12 in `mis
   (unverified); a website package: `pnpm --filter @robomania/site add <package>`
 - Run: `mise run arduino:run <sketch> --port <port>` (unverified)
 - Flash a compiled sketch: `mise run arduino:upload <sketch> --port <port>`
-- Build: `mise run arduino:compile sketches/<name>`, or `sketches/<project>/<variant>`; the website:
+- Build: `mise run arduino:compile sketches/<name>`, or `sketches/<project>/<variant>`; every sketch:
+  `mise run arduino:compile-all`; the website:
   `mise run site:build`, which type-checks first with `astro check`, or `site:dev` (serves it)
 - Test: `mise run lib:test`; the website: `mise run site:test`
 - Lint or format one file: `mise exec -- clang-format -i <file>`; Python: `mise exec -- ruff format <file>`
@@ -28,7 +29,7 @@ website: Astro 7 in `site/package.json`, Node 24 in `mise.toml`, pnpm 12 in `mis
 - Done check:
   `mise exec -- clang-format --dry-run --Werror lib/* test/* $(find sketches -name '*.ino')`,
   `mise exec -- ruff check . .vscode/*.py && mise exec -- ruff format --check . .vscode/*.py`, `mise run lib:test`,
-  the Build command for every sketch in `sketches/`, `mise run arduino:firmware`, `mise run site:build`,
+  `mise run arduino:compile-all`, `mise run arduino:firmware`, `mise run site:build`,
   `mise run site:test`
 
 ## Boundaries

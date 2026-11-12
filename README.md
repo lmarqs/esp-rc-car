@@ -29,6 +29,8 @@ use. The first compile of a sketch also downloads its core into `.arduino/`. `mi
 A sketch with more than one board has a profile for each in its `sketch.yaml`, and the task builds the default one.
 Build another with `mise exec -- arduino-cli compile <sketch> --profile <profile>`.
 
+`mise run arduino:compile-all` builds every sketch's default profile and stops at the first that fails.
+
 A sketch reads its passwords and the values of one build of its robot from `<sketch>/local.h`, which Git ignores;
 the sketch's page in [docs/sketches](docs/sketches/README.md) lists the names it reads.
 
