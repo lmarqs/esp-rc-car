@@ -51,6 +51,8 @@ mise run site:build
 mise run site:test
 ```
 
+`site:build` type-checks the site with `astro check` before it builds.
+
 `arduino:firmware` compiles every sketch that has an ESP profile and writes the images and a `manifest.json` to
 `site/public/firmware/`, which Git ignores; the site's Flash page and project pages read them. It refuses to build a
 sketch that has a `local.h`, since that file's passwords would ship to every visitor; `--allow-local` overrides it.

@@ -17,7 +17,7 @@ website: Astro 7 in `site/package.json`, Node 24 in `mise.toml`, pnpm 12 in `mis
 - Run: `mise run arduino:run <sketch> --port <port>` (unverified)
 - Flash a compiled sketch: `mise run arduino:upload <sketch> --port <port>`
 - Build: `mise run arduino:compile sketches/<name>`, or `sketches/<project>/<variant>`; the website:
-  `mise run site:build` or `site:dev` (serves it)
+  `mise run site:build`, which type-checks first with `astro check`, or `site:dev` (serves it)
 - Test: `mise run lib:test`; the website: `mise run site:test`
 - Lint or format one file: `mise exec -- clang-format -i <file>`; Python: `mise exec -- ruff format <file>`
 - Generate: `mise run arduino:hexdump <sketch>`, a C header per `<sketch>/data` file; the website's firmware images,

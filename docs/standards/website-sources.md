@@ -22,6 +22,8 @@ A MUST does not vary. A SHOULD yields only to a reason written beside the code.
   global stubbed. What a component shows for each state of its logic MAY be a DOM-free function beside the
   component, which has a unit test too. A script that only animates its own component's markup stays in the
   component.
+- The site's TypeScript, in `.astro` files, `src/` and `tests/`, MUST pass `astro check`, which `site:build` runs before it
+  builds.
 - The site MUST NOT use a UI framework. Its dependencies are Astro, which builds every page, and libraries such as
   `esptool-js`, which flashes; Vitest, Playwright and type packages test and check it. A component is an Astro
   component, and what runs in the browser is plain TypeScript in the component's `<script>` tag. Astro renders a
