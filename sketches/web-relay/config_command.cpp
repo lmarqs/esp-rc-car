@@ -1,5 +1,6 @@
 #include "config_command.h"
 
+#include <line_reader.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -181,7 +182,7 @@ ConfigAction handleConfigLine(const char* line, StoredConfig& config, const Conf
   if (strncmp(line, "cfg", 3) != 0 || (line[3] != '\0' && line[3] != ' ')) {
     return ConfigAction::None;
   }
-  if (strlen(line) >= CONFIG_LINE_MAX - 1) {
+  if (strlen(line) >= LineReader::CAPACITY - 1) {
     return answerSyntaxError(out);
   }
 
@@ -196,23 +197,4 @@ ConfigAction handleConfigLine(const char* line, StoredConfig& config, const Conf
     return answerSet(args + 5, config, out);
   }
   return answerSyntaxError(out);
-}
-
-bool ConfigLineReader::feed(char c) {
-  if (ready_) {
-    length_ = 0;
-    ready_ = false;
-  }
-  if (c == '\r' || c == '\n') {
-    if (length_ == 0) {
-      return false;
-    }
-    buffer_[length_] = '\0';
-    ready_ = true;
-    return true;
-  }
-  if (length_ < CONFIG_LINE_MAX - 1) {
-    buffer_[length_++] = c;
-  }
-  return false;
 }

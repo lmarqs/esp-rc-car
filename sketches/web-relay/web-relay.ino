@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <ArduinoOTA.h>
 #include <EEPROM.h>
+#include <digital_pin.h>
+#include <serial_io.h>
 
 #if defined(ESP8266)
 #include <ESP8266WebServer.h>
@@ -33,29 +35,16 @@ using HttpServer = WebServer;
 #define WEB_RELAY_OTA_PASSWORD "web-relay-1234"
 #endif
 
-/** A digital output with the level that turns its load on, since carrier boards wire the relay either way. */
-struct Output {
-  uint8_t pin;
-  uint8_t activeLevel;
-
-  void begin() const {
-    pinMode(pin, OUTPUT);
-    write(false);
-  }
-
-  void write(bool on) const { digitalWrite(pin, on ? activeLevel : (activeLevel == HIGH ? LOW : HIGH)); }
-};
-
 #if defined(ESP8266)
 // ESP-01S: GPIO0 drives the relay and is a boot strap, where LOW at reset enters flash mode. GPIO2 is the onboard
 // LED, wired active-LOW.
-static const Output relay{0, LOW};
-static const Output led{2, LOW};
+static DigitalOutPin relay(0, LOW);
+static DigitalOutPin led(2, LOW);
 #elif defined(ESP32)
 // ESP32 DevKit: GPIO23 stays LOW at boot, so the relay does not click during reset or flashing. GPIO2 is the
 // onboard LED, active-HIGH.
-static const Output relay{23, HIGH};
-static const Output led{2, HIGH};
+static DigitalOutPin relay(23, HIGH);
+static DigitalOutPin led(2, HIGH);
 #endif
 
 // The blink setting sits at 0 and the serial settings after it, with room left for a record to grow.
@@ -70,7 +59,8 @@ static const ConfigDefaults CONFIG_DEFAULTS{WEB_RELAY_AP_SSID, WEB_RELAY_AP_PASS
 
 static BlinkController blinker;
 static StoredConfig config = emptyConfig();
-static ConfigLineReader serialLine;
+static SerialInput serialInput;
+static SerialOutput serialOutput;
 static HttpServer server(80);
 
 static void applyOutput() {
@@ -79,7 +69,7 @@ static void applyOutput() {
   led.write(on);
 }
 
-static void logLamp() { Serial.printf("lamp %s\n", blinker.output().name()); }
+static void logLamp() { serialOutput.printf("lamp %s\n", blinker.output().name()); }
 
 static void tick() {
   if (!blinker.update(millis())) {
@@ -119,10 +109,10 @@ static void handleSerialLine(const char* line) {
   if (action == ConfigAction::Save) {
     saveConfig();
   }
-  Serial.print(reply);
+  serialOutput.print(reply);
   switch (action) {
     case ConfigAction::Restart:
-      Serial.flush();
+      serialOutput.flush();
       ESP.restart();
       break;
     default:
@@ -131,10 +121,8 @@ static void handleSerialLine(const char* line) {
 }
 
 static void readSerial() {
-  while (Serial.available() > 0) {
-    if (serialLine.feed(static_cast<char>(Serial.read()))) {
-      handleSerialLine(serialLine.line());
-    }
+  while (serialInput.ready()) {
+    handleSerialLine(serialInput.take().c_str());
   }
 }
 
@@ -181,7 +169,7 @@ void setup() {
   relay.begin();
   led.begin();
 
-  Serial.begin(115200);
+  serialOutput.begin("web-relay");
   EEPROM.begin(EEPROM_SIZE);
   loadSetting();
   loadConfig();
@@ -189,7 +177,7 @@ void setup() {
   const char* apSsid = effectiveApSsid(config, CONFIG_DEFAULTS);
   WiFi.mode(WIFI_AP);
   WiFi.softAP(apSsid, effectiveApPassword(config, CONFIG_DEFAULTS));
-  Serial.printf("\nAP \"%s\" up at %s\n", apSsid, WiFi.softAPIP().toString().c_str());
+  serialOutput.printf("\nAP \"%s\" up at %s\n", apSsid, WiFi.softAPIP().toString().c_str());
 
   ArduinoOTA.setPassword(effectiveOtaPassword(config, CONFIG_DEFAULTS));
   ArduinoOTA.begin();
