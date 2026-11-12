@@ -12,6 +12,42 @@
         }
       ]
     },
+    "blink/input": {
+      "images": [
+        {
+          "profile": "esp32",
+          "chipFamily": "ESP32",
+          "parts": [
+            { "path": "blink/input/esp32/input.ino.bootloader.bin", "offset": 4096 },
+            { "path": "blink/input/esp32/input.ino.bin", "offset": 65536 }
+          ]
+        }
+      ]
+    },
+    "blink/timer": {
+      "images": [
+        {
+          "profile": "esp32",
+          "chipFamily": "ESP32",
+          "parts": [
+            { "path": "blink/timer/esp32/timer.ino.bootloader.bin", "offset": 4096 },
+            { "path": "blink/timer/esp32/timer.ino.bin", "offset": 65536 }
+          ]
+        }
+      ]
+    },
+    "blink/commands": {
+      "images": [
+        {
+          "profile": "esp32",
+          "chipFamily": "ESP32",
+          "parts": [
+            { "path": "blink/commands/esp32/commands.ino.bootloader.bin", "offset": 4096 },
+            { "path": "blink/commands/esp32/commands.ino.bin", "offset": 65536 }
+          ]
+        }
+      ]
+    },
     "servo/sweep": {
       "images": [
         {

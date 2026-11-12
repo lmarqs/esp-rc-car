@@ -27,8 +27,15 @@ const repo = 'https://github.com/lmarqs/robomania/tree/main/';
     <Meta level={project.data.level} state={project.data.state} />
     <h1>{project.data.title}</h1>
     <p class="lead">{project.data.summary}</p>
-    {steps ? <Workbench project={project.id} steps={steps} /> : <Example name={project.data.example} />}
     {
+      steps ? (
+        <Workbench project={project.id} steps={steps} baud={project.data.flash?.baud} />
+      ) : (
+        <Example name={project.data.example} />
+      )
+    }
+    {
+      !steps &&
       project.data.sketch && (
         <FlashCard
           sketch={project.data.sketch}

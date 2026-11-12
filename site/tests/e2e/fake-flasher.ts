@@ -9,6 +9,13 @@ export interface FakeFlasherOptions {
   progress?: number[];
   /** `write` waits after reporting `progress`, until `release` is called. Default: finishes at once. */
   hold?: boolean;
+  /** `connect` waits until `release` is called. Default: answers at once. */
+  holdConnect?: boolean;
+  /**
+   * After a flash, `monitor` prints `sketch <key>` for the key whose image `load` was given, as a ladder's step does,
+   * instead of `lines`. Default: it prints `lines` every time.
+   */
+  announce?: boolean;
   /**
    * Makes the first call of a method reject with an error of this name, as the layer below does; later calls succeed.
    * `write` rejects after it has reported `progress`.
@@ -31,8 +38,10 @@ export interface FakeFlasher {
   install(options?: FakeFlasherOptions): Promise<void>;
   /** Lets a held `write` finish. */
   release(): Promise<void>;
-  /** The flasher's methods that the page called, in order. */
+  /** The flasher's methods that the page called, in order; `connect reuse` for a connect on the port it holds. */
   calls(): Promise<string[]>;
+  /** The paths of the parts each `load` was given, in order. */
+  loaded(): Promise<string[][]>;
 }
 
 /**
@@ -41,6 +50,8 @@ export interface FakeFlasher {
  */
 function installFakeFlasher(options: FakeFlasherOptions) {
   const calls: string[] = [];
+  const loaded: string[][] = [];
+  let flashedKey: string | undefined;
   let release = () => {};
   const released = new Promise<void>((resolve) => {
     release = resolve;
@@ -83,14 +94,20 @@ function installFakeFlasher(options: FakeFlasherOptions) {
   }
 
   const flasher: Flasher = {
-    async connect() {
-      const call = calls.filter((name) => name === 'connect').length;
-      calls.push('connect');
+    async connect(connectOptions) {
+      const call = calls.filter((name) => name.startsWith('connect')).length;
+      calls.push(connectOptions?.reusePort ? 'connect reuse' : 'connect');
+      if (options.holdConnect) {
+        await released;
+      }
       failOnce('connect');
       return chips[Math.min(call, chips.length - 1)]!;
     },
-    async load() {
+    async load(parts) {
       calls.push('load');
+      loaded.push(parts.map((part) => part.path));
+      // A part's path is `<key>/<profile>/<file>`.
+      flashedKey = parts[0]?.path.split('/').slice(0, -2).join('/');
       failOnce('load');
     },
     async write(_parts, onProgress) {
@@ -110,7 +127,7 @@ function installFakeFlasher(options: FakeFlasherOptions) {
     async monitor(baud, onLines) {
       calls.push(`monitor ${baud}`);
       printLines = onLines;
-      for (const line of options.lines ?? []) {
+      for (const line of options.announce && flashedKey ? [`sketch ${flashedKey}`] : (options.lines ?? [])) {
         onLines([line]);
       }
       if (options.monitorEnds && calls.filter((name) => name.startsWith('monitor')).length === 1) {
@@ -135,6 +152,7 @@ function installFakeFlasher(options: FakeFlasherOptions) {
 
   Object.defineProperty(window, '__robomaniaFakeFlasher', { configurable: true, value: flasher });
   Object.defineProperty(window, '__fakeFlasherCalls', { value: calls });
+  Object.defineProperty(window, '__fakeFlasherLoaded', { value: loaded });
   Object.defineProperty(window, '__fakeFlasherRelease', { value: release });
 }
 
@@ -143,6 +161,7 @@ function fakeFlasherFor(page: Page): FakeFlasher {
     install: (options = {}) => page.addInitScript(installFakeFlasher, options),
     release: () => page.evaluate(() => (window as unknown as { __fakeFlasherRelease: () => void }).__fakeFlasherRelease()),
     calls: () => page.evaluate(() => (window as unknown as { __fakeFlasherCalls: string[] }).__fakeFlasherCalls),
+    loaded: () => page.evaluate(() => (window as unknown as { __fakeFlasherLoaded: string[][] }).__fakeFlasherLoaded),
   };
 }
 

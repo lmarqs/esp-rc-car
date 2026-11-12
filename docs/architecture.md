@@ -80,9 +80,11 @@ The site also puts the firmware on a board. Its parts:
   rejects an entry the card cannot show.
 - **Flash slice**: `site/src/lib/flash/` holds the logic and `site/src/components/flash/` the card. The logic reads
   the manifest, talks to the board over Web Serial and walks one session through connecting, the settings form,
-  flashing and running. The rest of the site imports only the card, `FlashCard`, and the manifest reader.
+  flashing and running. The rest of the site imports the card, `FlashCard`, and the manifest reader; the workbench
+  also imports the session, `createFlasher`, and the card's `viewFor` for the card's wording.
 - **Pages**: the `/flash/` page lists the projects that have an image and shows the card of the one picked; each
-  project page with a sketch shows the same card above its text. A project page keeps its own section on building
+  project page with a sketch shows the same card above its text, except a page with a workbench, whose Board cell
+  connects to the board and flashes the selected step. A project page keeps its own section on building
   and flashing the sketch with the tools.
 
 ```mermaid
