@@ -7,6 +7,7 @@ import {
   codeRows,
   debuggerControls,
   otherStepKeys,
+  liveClockFace,
   toolbar,
   crumbs,
   fileName,
@@ -257,5 +258,22 @@ describe('otherStepKeys', () => {
   it('names nothing while simulated or live', () => {
     expect(otherStepKeys({ kind: 'simulated' }, 'blink/input')).toBeUndefined();
     expect(otherStepKeys({ kind: 'live' }, 'blink/input')).toBeUndefined();
+  });
+});
+
+describe('liveClockFace', () => {
+  it('fills over the wait from the arrival of the line that put the board in delay(), then stays full', () => {
+    expect(liveClockFace(1000, 500, 1000, false)).toEqual({ waiting: true, fill: 0 });
+    expect(liveClockFace(1000, 500, 1250, false)).toEqual({ waiting: true, fill: 0.5 });
+    expect(liveClockFace(1000, 500, 1900, false)).toEqual({ waiting: true, fill: 1 });
+  });
+
+  it('shows full and still under reduced motion', () => {
+    expect(liveClockFace(1000, 500, 1100, true)).toEqual({ waiting: true, fill: 1 });
+  });
+
+  it('stays empty while the wait or the line the board waits in is unknown', () => {
+    expect(liveClockFace(1000, undefined, 1250, false)).toEqual({ waiting: false, fill: 0 });
+    expect(liveClockFace(undefined, 500, 1250, false)).toEqual({ waiting: false, fill: 0 });
   });
 });

@@ -41,4 +41,6 @@ export interface BoardModel<E, B, S> {
    * the editor's live value on a real board; `undefined` for a variable the lines do not tell, or have not told yet.
    */
   variable(board: B, name: string): string | undefined;
+  /** How long the board waits in its `delay()` lines, in milliseconds; `undefined` while the page does not know. */
+  wait(board: B): number | undefined;
 }

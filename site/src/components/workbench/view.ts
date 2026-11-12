@@ -69,6 +69,21 @@ export function clockFace(
   return { waiting, fill: waiting && reduceMotion ? 1 : progress };
 }
 
+/**
+ * The clock on the `delay()` line a real board waits in: it fills from `since`, when the line that put the board there
+ * arrived, over `wait` milliseconds, then stays full until the next line moves the arrow. With reduced motion it shows
+ * full. Empty while the wait is unknown, since the page cannot tell how far along the board is.
+ */
+export function liveClockFace(
+  since: number | undefined,
+  wait: number | undefined,
+  now: number,
+  reduceMotion: boolean,
+): ClockFace {
+  if (since === undefined || wait === undefined) return { waiting: false, fill: 0 };
+  return { waiting: true, fill: reduceMotion ? 1 : Math.min(1, Math.max(0, (now - since) / wait)) };
+}
+
 /** The breadcrumb path of a step's `.ino`, such as `sketches`, `blink`, `input`, `input.ino`. */
 export function crumbs(sketch: string): string[] {
   return sketchSourcePath(sketch).split('/');

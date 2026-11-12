@@ -23,6 +23,11 @@ const shortcuts = (page: Page) => bench(page).locator('[data-shortcuts]:visible 
 const notice = (page: Page) => bench(page).locator('[data-other-step]');
 const runningRow = (page: Page) => bench(page).locator('[data-code]:visible [data-running]');
 const livePill = (page: Page) => bench(page).locator('[data-code]:visible [data-live]');
+/** How full the clock on the arrow's line is, from 0 to 100. */
+const clockFill = (page: Page) =>
+  runningRow(page)
+    .locator('[data-pie] .fill')
+    .evaluate((fill) => parseFloat(getComputedStyle(fill).strokeDasharray));
 const trace = (page: Page) => bench(page).getByRole('img', { name: /^The level of GPIO 2/ });
 const tracePath = (page: Page, part: 'sent' | 'applied' | 'level') =>
   trace(page).locator(`[data-trace-${part}]`).getAttribute('d').then((d) => d ?? '');
@@ -70,8 +75,24 @@ test.describe('live mode', () => {
     await expect(watchValue(page, 'measured')).toHaveText('720 ms');
     await expect(serial(page)).toHaveText('HIGH\nLOW');
     expect(await levelNow(page)).toBe(LOW_Y);
-    // The page knows no clock of a real board, and its wait is not timed.
-    await expect(bench(page).locator('[data-pie].waiting')).toHaveCount(0);
+
+    // The clock on the delay the board waits in fills from the LOW line's arrival over the 1000 ms interval.
+    const pie = runningRow(page).locator('[data-pie]');
+    await expect(pie).toHaveClass(/\bwaiting\b/);
+    await page.clock.runFor(500);
+    const fill = await clockFill(page);
+    expect(fill).toBeGreaterThan(45);
+    expect(fill).toBeLessThan(60);
+  });
+
+  test('shows the clock of the delay the board waits in full and still under reduced motion', async ({ page, fakeFlasher }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await connectTo(page, fakeFlasher, 'blink/simple', '1 simple', 'Live');
+
+    await fakeFlasher.print('HIGH');
+
+    await expect(runningRow(page).locator('[data-pie]')).toHaveClass(/\bwaiting\b/);
+    expect(await clockFill(page)).toBe(100);
   });
 
   test('writes a typed line to the board, marks it sent, and marks it applied when the board answers it', async ({
@@ -130,6 +151,10 @@ test.describe('live mode', () => {
 
     await expect(watchValue(page, 'wait')).toHaveText('…');
     await expect(livePill(page)).toHaveText('…');
+    // The arrow is placed, but how far along the wait is cannot be told.
+    await fakeFlasher.print('LOW');
+    await expect(runningRow(page)).toHaveCount(1);
+    await expect(bench(page).locator('[data-pie].waiting')).toHaveCount(0);
     await fakeFlasher.print('delay 700');
     await expect(watchValue(page, 'wait')).toHaveText('700 ms');
     await expect(livePill(page)).toHaveText('700');

@@ -102,6 +102,15 @@ describe('receive', () => {
     ).toEqual({ text: 'delay(blinkDelay);', occurrence: 2 });
   });
 
+  it('remembers when the line that placed the arrow arrived', () => {
+    const followed = after(blinkInput, [
+      ['print', 'HIGH', 100],
+      ['print', 'delay 500', 300],
+    ]);
+    expect(followed.arrowAt).toBe(100);
+    expect(after(blinkInput, [['print', 'LOW', 700]]).arrowAt).toBe(700);
+  });
+
   it('puts no arrow on a step whose lines do not tell where the board is', () => {
     expect(after(blinkCommands, [['print', 'HIGH', 0]]).arrow).toBeUndefined();
   });

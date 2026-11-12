@@ -297,7 +297,7 @@ export const blinkInput: BlinkStep = {
   program: input,
   shortcuts: [delaySlider((ms) => String(ms))],
   placeholder: 'a number, then Enter',
-  hint: 'Send a number, then watch the arrow: the board reads it only when the arrow comes back to the Serial.available() line, after both delays.',
+  hint: 'Send a number: the board reads it only when it is back at the Serial.available() line, after both delays, so the blink under way keeps the old pace.',
   live: liveDelay,
   parse: parseBlinkLine,
   liveLine: delayAfterWrite('delay(blinkDelay);'),

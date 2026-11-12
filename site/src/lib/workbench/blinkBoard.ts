@@ -112,5 +112,6 @@ export const blinkBoard: BoardModel<BlinkEvent, BlinkBoard, BlinkState> = {
   simulate: simulateBlink,
   watch: blinkWatch,
   lit: (board) => board.ledOn,
+  wait: (board) => board.wait,
   variable: (board, name) => (name === 'blinkDelay' && board.wait !== undefined ? String(board.wait) : undefined),
 };

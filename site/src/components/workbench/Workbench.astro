@@ -521,6 +521,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     changedRows,
     CLOCK_DASH,
     clockFace,
+    liveClockFace,
     OTHER_STEP_PLACEHOLDER,
     otherStepKeys,
     serialRows,
@@ -753,8 +754,15 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
         if (before !== null) showClock(before.querySelector('[data-pie]'), { waiting: false, fill: 0 });
       }
       const progress = runner?.progress() ?? 0;
-      // A real board's wait is not timed by the page, so the clock stays empty while the pane follows it.
-      const face = shown === undefined ? clockFace(view, progress, reducedMotion.matches) : { waiting: false, fill: 0 };
+      const face =
+        shown === undefined
+          ? clockFace(view, progress, reducedMotion.matches)
+          : liveClockFace(
+              mode === 'live' ? shown.arrowAt : undefined,
+              project!.board.wait(shown.board),
+              Date.now(),
+              reducedMotion.matches,
+            );
       showClock(row?.querySelector('[data-pie]') ?? null, face);
       const shape =
         shown === undefined

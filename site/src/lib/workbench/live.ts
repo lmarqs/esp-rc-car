@@ -19,6 +19,8 @@ export interface Followed<B> {
   readonly nextId: number;
   /** The source line the arrow sits on; `undefined` until a printed line places it, and on a step none places. */
   readonly arrow?: LineRef;
+  /** When the printed line that put the arrow where it is arrived. */
+  readonly arrowAt?: number;
 }
 
 /**
@@ -50,7 +52,9 @@ export function receive<E, B>(
 ): Followed<B> {
   const event = step.parse(text);
   const board = event === undefined ? followed.board : model.apply(followed.board, event, at);
-  const arrow = (event === undefined ? undefined : step.liveLine?.(event)) ?? followed.arrow;
+  const placed = event === undefined ? undefined : step.liveLine?.(event);
+  const arrow = placed ?? followed.arrow;
+  const arrowAt = placed === undefined ? followed.arrowAt : at;
   const effects: Effect[] = [];
   if (model.lit(board) !== model.lit(followed.board)) effects.push({ kind: 'write', pin, high: model.lit(board) });
   let unanswered = followed.unanswered;
@@ -59,7 +63,7 @@ export function receive<E, B>(
     unanswered = unanswered.slice(1);
   }
   const trace = recordEffects(followed.trace, effects, pin, at);
-  return { ...followed, board, arrow, unanswered, trace, output: keep(followed.output, { text }) };
+  return { ...followed, board, arrow, arrowAt, unanswered, trace, output: keep(followed.output, { text }) };
 }
 
 /**
