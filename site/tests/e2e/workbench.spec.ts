@@ -695,6 +695,27 @@ test.describe('the Blink workbench', () => {
     }
   });
 
+  test('keeps the board in view beside the code while the code scrolls', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await tab(page, '4 commands').click();
+    // Line 45 at the foot of the window: the sketch's last lines still lie below it, so the board has room to stick.
+    await visibleCode(page)
+      .locator('[data-line="45"]')
+      .evaluate((row) => row.scrollIntoView({ block: 'end' }));
+    const viewport = page.viewportSize()!;
+    const inView = async (locator: Locator) => {
+      const box = (await locator.boundingBox())!;
+      expect(box.y).toBeGreaterThanOrEqual(0);
+      expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+    };
+    await inView(visibleCode(page).locator('[data-line="45"]'));
+    await inView(bench(page).locator('[data-picture]'));
+    await inView(serial(page));
+    // The board's own place in the page lies above the window: it is in view only because it sticks to the top.
+    expect(Math.abs((await bench(page).locator('.board').boundingBox())!.y)).toBeLessThan(1);
+    expect((await bench(page).locator('.panes').boundingBox())!.y).toBeLessThan(-100);
+  });
+
   test('stacks the panes code first at phone width with no sideways scroll', async ({ page }) => {
     await page.setViewportSize({ width: 400, height: 800 });
     await tab(page, '4 commands').click();

@@ -254,7 +254,8 @@ const id = (part: string) => `workbench-${project}-${part}`;
 </section>
 
 <style>
-  .bench { background: var(--card); border: var(--stroke); border-radius: var(--radius); margin: 12px 0 24px; overflow: hidden; }
+  /* Clip, not hidden: hidden would make the bench a scroll container and hold the sticky board pane in place. */
+  .bench { background: var(--card); border: var(--stroke); border-radius: var(--radius); margin: 12px 0 24px; overflow: clip; }
   .bench [hidden] { display: none !important; }
 
   .rail { display: flex; flex-wrap: wrap; border-bottom: var(--stroke); background: var(--chrome-light); }
@@ -320,6 +321,8 @@ const id = (part: string) => `workbench-${project}-${part}`;
   .live { display: inline-block; min-width: calc(4.5ch + 10px); padding: 0 5px; text-align: center; background: var(--yellow); border-radius: 6px; font-weight: 700; }
 
   .board { padding: 14px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+  /* Side by side, the board stays in view while the visitor reads down a long sketch. */
+  @media (min-width: 821px) { .board { position: sticky; top: 0; align-self: start; } }
   .led-row { display: grid; grid-template-columns: 96px 1fr 1fr; gap: 12px; align-items: center; }
   @media (max-width: 480px) { .led-row { grid-template-columns: 96px 1fr; } }
   .led { width: 100%; }
