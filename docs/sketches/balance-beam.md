@@ -40,16 +40,21 @@ P, I and D by hand.
 on the board over the serial port, with `cfg set`, wins over its default, except `BALANCE_BEAM_BENCH_ENABLED`, which
 only `local.h` sets:
 
-| Name | Default | Sets |
-| --- | --- | --- |
-| `BALANCE_BEAM_THROTTLE_MIN` | `0.0f` | The throttle no motor goes below, as a fraction of the pulse range. Keep it at or above the throttle where the motors start to spin. |
-| `BALANCE_BEAM_THROTTLE_MID` | `0.0f` | The throttle both motors rest at while the beam is on target. |
-| `BALANCE_BEAM_THROTTLE_MAX` | `0.0f` | The throttle no motor goes above. |
-| `BALANCE_BEAM_TILT_LIMIT_DEG` | `45.0f` | The tilt past which the motors stop. |
-| `BALANCE_BEAM_ANGLE_OFFSET_DEG` | `0.0f` | The angle the sensor reads with the beam level, subtracted from every reading. |
-| `BALANCE_BEAM_AP_SSID` | `"balance-beam"` | The hotspot's name. |
-| `BALANCE_BEAM_AP_PASSWORD` | `"thebalancebot"` | The hotspot's password. One shorter than 8 characters opens the hotspot. |
-| `BALANCE_BEAM_BENCH_ENABLED` | `0` | `1` compiles in the bench commands. |
+| Name | `cfg` key | Default | Sets |
+| --- | --- | --- | --- |
+| `BALANCE_BEAM_THROTTLE_MIN` | `throttle_min` | `0.0f` | The throttle no motor goes below, as a fraction of the pulse range, from 0 to 1. Keep it at or above the throttle where the motors start to spin. |
+| `BALANCE_BEAM_THROTTLE_MID` | `throttle_mid` | `0.0f` | The throttle both motors rest at while the beam is on target, from 0 to 1. |
+| `BALANCE_BEAM_THROTTLE_MAX` | `throttle_max` | `0.0f` | The throttle no motor goes above, from 0 to 1. |
+| `BALANCE_BEAM_TILT_LIMIT_DEG` | `tilt_limit_deg` | `45.0f` | The tilt past which the motors stop, above 0 and up to 90. |
+| `BALANCE_BEAM_ANGLE_OFFSET_DEG` | `angle_offset_deg` | `0.0f` | The angle the sensor reads with the beam level, subtracted from every reading, from -30 to 30. |
+| `BALANCE_BEAM_AP_SSID` | `ap_ssid` | `"balance-beam"` | The hotspot's name, 1 to 32 characters. |
+| `BALANCE_BEAM_AP_PASSWORD` | `ap_password` | `"thebalancebot"` | The hotspot's password, 8 to 63 characters, so the hotspot is never open. `cfg get` prints it as `set` or `unset`. |
+| `BALANCE_BEAM_BENCH_ENABLED` | none | `0` | `1` compiles in the bench commands. |
+
+The throttles must satisfy `throttle_min` ≤ `throttle_mid` ≤ `throttle_max`. `cfg set` checks each throttle against
+the other two's current values, stored or default, and answers `order` for a value that breaks the rule, so a band
+that moves is sent in an order that keeps the rule at every step. `cfg get` shows the values the next boot uses. When
+the stored and default throttles break the rule, the boot log says so and the board runs with a band of 0.
 
 The rig the sketch came from, with 1404 4600 KV motors on 3S and Gemfan 3523-3 propellers, balances with a band of
 0.080 to 0.090 around 0.085. The loop starts with `kp` 0.002, `ki` 0 and `kd` 0.0008, in throttle per degree.
@@ -70,7 +75,7 @@ the core's log, so each starts with a time, a level and a source position.
 | `kp <v>`, `ki <v>`, `kd <v>` | Sets a gain |
 | `sp <v>` | Sets the target tilt, in degrees |
 | `?` | Prints the state: tilt, correction, throttles and gains |
-| `cfg get`, `cfg set <key> <value>`, `cfg restart` | Reads and stores the settings above on the board, refused while armed; a new value takes effect after the restart |
+| `cfg get`, `cfg set <key> <value>`, `cfg restart` | Reads and stores the settings above on the board by their `cfg` keys; `cfg set` is refused while armed, and a new value takes effect after the restart |
 
 With `BALANCE_BEAM_BENCH_ENABLED` at 1, for work with the propellers off:
 
