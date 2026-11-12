@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chipFamilies, imageFor, isMissing, sketchKey, type Manifest } from '../../src/lib/flash/manifest';
+import { chipFamilies, imageFor, isMissing, sketchesFolder, sketchKey, type Manifest } from '../../src/lib/flash/manifest';
 
 // The shape `mise run arduino:firmware` writes, with the offsets of its ESP32 and ESP32-C3 images.
 const manifest: Manifest = {
@@ -108,5 +108,21 @@ describe('chipFamilies', () => {
   it('leaves out a sketch the manifest lacks', () => {
     expect(chipFamilies(ladder, ['blink/timer', 'blink/simple'])).toEqual(['ESP32']);
     expect(chipFamilies(ladder, ['blink/timer'])).toEqual([]);
+  });
+});
+
+describe('sketchesFolder', () => {
+  it('is the folder that holds every step of a ladder', () => {
+    const blink = ['simple', 'input', 'timer', 'commands'].map((id) => `sketches/blink/${id}`);
+    expect(sketchesFolder(blink)).toBe('sketches/blink');
+    expect(sketchesFolder(['sketches/servo/sweep/', 'sketches/servo/speed'])).toBe('sketches/servo');
+  });
+
+  it('is the sketch itself when there is one', () => {
+    expect(sketchesFolder(['sketches/omnidirectional'])).toBe('sketches/omnidirectional');
+  });
+
+  it('compares whole folder names, not their letters', () => {
+    expect(sketchesFolder(['sketches/blink/simple', 'sketches/blinker/simple'])).toBe('sketches');
   });
 });

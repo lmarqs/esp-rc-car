@@ -8,7 +8,7 @@ import Workbench from '../../components/workbench/Workbench.astro';
 import Base from '../../layouts/Base.astro';
 import { href } from '../../lib/href';
 import { workbenchFor } from '../../lib/workbench/projects';
-import { sketchesFolder } from '../../lib/workbench/source';
+import { sketchesFolder } from '../../lib/flash/manifest';
 
 export async function getStaticPaths() {
   const projects = await getCollection('projects');

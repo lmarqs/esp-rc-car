@@ -69,6 +69,21 @@ export function sketchKey(sketchPath: string): string {
 }
 
 /**
+ * The deepest folder that holds every one of `sketches`, such as `sketches/blink` for the steps of Blink: where a
+ * project's code lives. A single sketch is its own folder.
+ */
+export function sketchesFolder(sketches: readonly string[]): string {
+  const [first, ...rest] = sketches.map((sketch) => sketch.replace(/\/+$/, '').split('/'));
+  let shared = first.length;
+  for (const path of rest) {
+    let at = 0;
+    while (at < shared && path[at] === first[at]) at++;
+    shared = at;
+  }
+  return first.slice(0, shared).join('/');
+}
+
+/**
  * The image of `sketch` for `chip`, or what the sketch has instead. `chip` is a name as esptool-js reports it, so it
  * may be a chip the site has no images for.
  */
