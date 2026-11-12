@@ -159,12 +159,9 @@ const ownCard = flashable.filter(({ ladder }) => !ladder);
 
     function show(id: string | undefined) {
       if (id === picked) return;
-      const left = panels.find((panel) => panel.dataset.panel === picked);
       picked = id;
       for (const button of buttons) button.setAttribute('aria-pressed', String(button.dataset.pick === id));
       for (const panel of panels) panel.hidden = panel.dataset.panel !== id;
-      // A board that is still connected would stay open under the hidden card and refuse the next card's port.
-      left?.querySelector('[data-flash-card]')?.dispatchEvent(new CustomEvent('flash-release'));
     }
 
     function shownHeading() {

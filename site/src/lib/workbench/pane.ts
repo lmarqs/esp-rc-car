@@ -1,6 +1,7 @@
 import type { SessionState } from '../flash';
 import type { BoardModel } from './board';
-import { boardAction, boardStatus, paneMode, sketchOf, type BoardAction, type BoardStatus, type PaneMode } from './link';
+import { sketchOf } from '../board/record';
+import { boardAction, boardStatus, paneMode, type BoardAction, type BoardStatus, type PaneMode } from './link';
 import { follow, receive, send, withdraw, type Followed } from './live';
 import type { StepDefinition } from './step';
 
@@ -68,10 +69,14 @@ export type PaneEvent =
   /** The port refused the line `id`, `text`, sent while the pane followed the board for the `pane`-th time. */
   | { readonly kind: 'refused'; readonly id: number; readonly pane: number; readonly text: string };
 
-/** The pane as the page opens: the first step, simulated. */
-export function initialPane<B>(project: PaneProject<B>, session: SessionState): PaneState<B> {
+/**
+ * The pane as the page opens: the first step, simulated, unless the board, which the site keeps connected from page to
+ * page, already said it runs it, as `heard`.
+ */
+export function initialPane<B>(project: PaneProject<B>, session: SessionState, heard?: string): PaneState<B> {
   const flashed = project.steps[0].key;
-  return { session, selected: 0, mode: 'simulator', detached: false, following: 0, simulation: 0, flashed };
+  const opening: PaneState<B> = { session, selected: 0, mode: 'simulator', detached: false, following: 0, simulation: 0, flashed };
+  return heard === undefined ? opening : sync(project, { ...opening, heard });
 }
 
 /** The Board cell's status for `state`. */

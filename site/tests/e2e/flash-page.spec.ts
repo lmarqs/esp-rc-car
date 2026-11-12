@@ -165,7 +165,10 @@ test.describe('the Flash page', () => {
     await expect(card(page).getByText('Your board is running Omnidirectional robot.')).toBeVisible();
   });
 
-  test('lets go of a running board when another project is picked', async ({ page, fakeFlasher }) => {
+  test('keeps the board connected when another project is picked, and its card flashes it on a press', async ({
+    page,
+    fakeFlasher,
+  }) => {
     await fakeFlasher.install({ lines: ['HIGH'] });
     await page.goto('/robomania/flash/#omnidirectional');
     await card(page).getByRole('button', { name: 'Connect board' }).click();
@@ -173,11 +176,16 @@ test.describe('the Flash page', () => {
 
     await pick(page, 'Balance beam').click();
     await expect(card(page).getByRole('button', { name: 'Connect board' })).toBeVisible();
-    expect((await fakeFlasher.calls()).at(-1)).toBe('disconnect');
+    await expect(card(page).getByText('Plug the board in over USB. This replaces whatever is on the board.')).toBeVisible();
+    expect(await fakeFlasher.calls()).not.toContain('disconnect');
 
     await pick(page, 'Omnidirectional robot').click();
-    await expect(card(page).getByRole('button', { name: 'Connect board' })).toBeVisible();
-    await expect(card(page).getByText('Plug the board in over USB. This replaces whatever is on the board.')).toBeVisible();
+    await expect(card(page).getByText('Your board is running Omnidirectional robot.')).toBeVisible();
+
+    await pick(page, 'Balance beam').click();
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+    await expect(card(page).getByText('Found ESP32. Check the settings, then flash the board.')).toBeVisible();
+    expect(await fakeFlasher.calls()).toContain('disconnect');
   });
 
   test('lists the sketches outside the manifest as flashed from the computer, and leaves out a project with no sketch', async ({

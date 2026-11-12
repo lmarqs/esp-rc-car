@@ -41,6 +41,18 @@ describe('the board pane', () => {
     expect(paneStatus(blink, pane)).toEqual({ kind: 'simulated' });
   });
 
+  it('opens following a board the site kept connected from another page, when it runs the first step', () => {
+    const pane = initialPane(blink, running, 'blink/simple');
+    expect(pane).toMatchObject({ selected: 0, mode: 'live', heard: 'blink/simple', following: 1 });
+    expect(paneStatus(blink, pane)).toEqual({ kind: 'live' });
+  });
+
+  it('opens simulated beside a board the site kept connected that runs another step', () => {
+    const pane = initialPane(blink, running, 'blink/input');
+    expect(pane).toMatchObject({ selected: 0, mode: 'simulator', heard: 'blink/input' });
+    expect(paneStatus(blink, pane)).toEqual({ kind: 'step', key: 'blink/input', number: 2 });
+  });
+
   it('keeps simulating, Connected, until the board names its sketch', () => {
     const pane = after(connected, line('HIGH'));
     expect(pane.mode).toBe('simulator');

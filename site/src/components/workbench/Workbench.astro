@@ -87,7 +87,8 @@ const flashable = Object.keys(manifest.sketches).length > 0;
   import { createSimulation } from '../../lib/workbench/simulation';
   import { tabAfterKey } from '../../lib/workbench/tabs';
   import type { PictureView } from '../../lib/workbench/board';
-  import { createFlasher, createSession, type Manifest } from '../../lib/flash';
+  import type { Manifest } from '../../lib/flash';
+  import { DEFAULT_BAUD, theBoard } from '../../lib/board/board';
   import type { BoardAction } from '../../lib/workbench/link';
   import {
     initialPane,
@@ -325,13 +326,15 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     });
     slowButton.addEventListener('click', () => simulation.toggleSlow());
 
-    const session = createSession({
-      flasher: createFlasher(),
+    // The site's board, which may already be connected from another page, and running one of these steps.
+    const board = theBoard();
+    const { session } = board;
+    board.use('workbench', {
       manifest: JSON.parse(root.dataset.manifest ?? '{"sketches":{}}') as Manifest,
       sketch: paneProject.steps[0].key,
-      baud: root.dataset.baud ? Number(root.dataset.baud) : undefined,
+      baud: root.dataset.baud ? Number(root.dataset.baud) : DEFAULT_BAUD,
     });
-    let pane: PaneState<unknown> = initialPane(paneProject, session.state);
+    let pane: PaneState<unknown> = initialPane(paneProject, session.state, board.record.heard);
     const boardLink = mountBoardLink(root, {
       action() {
         const action = paneAction(paneProject, pane);
@@ -359,7 +362,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       session.subscribe((state) => dispatch({ kind: 'session', state })),
       session.subscribeLines(({ text, at }) => dispatch({ kind: 'line', text, at })),
     ];
-    // The router swaps the page out without unloading it: what runs on its own stops, and the port is let go.
+    // The router swaps the page out without unloading it: what runs on its own stops. The board stays connected.
     signal.addEventListener('abort', () => {
       unsubscribe.forEach((stop) => stop());
       resized.disconnect();
@@ -367,14 +370,13 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       cancelAnimationFrame(motionFrame);
       commandLine.reset();
       simulation.dispose();
-      void session.send({ type: 'retry' });
     });
 
     /** Presses the board half of the Board switch, or Flash again, then asks the session for what the press starts. */
     function press(action: BoardAction['event']) {
       dispatch({ kind: 'press', action });
-      if (action === 'connect') void session.send({ type: 'connect', reset: true });
-      if (action === 'flash') void session.send({ type: 'flash', key: pane.flashed });
+      if (action === 'connect') void board.send({ type: 'connect', reset: true });
+      if (action === 'flash') void board.send({ type: 'flash', key: pane.flashed });
     }
 
     tabs.forEach((tab, index) => {

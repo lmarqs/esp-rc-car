@@ -134,6 +134,12 @@ export interface FlashSession {
   sendLine(line: string): Promise<void>;
   /** Resolves once the event's work has settled: a state that waits for the next event, or a failure. */
   send(event: SessionEvent): Promise<void>;
+  /**
+   * Points the session at another page's sketch: `manifest`'s images join the ones it knows, so a key it flashed
+   * before can be flashed again, and `sketch` and `baud` replace its own for the next connection. A board it reads
+   * goes on being read at the speed it was opened at.
+   */
+  configure(options: Omit<SessionOptions, 'flasher'>): void;
 }
 
 type SettingsRequest = Omit<Extract<SessionEvent, { type: 'submitSettings' }>, 'type'> & { opened: SettingValues };
@@ -189,7 +195,9 @@ function isDownloadError(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'name' in error && error.name === 'DownloadError';
 }
 
-export function createSession({ flasher, manifest, sketch, baud }: SessionOptions): FlashSession {
+export function createSession(options: SessionOptions): FlashSession {
+  const { flasher } = options;
+  let { manifest, sketch, baud } = options;
   const listeners = new Set<(state: SessionState) => void>();
   let state: SessionState = flasher ? { kind: 'idle' } : { kind: 'unsupported' };
   let image: ManifestImage | undefined;
@@ -202,7 +210,7 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
   let lost = false;
   let output: readonly string[] = [];
   let onReply: ((reply: CfgReply) => void) | undefined;
-  const fields = settingsOf(manifest, sketch, baud);
+  let fields = settingsOf(manifest, sketch, baud);
 
   function enter(next: SessionState) {
     state = next;
@@ -544,6 +552,12 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
     subscribeLines(listener) {
       lineListeners.add(listener);
       return () => lineListeners.delete(listener);
+    },
+    configure(next) {
+      manifest = { sketches: { ...manifest.sketches, ...next.manifest.sketches } };
+      sketch = next.sketch;
+      baud = next.baud;
+      fields = settingsOf(manifest, sketch, baud);
     },
     async sendLine(line) {
       // Only on `running`, so a line cannot interleave with the `cfg` exchange of the settings.

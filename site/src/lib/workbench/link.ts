@@ -1,5 +1,7 @@
 import { isBusy, type SessionState } from '../flash';
 
+export { sketchOf } from '../board/record';
+
 /**
  * Which board the workbench's pictures follow, as the Board cell names it: the simulator with no board, the simulator
  * beside a connected board that has not named its sketch yet, the visitor's board running the selected step, another
@@ -29,10 +31,6 @@ export interface BoardAction {
   readonly disabled: boolean;
 }
 
-/** The key a `sketch <key>` line names, which every step of a ladder prints first; `undefined` for any other line. */
-export function sketchOf(line: string): string | undefined {
-  return /^sketch (\S+)$/.exec(line)?.[1];
-}
 
 /** Whether the session holds a board it reads, so the button flashes it instead of connecting. */
 export function isConnected(state: SessionState): boolean {
@@ -72,7 +70,8 @@ export function boardAction(
 ): BoardAction | undefined {
   if (state.kind === 'unsupported') return undefined;
   if (isBusy(state)) {
-    const event = pressed ?? 'connect';
+    // A press elsewhere on the site, such as Flash again in the board dock, is named by what the session does.
+    const event = pressed ?? (state.kind === 'flashing' ? 'flash' : 'connect');
     return { label: event === 'flash' ? 'Flashing…' : 'Connecting…', icon: ICONS[event], event, disabled: true };
   }
   if (!isConnected(state)) return CONNECT;

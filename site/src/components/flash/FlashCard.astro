@@ -158,11 +158,12 @@ const helpOf = (field: (typeof fields)[number]) =>
 </style>
 
 <script>
-  import { createFlasher } from '../../lib/flash/createFlasher';
+  import { theBoard } from '../../lib/board/board';
+  import { runs } from '../../lib/board/record';
   import { href } from '../../lib/href';
   import { onEveryPage } from '../../lib/page';
   import type { Manifest } from '../../lib/flash/manifest';
-  import { createSession, isBusy } from '../../lib/flash/session';
+  import { isBusy, type SessionState } from '../../lib/flash/session';
   import { settingsOf } from '../../lib/flash/settings';
   import { stepsFor, viewFor } from './view';
 
@@ -171,12 +172,14 @@ const helpOf = (field: (typeof fields)[number]) =>
       const { sketch, title, next, baud: baudText, detailsHref } = card.dataset;
       const baud = baudText ? Number(baudText) : undefined;
       const manifest = JSON.parse(card.dataset.manifest!) as Manifest;
-      const session = createSession({
-        flasher: createFlasher(),
-        manifest,
-        sketch: sketch!,
-        baud,
-      });
+      // The site's board, which may already be connected from another page. The card shows it only while the card
+      // is the board's owner, from the visitor's press or because the board runs the card's sketch.
+      const board = theBoard();
+      const { session } = board;
+      const owner = `card:${sketch}`;
+      const use = { manifest, sketch: sketch!, baud };
+      const claim = () => board.owner === owner || board.use(owner, use);
+      if (runs(board.record) === sketch) claim();
       const settings = settingsOf(manifest, sketch!, baud);
       const context = {
         title: title!,
@@ -207,7 +210,8 @@ const helpOf = (field: (typeof fields)[number]) =>
       let filledWith: Readonly<Record<string, string>> | undefined;
 
       async function submitSettings(restoreDefaults = false) {
-        await session.send({ type: 'submitSettings', values: formValues(), restoreDefaults });
+        if (!claim()) return;
+        await board.send({ type: 'submitSettings', values: formValues(), restoreDefaults });
         const state = session.state;
         if (state.kind === 'settings' && state.errors) {
           inputs.find((input) => input.dataset.key! in state.errors!)?.focus();
@@ -241,15 +245,22 @@ const helpOf = (field: (typeof fields)[number]) =>
             event === 'changeSettings' ||
             event === 'closeSettings'
           ) {
-            void session.send({ type: event });
+            if (claim()) void board.send({ type: event });
           }
         });
       }
 
+      /** The session's state while the card owns the board; otherwise the card waits to be pressed, as if idle. */
+      function shownState(): SessionState {
+        if (board.owner === owner || session.state.kind === 'unsupported') return session.state;
+        return { kind: 'idle' };
+      }
+
       function render() {
+        const state = shownState();
         // The page that lists several cards reads this to keep a visitor from leaving a write half-done.
-        card.toggleAttribute('data-busy', isBusy(session.state));
-        const view = viewFor(session.state, context);
+        card.toggleAttribute('data-busy', isBusy(state));
+        const view = viewFor(state, context);
         // Only a change of text is announced: the progress bar carries the percentage.
         if (message.textContent !== view.message) message.textContent = view.message;
         message.className = view.notice ? 'notice' : '';
@@ -327,15 +338,9 @@ const helpOf = (field: (typeof fields)[number]) =>
         );
       }
 
-      // The page asks a card it hides to let go of the board; `retry` leaves an idle, connecting or flashing card as it is.
-      card.addEventListener('flash-release', () => void session.send({ type: 'retry' }));
-
-      const unsubscribe = session.subscribe(render);
-      // The router swaps the page out without unloading it, so the port is let go as the page goes.
-      signal.addEventListener('abort', () => {
-        unsubscribe();
-        void session.send({ type: 'retry' });
-      });
+      const unsubscribe = board.subscribe(render);
+      // The router swaps the page out without unloading it; the board stays connected for the next page.
+      signal.addEventListener('abort', unsubscribe);
       render();
     }
   });

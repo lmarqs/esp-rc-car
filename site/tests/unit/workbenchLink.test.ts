@@ -91,6 +91,14 @@ describe('boardAction', () => {
     });
   });
 
+  it('names a flash pressed elsewhere on the site, such as in the board dock, by what the session does', () => {
+    expect(boardAction({ kind: 'flashing', chip: 'ESP32', pct: 40 }, undefined, input)).toMatchObject({
+      label: 'Flashing…',
+      event: 'flash',
+      disabled: true,
+    });
+  });
+
   it('says what the session works on, disabled, while it is busy', () => {
     expect(boardAction({ kind: 'flashing', chip: 'ESP32', pct: 40 }, undefined, input, 'flash')).toEqual({
       label: 'Flashing…',

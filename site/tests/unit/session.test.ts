@@ -1440,3 +1440,27 @@ describe('the lines of the board and the workbench connection', () => {
     });
   });
 });
+
+describe('a session pointed at another sketch', () => {
+  it('flashes the sketch it was pointed at on the next connection, after its settings', async () => {
+    const flasher = fakeFlasher();
+    const session = createSession({ flasher, manifest: { sketches: { servo: manifest.sketches.servo! } }, sketch: 'servo' });
+
+    session.configure({ manifest: { sketches: { 'web-relay': manifest.sketches['web-relay']! } }, sketch: 'web-relay', baud: 115200 });
+    await session.send({ type: 'connect' });
+
+    expect(session.state).toEqual({ kind: 'settings', chip: 'ESP32', opened: DEFAULTS });
+  });
+
+  it('keeps the images it knew, so a key flashed before can be flashed again', async () => {
+    const flasher = fakeFlasher();
+    const session = createSession({ flasher, manifest: { sketches: { servo: manifest.sketches.servo! } }, sketch: 'servo', baud: 115200 });
+    await session.send({ type: 'connect', reset: true });
+
+    session.configure({ manifest: { sketches: { 'web-relay': manifest.sketches['web-relay']! } }, sketch: 'web-relay', baud: 115200 });
+    await session.send({ type: 'flash', key: 'servo' });
+
+    expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [] });
+    expect(flasher.calls).toContain('write 4096,65536');
+  });
+});
