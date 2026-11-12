@@ -512,6 +512,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     boardStatusText,
     changedRows,
     followedSliderValue,
+    followSlider,
     CLOCK_DASH,
     clockFace,
     liveClockFace,
@@ -788,18 +789,20 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     }
 
     /**
-     * Sets each slider of the step that follows a board variable to the variable's value, once known, so it reads the
-     * last value sent or reported. A slider the visitor holds, or whose line is still to go out, keeps its place.
+     * Moves each slider of the step that follows a board variable when the variable changes, so it reads the last
+     * value sent or reported. A value the visitor released stays until the board reports a change.
      */
     function followSliders(shownBoard: unknown) {
-      if (commandLine.hasAttribute('data-typing')) return;
+      const typing = commandLine.hasAttribute('data-typing');
       for (const slider of sliders) {
-        if (slider === pressedSlider || slider.closest<HTMLElement>('[data-for-step]')!.hidden) continue;
+        if (slider.closest<HTMLElement>('[data-for-step]')!.hidden) continue;
         const shortcut = shortcutOf(slider);
         if (shortcut?.kind !== 'slider' || shortcut.follows === undefined) continue;
-        const value = followedSliderValue(shortcut, project!.board.variable(shownBoard, shortcut.follows));
-        if (value === undefined || slider.value === String(value)) continue;
-        slider.value = String(value);
+        const known = followedSliderValue(shortcut, project!.board.variable(shownBoard, shortcut.follows));
+        const next = followSlider(seenBySlider.get(slider), known, typing || slider === pressedSlider);
+        seenBySlider.set(slider, next.remembered);
+        if (next.move === undefined || slider.value === String(next.move)) continue;
+        slider.value = String(next.move);
         slider.nextElementSibling!.textContent = slider.value;
       }
     }
@@ -886,6 +889,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
         if (shortcut?.kind !== 'slider') continue;
         slider.value = String(shortcut.initial);
         slider.nextElementSibling!.textContent = slider.value;
+        seenBySlider.delete(slider);
       }
     }
 
@@ -904,6 +908,8 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     const sliders = [...root.querySelectorAll<HTMLInputElement>('input[type="range"][data-shortcut]')];
     // The slider under the visitor's pointer, which no value from the board moves.
     let pressedSlider: HTMLInputElement | undefined;
+    // The board's value each following slider last saw, which it moves away from only when the board changes it.
+    const seenBySlider = new Map<HTMLInputElement, number | undefined>();
     for (const slider of sliders) slider.addEventListener('pointerdown', () => (pressedSlider = slider));
     for (const done of ['pointerup', 'pointercancel']) window.addEventListener(done, () => (pressedSlider = undefined));
     function shortcutOf(control: HTMLElement) {

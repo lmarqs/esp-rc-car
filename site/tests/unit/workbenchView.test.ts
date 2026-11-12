@@ -15,6 +15,7 @@ import {
   serialRows,
   SERIAL_LINES,
   followedSliderValue,
+  followSlider,
 } from '../../src/components/workbench/view';
 import { viewFor } from '../../src/components/flash/view';
 import type { SessionState } from '../../src/lib/flash/session';
@@ -307,5 +308,21 @@ describe('followedSliderValue', () => {
     expect(followedSliderValue(slider, '0')).toBeUndefined();
     expect(followedSliderValue(slider, 'x')).toBeUndefined();
     expect(followedSliderValue({ min: 1, max: 360 }, '10')).toBeUndefined();
+  });
+});
+
+describe('followSlider', () => {
+  it('moves the slider only when the board value changes from the one it last saw', () => {
+    expect(followSlider(undefined, 90, false)).toEqual({ remembered: 90, move: 90 });
+    // The visitor released 180; the board still reads 90 until the sketch takes the line.
+    expect(followSlider(90, 90, false)).toEqual({ remembered: 90 });
+    expect(followSlider(90, 180, false)).toEqual({ remembered: 180, move: 180 });
+    expect(followSlider(180, 30, false)).toEqual({ remembered: 30, move: 30 });
+  });
+
+  it('notes a change without moving a held slider, and changes nothing while the value is unknown', () => {
+    expect(followSlider(90, 91, true)).toEqual({ remembered: 91 });
+    expect(followSlider(91, 91, false)).toEqual({ remembered: 91 });
+    expect(followSlider(90, undefined, false)).toEqual({ remembered: 90 });
   });
 });

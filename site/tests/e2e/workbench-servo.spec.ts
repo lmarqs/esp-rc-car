@@ -251,6 +251,66 @@ test.describe('the Servo workbench', () => {
     await expect(slider(page, 'angle in degrees')).toHaveValue('150');
   });
 
+  /** Checks the slider reads `value` every half second for `seconds`. */
+  async function holds(page: Page, name: string, value: string, seconds: number) {
+    for (let i = 0; i < 2 * seconds; i++) {
+      await expect(slider(page, name)).toHaveValue(value);
+      await page.waitForTimeout(500);
+    }
+  }
+
+  test('keeps a released slider where the visitor left it while paused, until the board reports a change', async ({
+    page,
+  }) => {
+    await page.goto(SERVO);
+    await tab(page, '2 angle').click();
+    await expect(serial(page)).toContainText('angle 90');
+    await button(page, 'Pause').click();
+    await slider(page, 'angle in degrees').focus();
+    await page.keyboard.press('End');
+    await expect(sentLines(page)).toHaveText(['› 180']);
+    await holds(page, 'angle in degrees', '180', 3);
+    expect(await horn(page)).toBe('90');
+
+    await button(page, 'Continue').click();
+    await expect(serial(page)).toContainText('angle 180', { timeout: 15_000 });
+    expect(await horn(page)).toBe('180');
+    await expect(slider(page, 'angle in degrees')).toHaveValue('180');
+
+    // A value the board reports later moves it.
+    await fullSpeed(page);
+    await send(page, '30');
+    await expect(serial(page)).toContainText('angle 30');
+    await expect(slider(page, 'angle in degrees')).toHaveValue('30');
+  });
+
+  test('keeps a released slider where the visitor left it in slow mode while the board has yet to read it', async ({
+    page,
+  }) => {
+    await page.goto(SERVO);
+    await tab(page, '2 angle').click();
+    await expect(serial(page)).toContainText('angle 90');
+    await slider(page, 'angle in degrees').focus();
+    await page.keyboard.press('End');
+    await expect(sentLines(page)).toHaveText(['› 180']);
+    // Every value the slider shows on each frame from the send until the board has turned the servo.
+    const shown = await slider(page, 'angle in degrees').evaluate(
+      (input) =>
+        new Promise<string[]>((resolve) => {
+          const values = new Set<string>();
+          const serial = document.querySelector('[data-serial]')!;
+          const sample = () => {
+            values.add((input as HTMLInputElement).value);
+            if (serial.textContent!.includes('angle 180')) resolve([...values]);
+            else requestAnimationFrame(sample);
+          };
+          sample();
+        }),
+    );
+    expect(shown).toEqual(['180']);
+    await expect(slider(page, 'angle in degrees')).toHaveValue('180');
+  });
+
   test('on speed, shows the target as a dashed horn and the estimate as the solid one while it moves', async ({ page }) => {
     await page.goto(SERVO);
     await tab(page, '4 speed').click();

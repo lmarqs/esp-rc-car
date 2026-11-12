@@ -171,6 +171,20 @@ export function followedSliderValue(slider: Pick<SliderShortcut, 'follows' | 'mi
   return Number.isFinite(value) && value >= slider.min && value <= slider.max ? value : undefined;
 }
 
+/**
+ * A following slider after the board's variable read `known`: it moves only when the value differs from the one it
+ * last saw, `remembered`, so a value the visitor set on release stays until the board reports a change. A `held`
+ * slider, under the pointer or with its line still to go out, notes the change without moving.
+ */
+export function followSlider(
+  remembered: number | undefined,
+  known: number | undefined,
+  held: boolean,
+): { readonly remembered: number | undefined; readonly move?: number } {
+  if (known === undefined || known === remembered) return { remembered };
+  return held ? { remembered: known } : { remembered: known, move: known };
+}
+
 /** What the board pane says when the port refused a line the visitor sent to the board, and what to do. */
 export function notSent(text: string): string {
   return `The board did not get ${text}. Check that it is still plugged in, then send it again.`;
