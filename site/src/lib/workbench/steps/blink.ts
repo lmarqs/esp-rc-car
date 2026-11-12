@@ -1,4 +1,4 @@
-import { nth, op, waitOp, type Board, type Cost, type Operation, type Sketch } from '../simulator';
+import { nth, op, waitOp, type Board, type Cost, type LineRef, type Operation, type Sketch } from '../simulator';
 import type { LiveValue, SliderShortcut, StepDefinition } from '../step';
 
 /** What the four Blink sketches keep: the LED, the interval and, in `commands`, whether blinking is paused. */
@@ -235,6 +235,25 @@ export function parseBlinkLine(line: string): BlinkEvent | undefined {
   return undefined;
 }
 
+/** The lines that answer a line the visitor sent: the new interval, the pause and run replies, or `? <line>`. */
+export function answersBlinkLine(line: string): boolean {
+  if (line.startsWith('? ')) return true;
+  const kind = parseBlinkLine(line)?.kind;
+  return kind === 'delay' || kind === 'paused' || kind === 'running';
+}
+
+/**
+ * Where the arrow sits on a board that prints `HIGH` or `LOW` just before it writes the LED and then waits: on the
+ * `delay` line after that write, `wait` the line's text, which the sketch holds twice.
+ */
+function delayAfterWrite(wait: string): (event: BlinkEvent) => LineRef | undefined {
+  return (event) => {
+    if (event.kind === 'high') return wait;
+    if (event.kind === 'low') return nth(wait, 2);
+    return undefined;
+  };
+}
+
 /** The interval the three steps that read one show in their declaration of `blinkDelay`. */
 const liveDelay: LiveValue<BlinkState> = { name: 'blinkDelay', value: (state) => String(state.blinkDelay) };
 
@@ -259,6 +278,7 @@ export const blinkSimple: BlinkStep = {
   placeholder: 'this step reads no input',
   hint: 'The arrow is the line the board is about to run, and the clock fills while it waits in delay(). Press Step to run one line at a time.',
   parse: parseBlinkLine,
+  liveLine: delayAfterWrite('delay(1000);'),
 };
 
 export const blinkInput: BlinkStep = {
@@ -270,6 +290,8 @@ export const blinkInput: BlinkStep = {
   hint: 'Send a number, then watch the arrow: the board reads it only when the arrow comes back to the Serial.available() line, after both delays.',
   live: liveDelay,
   parse: parseBlinkLine,
+  liveLine: delayAfterWrite('delay(blinkDelay);'),
+  answers: answersBlinkLine,
 };
 
 export const blinkTimer: BlinkStep = {
@@ -281,6 +303,7 @@ export const blinkTimer: BlinkStep = {
   hint: 'There is no delay(): the board runs loop() again and again and checks the clock each time. A number you send is read on the next pass.',
   live: liveDelay,
   parse: parseBlinkLine,
+  answers: answersBlinkLine,
 };
 
 export const blinkCommands: BlinkStep = {
@@ -292,6 +315,7 @@ export const blinkCommands: BlinkStep = {
   hint: 'The buttons and the slider type for you: drag the slider and watch the line it is about to send. The same words work in any serial monitor.',
   live: liveDelay,
   parse: parseBlinkLine,
+  answers: answersBlinkLine,
 };
 
 /** The Blink project's steps in the order the page lists them. */

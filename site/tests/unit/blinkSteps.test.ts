@@ -3,6 +3,7 @@ import { readStepSource } from '../../src/lib/workbench/readSource';
 import { createRunner, type Runner, type RunnerOptions } from '../../src/lib/workbench/simulator';
 import { lineNumber } from '../../src/lib/workbench/source';
 import {
+  answersBlinkLine,
   blinkCommands,
   blinkInput,
   blinkSimple,
@@ -535,5 +536,67 @@ describe('the live value', () => {
       expect(readStepSource(step.sketch)).toMatch(/^int blinkDelay = 1000;$/m);
       expect(step.live?.value({ ...step.program.init(), blinkDelay: 300 })).toBe('300');
     }
+  });
+});
+
+describe('the line a real board is on', () => {
+  /** The source line a step's arrow sits on after the board printed `line`, as a line number of its `.ino`. */
+  function placed(step: BlinkStep, line: string): number | undefined {
+    const event = step.parse(line);
+    const ref = event === undefined ? undefined : step.liveLine?.(event);
+    if (ref === undefined) return undefined;
+    const source = readStepSource(step.sketch);
+    return typeof ref === 'string' ? lineNumber(source, ref) : lineNumber(source, ref.text, ref.occurrence);
+  }
+
+  /** The number of the `occurrence`-th line of `step`'s `.ino` whose trimmed text is `text`. */
+  const numberOf = (step: BlinkStep, text: string, occurrence = 1) =>
+    lineNumber(readStepSource(step.sketch), text, occurrence);
+
+  it.each([
+    [blinkSimple, 'delay(1000);'],
+    [blinkInput, 'delay(blinkDelay);'],
+  ])('$key: HIGH puts the arrow on the first delay after led.write(HIGH), LOW on the second', (step, wait) => {
+    const high = placed(step, 'HIGH');
+    const low = placed(step, 'LOW');
+    expect(high).toBe(numberOf(step, wait, 1));
+    expect(low).toBe(numberOf(step, wait, 2));
+    expect(high).toBe(numberOf(step, 'led.write(HIGH);')! + 1);
+    expect(low).toBe(numberOf(step, 'led.write(LOW);')! + 1);
+  });
+
+  it('places the arrow nowhere for a line other than HIGH or LOW', () => {
+    for (const line of ['delay 500', 'sketch blink/input', '']) expect(placed(blinkInput, line)).toBeUndefined();
+  });
+
+  it('places no arrow on timer and commands, whose printed lines do not tell where the board is', () => {
+    expect(blinkTimer.liveLine).toBeUndefined();
+    expect(blinkCommands.liveLine).toBeUndefined();
+  });
+});
+
+describe('the lines that answer a sent line', () => {
+  it('are the new interval, paused, running and the echo of an unknown command', () => {
+    expect(['delay 500', 'paused', 'running', '? foo'].map(answersBlinkLine)).toEqual([true, true, true, true]);
+  });
+
+  it('are not the LED lines, the sketch line, a blank line or a garbled reply', () => {
+    expect(['HIGH', 'LOW', 'sketch blink/input', '', 'delay', '?foo'].map(answersBlinkLine)).toEqual([
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+    ]);
+  });
+
+  it('are none on simple, which reads no input', () => {
+    expect(blinkSimple.answers).toBeUndefined();
+    expect([blinkInput, blinkTimer, blinkCommands].map((step) => step.answers)).toEqual([
+      answersBlinkLine,
+      answersBlinkLine,
+      answersBlinkLine,
+    ]);
   });
 });

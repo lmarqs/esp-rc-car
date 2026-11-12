@@ -31,4 +31,9 @@ export interface BoardModel<E, B, S> {
   watch(step: string, board: B, millis: number | undefined): readonly WatchRow[];
   /** Whether the picture shows the board's output on, such as a lit LED. */
   lit(board: B): boolean;
+  /**
+   * The value of the sketch's variable `name` as the board's lines tell it, such as `blinkDelay` from `delay <n>`, for
+   * the editor's live value on a real board; `undefined` for a variable the lines do not tell.
+   */
+  variable(board: B, name: string): string | undefined;
 }

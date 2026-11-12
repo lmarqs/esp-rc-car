@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyBlinkEvent,
+  blinkBoard,
   blinkWatch,
   initialBlinkBoard,
   measuredInterval,
@@ -151,5 +152,16 @@ describe('simulateBlink', () => {
     const assignment = waits.findIndex((entry) => entry.startsWith('blinkDelay = '));
     expect(waits[assignment - 1]).toMatch(/ 1000$/);
     expect(waits[assignment]).toBe('blinkDelay = constrain(line.toInt(), 100, 2000); 300');
+  });
+});
+
+describe('the variable a real board tells', () => {
+  it('is blinkDelay, from the interval the board last announced', () => {
+    expect(blinkBoard.variable(initialBlinkBoard(), 'blinkDelay')).toBe('1000');
+    expect(blinkBoard.variable(after([[{ kind: 'delay', ms: 500 }, 10]]), 'blinkDelay')).toBe('500');
+  });
+
+  it('is unknown for any other variable', () => {
+    expect(blinkBoard.variable(initialBlinkBoard(), 'lastToggle')).toBeUndefined();
   });
 });

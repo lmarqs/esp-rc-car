@@ -13,10 +13,13 @@ export type BoardStatus =
 
 /** What the Board cell's button does, and what it shows for it. */
 export interface BoardAction {
-  readonly label: 'Connect' | 'Flash step' | 'Flash again';
-  readonly icon: 'plug' | 'bolt';
-  /** `connect` connects to a board; `flash` flashes the selected step onto the connected one. */
-  readonly event: 'connect' | 'flash';
+  readonly label: 'Connect' | 'Flash step' | 'Flash again' | 'Back to live';
+  readonly icon: 'plug' | 'bolt' | 'back';
+  /**
+   * `connect` connects to a board; `flash` flashes the selected step onto the connected one; `live` brings the board
+   * pane back from the simulator to the board that runs the selected step.
+   */
+  readonly event: 'connect' | 'flash' | 'live';
   /** Set while the session works on the last press, which the button then keeps showing. */
   readonly disabled: boolean;
 }
@@ -49,18 +52,43 @@ export function boardStatus(
 
 /**
  * The button for the session's `state`, or `undefined` in a browser that cannot reach a board. `pressed` is the action
- * the visitor last pressed, which the button keeps, disabled, while the session works on it.
+ * the visitor last pressed, which the button keeps, disabled, while the session works on it. `detached` is set while
+ * the visitor has the simulator in the board pane although the board runs the selected step.
  */
 export function boardAction(
   state: SessionState,
   heard: string | undefined,
   selected: string,
   pressed?: BoardAction,
+  detached = false,
 ): BoardAction | undefined {
   if (state.kind === 'unsupported') return undefined;
   if (isBusy(state)) return { ...(pressed ?? CONNECT), disabled: true };
   if (!isConnected(state)) return CONNECT;
-  return { label: heard === selected ? 'Flash again' : 'Flash step', icon: 'bolt', event: 'flash', disabled: false };
+  if (heard !== selected) return { label: 'Flash step', icon: 'bolt', event: 'flash', disabled: false };
+  if (detached) return { label: 'Back to live', icon: 'back', event: 'live', disabled: false };
+  return { label: 'Flash again', icon: 'bolt', event: 'flash', disabled: false };
+}
+
+/**
+ * What drives the board pane: `simulator`, the simulated step; `live`, the board, which runs the selected step and
+ * takes the visitor's lines; `other`, the board, which runs another sketch and takes none.
+ */
+export type PaneMode = 'simulator' | 'live' | 'other';
+
+/**
+ * What drives the board pane for the board's `status`. `detached` is set when the visitor paused, stepped or
+ * restarted while live, which hands the pane to the simulator until they go back to live.
+ */
+export function paneMode(status: BoardStatus, detached: boolean): PaneMode {
+  switch (status.kind) {
+    case 'simulated':
+      return 'simulator';
+    case 'live':
+      return detached ? 'simulator' : 'live';
+    default:
+      return 'other';
+  }
 }
 
 const CONNECT: BoardAction = { label: 'Connect', icon: 'plug', event: 'connect', disabled: false };

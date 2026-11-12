@@ -1,4 +1,4 @@
-import type { Sketch } from './simulator';
+import type { LineRef, Sketch } from './simulator';
 
 /** A button that types `text` into the command line, then sends it. The button shows the text it sends. */
 export interface ChipShortcut {
@@ -51,4 +51,15 @@ export interface StepDefinition<S, E> {
   readonly live?: LiveValue<S>;
   /** What a line the board printed means; `undefined` for a line with no meaning to the page, such as a blank one. */
   parse(line: string): E | undefined;
+  /**
+   * The source line a real board running this step is on just after it printed a line meaning `event`, where the
+   * arrow sits in live mode; `undefined` for an event that places it nowhere. Absent on a step whose printed lines
+   * do not tell where the board is.
+   */
+  liveLine?(event: E): LineRef | undefined;
+  /**
+   * Whether a line the board printed answers a line the visitor sent, which shows that the board applied it. Absent
+   * on a step that reads no input.
+   */
+  answers?(line: string): boolean;
 }

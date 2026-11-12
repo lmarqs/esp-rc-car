@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SessionState } from '../../src/lib/flash/session';
-import { boardAction, boardStatus, isConnected, sketchOf } from '../../src/lib/workbench/link';
+import { boardAction, boardStatus, isConnected, paneMode, sketchOf } from '../../src/lib/workbench/link';
 
 const running: SessionState = { kind: 'running', chip: 'ESP32', output: [] };
 const lost: SessionState = { kind: 'running', chip: 'ESP32', output: [], lost: true };
@@ -97,5 +97,39 @@ describe('boardAction', () => {
       disabled: true,
     });
     expect(boardAction({ kind: 'connecting' }, undefined, 'blink/input')).toEqual({ ...connect, disabled: true });
+  });
+
+  it('goes back to live, with its own icon, while the simulator has the pane of a board that runs the selected step', () => {
+    expect(boardAction(running, 'blink/input', 'blink/input', undefined, true)).toEqual({
+      label: 'Back to live',
+      icon: 'back',
+      event: 'live',
+      disabled: false,
+    });
+  });
+
+  it('flashes the step, not back to live, once the board runs another step', () => {
+    expect(boardAction(running, 'blink/simple', 'blink/input', undefined, true)).toMatchObject({ label: 'Flash step' });
+  });
+
+  it('connects again, not back to live, once the board is lost', () => {
+    expect(boardAction(lost, 'blink/input', 'blink/input', undefined, true)).toEqual(connect);
+  });
+});
+
+describe('paneMode', () => {
+  it('simulates while no board names its sketch', () => {
+    expect(paneMode({ kind: 'simulated' }, false)).toBe('simulator');
+    expect(paneMode({ kind: 'simulated' }, true)).toBe('simulator');
+  });
+
+  it('follows a board that runs the selected step, until the visitor hands the pane to the simulator', () => {
+    expect(paneMode({ kind: 'live' }, false)).toBe('live');
+    expect(paneMode({ kind: 'live' }, true)).toBe('simulator');
+  });
+
+  it('follows, without taking lines, a board that runs another step or sketch', () => {
+    expect(paneMode({ kind: 'step', key: 'blink/simple', number: 1 }, false)).toBe('other');
+    expect(paneMode({ kind: 'sketch', key: 'servo/sweep' }, true)).toBe('other');
   });
 });
