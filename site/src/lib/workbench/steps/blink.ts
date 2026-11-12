@@ -242,6 +242,16 @@ export function answersBlinkLine(line: string): boolean {
   return kind === 'delay' || kind === 'paused' || kind === 'running';
 }
 
+/** The lines `input` and `timer` answer: those that start with a digit once trimmed, which set the interval. */
+export function answersNumber(sent: string): boolean {
+  return isDigit(trim(sent)[0]);
+}
+
+/** The lines `commands` answers: every line that is not blank once trimmed, unknown ones with `? <line>`. */
+export function answersCommand(sent: string): boolean {
+  return trim(sent).length > 0;
+}
+
 /**
  * Where the arrow sits on a board that prints `HIGH` or `LOW` just before it writes the LED and then waits: on the
  * `delay` line after that write, `wait` the line's text, which the sketch holds twice.
@@ -292,6 +302,7 @@ export const blinkInput: BlinkStep = {
   parse: parseBlinkLine,
   liveLine: delayAfterWrite('delay(blinkDelay);'),
   answers: answersBlinkLine,
+  expectsAnswer: answersNumber,
 };
 
 export const blinkTimer: BlinkStep = {
@@ -304,6 +315,7 @@ export const blinkTimer: BlinkStep = {
   live: liveDelay,
   parse: parseBlinkLine,
   answers: answersBlinkLine,
+  expectsAnswer: answersNumber,
 };
 
 export const blinkCommands: BlinkStep = {
@@ -316,6 +328,7 @@ export const blinkCommands: BlinkStep = {
   live: liveDelay,
   parse: parseBlinkLine,
   answers: answersBlinkLine,
+  expectsAnswer: answersCommand,
 };
 
 /** The Blink project's steps in the order the page lists them. */

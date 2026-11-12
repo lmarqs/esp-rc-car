@@ -57,11 +57,12 @@ export function receive<E, B>(
 
 /**
  * The pane after the visitor sent `text` to the board at `at`: the terminal shows it as sent and the trace marks it.
- * It waits for an answer only on a step that reads input.
+ * It waits for an answer only when the step's sketch answers that line, so an answer is never matched to a line the
+ * board ignored.
  */
 export function send<B>(
   followed: Followed<B>,
-  step: Pick<StepDefinition<unknown, unknown>, 'answers'>,
+  step: Pick<StepDefinition<unknown, unknown>, 'expectsAnswer'>,
   pin: number,
   text: string,
   at: number,
@@ -72,6 +73,6 @@ export function send<B>(
     nextId: line.id + 1,
     output: keep(followed.output, { text, sent: line.id }),
     trace: recordEffects(followed.trace, [{ kind: 'sent', line }], pin, at),
-    unanswered: step.answers === undefined ? followed.unanswered : [...followed.unanswered, line],
+    unanswered: step.expectsAnswer?.(text) ? [...followed.unanswered, line] : followed.unanswered,
   };
 }

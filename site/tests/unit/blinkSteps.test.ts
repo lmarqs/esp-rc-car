@@ -591,6 +591,14 @@ describe('the lines that answer a sent line', () => {
     ]);
   });
 
+  it('are expected for a number on input and timer, and for any line that is not blank on commands', () => {
+    const lines = ['500', ' 500 ', 'abc', '', '  ', 'pause', 'delay 5'];
+    expect(lines.map((line) => blinkInput.expectsAnswer!(line))).toEqual([true, true, false, false, false, false, false]);
+    expect(lines.map((line) => blinkTimer.expectsAnswer!(line))).toEqual([true, true, false, false, false, false, false]);
+    expect(lines.map((line) => blinkCommands.expectsAnswer!(line))).toEqual([true, true, true, false, false, true, true]);
+    expect(blinkSimple.expectsAnswer).toBeUndefined();
+  });
+
   it('are none on simple, which reads no input', () => {
     expect(blinkSimple.answers).toBeUndefined();
     expect([blinkInput, blinkTimer, blinkCommands].map((step) => step.answers)).toEqual([

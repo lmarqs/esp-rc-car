@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { blinkBoard, measuredInterval } from '../../src/lib/workbench/blinkBoard';
 import { follow, receive, send, type Followed } from '../../src/lib/workbench/live';
-import { blinkCommands, blinkInput, blinkSimple, LED_PIN, type BlinkStep } from '../../src/lib/workbench/steps/blink';
+import {
+  blinkCommands,
+  blinkInput,
+  blinkSimple,
+  blinkTimer,
+  LED_PIN,
+  type BlinkStep,
+} from '../../src/lib/workbench/steps/blink';
 import type { BlinkBoard } from '../../src/lib/workbench/blinkBoard';
 
 type Event = readonly ['print', string, number] | readonly ['send', string, number];
@@ -119,6 +126,35 @@ describe('send and the answer that marks it applied', () => {
     expect(followed.unanswered).toEqual([{ id: 2, text: 'foo' }]);
     const answered = receive(followed, blinkCommands, blinkBoard, LED_PIN, '? foo', 210);
     expect(marks(answered).at(-1)).toEqual(['applied', 2, 210]);
+  });
+
+  it('waits for no answer to a line the sketch ignores, so the next answer marks the line it answers', () => {
+    for (const step of [blinkInput, blinkTimer]) {
+      const followed = after(step, [
+        ['send', 'abc', 100],
+        ['send', '500', 200],
+        ['print', 'delay 500', 300],
+      ]);
+      expect(marks(followed)).toEqual([
+        ['sent', 1, 100],
+        ['sent', 2, 200],
+        ['applied', 2, 300],
+      ]);
+      expect(followed.unanswered).toEqual([]);
+    }
+  });
+
+  it('waits for an answer to every command that is not blank', () => {
+    const followed = after(blinkCommands, [
+      ['send', '  ', 100],
+      ['send', 'delay abc', 110],
+      ['print', '? delay abc', 200],
+    ]);
+    expect(marks(followed)).toEqual([
+      ['sent', 1, 100],
+      ['sent', 2, 110],
+      ['applied', 2, 200],
+    ]);
   });
 
   it('marks nothing applied for an answer no sent line waits for', () => {

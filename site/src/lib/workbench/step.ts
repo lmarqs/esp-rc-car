@@ -62,4 +62,6 @@ export interface StepDefinition<S, E> {
    * on a step that reads no input.
    */
   answers?(line: string): boolean;
+  /** Whether the board answers the line `sent`, as the sketch decides; absent on a step that reads no input. */
+  expectsAnswer?(sent: string): boolean;
 }

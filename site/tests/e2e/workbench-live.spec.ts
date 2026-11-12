@@ -85,6 +85,7 @@ test.describe('live mode', () => {
     await commandLine(page).press('Enter');
 
     await expect.poll(() => fakeFlasher.calls()).toContain('send 500');
+    expect((await fakeFlasher.calls()).filter((call) => call === 'send 500')).toHaveLength(1);
     await expect(serial(page)).toHaveText('sketch blink/input\nHIGH\n› 500');
     await expect(serial(page).locator('[data-sent]')).toHaveText('› 500');
     expect(await tracePath(page, 'sent')).not.toBe('');
