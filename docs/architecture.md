@@ -14,7 +14,7 @@ Releases, for sketches outside this repository. The Arduino Library Manager inde
 the one release. The library workflow, `.github/workflows/lib.yaml`, zips `lib/` and tags it `lib-v<version>`, with
 the version from `lib/library.properties`, when a push to `main` includes a commit whose message contains
 `#lib-release`, or when someone runs it by hand. A version already released fails the run, so each release raises
-the version first. The marker differs from the website's `#release` so that each releases alone.
+the version first. The website has its own marker, `#site-release`, so each releases alone.
 
 ## Firmware
 
@@ -51,5 +51,5 @@ its Library page reads the driver headers at build time, and nothing in the firm
 `.github/workflows/site.yaml`, installs only those two and skips the firmware toolchain.
 
 The workflow publishes a new site version to GitHub Pages, at <https://lmarqs.github.io/robomania/>, when a push to
-`main` includes a commit whose message contains `#release`, or when someone runs it by hand. Other pushes leave the
+`main` includes a commit whose message contains `#site-release`, or when someone runs it by hand. Other pushes leave the
 published site as it is.

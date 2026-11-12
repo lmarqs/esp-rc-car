@@ -73,7 +73,7 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 - Change only what the task needs, matching the surrounding code.
 - Format with `.clang-format`.
 - Commits: one change per commit, pushed straight to `main`; no pull requests
-- Deploy: a push to `main` releases the website on a `#release` commit message, and the `lib/` library on
+- Deploy: a push to `main` releases the website on a `#site-release` commit message, and the `lib/` library on
   `#lib-release` after raising `version` in `lib/library.properties`
 
 ## Gotchas
