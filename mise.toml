@@ -18,3 +18,5 @@ version = "1.6.0"
 [tools."http:arduino-cli".platforms]
 linux-x64 = { url = "https://github.com/arduino/arduino-cli/releases/download/v{version}/arduino-cli_{version}_Linux_64bit.tar.gz" }
 windows-x64 = { url = "https://github.com/arduino/arduino-cli/releases/download/v{version}/arduino-cli_{version}_Windows_64bit.zip" }
+macos-x64 = { url = "https://github.com/arduino/arduino-cli/releases/download/v{version}/arduino-cli_{version}_macOS_64bit.tar.gz" }
+macos-arm64 = { url = "https://github.com/arduino/arduino-cli/releases/download/v{version}/arduino-cli_{version}_macOS_ARM64.tar.gz" }
