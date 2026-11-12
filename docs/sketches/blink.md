@@ -16,7 +16,8 @@ All four steps:
   reads that line to tell which step a connected board runs.
 - Print `HIGH` or `LOW` as the LED changes.
 
-The steps that read serial take a line ended by a newline, so a serial monitor has to send one with each line.
+End each line sent to a step with a newline. `blink/input` waits up to a second for the newline and then takes what
+has arrived; `blink/timer` and `blink/commands` keep the part of a line that has arrived until the newline comes.
 
 ## The steps
 

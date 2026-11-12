@@ -16,7 +16,8 @@ All four steps:
   reads that line to tell which step a connected board runs.
 - Print `angle <n>` each time they write an angle to the servo.
 
-The steps that read serial take a line ended by a newline, so a serial monitor has to send one with each line.
+End each line sent to a step with a newline. `servo/angle` waits up to a second for the newline and then takes what
+has arrived; `servo/commands` and `servo/speed` keep the part of a line that has arrived until the newline comes.
 
 ## The steps
 
@@ -69,7 +70,7 @@ An `angle` that is out of range prints `error angle must be 0-180`; any other li
 ## Not handled
 
 - A servo built for a narrower pulse range reaches its stop before 0° or 180° and strains against it there. Use a
-  servo that takes 544 µs to 2400 µs, or change the range in the step's `PositionalServo` line.
+  servo that takes 544 µs to 2400 µs, or pass the range to the step's `PositionalServo` constructor.
 - A continuous-rotation servo spins back and forth at changing speed instead of sweeping, since the pulse width sets
   its speed, not its angle.
 - `servo/speed` spaces its moves by 1000 ÷ speed ms in whole milliseconds, so a speed that does not divide 1000 runs

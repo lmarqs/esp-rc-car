@@ -77,7 +77,7 @@ servo there and ends the sweep, `sweep` starts it and `stop` holds the angle. Th
 
 ### 4. speed: move at a limited speed
 
-`angle 45` now sets a target, and the servo moves one degree at a time toward it at a speed you choose with
+In this step, `angle 45` sets a target, and the servo moves one degree at a time toward it at a speed you choose with
 `speed 1` to `speed 360`, in degrees per second. The sketch prints `target <n>` for the target and `angle <n>` for
 each degree the servo is estimated to have reached; it does not read the servo. `sweep` aims at an end and turns
 around at each end at that speed, and `stop` makes the target the current angle.
@@ -85,7 +85,7 @@ around at each end at that speed, and `stop` makes the target the current angle.
 ## Not handled
 
 - A servo built for a narrower pulse range reaches its stop before 0° or 180° and strains against it there. Use a
-  servo that takes 544 µs to 2400 µs, or change the range in the step's `PositionalServo` line.
+  servo that takes 544 µs to 2400 µs, or pass the range to the step's `PositionalServo` constructor.
 - A continuous-rotation servo spins back and forth at changing speed instead of sweeping, since the pulse width sets
   its speed, not its angle.
 

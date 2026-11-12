@@ -99,7 +99,8 @@ The site also puts the firmware on a board. Its parts:
   project with a workbench, whose entry shows the chips of all its steps and links to the `#workbench` anchor of its
   page; each project page with a sketch shows the same card above its text, except a page with a workbench, which
   shows the workbench there. A project page keeps its own section on building and flashing the sketch with the tools.
-  A page imports a slice only through the card or the workbench component and the manifest module and its reader.
+  A page imports a slice only through the card or the workbench component, the manifest module and its reader, and
+  the workbench's lookup of a project's steps.
 
 ```mermaid
 flowchart TD
