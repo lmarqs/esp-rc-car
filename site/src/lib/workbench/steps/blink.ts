@@ -120,13 +120,17 @@ function* toggleWhenDue(
   yield op('led.write(ledOn);', () => board.write(LED_PIN, state.ledOn));
 }
 
+/** A pass of `timer` and `commands`, priced so the next toggle comes on time, as on the board. */
+const togglePassCost = (board: Board<BlinkState>) =>
+  passCost(board, (state) => (state.paused ? undefined : state.lastToggle + state.blinkDelay));
+
 const timer: Sketch<BlinkState> = {
   init: initialState,
   *program(board) {
     const state = board.state;
     yield* setup(board, 'blink/timer');
     for (;;) {
-      yield* readCommands(board, passCost(board), function* (line) {
+      yield* readCommands(board, togglePassCost(board), function* (line) {
         yield op('if (isDigit(line[0])) {');
         if (isDigit(line[0])) {
           yield op('blinkDelay = constrain(line.toInt(), 100, 2000);', () => {
@@ -150,7 +154,7 @@ const commands: Sketch<BlinkState> = {
     const state = board.state;
     yield* setup(board, 'blink/commands');
     for (;;) {
-      yield* readCommands(board, passCost(board), function* (line) {
+      yield* readCommands(board, togglePassCost(board), function* (line) {
         yield op('if (line == "pause") {');
         if (line === 'pause') {
           yield op('paused = true;', () => (state.paused = true));

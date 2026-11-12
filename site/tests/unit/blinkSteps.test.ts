@@ -482,6 +482,13 @@ describe('the cost of a pass through loop()', () => {
     expect(runner.view().millis).toBe(250);
   });
 
+  it.each([blinkTimer, blinkCommands])('$key: ends a pass when the next toggle falls due, so a short delay keeps its pace while stepping', (step) => {
+    const { runner, printed } = start(step);
+    runner.send(step === blinkTimer ? '100' : 'delay 100');
+    for (let i = 0; i < 200 && afterSetup(printed).length < 4; i++) runner.step();
+    expect(afterSetup(printed)).toEqual(['250 delay 100', '250 HIGH', '350 LOW', '450 HIGH']);
+  });
+
   it('prices a pass from the pace when it runs, so Step costs 250 even in a run started at full speed', () => {
     const { runner } = start(blinkTimer);
     runner.run();
