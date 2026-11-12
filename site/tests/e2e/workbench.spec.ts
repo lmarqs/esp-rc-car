@@ -102,8 +102,12 @@ test.describe('the Blink workbench', () => {
     await expect(serial(page)).not.toContainText('HIGH');
     await expect(watchValue(page, 'LED')).toHaveText('LOW');
 
+    // Each line rests 500 ms in slow mode, and the LED changes at led.write, one line after the print.
     await page.clock.runFor(1000);
     await expect(serial(page)).toContainText('HIGH');
+    await expect(watchValue(page, 'LED')).toHaveText('LOW');
+
+    await page.clock.runFor(500);
     await expect(watchValue(page, 'LED')).toHaveText('HIGH');
     await expect(bench(page).locator('[data-picture]')).toHaveClass(/\bon\b/);
     await expect(watchValue(page, 'measured')).toHaveText('…');

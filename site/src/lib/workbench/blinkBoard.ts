@@ -1,5 +1,6 @@
 import type { BoardModel, WatchRow } from './board';
-import type { BlinkEvent } from './steps/blink';
+import type { Effect } from './simulator';
+import { LED_PIN, type BlinkEvent, type BlinkState } from './steps/blink';
 
 /** What the Blink workbench shows of the board, built only from the lines the board printed. */
 export interface BlinkBoard {
@@ -49,6 +50,21 @@ export function applyBlinkEvent(board: BlinkBoard, event: BlinkEvent, at: number
   }
 }
 
+/**
+ * The simulated board after a line that did `effects` and left `state`, at `at` simulated milliseconds: the LED
+ * follows the pin writes, so it changes at `led.write`, and `wait` and `paused` follow the sketch's variables.
+ */
+export function simulateBlink(board: BlinkBoard, state: BlinkState, effects: readonly Effect[], at: number): BlinkBoard {
+  let next = board;
+  for (const effect of effects) {
+    if (effect.kind === 'write' && effect.pin === LED_PIN) {
+      next = applyBlinkEvent(next, { kind: effect.high ? 'high' : 'low' }, at);
+    }
+  }
+  if (next.wait === state.blinkDelay && next.paused === state.paused) return next;
+  return { ...next, wait: state.blinkDelay, paused: state.paused };
+}
+
 /** The time between the last two changes of the LED, in milliseconds; `undefined` before the second change. */
 export function measuredInterval(board: BlinkBoard): number | undefined {
   const [before, last] = board.changes;
@@ -71,10 +87,11 @@ export function blinkWatch(step: string, board: BlinkBoard, millis: number | und
   return rows;
 }
 
-export const blinkBoard: BoardModel<BlinkEvent, BlinkBoard> = {
+export const blinkBoard: BoardModel<BlinkEvent, BlinkBoard, BlinkState> = {
   fields: BLINK_WATCH_FIELDS,
   initial: initialBlinkBoard,
   apply: applyBlinkEvent,
+  simulate: simulateBlink,
   watch: blinkWatch,
   lit: (board) => board.ledOn,
 };

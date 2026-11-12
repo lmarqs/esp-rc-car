@@ -235,11 +235,7 @@ const id = (part: string) => `workbench-${project}-${part}`;
       runner?.dispose();
       board = project!.board.initial();
       runner = openRunner(definition, (next, effects) => {
-        for (const effect of effects) {
-          if (effect.kind !== 'print') continue;
-          const event = definition.parse(effect.text);
-          if (event !== undefined) board = project!.board.apply(board, event, next.millis);
-        }
+        board = project!.board.simulate(board, next.state, effects, next.millis);
         view = next;
         draw();
       });

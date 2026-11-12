@@ -1,3 +1,5 @@
+import type { Effect } from './simulator';
+
 /** One row of the watch panel: a name, such as `LED`, and its value as the page shows it. */
 export interface WatchRow {
   readonly name: string;
@@ -5,15 +7,21 @@ export interface WatchRow {
 }
 
 /**
- * What the workbench shows of a project's board, built from what the board printed, so the same model serves the
- * simulator and a real board. `E` is what a printed line means, `B` the board as the page knows it.
+ * What the workbench shows of a project's board. A real board is known only from what it printed; the simulator's
+ * board follows the lines the program runs. `E` is what a printed line means, `B` the board as the page knows it and
+ * `S` the simulated program's state.
  */
-export interface BoardModel<E, B> {
+export interface BoardModel<E, B, S> {
   /** Every watch row the project's steps can show, in the panel's order. */
   readonly fields: readonly string[];
   initial(): B;
   /** The board after it printed a line meaning `event` at `at` milliseconds. */
   apply(board: B, event: E, at: number): B;
+  /**
+   * The simulated board after the program ran one line, which did `effects` and left `state`, at `at` simulated
+   * milliseconds. A value changes only when the line that sets it runs.
+   */
+  simulate(board: B, state: S, effects: readonly Effect[], at: number): B;
   /**
    * The rows `step` shows, a subset of `fields` in their order; `millis` is the board's clock, `undefined` when the
    * page does not know it.

@@ -7,7 +7,7 @@ import { blinkSteps, type BlinkEvent, type BlinkState } from './steps/blink';
 /** A project the workbench can show: its steps, in the order of the project's ladder, and its board. */
 export interface WorkbenchProject<S, E, B> {
   readonly steps: readonly StepDefinition<S, E>[];
-  readonly board: BoardModel<E, B>;
+  readonly board: BoardModel<E, B, S>;
 }
 
 export const blinkWorkbench: WorkbenchProject<BlinkState, BlinkEvent, BlinkBoard> = {

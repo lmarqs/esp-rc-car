@@ -4,9 +4,11 @@ import {
   blinkWatch,
   initialBlinkBoard,
   measuredInterval,
+  simulateBlink,
   type BlinkBoard,
 } from '../../src/lib/workbench/blinkBoard';
-import type { BlinkEvent } from '../../src/lib/workbench/steps/blink';
+import { createRunner } from '../../src/lib/workbench/simulator';
+import { blinkInput, LED_PIN, type BlinkEvent, type BlinkState } from '../../src/lib/workbench/steps/blink';
 
 function after(events: readonly [BlinkEvent, number][], board: BlinkBoard = initialBlinkBoard()): BlinkBoard {
   return events.reduce((state, [event, at]) => applyBlinkEvent(state, event, at), board);
@@ -91,5 +93,63 @@ describe('blinkWatch', () => {
     expect(rows).toContainEqual({ name: 'measured', value: '…' });
     expect(rows).toContainEqual({ name: 'millis()', value: '…' });
     expect(blinkWatch('blink/simple', initialBlinkBoard(), 0)).toContainEqual({ name: 'wait', value: '1000 ms (fixed)' });
+  });
+});
+
+describe('simulateBlink', () => {
+  const state = (changes: Partial<BlinkState> = {}): BlinkState => ({
+    ledOn: false,
+    blinkDelay: 1000,
+    paused: false,
+    lastToggle: 0,
+    ...changes,
+  });
+
+  it('follows pin writes for the LED and times them in simulated ms', () => {
+    let board = simulateBlink(initialBlinkBoard(), state(), [{ kind: 'write', pin: LED_PIN, high: true }], 0);
+    board = simulateBlink(board, state(), [{ kind: 'write', pin: LED_PIN, high: false }], 700);
+    expect(board.ledOn).toBe(false);
+    expect(measuredInterval(board)).toBe(700);
+  });
+
+  it('ignores a print of HIGH and a write to another pin', () => {
+    const board = simulateBlink(
+      initialBlinkBoard(),
+      state(),
+      [
+        { kind: 'print', text: 'HIGH' },
+        { kind: 'write', pin: LED_PIN + 1, high: true },
+      ],
+      0,
+    );
+    expect(board).toEqual(initialBlinkBoard());
+  });
+
+  it('takes wait and paused from the sketch variables, and keeps the board when nothing changed', () => {
+    const board = initialBlinkBoard();
+    expect(simulateBlink(board, state(), [], 5)).toBe(board);
+    expect(simulateBlink(board, state({ blinkDelay: 300, paused: true }), [], 5)).toMatchObject({
+      wait: 300,
+      paused: true,
+    });
+  });
+
+  it('changes wait only when the blinkDelay line of the running sketch runs', () => {
+    const runner = createRunner(blinkInput.program);
+    let board = initialBlinkBoard();
+    const waits: string[] = [];
+    runner.subscribe((view, effects) => {
+      board = simulateBlink(board, view.state, effects, view.millis);
+    });
+    runner.send('300');
+    for (let i = 0; i < 12; i++) {
+      const line = runner.view().line;
+      runner.step();
+      waits.push(`${line} ${board.wait}`);
+    }
+    runner.dispose();
+    const assignment = waits.findIndex((entry) => entry.startsWith('blinkDelay = '));
+    expect(waits[assignment - 1]).toMatch(/ 1000$/);
+    expect(waits[assignment]).toBe('blinkDelay = constrain(line.toInt(), 100, 2000); 300');
   });
 });
