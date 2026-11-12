@@ -1,6 +1,7 @@
 ---
 import { ClientRouter } from 'astro:transitions';
 import '../styles/global.css';
+import Dock from '../components/board/Dock.astro';
 import Logo from '../components/Logo.astro';
 import { href } from '../lib/href';
 
@@ -51,5 +52,6 @@ const links = [
       Robomania is the website of the <a href="https://github.com/lmarqs/robomania">lmarqs/robomania</a> repository,
       where every project's firmware lives.
     </footer>
+    <Dock />
   </body>
 </html>

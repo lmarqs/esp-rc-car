@@ -14,8 +14,16 @@ export interface BoardRecord {
   readonly flashed?: string;
   /** The key a page asked to flash, from the press until the board runs it or the flash fails. */
   readonly pending?: string;
-  /** The last {@link KEPT_LINES} lines the board printed since it connected, blank and `cfg ` lines left out. */
-  readonly lines: readonly BoardLine[];
+  /**
+   * The last {@link KEPT_LINES} lines the board printed since it connected, blank and `cfg ` lines left out, and the
+   * lines the visitor sent it, marked `sent`.
+   */
+  readonly lines: readonly KeptLine[];
+}
+
+/** A line the board printed, or one the visitor sent it. */
+export interface KeptLine extends BoardLine {
+  readonly sent?: true;
 }
 
 /** What changes the record. */
@@ -23,7 +31,9 @@ export type RecordEvent =
   /** A page asked the session to flash `key`. */
   | { readonly kind: 'flash'; readonly key: string }
   | { readonly kind: 'state'; readonly from: SessionState; readonly to: SessionState }
-  | { readonly kind: 'line'; readonly line: BoardLine };
+  | { readonly kind: 'line'; readonly line: BoardLine }
+  /** The visitor sent the board `line`. */
+  | { readonly kind: 'sent'; readonly line: BoardLine };
 
 export const EMPTY_RECORD: BoardRecord = { lines: [] };
 
@@ -48,6 +58,8 @@ export function recordBoard(record: BoardRecord, event: RecordEvent): BoardRecor
       if (text === '' || text.startsWith('cfg ')) return heard === record.heard ? record : { ...record, heard };
       return { ...record, heard, lines: [...record.lines, event.line].slice(-KEPT_LINES) };
     }
+    case 'sent':
+      return { ...record, lines: [...record.lines, { ...event.line, sent: true as const }].slice(-KEPT_LINES) };
     case 'state':
       return recordState(record, event.from, event.to);
   }

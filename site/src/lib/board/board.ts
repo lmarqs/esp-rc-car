@@ -27,6 +27,10 @@ export interface Board {
   use(owner: string, use: BoardUse): boolean;
   /** Asks the session for `event`'s work, noting the key a flash writes. */
   send(event: SessionEvent): Promise<void>;
+  /** Writes `text` to the board and keeps it among the lines; rejects as {@link FlashSession.sendLine} does. */
+  sendLine(text: string): Promise<void>;
+  /** Adds `manifest`'s images to the ones the session knows, so a key it names can be flashed again from any page. */
+  know(manifest: Manifest): void;
 }
 
 /** Creates a board; the site holds one, from {@link theBoard}. */
@@ -35,7 +39,7 @@ export function createBoard(session: FlashSession): Board {
   let record = EMPTY_RECORD;
   let owner: string | undefined;
   let state: SessionState = session.state;
-  let sketch: string | undefined;
+  let current: BoardUse = { manifest: { sketches: {} }, sketch: '', baud: DEFAULT_BAUD };
 
   function notify() {
     for (const listener of [...listeners]) listener();
@@ -71,7 +75,7 @@ export function createBoard(session: FlashSession): Board {
       if (isBusy(session.state)) return false;
       const changed = next !== owner;
       owner = next;
-      sketch = use.sketch;
+      current = use;
       session.configure(use);
       // Another part of the page may have shown the board as its own until now.
       if (changed) notify();
@@ -79,9 +83,16 @@ export function createBoard(session: FlashSession): Board {
     },
     send(event) {
       // A connection that is not a reset flashes the session's sketch, after its settings if it has any.
-      const key = event.type === 'flash' ? event.key : event.type === 'connect' && !event.reset ? sketch : undefined;
+      const key = event.type === 'flash' ? event.key : event.type === 'connect' && !event.reset ? current.sketch : undefined;
       if (key !== undefined) change({ kind: 'flash', key });
       return session.send(event);
+    },
+    async sendLine(text) {
+      await session.sendLine(text);
+      change({ kind: 'sent', line: { text, at: Date.now() } });
+    },
+    know(manifest) {
+      session.configure({ ...current, manifest });
     },
   };
 }

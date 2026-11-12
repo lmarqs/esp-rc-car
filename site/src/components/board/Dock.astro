@@ -1,0 +1,243 @@
+---
+import { sketchNames } from '../../lib/board/names';
+import { readManifest } from '../../lib/flash/readManifest';
+import { href } from '../../lib/href';
+import { getCollection } from 'astro:content';
+
+// Every page carries every name and image, so the dock can name and flash again whatever the board runs, wherever the
+// visitor is.
+const names = Object.fromEntries(
+  Object.entries(sketchNames(await getCollection('projects'))).map(([key, name]) => [key, { ...name, path: href(name.path) }]),
+);
+const manifest = readManifest();
+---
+
+{/* Persisted, so the dock, the monitor's open state and its listeners stay as the router swaps the page. */}
+<aside
+  class="dock"
+  aria-label="Your board"
+  tabindex="-1"
+  hidden
+  data-board-dock
+  data-names={JSON.stringify(names)}
+  data-manifest={JSON.stringify(manifest)}
+  transition:persist="board-dock"
+>
+  <div class="monitor" id="board-monitor" data-dock-monitor hidden>
+    <div class="wrap">
+      <pre class="lines" role="log" aria-label="Board output" tabindex="0" data-dock-lines></pre>
+      <form class="cmd" data-dock-send>
+        <span class="prompt" aria-hidden="true">›</span>
+        <input
+          type="text"
+          autocomplete="off"
+          spellcheck="false"
+          aria-label="Line to send to the board"
+          placeholder="Line to send to the board"
+          data-dock-line
+        />
+        <button class="send" type="submit">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 2.2 14.5 8 2 13.8l1.6-5.1L9.5 8 3.6 7.3z"></path></svg>
+          Send
+        </button>
+      </form>
+      <p class="problem" role="alert" data-dock-problem hidden></p>
+    </div>
+  </div>
+  <div class="bar wrap">
+    <span class="dot" aria-hidden="true" data-dock-dot></span>
+    <b class="chip" data-dock-chip>No board</b>
+    <span class="doing" aria-live="polite"><a data-dock-link hidden></a><span data-dock-doing></span></span>
+    <span class="meter" data-dock-meter hidden>
+      <span class="track" role="progressbar" aria-label="Flashing" aria-valuemin="0" aria-valuemax="100" data-dock-track>
+        <i data-dock-fill></i>
+      </span>
+      <span class="pct" data-dock-pct></span>
+    </span>
+    <code class="last" data-dock-last></code>
+    <span class="acts">
+      <button type="button" aria-expanded="false" aria-controls="board-monitor" data-dock-serial>
+        Serial <span class="caret" aria-hidden="true"></span>
+      </button>
+      <button type="button" data-dock-again hidden>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.5v3h-3"></path></svg>
+        Flash again
+      </button>
+      <button type="button" data-dock-disconnect hidden>Disconnect</button>
+      <button type="button" class="primary" data-dock-connect hidden>Connect board</button>
+    </span>
+  </div>
+</aside>
+
+<style>
+  [hidden] { display: none !important; }
+  /* At the foot of the page and stuck to the bottom of the window above it, so it covers none of the page's end. */
+  .dock { position: sticky; bottom: 0; z-index: 10; background: var(--ink); color: var(--on-ink); font-size: 13px; line-height: 1.5; box-shadow: 0 -2px 0 var(--ink); }
+  .dock:focus { outline: none; }
+  .bar { display: flex; align-items: center; gap: 10px; min-height: 44px; padding-top: 6px; padding-bottom: 6px; flex-wrap: wrap; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--faint); flex: none; }
+  .dot.on { background: var(--green); box-shadow: 0 0 0 3px var(--green-halo); }
+  .chip { color: var(--card); white-space: nowrap; }
+  .doing { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .doing a { color: var(--on-ink); }
+  .meter { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 120px; min-width: 100px; }
+  .track { flex: 1; height: 6px; border-radius: 3px; background: var(--on-ink-line); overflow: hidden; }
+  .track i { display: block; height: 100%; width: 0; background: var(--yellow); transition: width .15s; }
+  .pct { font-family: var(--mono); color: var(--yellow); min-width: 4ch; text-align: right; }
+  .last { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: none; padding: 0; color: var(--yellow); font-size: 13px; }
+  .last:not(:empty)::before { content: "› "; color: var(--faint); }
+  .acts { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+  .acts button { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-weight: 700; font-size: 12px; color: var(--on-ink); background: transparent; border: 1px solid var(--on-ink-edge); border-radius: 999px; padding: 3px 11px; cursor: pointer; white-space: nowrap; }
+  .acts button:hover { border-color: var(--yellow); color: var(--yellow); }
+  .acts button[aria-expanded="true"] { background: var(--yellow); border-color: var(--yellow); color: var(--ink); }
+  .acts button.primary { background: var(--yellow); border-color: var(--yellow); color: var(--ink); }
+  .acts svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .caret { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 5px solid currentColor; }
+  [aria-expanded="true"] .caret { border-bottom: 0; border-top: 5px solid currentColor; }
+  .dock button:focus-visible, .dock a:focus-visible, .lines:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .cmd:has(input:focus-visible) { box-shadow: inset 0 0 0 2px var(--blue); }
+  @media (max-width: 560px) { .last { display: none; } }
+
+  .monitor { border-bottom: 1px solid var(--on-ink-line); }
+  /* Eight lines of 1.5em; older lines scroll up. */
+  .lines { margin: 0; padding: 10px 0 6px; height: calc(8 * 1.5em + 16px); overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: none; color: inherit; border-radius: 0; font-family: var(--mono); font-size: 13px; line-height: 1.5; }
+  .lines :global([data-sent]) { color: var(--yellow); }
+  .lines:empty::before { content: "Nothing printed yet."; color: var(--faint); }
+  .cmd { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--on-ink-line); padding: 4px 4px 4px 0; font-family: var(--mono); }
+  .prompt { color: var(--yellow); }
+  .cmd input { flex: 1; min-width: 0; padding: 6px 0; border: 0; background: transparent; color: var(--card); font: inherit; outline: none; }
+  .cmd input::placeholder { color: var(--faint); }
+  .cmd input:disabled::placeholder { color: var(--quiet); }
+  .send { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-family: var(--sans); font-size: 13px; font-weight: 700; color: var(--ink); background: var(--yellow); border: 0; border-radius: 6px; padding: 4px 12px; cursor: pointer; }
+  .send:disabled { opacity: .5; cursor: default; }
+  .send svg { width: 13px; height: 13px; fill: currentColor; }
+  .problem { margin: 0 0 8px; color: var(--yellow); font-family: var(--sans); }
+</style>
+
+<script>
+  import { theBoard } from '../../lib/board/board';
+  import type { SketchName } from '../../lib/board/names';
+  import type { KeptLine } from '../../lib/board/record';
+  import type { Manifest } from '../../lib/flash';
+  import { runs } from '../../lib/board/record';
+  import { dockView } from './dockView';
+
+  // The dock persists from page to page, so this runs once, on the first page the visitor opens.
+  const dock = document.querySelector<HTMLElement>('[data-board-dock]');
+  if (dock !== null && dock.dataset.mounted === undefined) {
+    dock.dataset.mounted = '';
+    mountDock(dock);
+  }
+
+  function mountDock(dock: HTMLElement) {
+    const names: Record<string, SketchName> = JSON.parse(dock.dataset.names ?? '{}');
+    const manifest: Manifest = JSON.parse(dock.dataset.manifest ?? '{"sketches":{}}');
+    const flashable = new Set(Object.keys(manifest.sketches));
+    const board = theBoard();
+    const { session } = board;
+    board.know(manifest);
+
+    const find = <E extends Element>(name: string) => dock.querySelector<E>(`[data-dock-${name}]`)!;
+    const monitor = find<HTMLElement>('monitor');
+    const lines = find<HTMLElement>('lines');
+    const form = find<HTMLFormElement>('send');
+    const input = find<HTMLInputElement>('line');
+    const send = form.querySelector<HTMLButtonElement>('button')!;
+    const problem = find<HTMLElement>('problem');
+    const dot = find<HTMLElement>('dot');
+    const chip = find<HTMLElement>('chip');
+    const link = find<HTMLAnchorElement>('link');
+    const doing = find<HTMLElement>('doing');
+    const meter = find<HTMLElement>('meter');
+    const track = find<HTMLElement>('track');
+    const fill = find<HTMLElement>('fill');
+    const pct = find<HTMLElement>('pct');
+    const last = find<HTMLElement>('last');
+    const serial = find<HTMLButtonElement>('serial');
+    const again = find<HTMLButtonElement>('again');
+    const disconnect = find<HTMLButtonElement>('disconnect');
+    const connect = find<HTMLButtonElement>('connect');
+    let shownLines: readonly KeptLine[] | undefined;
+
+    serial.addEventListener('click', () => {
+      const open = monitor.hidden;
+      monitor.hidden = !open;
+      serial.setAttribute('aria-expanded', String(open));
+      shownLines = undefined;
+      render();
+      if (open) input.focus();
+    });
+    connect.addEventListener('click', () => void board.send({ type: 'connect', reset: true }));
+    disconnect.addEventListener('click', () => void board.send({ type: 'disconnect' }));
+    again.addEventListener('click', () => {
+      const key = runs(board.record);
+      if (key !== undefined) void board.send({ type: 'flash', key });
+    });
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const text = input.value;
+      if (text === '') return;
+      input.value = '';
+      problem.hidden = true;
+      board.sendLine(text).catch(() => {
+        problem.textContent = `The board did not get ${text}. Check that it is still plugged in, then send it again.`;
+        problem.hidden = false;
+      });
+    });
+
+    function render() {
+      const view = dockView(session.state, board.record, names, flashable);
+      dock.hidden = !view.shown;
+      if (!view.shown) return;
+      dot.classList.toggle('on', view.connected);
+      chip.textContent = view.chip;
+      // Set only on a change, since what the board does is a live region.
+      const linked = view.path !== undefined;
+      if (link.hidden === linked || (linked ? link.textContent : doing.textContent) !== view.doing) {
+        link.hidden = !linked;
+        link.textContent = linked ? view.doing : '';
+        if (linked) link.href = view.path!;
+        doing.textContent = linked ? '' : view.doing;
+      }
+      meter.hidden = view.progress === undefined;
+      if (view.progress !== undefined) {
+        track.setAttribute('aria-valuenow', String(view.progress));
+        fill.style.width = `${view.progress}%`;
+        pct.textContent = `${view.progress}%`;
+      }
+      last.textContent = view.last ?? '';
+      // A hidden button cannot keep the focus, which would fall to the page; the dock keeps it.
+      for (const [button, shown] of [
+        [again, view.flashAgain],
+        [disconnect, view.disconnect],
+        [connect, view.connect],
+      ] as const) {
+        if (!shown && document.activeElement === button) dock.focus();
+        button.hidden = !shown;
+      }
+      input.disabled = !view.canSend;
+      send.disabled = !view.canSend;
+      if (!monitor.hidden) paintLines();
+    }
+
+    /** Writes the kept lines into the monitor, following the newest unless the visitor scrolled up to read. */
+    function paintLines() {
+      const kept = board.record.lines;
+      if (kept === shownLines) return;
+      shownLines = kept;
+      const following = lines.scrollHeight - lines.scrollTop - lines.clientHeight < 8;
+      lines.replaceChildren(
+        ...kept.map((line, at) => {
+          const row = document.createElement('span');
+          row.textContent = (at > 0 ? '\n' : '') + (line.sent ? `› ${line.text}` : line.text);
+          if (line.sent) row.dataset.sent = '';
+          return row;
+        }),
+      );
+      if (following) lines.scrollTop = lines.scrollHeight;
+    }
+
+    board.subscribe(render);
+    render();
+  }
+</script>
