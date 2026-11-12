@@ -12,7 +12,7 @@ const float GYRO_LSB_PER_DPS = 131.0f;
 
 const uint16_t BIAS_SAMPLES = 500;
 
-Mpu6050Imu::Mpu6050(TwoWire* wire, uint8_t address) {
+Mpu6050Imu::Mpu6050Imu(TwoWire* wire, uint8_t address) {
   this->wire = wire;
   this->address = address;
 }
