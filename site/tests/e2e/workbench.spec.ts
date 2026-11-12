@@ -20,6 +20,16 @@ const runningRow = (page: Page) => visibleCode(page).locator('[data-running]');
 const clockFill = (row: Locator) =>
   row.locator('[data-pie] .fill').evaluate((fill) => parseFloat(getComputedStyle(fill).strokeDasharray));
 
+/** Stops the page's time from flowing on its own, then moves it on until the arrow is on `line`. */
+async function freezeUntilRunning(page: Page, line: number) {
+  // Far enough ahead that the page time, which flows until then, has not passed it yet.
+  await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 500);
+  for (let i = 0; i < 100 && (await runningRow(page).getAttribute('data-line')) !== String(line); i++) {
+    await page.clock.runFor(50);
+  }
+  await expect(runningRow(page)).toHaveAttribute('data-line', String(line));
+}
+
 /** The line numbers of `sketch`'s lines whose text is `text`, in order. */
 const linesOf = (sketch: string, text: string) =>
   source(sketch)
@@ -163,19 +173,18 @@ test.describe('the Blink workbench', () => {
     expect(await pies.evaluateAll((rows) => rows.map((row) => Number((row as HTMLElement).dataset.line)))).toEqual(delays);
     for (const at of delays) expect(await clockFill(visibleCode(page).locator(`[data-line="${at}"]`))).toBe(0);
 
-    // Six lines of 500 ms in slow mode come before the first delay, which lasts 1000 ms.
-    await page.clock.runFor(3250);
-    await expect(runningRow(page)).toHaveAttribute('data-line', String(delays[0]));
+    await freezeUntilRunning(page, delays[0]);
     const waiting = visibleCode(page).locator(`[data-line="${delays[0]}"] [data-pie]`);
     await expect(waiting).toHaveClass(/\bwaiting\b/);
     const early = await clockFill(runningRow(page));
-    await page.clock.runFor(500);
+    // The wait lasts 1000 ms, so 300 ms fill 30 of the clock's 100.
+    await page.clock.runFor(300);
     const later = await clockFill(runningRow(page));
-    expect(early).toBeGreaterThan(10);
-    expect(later).toBeGreaterThan(early + 30);
+    expect(later - early).toBeGreaterThan(28);
+    expect(later - early).toBeLessThan(32);
     expect(await clockFill(visibleCode(page).locator(`[data-line="${delays[1]}"]`))).toBe(0);
 
-    await page.clock.runFor(500);
+    await page.clock.runFor(1000);
     await expect(runningRow(page)).not.toHaveAttribute('data-line', String(delays[0]));
     await expect(waiting).not.toHaveClass(/\bwaiting\b/);
     expect(await clockFill(visibleCode(page).locator(`[data-line="${delays[0]}"]`))).toBe(0);
@@ -184,11 +193,10 @@ test.describe('the Blink workbench', () => {
   test('shows the clock of a waiting line full and still under reduced motion', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     const [delay] = linesOf('sketches/blink/simple', 'delay(1000);');
-    await page.clock.runFor(3250);
-    await expect(runningRow(page)).toHaveAttribute('data-line', String(delay));
+    await freezeUntilRunning(page, delay);
     await expect(runningRow(page).locator('[data-pie]')).toHaveClass(/\bwaiting\b/);
     const first = await clockFill(runningRow(page));
-    await page.clock.runFor(500);
+    await page.clock.runFor(300);
     expect(await clockFill(runningRow(page))).toBe(first);
     expect(first).toBe(100);
   });
