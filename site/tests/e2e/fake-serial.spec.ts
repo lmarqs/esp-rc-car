@@ -52,12 +52,13 @@ test.describe('open', () => {
     const text = await page.evaluate(async () => {
       const port = await navigator.serial.requestPort();
       await port.open({ baudRate: 115200 });
-      const reader = port.readable!.pipeThrough(new TextDecoderStream()).getReader();
+      const reader = port.readable!.getReader();
+      const decoder = new TextDecoder();
       let received = '';
       while (!received.endsWith('rst:0x1\n')) {
         const { value, done } = await reader.read();
         if (done) break;
-        received += value;
+        received += decoder.decode(value, { stream: true });
       }
       return received;
     });

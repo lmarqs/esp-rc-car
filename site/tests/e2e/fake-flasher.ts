@@ -166,7 +166,9 @@ function installFakeFlasher(options: FakeFlasherOptions) {
 
 function fakeFlasherFor(page: Page): FakeFlasher {
   return {
-    install: (options = {}) => page.addInitScript(installFakeFlasher, options),
+    install: async (options = {}) => {
+      await page.addInitScript(installFakeFlasher, options);
+    },
     release: () => page.evaluate(() => (window as unknown as { __fakeFlasherRelease: () => void }).__fakeFlasherRelease()),
     calls: () => page.evaluate(() => (window as unknown as { __fakeFlasherCalls: string[] }).__fakeFlasherCalls),
     loaded: () => page.evaluate(() => (window as unknown as { __fakeFlasherLoaded: string[][] }).__fakeFlasherLoaded),

@@ -39,7 +39,7 @@ const { steps } = Astro.props;
           Restart
         </button>
       </span>
-      <button type="button" class="toggle" data-slow aria-pressed={String(OPENING.slow)} title="Rest half a second on each line">
+      <button type="button" class="toggle" data-slow aria-pressed={OPENING.slow ? 'true' : 'false'} title="Rest half a second on each line">
         <svg viewBox="0 0 16 16" aria-hidden="true">
           <circle class="stroke" cx="8" cy="8" r="5.8" /><path class="stroke" d="M8 4.8V8l2.3 1.5" />
         </svg>

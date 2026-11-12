@@ -80,7 +80,9 @@ function installFakeSerial(options: FakeSerialOptions) {
 
 function fakeSerialFor(page: Page): FakeSerial {
   return {
-    install: (options = {}) => page.addInitScript(installFakeSerial, options),
+    install: async (options = {}) => {
+      await page.addInitScript(installFakeSerial, options);
+    },
     written: () => page.evaluate(() => (window as unknown as { __fakeSerialWritten: number[][] }).__fakeSerialWritten),
   };
 }

@@ -188,9 +188,6 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     let frame = 0;
     let motionFrame = 0;
 
-    /** The selected step's definition. */
-    const definition = () => paneProject.steps[pane.selected];
-
     /** Applies `event` to the pane, then does what its change asks of the page and paints it. */
     function dispatch(event: PaneEvent) {
       const before = pane;

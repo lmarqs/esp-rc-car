@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { stepsFor, viewFor } from '../../src/components/flash/view';
-import type { SettingField } from '../../src/lib/flash/manifest';
+import type { SessionState } from '../../src/lib/flash';
+import type { ManifestImage, SettingField } from '../../src/lib/flash/manifest';
 
 const context = { title: 'Blink' };
 
@@ -75,7 +76,7 @@ describe('viewFor', () => {
     });
   });
 
-  it.each([
+  it.each<[SessionState, string, string]>([
     [{ kind: 'noPort' }, 'No board was chosen. Plug it in and try again.', 'Connect board'],
     [
       { kind: 'portBusy' },
@@ -102,7 +103,7 @@ describe('viewFor', () => {
       'The connection dropped at 40%. Nothing is broken. Plug the board back in and flash again.',
       'Flash again',
     ],
-  ] as const)('shows %j as a notice whose button connects again', (state, message, label) => {
+  ])('shows %j as a notice whose button connects again', (state, message, label) => {
     expect(viewFor(state, context)).toEqual({
       step: 'connect',
       message,
@@ -112,7 +113,7 @@ describe('viewFor', () => {
   });
 
   it('links the images, each part with its offset, and the build-it-yourself section where the browser cannot flash', () => {
-    const images = [
+    const images: ManifestImage[] = [
       {
         profile: 'esp32',
         chipFamily: 'ESP32',
@@ -121,7 +122,7 @@ describe('viewFor', () => {
           { path: 'blink/esp32/blink.ino.bin', offset: 65536 },
         ],
       },
-    ] as const;
+    ];
     const view = viewFor({ kind: 'unsupported' }, { ...context, images, firmwareUrl: '/robomania/firmware/' });
 
     expect(view.message).toBe('This browser cannot reach a USB board. Open this page in Chrome or Edge on a computer.');
@@ -134,9 +135,9 @@ describe('viewFor', () => {
   });
 
   it('links the parts of a sketch at two levels under their folders, with the slash unescaped', () => {
-    const images = [
+    const images: ManifestImage[] = [
       { profile: 'esp32', chipFamily: 'ESP32', parts: [{ path: 'blink/simple/esp32/simple.ino.bin', offset: 65536 }] },
-    ] as const;
+    ];
     const view = viewFor({ kind: 'unsupported' }, { ...context, images, firmwareUrl: '/robomania/firmware/' });
 
     expect(view.links?.[0]).toEqual({

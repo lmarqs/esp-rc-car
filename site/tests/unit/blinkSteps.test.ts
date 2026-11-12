@@ -444,10 +444,7 @@ describe('the cost of a pass through loop()', () => {
     expect(runner.view().millis).toBe(500);
   });
 
-  it.each([
-    [blinkTimer, TIMER_GUARD],
-    [blinkCommands, COMMANDS_GUARD],
-  ] as const)('$key: 25 ms at full speed', (step) => {
+  it.each([blinkTimer, blinkCommands])('$key: 25 ms at full speed', (step) => {
     const { runner } = start(step);
     runner.run();
     vi.advanceTimersByTime(0);
@@ -527,7 +524,7 @@ describe('the LED pin', () => {
   it.each([blinkTimer, blinkCommands])('$key: changes at led.write(ledOn), after the print', (step) => {
     const runner = createRunner(step.program);
     const order: string[] = [];
-    runner.subscribe((view, effects) => {
+    runner.subscribe((_view, effects) => {
       for (const effect of effects) order.push(effect.kind === 'write' ? `write ${effect.high}` : effect.kind);
     });
     runner.run();
