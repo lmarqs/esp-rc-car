@@ -58,8 +58,8 @@ without one builds with the defaults in its code.
 
 Robomania, the project's website in `site/`, is an Astro site built apart from the firmware. It depends on `lib/`:
 its Library page reads the driver headers at build time, and nothing in the firmware depends on it. It shares
-`mise.toml` with the firmware but needs only Node and pnpm from it, so the publishing workflow,
-`.github/workflows/site.yaml`, installs only those two and skips the firmware toolchain.
+`mise.toml` with the firmware. The publishing workflow, `.github/workflows/site.yaml`, installs Node, pnpm, Python and
+arduino-cli from it, builds the firmware images the site flashes with `arduino:firmware`, and caches `.arduino/`.
 
 The workflow publishes a new site version to GitHub Pages, at <https://lmarqs.github.io/robomania/>, when a push to
 `main` includes a commit whose message contains `#site-release`, or when someone runs it by hand. Other pushes leave the
