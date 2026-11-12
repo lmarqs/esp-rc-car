@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { EMPTY_RECORD, KEPT_LINES, recordBoard, runs, sketchOf, type BoardRecord } from '../../src/lib/board/record';
+import { EMPTY_RECORD, KEPT_LINES, recordBoard, runs, type BoardRecord } from '../../src/lib/board/record';
+import { sketchOf } from '../../src/lib/flash/lines';
 import type { SessionState } from '../../src/lib/flash';
 
 const running: SessionState = { kind: 'running', chip: 'ESP32', output: [] };

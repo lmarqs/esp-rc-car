@@ -1,6 +1,6 @@
 import { awaitsRun, type SessionState } from '../flash';
 import type { BoardModel } from './board';
-import { sketchOf } from '../board/record';
+import { sketchOf } from '../flash/lines';
 import { boardAction, boardStatus, paneMode, type BoardAction, type BoardStatus, type PaneMode } from './link';
 import { follow, receive, send, withdraw, type Followed } from './live';
 import type { StepDefinition } from './step';

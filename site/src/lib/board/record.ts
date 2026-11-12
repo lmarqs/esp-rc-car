@@ -1,8 +1,6 @@
 import { awaitsRun, isBusy, type BoardLine, type SessionState } from '../flash';
 import { sketchOf } from '../flash/lines';
 
-export { sketchOf };
-
 /** How many of the lines the board printed the site keeps, for the serial monitor. */
 export const KEPT_LINES = 200;
 
