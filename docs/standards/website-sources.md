@@ -26,13 +26,16 @@ A MUST does not vary. A SHOULD yields only to a reason written beside the code.
   `esptool-js`, which flashes; Vitest, Playwright and type packages test and check it. A component is an Astro
   component, and what runs in the browser is plain TypeScript in the component's `<script>` tag. Astro renders a
   component to HTML at build time and ships only its `<script>`, so no page carries a framework's runtime.
-- A component MUST take its colours, fonts, radius and stroke from the tokens in `site/src/styles/global.css`: `--ink`
-  and `--muted` for text, `--yellow`, `--blue`, `--coral` and `--green` with their `--tint-*` fills, `--line`,
-  `--radius`, `--stroke`, `--mono` and `--sans`. New code MUST NOT write a literal colour; a new colour becomes a
-  token first. Rule 3 of [Website UX](website-ux.md), one meaning per colour, holds only when each meaning has one
-  name, and a hex value pasted into a component has none. In SVG, a class such as `.ink` and `.thin` in
-  `global.css` carries the stroke. Some illustrations and styles written earlier still contain literal colours,
-  which this rule leaves as they are.
+- A component MUST take its colours, fonts, radius and stroke from the tokens in `:root` of
+  `site/src/styles/global.css`. The tokens come in groups, and the file is the list: surfaces (`--paper`, `--card`,
+  `--chrome*`); text (`--ink`, `--muted`, `--faint`, `--quiet*`); lines (`--line`, `--edge`); the four accents
+  (`--yellow`, `--blue`, `--coral`, `--green`) with their `--tint-*` and `--wash-*` fills and their `-text`, `-strong`,
+  `-hover` and `-halo` variants; what sits on the dark `--ink` surface (`--on-ink*`, `--ink-raised`); code highlighting
+  (`--syntax-*`); the LED (`--led-off`); and `--radius`, `--stroke`, `--mono` and `--sans`. New code MUST NOT write a
+  literal colour; a new colour becomes a token first, in the group that names its meaning. Rule 3 of
+  [Website UX](website-ux.md), one meaning per colour, holds only when each meaning has one name, and a hex value
+  pasted into a component has none. In SVG, a class such as `.ink` and `.thin` in `global.css` carries the stroke.
+  Some illustrations and styles written earlier still contain literal colours, which this rule leaves as they are.
 - A style that only one component or page uses MUST be in that file's `<style>`, which Astro scopes to the file's
   own elements, so a class name there cannot restyle another component. `global.css` holds the tokens, the defaults
   for elements such as `body`, `pre` and `table`, and the classes that several pages share, such as `.btn`,
