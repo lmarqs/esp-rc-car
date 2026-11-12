@@ -92,8 +92,7 @@ describe('boardAction', () => {
   });
 
   it('says what the session works on, disabled, while it is busy', () => {
-    const flash = { label: 'Flash step 2 to board', icon: 'bolt', event: 'flash', disabled: false } as const;
-    expect(boardAction({ kind: 'flashing', chip: 'ESP32', pct: 40 }, undefined, input, flash)).toEqual({
+    expect(boardAction({ kind: 'flashing', chip: 'ESP32', pct: 40 }, undefined, input, 'flash')).toEqual({
       label: 'Flashing…',
       icon: 'bolt',
       event: 'flash',

@@ -497,11 +497,13 @@ const Picture = { led: Led, servo: Servo }[workbench.picture];
   import { createTypist } from '../../lib/workbench/typist';
   import { emptyTrace, recordEffects, recordLevel, traceShape, traceTime, type Trace } from '../../lib/workbench/trace';
   import { createFlasher, createSession, type Manifest } from '../../lib/flash';
-  import { boardAction, type BoardAction } from '../../lib/workbench/link';
+  import type { BoardAction } from '../../lib/workbench/link';
   import type { Followed } from '../../lib/workbench/live';
   import {
     initialPane,
+    paneAction,
     paneStatus,
+    showsRefusal,
     reducePane,
     type PaneEvent,
     type PaneProject,
@@ -632,7 +634,6 @@ const Picture = { led: Led, servo: Servo }[workbench.picture];
       panel.setAttribute('aria-labelledby', tabs[index].id);
       for (const element of perStep) element.hidden = element.dataset.forStep !== String(index);
       commandLine.placeholder = chosen.placeholder;
-      if (session.state.kind === 'running') dismissedRefusal = session.state.flashRefused;
       clearCommandLine();
       resetWatch();
 
@@ -973,15 +974,10 @@ const Picture = { led: Led, servo: Servo }[workbench.picture];
       sketch: paneProject.steps[0].key,
       baud: root.dataset.baud ? Number(root.dataset.baud) : undefined,
     });
-    let pane: PaneState<unknown> = initialPane(session.state);
-    let pressed: BoardAction | undefined;
-    let flashedKey = paneProject.steps[0].key;
-    // The refusal the visitor moved on from by picking another step.
-    let dismissedRefusal: unknown;
+    let pane: PaneState<unknown> = initialPane(paneProject, session.state);
 
     /** Paints the Board cell, its button and the board pane's message. */
     function showLink() {
-      const state = pane.session;
       const status = paneStatus(paneProject, pane);
       const text = boardStatusText(status, pane.detached);
       cell.dataset.status = status.kind;
@@ -1000,7 +996,7 @@ const Picture = { led: Led, servo: Servo }[workbench.picture];
         statusSentence = sentence;
       }
 
-      const action = boardAction(state, pane.heard, selectedStep(), pressed, pane.detached);
+      const action = paneAction(paneProject, pane);
       needsBrowser.hidden = action !== undefined;
       simulatorButton.setAttribute('aria-pressed', String(pane.mode === 'simulator'));
       // visibility, not hidden, so the row keeps its height.
@@ -1017,7 +1013,7 @@ const Picture = { led: Led, servo: Servo }[workbench.picture];
         }
       }
 
-      const shown = boardMessage(state, flashedKey, state.kind === 'running' && state.flashRefused !== dismissedRefusal);
+      const shown = boardMessage(pane.session, pane.flashed, showsRefusal(pane));
       stage.toggleAttribute('data-message', shown !== undefined);
       const words = shown?.text ?? '';
       // Only a change of text is announced: the progress bar carries the percentage.
@@ -1029,27 +1025,16 @@ const Picture = { led: Led, servo: Servo }[workbench.picture];
         progressFill.style.width = `${shown.progress}%`;
         progressText.textContent = `${shown.progress}%`;
       }
-
     }
 
     session.subscribe((state) => dispatch({ kind: 'session', state }));
     session.subscribeLines(({ text, at }) => dispatch({ kind: 'line', text, at }));
     actionButton?.addEventListener('click', () => {
-      const action = boardAction(pane.session, pane.heard, selectedStep(), pressed, pane.detached);
+      const action = paneAction(paneProject, pane);
       if (action === undefined || action.disabled) return;
-      pressed = action;
-      if (action.event === 'live') {
-        if (pane.mode !== 'live') dispatch({ kind: 'live' });
-      } else if (action.event === 'connect') {
-        void session.send({ type: 'connect', reset: true });
-      } else {
-        flashSelected();
-      }
+      press(action.event);
     });
-    flashAgain.addEventListener('click', () => {
-      pressed = { label: 'Flash again', icon: 'bolt', event: 'flash', disabled: false };
-      flashSelected();
-    });
+    flashAgain.addEventListener('click', () => press('flash'));
     // The board keeps running its step; the simulator starts it again in the pane.
     simulatorButton.addEventListener('click', () => {
       if (pane.mode !== 'live') return;
@@ -1057,14 +1042,11 @@ const Picture = { led: Led, servo: Servo }[workbench.picture];
       dispatch({ kind: 'detach' });
     });
 
-    function flashSelected() {
-      flashedKey = definition().key;
-      void session.send({ type: 'flash', key: flashedKey });
-    }
-
-    /** The selected step's key and its number in the rail. */
-    function selectedStep() {
-      return { key: definition().key, number: pane.selected + 1 };
+    /** Presses the board half of the Board switch, or Flash again, then asks the session for what the press starts. */
+    function press(action: BoardAction['event']) {
+      dispatch({ kind: 'press', action });
+      if (action === 'connect') void session.send({ type: 'connect', reset: true });
+      if (action === 'flash') void session.send({ type: 'flash', key: pane.flashed });
     }
 
     tabs.forEach((tab, index) => {

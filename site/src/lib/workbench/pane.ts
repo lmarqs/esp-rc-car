@@ -1,6 +1,6 @@
 import type { SessionState } from '../flash';
 import type { BoardModel } from './board';
-import { boardStatus, paneMode, sketchOf, type BoardStatus, type PaneMode } from './link';
+import { boardAction, boardStatus, paneMode, sketchOf, type BoardAction, type BoardStatus, type PaneMode } from './link';
 import { follow, receive, send, withdraw, type Followed } from './live';
 import type { StepDefinition } from './step';
 
@@ -37,7 +37,16 @@ export interface PaneState<B> {
   readonly following: number;
   /** Counts the times a fresh simulator took the pane from the board; the page then starts its run again. */
   readonly simulation: number;
+  /** What the visitor last pressed on the board half of the Board switch, which the session may still work on. */
+  readonly pressed?: BoardAction['event'];
+  /** The key of the step last flashed, or of the first step until one is: the step a missing image names. */
+  readonly flashed: string;
+  /** The refused flash the visitor moved on from by picking another step, which the pane no longer shows. */
+  readonly dismissed?: FlashRefusal;
 }
+
+/** A flash the session refused for want of an image for the board. */
+type FlashRefusal = Extract<SessionState, { kind: 'running' }>['flashRefused'];
 
 /** What happens to the board pane. */
 export type PaneEvent =
@@ -49,22 +58,37 @@ export type PaneEvent =
   | { readonly kind: 'line'; readonly text: string; readonly at: number }
   /** Pause, Step, Restart or Simulator pressed while live: the simulator takes the pane, and the board keeps its port. */
   | { readonly kind: 'detach' }
-  /** My board pressed: the pane follows the board again. */
-  | { readonly kind: 'live' }
+  /**
+   * The board half of the Board switch pressed: `connect` and `flash` start the session's work, which the page asks
+   * of it; `live`, My board, hands the pane back to the board.
+   */
+  | { readonly kind: 'press'; readonly action: BoardAction['event'] }
   /** The visitor sent `text` to the board at `at`. */
   | { readonly kind: 'sent'; readonly text: string; readonly at: number }
   /** The port refused the line `id`, `text`, sent while the pane followed the board for the `pane`-th time. */
   | { readonly kind: 'refused'; readonly id: number; readonly pane: number; readonly text: string };
 
 /** The pane as the page opens: the first step, simulated. */
-export function initialPane<B>(session: SessionState): PaneState<B> {
-  return { session, selected: 0, mode: 'simulator', detached: false, following: 0, simulation: 0 };
+export function initialPane<B>(project: PaneProject<B>, session: SessionState): PaneState<B> {
+  const flashed = project.steps[0].key;
+  return { session, selected: 0, mode: 'simulator', detached: false, following: 0, simulation: 0, flashed };
 }
 
 /** The Board cell's status for `state`. */
 export function paneStatus<B>(project: PaneProject<B>, state: PaneState<B>): BoardStatus {
   const keys = project.steps.map((step) => step.key);
   return boardStatus(state.session, state.heard, keys[state.selected], keys);
+}
+
+/** The board half of the Board switch for the pane; `undefined` in a browser that cannot reach a board. */
+export function paneAction<B>(project: PaneProject<B>, state: PaneState<B>): BoardAction | undefined {
+  const step = { key: selectedStep(project, state).key, number: state.selected + 1 };
+  return boardAction(state.session, state.heard, step, state.pressed, state.detached);
+}
+
+/** Whether the pane shows the session's refusal to flash: until the visitor picks another step. */
+export function showsRefusal<B>(state: PaneState<B>): boolean {
+  return state.session.kind === 'running' && state.session.flashRefused !== state.dismissed;
 }
 
 /** The pane after `event`. */
@@ -76,6 +100,7 @@ export function reducePane<B>(project: PaneProject<B>, state: PaneState<B>, even
         selected: event.index,
         mode: 'simulator',
         detached: false,
+        dismissed: state.session.kind === 'running' ? state.session.flashRefused : state.dismissed,
       });
     case 'session': {
       const connecting = event.state.kind === 'connecting';
@@ -90,8 +115,10 @@ export function reducePane<B>(project: PaneProject<B>, state: PaneState<B>, even
       return readLine(project, state, event.text, event.at);
     case 'detach':
       return sync(project, startSimulator({ ...state, detached: true, mode: 'simulator' }));
-    case 'live':
-      return sync(project, { ...state, detached: false });
+    case 'press':
+      if (event.action === 'flash') return { ...state, pressed: event.action, flashed: selectedStep(project, state).key };
+      if (event.action === 'live') return sync(project, { ...state, pressed: event.action, detached: false });
+      return { ...state, pressed: event.action };
     case 'sent':
       if (state.mode !== 'live' || state.followed === undefined) return state;
       return {

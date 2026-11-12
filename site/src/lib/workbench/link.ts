@@ -59,21 +59,21 @@ export function boardStatus(
 
 /**
  * The board half of the Board switch for the session's `state`, or `undefined` in a browser that cannot reach a board.
- * `step` is the selected step, its key and its number in the rail. `pressed` is the action the visitor last pressed,
- * which names what the session works on while it is busy. `detached` is set while the visitor has the simulator in the
+ * `step` is the selected step, its key and its number in the rail. `pressed` is what the visitor last pressed, which
+ * names what the session works on while it is busy. `detached` is set while the visitor has the simulator in the
  * board pane although the board runs the selected step.
  */
 export function boardAction(
   state: SessionState,
   heard: string | undefined,
   step: { readonly key: string; readonly number: number },
-  pressed?: BoardAction,
+  pressed?: BoardAction['event'],
   detached = false,
 ): BoardAction | undefined {
   if (state.kind === 'unsupported') return undefined;
   if (isBusy(state)) {
-    const label = pressed?.event === 'flash' ? 'Flashing…' : 'Connecting…';
-    return { label, icon: pressed?.icon ?? 'plug', event: pressed?.event ?? 'connect', disabled: true };
+    const event = pressed ?? 'connect';
+    return { label: event === 'flash' ? 'Flashing…' : 'Connecting…', icon: ICONS[event], event, disabled: true };
   }
   if (!isConnected(state)) return CONNECT;
   if (heard !== step.key) return { label: `Flash step ${step.number} to board`, icon: 'bolt', event: 'flash', disabled: false };
@@ -94,5 +94,7 @@ export type PaneMode = 'simulator' | 'live';
 export function paneMode(status: BoardStatus, detached: boolean): PaneMode {
   return status.kind === 'live' && !detached ? 'live' : 'simulator';
 }
+
+const ICONS: Readonly<Record<BoardAction['event'], BoardAction['icon']>> = { connect: 'plug', flash: 'bolt', live: 'dot' };
 
 const CONNECT: BoardAction = { label: 'Connect my board', icon: 'plug', event: 'connect', disabled: false };

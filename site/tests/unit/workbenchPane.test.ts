@@ -3,7 +3,9 @@ import type { SessionState } from '../../src/lib/flash/session';
 import type { BlinkBoard } from '../../src/lib/workbench/blinkBoard';
 import {
   initialPane,
+  paneAction,
   paneStatus,
+  showsRefusal,
   reducePane,
   type PaneEvent,
   type PaneProject,
@@ -20,7 +22,7 @@ const COMMANDS = 3;
 
 /** The pane after `events`, from a page just opened. */
 function after(...events: PaneEvent[]): PaneState<BlinkBoard> {
-  return events.reduce((state, event) => reducePane(blink, state, event), initialPane<BlinkBoard>(idle));
+  return events.reduce((state, event) => reducePane(blink, state, event), initialPane(blink, idle));
 }
 
 const connected: PaneEvent = { kind: 'session', state: running };
@@ -32,7 +34,7 @@ const followedWait = (state: PaneState<BlinkBoard>) =>
 
 describe('the board pane', () => {
   it('opens on the first step, simulated, knowing nothing of a board', () => {
-    const pane = initialPane<BlinkBoard>(idle);
+    const pane = initialPane(blink, idle);
     expect(pane).toMatchObject({ selected: 0, mode: 'simulator', detached: false, following: 0, simulation: 0 });
     expect(pane.heard).toBeUndefined();
     expect(pane.followed).toBeUndefined();
@@ -106,7 +108,7 @@ describe('the board pane', () => {
     });
 
     it('follows the board again on My board, from what the page knows', () => {
-      const back = reducePane(blink, reducePane(blink, detached, line('delay 500')), { kind: 'live' });
+      const back = reducePane(blink, reducePane(blink, detached, line('delay 500')), { kind: 'press', action: 'live' });
       expect(back).toMatchObject({ mode: 'live', detached: false, following: live.following + 1 });
       expect(followedWait(back)).toBe('500');
       expect(back.followed?.output).toEqual([]);
@@ -137,7 +139,7 @@ describe('the board pane', () => {
 
     it('is left alone when refused after the pane changed hands', () => {
       const sent = reducePane(blink, live, { kind: 'sent', text: '500', at: 10 });
-      const again = reducePane(blink, reducePane(blink, sent, { kind: 'detach' }), { kind: 'live' });
+      const again = reducePane(blink, reducePane(blink, sent, { kind: 'detach' }), { kind: 'press', action: 'live' });
       const late = reducePane(blink, again, { kind: 'refused', id: 1, pane: sent.following, text: '500' });
       expect(late).toBe(again);
     });
@@ -145,6 +147,28 @@ describe('the board pane', () => {
     it('goes nowhere while the simulator has the pane', () => {
       const simulated = after();
       expect(reducePane(blink, simulated, { kind: 'sent', text: '500', at: 0 })).toBe(simulated);
+    });
+  });
+
+  describe('the Board switch', () => {
+    it('names the first step as flashed until the visitor flashes another', () => {
+      expect(after().flashed).toBe('blink/simple');
+      expect(after(connected, tab(COMMANDS), { kind: 'press', action: 'flash' }).flashed).toBe('blink/commands');
+    });
+
+    it('says what the session works on after a press, until it is done', () => {
+      const flashing: SessionState = { kind: 'flashing', chip: 'ESP32', pct: 10 };
+      const pressed = after(connected, { kind: 'press', action: 'flash' }, { kind: 'session', state: flashing });
+      expect(paneAction(blink, pressed)).toEqual({ label: 'Flashing…', icon: 'bolt', event: 'flash', disabled: true });
+      expect(paneAction(blink, after(connected))).toMatchObject({ label: 'Flash step 1 to board', disabled: false });
+    });
+
+    it('shows a refused flash until the visitor picks another step', () => {
+      const refused: SessionState = { ...running, flashRefused: { key: 'blink/simple', available: ['ESP32'] } };
+      const pane = after({ kind: 'session', state: refused });
+      expect(showsRefusal(pane)).toBe(true);
+      expect(showsRefusal(reducePane(blink, pane, tab(INPUT)))).toBe(false);
+      expect(showsRefusal(after(connected))).toBe(false);
     });
   });
 
