@@ -54,10 +54,10 @@ A sketch takes the values that differ from one build of its robot to the next, s
 range, from a `local.h` in its folder. Git ignores the file, so a secret stays out of the history, and a sketch
 without one builds with the defaults in its code.
 
-A sketch that also stores such values on the board, sent over its serial port with `cfg set`, lists them in a
-`settings.json` in its folder: each one's `cfg` key, label, type, default and limits, matching the sketch's own.
-`arduino:firmware` copies the list into the manifest of the images the website flashes, and the website's flash card
-asks for the values before it flashes the board and sends the ones the board does not hold yet.
+A sketch can also store such values on the board, sent over its serial port with `cfg set`. A value stored this way
+overrides the one in `local.h`, which overrides the default in the sketch's code. The sketch's page in
+[Sketches](sketches/README.md) lists its keys, and its `settings.json` lists them for the website, as the
+[Website](#website) section says.
 
 ## Website
 
@@ -65,6 +65,38 @@ Robomania, the project's website in `site/`, is an Astro site built apart from t
 its Library page reads the driver headers at build time, and nothing in the firmware depends on it. It shares
 `mise.toml` with the firmware. The publishing workflow, `.github/workflows/site.yaml`, installs Node, pnpm, Python and
 arduino-cli from it, builds the firmware images the site flashes with `arduino:firmware`, and caches `.arduino/`.
+
+The site also puts the firmware on a board. Its parts:
+
+- **Images**: `arduino:firmware` compiles every sketch profile that targets an ESP chip and copies the parts of each
+  image, with their offsets, into `site/public/firmware/`, which Git ignores. It writes `manifest.json` beside them:
+  per sketch, its images by profile and chip family, and the fields of the sketch's `settings.json` when it has one.
+  It refuses a sketch that has a `local.h`, whose secrets would ship to every visitor.
+- **Settings list**: a sketch that stores values over `cfg` has a `settings.json` in its folder, one entry per value
+  with its `cfg` key, label, type, default and limits, matching the sketch's own. `arduino:firmware` rejects an entry
+  the card cannot show.
+- **Flash slice**: `site/src/lib/flash/` holds the logic and `site/src/components/flash/` the card. The logic reads
+  the manifest, talks to the board over Web Serial and walks one session through connecting, the settings form,
+  flashing and running. The rest of the site imports only the card, `FlashCard`.
+- **Pages**: the `/flash/` page lists the projects that have an image and shows the card of the one picked; each
+  project page with a sketch shows the same card above its text. A project page keeps its own section on building
+  and flashing the sketch with the tools.
+
+```mermaid
+flowchart TD
+  sketches[Sketches] -->|arduino:firmware| images[Images and manifest]
+  images --> card[Flash card]
+  pages[Flash and project pages] --> card
+  card -->|Web Serial| board[Board]
+```
+
+The card reads the manifest at build time and flashes in the visitor's browser, which Chrome and Edge allow on a
+computer. It picks the image for the chip it finds on the port. For a sketch with settings and a baud, it asks for the
+values first, flashes the board, and once the board has reset reads its serial output at the sketch's baud. It sends
+`cfg get` until the board lists its values, `cfg set` for each one that differs, and `cfg restart` so the new values
+take effect. A password left empty on the form keeps the board's; only "Use the defaults" sends the default over a
+stored one. A sketch with no baud prints nothing, so its card flashes without settings. The tests, in `site/tests`,
+run the card in a browser against a fake serial port.
 
 The workflow publishes a new site version to GitHub Pages, at <https://lmarqs.github.io/robomania/>, when a push to
 `main` includes a commit whose message contains `#site-release`, or when someone runs it by hand. Other pushes leave the
