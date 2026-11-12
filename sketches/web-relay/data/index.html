@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Web relay</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 24rem;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      text-align: center
+    }
+
+    button {
+      font-size: 1.1rem;
+      padding: .6rem 1.2rem;
+      margin: .2rem
+    }
+
+    input {
+      font-size: 1.1rem;
+      width: 8rem;
+      padding: .4rem
+    }
+
+    #state {
+      color: #555
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Web relay</h1>
+  <p id="state">loading…</p>
+  <p>
+    <button data-mode="blink">Blink</button>
+    <button data-mode="on">On</button>
+    <button data-mode="off">Off</button>
+  </p>
+  <p>
+    <label>
+      Period (ms)
+      <input id="period" type="number" min="200" max="3600000" step="100">
+    </label>
+    <button id="apply">Apply</button>
+  </p>
+  <script>
+    async function refresh() {
+      const r = await fetch('/status');
+
+      const s = await r.json();
+
+      state.textContent = `mode: ${s.mode} · period: ${s.period} ms · lamp: ${s.lamp ? 'on' : 'off'}`;
+    }
+
+    async function post(path, body) {
+      await fetch(path, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body,
+      });
+
+      refresh();
+    }
+
+    document.querySelectorAll('button[data-mode]')
+      .forEach(b => b.onclick = () => post('/mode', 'mode=' + b.dataset.mode));
+
+    apply.onclick = () => post('/period', 'period=' + document.getElementById('period').value);
+
+    refresh();
+
+    setInterval(refresh, 2000);
+  </script>
+</body>
+
+</html>
