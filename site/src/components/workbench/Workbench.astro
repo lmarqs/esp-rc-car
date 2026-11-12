@@ -570,8 +570,8 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     };
     const cell = root.querySelector<HTMLElement>('[data-board-cell]')!;
     const statusText = root.querySelector<HTMLElement>('[data-board-status]')!;
-    const statusWord = root.querySelector<HTMLElement>('[data-board-word]')!;
-    const statusSentence = root.querySelector<HTMLElement>('[data-board-sentence]')!;
+    let statusWord = root.querySelector<HTMLElement>('[data-board-word]')!;
+    let statusSentence = root.querySelector<HTMLElement>('[data-board-sentence]')!;
     const actionButton = root.querySelector<HTMLButtonElement>('[data-board-action]');
     const actionLabel = root.querySelector<HTMLElement>('[data-board-action-label]');
     const needsBrowser = root.querySelector<HTMLElement>('[data-needs-browser]')!;
@@ -1017,9 +1017,16 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       syncMode(status);
       const text = boardStatusText(status, detached);
       cell.dataset.status = status.kind;
-      // Set only on a change, since the status is a live region.
-      if (statusWord.textContent !== text.word) statusWord.textContent = text.word;
-      if (statusSentence.textContent !== `: ${text.title}`) statusSentence.textContent = `: ${text.title}`;
+      // Set only on a change, and in one, since the status is a live region: two would be announced twice.
+      if (statusWord.textContent !== text.word || statusSentence.textContent !== `: ${text.title}`) {
+        const word = statusWord.cloneNode() as HTMLElement;
+        const sentence = statusSentence.cloneNode() as HTMLElement;
+        word.textContent = text.word;
+        sentence.textContent = `: ${text.title}`;
+        statusText.replaceChildren(word, sentence);
+        statusWord = word;
+        statusSentence = sentence;
+      }
       statusText.title = text.title;
 
       const action = boardAction(state, heard, key, pressed, detached);

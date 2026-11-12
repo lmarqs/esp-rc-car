@@ -101,6 +101,28 @@ test.describe('the Board cell', () => {
     await expect(boardButton(page)).toHaveAccessibleName('Flash step');
   });
 
+  test('changes the status, a live region, in one change, so a screen reader announces it once', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/simple'] });
+    await page.goto(BLINK);
+    await statusLine(page).evaluate((region) => {
+      const changes: string[] = [];
+      (window as unknown as { statusChanges: string[] }).statusChanges = changes;
+      new MutationObserver((records) => {
+        for (const record of records) changes.push(record.target === region ? record.type : 'inner');
+      }).observe(region, { childList: true, characterData: true, subtree: true });
+    });
+
+    await connect(page);
+
+    await expect(status(page)).toHaveText('Live');
+    const changes = await page.evaluate(() => (window as unknown as { statusChanges: string[] }).statusChanges);
+    expect(changes.length).toBeGreaterThan(0);
+    expect(changes.every((change) => change === 'childList')).toBe(true);
+  });
+
   test('reads Connected in grey and offers Flash step on a board that has not named its sketch', async ({
     page,
     fakeFlasher,
