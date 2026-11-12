@@ -8,6 +8,7 @@ import Workbench from '../../components/workbench/Workbench.astro';
 import Base from '../../layouts/Base.astro';
 import { href } from '../../lib/href';
 import { workbenchFor } from '../../lib/workbench/projects';
+import { sketchesFolder } from '../../lib/workbench/source';
 
 export async function getStaticPaths() {
   const projects = await getCollection('projects');
@@ -19,6 +20,8 @@ const { Content } = await render(project);
 const topics = (await Promise.all(project.data.topics.map((id) => getEntry('topics', id)))).filter((t) => t !== undefined);
 const steps = workbenchFor(project.id) && project.data.steps;
 const repo = 'https://github.com/lmarqs/robomania/tree/main/';
+// A project in steps links the folder that holds them all, not only the first.
+const code = project.data.steps ? sketchesFolder(project.data.steps.map((step) => step.sketch)) : project.data.sketch;
 ---
 
 <Base title={project.data.title} description={project.data.summary}>
@@ -48,9 +51,9 @@ const repo = 'https://github.com/lmarqs/robomania/tree/main/';
     <StateNotice state={project.data.state} />
     <div class="prose"><Content /></div>
     {
-      project.data.sketch && (
+      code && (
         <p class="prose">
-          The code: <a href={repo + project.data.sketch}><code>{project.data.sketch}</code></a>
+          The code: <a href={repo + code}><code>{code}</code></a>
         </p>
       )
     }

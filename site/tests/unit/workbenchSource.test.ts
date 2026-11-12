@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { readStepSource } from '../../src/lib/workbench/readSource';
-import { lineNumber, newLines, sketchSourcePath } from '../../src/lib/workbench/source';
+import { lineNumber, newLines, sketchesFolder, sketchSourcePath } from '../../src/lib/workbench/source';
 
 const BLINK = ['simple', 'input', 'timer', 'commands'];
 const SERVO = ['sweep', 'angle', 'commands', 'speed'];
@@ -17,6 +17,21 @@ describe('sketchSourcePath', () => {
 
   it('ignores a trailing slash', () => {
     expect(sketchSourcePath('sketches/servo/sweep/')).toBe('sketches/servo/sweep/sweep.ino');
+  });
+});
+
+describe('sketchesFolder', () => {
+  it('is the folder that holds every step of a ladder', () => {
+    expect(sketchesFolder(BLINK.map((id) => `sketches/blink/${id}`))).toBe('sketches/blink');
+    expect(sketchesFolder(['sketches/servo/sweep/', 'sketches/servo/speed'])).toBe('sketches/servo');
+  });
+
+  it('is the sketch itself when there is one', () => {
+    expect(sketchesFolder(['sketches/omnidirectional'])).toBe('sketches/omnidirectional');
+  });
+
+  it('compares whole folder names, not their letters', () => {
+    expect(sketchesFolder(['sketches/blink/simple', 'sketches/blinker/simple'])).toBe('sketches');
   });
 });
 

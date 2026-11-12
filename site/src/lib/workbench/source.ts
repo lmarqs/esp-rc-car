@@ -8,6 +8,21 @@ export function sketchSourcePath(sketch: string): string {
   return `${folder}/${name}.ino`;
 }
 
+/**
+ * The deepest folder that holds every one of `sketches`, such as `sketches/blink` for the steps of Blink: where a
+ * project's code lives. A single sketch is its own folder.
+ */
+export function sketchesFolder(sketches: readonly string[]): string {
+  const [first, ...rest] = sketches.map((sketch) => sketch.replace(/\/+$/, '').split('/'));
+  let shared = first.length;
+  for (const path of rest) {
+    let at = 0;
+    while (at < shared && path[at] === first[at]) at++;
+    shared = at;
+  }
+  return first.slice(0, shared).join('/');
+}
+
 function toLines(text: string): string[] {
   return text.replace(/\r?\n$/, '').split(/\r?\n/);
 }

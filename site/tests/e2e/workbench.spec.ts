@@ -795,4 +795,18 @@ test('a single-sketch project keeps its Try it example and has no workbench', as
 
   await expect(page.getByText('Try it: drag both sticks', { exact: true })).toBeVisible();
   await expect(bench(page)).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'sketches/omnidirectional' })).toHaveAttribute(
+    'href',
+    'https://github.com/lmarqs/robomania/tree/main/sketches/omnidirectional',
+  );
+});
+
+test('links the folder that holds every step from a project in steps', async ({ page }) => {
+  for (const project of ['blink', 'servo']) {
+    await page.goto(`/robomania/projects/${project}/`);
+    await expect(page.getByRole('link', { name: `sketches/${project}`, exact: true })).toHaveAttribute(
+      'href',
+      `https://github.com/lmarqs/robomania/tree/main/sketches/${project}`,
+    );
+  }
 });
