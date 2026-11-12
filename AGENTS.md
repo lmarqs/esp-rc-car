@@ -62,7 +62,7 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
   (Vitest `unit`, Playwright `e2e`)
 - Settings: `.env` (gitignored, loaded by mise), arduino-cli in `arduino-cli.yaml`, board profiles in `sketch.yaml`;
   a sketch's secrets in its gitignored `local.h`
-- How the parts fit and coding standards: `docs/`, by the map in `docs/README.md`; write and review pages with the
+- How the parts fit: `docs/`, by the map in `docs/README.md`; write and review pages with the
   `docs-layout` skill
 - A mise task: an executable `.mise/tasks/<namespace>/<task>`, run as `mise run <namespace>:<task>`.
 - A procedure an agent repeats: a skill in `.agents/skills/`.
@@ -71,7 +71,7 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 ## Rules
 
 - Sketches have no tests: report how a behavior change was checked, by the Done check or a run on the board.
-- Write C++ and Python by [the standards](docs/standards/README.md).
+- Follow the standards: [C++ and Python](docs/standards/README.md), [the website](docs/standards/website-ux.md).
 - Change only what the task needs, matching the surrounding code.
 - Format with `.clang-format`.
 - Commits: one change per commit, pushed straight to `main`; no pull requests
