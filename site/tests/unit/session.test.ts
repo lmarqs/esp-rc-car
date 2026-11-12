@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DownloadError, type Flasher } from '../../src/lib/flash/flasher';
 import type { Manifest } from '../../src/lib/flash/manifest';
-import { createSession, isBusy, type SessionState } from '../../src/lib/flash/session';
+import { createSession, isBusy, type BoardLine, type SessionState } from '../../src/lib/flash/session';
 
 const parts = [
   { path: 'servo/bluepad32/servo.ino.bootloader.bin', offset: 4096 },
@@ -73,8 +73,8 @@ function fakeFlasher(options: FakeFlasherOptions = {}): FakeFlasher {
         queueMicrotask(() => onLines!(lines));
       }
     },
-    async connect() {
-      calls.push('connect');
+    async connect(connectOptions) {
+      calls.push(connectOptions?.reusePort ? 'connect reuse' : 'connect');
       if ('connect' in failAt) {
         throw failAt.connect;
       }
@@ -1073,5 +1073,294 @@ describe('a session without a baud rate', () => {
     await session.send({ type: 'connect' });
 
     expect(flasher.calls).toEqual(['connect', 'load', 'write 4096,65536', 'reset']);
+  });
+});
+
+describe('the lines of the board and the workbench connection', () => {
+  const blink = { path: 'blink/simple/blink.ino.bin', offset: 65536 };
+  const workbenchManifest: Manifest = {
+    sketches: { ...manifest.sketches, 'blink/simple': { images: [{ profile: 'esp32', chipFamily: 'ESP32', parts: [blink] }] } },
+  };
+
+  async function attached(options: FakeFlasherOptions = {}) {
+    const flasher = fakeFlasher(options);
+    const session = createSession({ flasher, manifest: workbenchManifest, sketch: 'servo', baud: 115200 });
+    const lines: BoardLine[] = [];
+    session.subscribeLines((line) => lines.push(line));
+    await session.send({ type: 'connect', reset: true });
+    return { flasher, session, lines };
+  }
+
+  describe('subscribeLines', () => {
+    it('delivers every line in order, the blank and cfg lines too, each with its arrival time', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      try {
+        const { flasher, lines } = await attached();
+
+        vi.setSystemTime(1000);
+        flasher.print('sketch blink/simple', '');
+        vi.setSystemTime(2500);
+        flasher.print('cfg ap_ssid=web-relay', 'HIGH');
+
+        expect(lines).toEqual([
+          { text: 'sketch blink/simple', at: 1000 },
+          { text: '', at: 1000 },
+          { text: 'cfg ap_ssid=web-relay', at: 2500 },
+          { text: 'HIGH', at: 2500 },
+        ]);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('keeps the cfg and blank lines out of the output of running', async () => {
+      const { flasher, session } = await attached();
+
+      flasher.print('cfg ap_ssid=web-relay', '', 'HIGH');
+
+      expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: ['HIGH'] });
+    });
+
+    it('delivers the lines to every subscriber, until each one unsubscribes', async () => {
+      const { flasher, session } = await attached();
+      const first: string[] = [];
+      const second: string[] = [];
+      const stopFirst = session.subscribeLines((line) => first.push(line.text));
+      session.subscribeLines((line) => second.push(line.text));
+
+      flasher.print('one');
+      stopFirst();
+      flasher.print('two');
+
+      expect(first).toEqual(['one']);
+      expect(second).toEqual(['one', 'two']);
+    });
+
+    it('keeps delivering, and keeps the output, when a subscriber throws', async () => {
+      const { flasher, session, lines } = await attached();
+      const failure = new Error('subscriber failed');
+      session.subscribeLines(() => {
+        throw failure;
+      });
+
+      flasher.print('HIGH');
+
+      expect(lines.map((line) => line.text)).toEqual(['HIGH']);
+      expect(session.state).toMatchObject({ output: ['HIGH'] });
+      expect(console.error).toHaveBeenCalledWith(failure);
+    });
+
+    it('delivers the lines of a card flash too, which the card shows without the blank ones', async () => {
+      const flasher = fakeFlasher();
+      const session = createSession({ flasher, manifest, sketch: 'servo', baud: 9600 });
+      const texts: string[] = [];
+      session.subscribeLines((line) => texts.push(line.text));
+      await session.send({ type: 'connect' });
+
+      flasher.print('', 'HIGH');
+
+      expect(texts).toEqual(['', 'HIGH']);
+      expect(session.state).toMatchObject({ output: ['HIGH'] });
+    });
+  });
+
+  describe('sendLine', () => {
+    it('writes the line to the board while the session reads it', async () => {
+      const { flasher, session } = await attached();
+
+      await session.sendLine('HIGH');
+
+      expect(flasher.calls.at(-1)).toBe('send HIGH');
+    });
+
+    it('rejects before the session connected, and sends nothing', async () => {
+      const flasher = fakeFlasher();
+      const session = createSession({ flasher, manifest, sketch: 'servo', baud: 115200 });
+
+      await expect(session.sendLine('HIGH')).rejects.toThrow('Not reading the board.');
+
+      expect(flasher.calls).toEqual([]);
+    });
+
+    it('rejects without throwing before it returns', () => {
+      const session = createSession({ flasher: null, manifest, sketch: 'servo' });
+
+      let promise: Promise<void> | undefined;
+      expect(() => (promise = session.sendLine('HIGH'))).not.toThrow();
+      return expect(promise).rejects.toThrow('Not reading the board.');
+    });
+
+    it('rejects once the visitor released the port', async () => {
+      const { flasher, session } = await attached();
+      await session.send({ type: 'disconnect' });
+
+      await expect(session.sendLine('HIGH')).rejects.toThrow('Not reading the board.');
+
+      expect(flasher.calls).not.toContain('send HIGH');
+    });
+
+    it('rejects once the port is lost', async () => {
+      const { flasher, session } = await attached();
+      flasher.endMonitor();
+      await vi.waitFor(() => expect(session.state).toMatchObject({ lost: true }));
+
+      await expect(session.sendLine('HIGH')).rejects.toThrow('Not reading the board.');
+    });
+
+    it('rejects when the sketch has no baud to read at', async () => {
+      const session = createSession({ flasher: fakeFlasher(), manifest, sketch: 'servo' });
+      await session.send({ type: 'connect', reset: true });
+
+      await expect(session.sendLine('HIGH')).rejects.toThrow('Not reading the board.');
+    });
+
+    it('rejects while the board is being flashed', async () => {
+      let open!: () => void;
+      const { flasher, session } = await attached({ writeGate: new Promise<void>((resolve) => (open = resolve)) });
+
+      const flashing = session.send({ type: 'flash', key: 'blink/simple' });
+      await vi.waitFor(() => expect(flasher.calls).toContain('write 65536'));
+
+      await expect(session.sendLine('HIGH')).rejects.toThrow('Not reading the board.');
+      open();
+      await flashing;
+    });
+
+    it('passes on the rejection of a port that refuses the line', async () => {
+      const { flasher, session } = await attached();
+      const refusal = new Error('port closed');
+      flasher.send = async () => {
+        throw refusal;
+      };
+
+      await expect(session.sendLine('HIGH')).rejects.toBe(refusal);
+    });
+  });
+
+  describe('connect with reset', () => {
+    it('restarts the board with the flasher\'s reset and reads it, flashing nothing', async () => {
+      const { flasher, session } = await attached();
+
+      expect(flasher.calls).toEqual(['connect', 'reset', 'monitor 115200']);
+      expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [] });
+    });
+
+    it('does not reset on the plain connect, which waits at the settings of the sketch', async () => {
+      const flasher = fakeFlasher();
+      const session = createSession({ flasher, manifest, sketch: 'web-relay', baud: 115200 });
+
+      await session.send({ type: 'connect' });
+
+      expect(flasher.calls).toEqual(['connect']);
+      expect(session.state).toMatchObject({ kind: 'settings' });
+    });
+
+    it('asks for no settings and needs no image of the session sketch', async () => {
+      const flasher = fakeFlasher({ chip: 'ESP8266' });
+      const session = createSession({ flasher, manifest, sketch: 'servo', baud: 115200 });
+
+      await session.send({ type: 'connect', reset: true });
+
+      expect(session.state).toEqual({ kind: 'running', chip: 'ESP8266', output: [] });
+    });
+
+    it('reports a board that cannot be restarted as a drop at 0 and releases the port', async () => {
+      const flasher = fakeFlasher({ failAt: { reset: new Error('no reset') } });
+      const session = createSession({ flasher, manifest, sketch: 'servo', baud: 115200 });
+
+      await session.send({ type: 'connect', reset: true });
+
+      expect(session.state).toEqual({ kind: 'dropped', pct: 0 });
+      expect(flasher.calls).toEqual(['connect', 'reset', 'disconnect']);
+    });
+
+    it('reports a closed port picker as noPort', async () => {
+      const flasher = fakeFlasher({ failAt: { connect: domError('NotFoundError') } });
+      const session = createSession({ flasher, manifest, sketch: 'servo', baud: 115200 });
+
+      await session.send({ type: 'connect', reset: true });
+
+      expect(session.state).toEqual({ kind: 'noPort' });
+    });
+  });
+
+  describe('flash with a manifest key', () => {
+    it('flashes the key on the open port without asking for another, and keeps it open', async () => {
+      const { flasher, session } = await attached();
+
+      await session.send({ type: 'flash', key: 'blink/simple' });
+
+      expect(flasher.calls).toEqual([
+        'connect',
+        'reset',
+        'monitor 115200',
+        'connect reuse',
+        'load',
+        'write 65536',
+        'reset',
+        'monitor 115200',
+      ]);
+      expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [] });
+    });
+
+    it('goes on delivering lines after the flash, and takes lines to send', async () => {
+      const { flasher, session, lines } = await attached();
+      flasher.print('before');
+
+      await session.send({ type: 'flash', key: 'blink/simple' });
+      flasher.print('', 'sketch blink/simple');
+      await session.sendLine('HIGH');
+
+      expect(lines.map((line) => line.text)).toEqual(['before', '', 'sketch blink/simple']);
+      expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: ['sketch blink/simple'] });
+      expect(flasher.calls.at(-1)).toBe('send HIGH');
+    });
+
+    it('shows the progress of the flash', async () => {
+      const { session } = await attached();
+      const states = record(session);
+
+      await session.send({ type: 'flash', key: 'blink/simple' });
+
+      expect(states.map((state) => state.kind)).toEqual(['connecting', 'flashing', 'flashing', 'flashing', 'flashing', 'running']);
+    });
+
+    it('is ignored unless the board runs and is not lost', async () => {
+      const flasher = fakeFlasher();
+      const session = createSession({ flasher, manifest: workbenchManifest, sketch: 'servo', baud: 115200 });
+      await session.send({ type: 'flash', key: 'blink/simple' });
+      expect(session.state).toEqual({ kind: 'idle' });
+
+      await session.send({ type: 'connect', reset: true });
+      flasher.endMonitor();
+      await vi.waitFor(() => expect(session.state).toMatchObject({ lost: true }));
+      await session.send({ type: 'flash', key: 'blink/simple' });
+
+      expect(flasher.calls).not.toContain('connect reuse');
+    });
+
+    it('reports a key with no image for the chip, naming the chips that have one, and releases the port', async () => {
+      const { flasher, session } = await attached({ chip: 'ESP8266' });
+
+      await session.send({ type: 'flash', key: 'servo' });
+
+      expect(session.state).toEqual({ kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] });
+      expect(flasher.calls.at(-1)).toBe('disconnect');
+      await session.send({ type: 'connect', reset: true });
+      await session.send({ type: 'flash', key: 'missing' });
+      expect(session.state).toEqual({ kind: 'noImage', chip: 'ESP8266', available: [] });
+    });
+
+    it('reports a port that cannot be reached again', async () => {
+      const { flasher, session } = await attached();
+      flasher.connect = async () => {
+        throw new Error('no sync');
+      };
+
+      await session.send({ type: 'flash', key: 'blink/simple' });
+
+      expect(session.state).toEqual({ kind: 'noAnswer' });
+      await expect(session.sendLine('HIGH')).rejects.toThrow('Not reading the board.');
+    });
   });
 });

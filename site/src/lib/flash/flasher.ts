@@ -2,13 +2,21 @@ import type { ESPLoader, Transport } from 'esptool-js';
 import { createLineSplitter } from './lines';
 import type { ManifestPart } from './manifest';
 
+export interface ConnectOptions {
+  reusePort?: boolean;
+}
+
 /**
  * A board the card flashes. Its methods reject with what the layer below throws, unchanged, so the session can tell
  * a closed port picker (`NotFoundError`) from a busy port (`InvalidStateError`, `NetworkError`) by the error's name.
  */
 export interface Flasher {
-  /** Asks the visitor for a port, opens it and reaches the board's ROM bootloader. Resolves with the chip's name. */
-  connect(): Promise<string>;
+  /**
+   * Asks the visitor for a port, opens it and reaches the board's ROM bootloader. Resolves with the chip's name. With
+   * `reusePort`, it releases what a running board holds and reaches the bootloader again on the port the last
+   * `connect` was given, without asking; it rejects when there is none.
+   */
+  connect(options?: ConnectOptions): Promise<string>;
   /**
    * Downloads the parts, before the board is touched. Rejects with an error named `DownloadError` when a part does not
    * arrive.
@@ -20,7 +28,7 @@ export interface Flasher {
   reset(): Promise<void>;
   /**
    * Reads what the sketch prints, at the sketch's own `baud`, and calls `onLines` with the lines each piece of text
-   * completes. Call it after `reset`. Resolves once `disconnect` has released the port or the port is lost.
+   * completes, blank lines included. Call it after `reset`. Resolves once `disconnect` has released the port or the port is lost.
    */
   monitor(baud: number, onLines: (lines: string[]) => void): Promise<void>;
   /** Writes `line` and a line break to the sketch, at the baud `monitor` reads at. Rejects while `monitor` is not reading. */
@@ -70,11 +78,15 @@ export class EsptoolFlasher implements Flasher {
 
   constructor(private readonly options: EsptoolFlasherOptions) {}
 
-  async connect(): Promise<string> {
+  async connect({ reusePort = false }: ConnectOptions = {}): Promise<string> {
+    const reused = this.port;
     await this.disconnect();
+    if (reusePort && !reused) {
+      throw new Error('No port to reuse.');
+    }
     // First, while the click that started this is still fresh: requestPort needs that user activation, and the
     // download of esptool-js below can outlast it.
-    const port = await navigator.serial.requestPort();
+    const port = reusePort ? reused! : await navigator.serial.requestPort();
     this.port = port;
     // Loaded here so that a page that never flashes does not download esptool-js.
     const esptool = await import('esptool-js');
@@ -162,7 +174,7 @@ export class EsptoolFlasher implements Flasher {
     let reader = port.readable!.getReader();
     this.reader = reader;
     const decoder = new TextDecoder();
-    const splitter = createLineSplitter();
+    const splitter = createLineSplitter({ keepBlank: true });
     try {
       for (;;) {
         try {

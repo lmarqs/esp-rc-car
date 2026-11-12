@@ -94,6 +94,23 @@ describe('EsptoolFlasher', () => {
     expect(esptool.loaderOptions).toMatchObject({ romBaudrate: 115200, baudrate: 460800 });
   });
 
+  it('reaches the bootloader again on the port it was given, without asking for one, with reusePort', async () => {
+    const target = flasher();
+    await target.connect();
+
+    await expect(target.connect({ reusePort: true })).resolves.toBe('ESP32');
+
+    expect(requestPort).toHaveBeenCalledOnce();
+    expect(esptool.main).toHaveBeenCalledTimes(2);
+    expect(esptool.disconnect).toHaveBeenCalledOnce();
+  });
+
+  it('rejects reusePort before any port was given, and asks for none', async () => {
+    await expect(flasher().connect({ reusePort: true })).rejects.toThrow('No port to reuse.');
+
+    expect(requestPort).not.toHaveBeenCalled();
+  });
+
   it('closes the port and rethrows when the board does not sync', async () => {
     const failure = new Error('Failed to connect with the device');
     esptool.main.mockRejectedValue(failure);
@@ -441,6 +458,19 @@ describe('EsptoolFlasher.monitor', () => {
     const target = new EsptoolFlasher({ firmwareUrl: '/robomania/firmware/' });
 
     await expect(target.monitor(9600, () => {})).rejects.toThrow('Not connected');
+  });
+
+  it('calls onLines with the blank lines too', async () => {
+    const target = await connected();
+    const received: string[][] = [];
+    const monitoring = target.monitor(115200, (lines) => received.push(lines));
+    await vi.waitFor(() => expect(port.open).toHaveBeenCalled());
+
+    controller.enqueue(encoder.encode('one\n\ntwo\r\n'));
+    controller.close();
+    await monitoring;
+
+    expect(received.flat()).toEqual(['one', '', 'two']);
   });
 
   it('sends a line with a line break on the port it reads, and lets go of the stream', async () => {

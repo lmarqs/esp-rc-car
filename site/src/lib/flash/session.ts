@@ -55,9 +55,17 @@ export type SessionState =
 export type SessionEvent =
   /**
    * From `idle`, a failure or `running`: asks for a port and connects to the board. From `running`, it releases the
-   * port first, so "Flash again" flashes in the same click.
+   * port first, so "Flash again" flashes in the same click. With `reset`, it flashes nothing and asks for no settings:
+   * it restarts the board into the sketch it holds, so the board prints its `sketch <key>` line, and goes to
+   * `running`, reading at the session's baud. It is the connection of the workbench, which flashes with `flash`.
    */
-  | { type: 'connect' }
+  | { type: 'connect'; reset?: true }
+  /**
+   * From `running` on a board that is not lost: flashes the sketch that `key` names in the manifest onto the open
+   * port, without asking for one, and goes back to `running` with the port open and the board's lines flowing to
+   * `subscribeLines`. The sketch's settings are not asked for.
+   */
+  | { type: 'flash'; key: string }
   /**
    * From `settings`: checks the values against their limits, flashes the board unless it already runs the sketch,
    * then sends the board each value the visitor changed that differs from what it holds. `restoreDefaults`, from "Use
@@ -89,10 +97,29 @@ export interface SessionOptions {
   baud?: number;
 }
 
+/** One line the board printed, as `subscribeLines` delivers it. */
+export interface BoardLine {
+  /** The line without its break; blank, `cfg ` and every other line is delivered. */
+  text: string;
+  /** When the line arrived, in milliseconds since the epoch. */
+  at: number;
+}
+
 export interface FlashSession {
   readonly state: SessionState;
   /** Calls `listener` with every state the session enters, and returns a function that stops it. */
   subscribe(listener: (state: SessionState) => void): () => void;
+  /**
+   * Calls `listener` with every line the board prints while the session reads it, in order: the `cfg ` lines of the
+   * settings exchange and the blank lines included, which the `output` of `running` leaves out. Lines keep coming
+   * across a flash. Returns a function that stops it.
+   */
+  subscribeLines(listener: (line: BoardLine) => void): () => void;
+  /**
+   * Writes `line` and a line break to the board. Rejects while the session is not reading the board: before it
+   * connected, while it flashes, once the port is lost or released, or when the sketch has no baud to read at.
+   */
+  sendLine(line: string): Promise<void>;
   /** Resolves once the event's work has settled: a state that waits for the next event, or a failure. */
   send(event: SessionEvent): Promise<void>;
 }
@@ -157,6 +184,9 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
   let lastPct = 0;
   let downloading = false;
   let reading = 0;
+  /** The `reading` of the monitor that is reading now; `0` when none is. */
+  let live = 0;
+  const lineListeners = new Set<(line: BoardLine) => void>();
   let lost = false;
   let output: readonly string[] = [];
   let onReply: ((reply: CfgReply) => void) | undefined;
@@ -167,7 +197,7 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
     listeners.forEach((listener) => listener(next));
   }
 
-  async function connect(active: Flasher) {
+  async function connect(active: Flasher, resetOnly?: true) {
     enter({ kind: 'connecting' });
     let chip: string;
     try {
@@ -179,6 +209,10 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
       return;
     }
 
+    if (resetOnly) {
+      await restart(active, chip);
+      return;
+    }
     const found = imageFor(manifest, sketch, chip);
     if (isMissing(found)) {
       await active.disconnect();
@@ -191,6 +225,46 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
       enter({ kind: 'settings', chip, opened: defaultValues(fields) });
       return;
     }
+    await flash(active, chip);
+  }
+
+  /** Restarts the board into the sketch it holds, and reads it. */
+  async function restart(active: Flasher, chip: string) {
+    try {
+      await active.reset();
+    } catch (error) {
+      console.error(error);
+      await active.disconnect();
+      enter({ kind: 'dropped', pct: 0 });
+      return;
+    }
+    output = [];
+    enter({ kind: 'running', chip, output });
+    if (baud !== undefined) {
+      read(active, baud);
+    }
+  }
+
+  /** Flashes `key` onto the port the running board holds, which it reaches the bootloader of again. */
+  async function flashKey(active: Flasher, key: string) {
+    reading++;
+    enter({ kind: 'connecting' });
+    let chip: string;
+    try {
+      chip = await active.connect({ reusePort: true });
+    } catch (error) {
+      console.error(error);
+      await active.disconnect();
+      enter({ kind: connectFailure(error) });
+      return;
+    }
+    const found = imageFor(manifest, key, chip);
+    if (isMissing(found)) {
+      await active.disconnect();
+      enter({ kind: 'noImage', chip, available: found.available });
+      return;
+    }
+    image = found;
     await flash(active, chip);
   }
 
@@ -368,17 +442,31 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
     enter(lost ? { kind: 'running', chip, output, lost: true } : { kind: 'running', chip, output });
   }
 
+  function deliver(text: string) {
+    const line = { text, at: Date.now() };
+    for (const listener of [...lineListeners]) {
+      try {
+        listener(line);
+      } catch (error) {
+        // One subscriber must not keep the others, or the settings exchange, from the line.
+        console.error(error);
+      }
+    }
+  }
+
   /**
    * Reads the board until the port is released: hands each `cfg` line to the settings exchange, and shows the other
    * lines while the card is on `running`.
    */
   function read(active: Flasher, speed: number) {
     const reader = ++reading;
+    live = reader;
     lost = false;
     const markLost = () => {
       if (reader !== reading) {
         return;
       }
+      live = 0;
       lost = true;
       if (state.kind === 'running' || (state.kind === 'settings' && state.flashed)) {
         enter({ kind: 'running', chip: state.chip, output, lost: true });
@@ -391,10 +479,11 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
         }
         const printed: string[] = [];
         for (const line of lines) {
+          deliver(line);
           if (line.startsWith('cfg ')) {
             const reply = parseCfgLine(line);
             if (reply) onReply?.(reply);
-          } else {
+          } else if (line !== '') {
             printed.push(line);
           }
         }
@@ -425,6 +514,16 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
+    subscribeLines(listener) {
+      lineListeners.add(listener);
+      return () => lineListeners.delete(listener);
+    },
+    async sendLine(line) {
+      if (!flasher || live === 0 || live !== reading) {
+        throw new Error('Not reading the board.');
+      }
+      await flasher.send(line);
+    },
     async send(event) {
       if (!flasher || downloading) {
         return;
@@ -437,9 +536,14 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
             // Ignores a second click while the old port is released.
             enter({ kind: 'connecting' });
             await flasher.disconnect();
-            await connect(flasher);
+            await connect(flasher, event.reset);
           } else if (kind === 'idle' || FAILURE_KINDS.has(kind)) {
-            await connect(flasher);
+            await connect(flasher, event.reset);
+          }
+          break;
+        case 'flash':
+          if (state.kind === 'running' && !state.lost) {
+            await flashKey(flasher, event.key);
           }
           break;
         case 'submitSettings':

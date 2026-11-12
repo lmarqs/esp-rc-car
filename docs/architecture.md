@@ -97,7 +97,10 @@ The card reads the manifest at build time and flashes in the visitor's browser, 
 computer. It picks the image for the chip it finds on the port. For a sketch with settings and a baud, it asks for the
 values first, flashes the board, and once the board has reset reads its serial output at the sketch's baud. It sends
 `cfg get` until the board lists its values, `cfg set` for each one that differs, and `cfg restart` so the new values
-take effect. A sketch with no baud prints nothing, so its card flashes without settings. The tests, in `site/tests`,
+take effect. A sketch with no baud prints nothing, so its card flashes without settings. The session also serves a
+workbench that shares one connection for control and flashing: `connect` with `reset` restarts the board without
+flashing, `subscribeLines` delivers every line the board prints with its arrival time, `sendLine` writes a line, and
+the `flash` event flashes a manifest key on the open port and keeps reading. The tests, in `site/tests`,
 run the card in a browser against a fake serial port.
 
 The workflow publishes a new site version to GitHub Pages, at <https://lmarqs.github.io/robomania/>, when a push to

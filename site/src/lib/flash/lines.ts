@@ -12,13 +12,18 @@ export interface LineSplitter {
 /** What decoding turns a byte that is not text into. */
 const REPLACEMENT_CHARACTER = '\uFFFD';
 
+export interface LineSplitterOptions {
+  /** Keeps the blank lines, which the splitter drops by default. */
+  keepBlank?: boolean;
+}
+
 /**
  * Cuts the text a board prints into lines. A line break is `\n`, `\r\n` or `\r`, and a line is complete once its
- * break has arrived, so a line split across pieces comes out whole. Blank lines are dropped, and so is a line with a
- * replacement character: the ROM prints its boot log at another speed than the sketch's, and read at the sketch's it
- * decodes to such characters.
+ * break has arrived, so a line split across pieces comes out whole. Blank lines are dropped unless `keepBlank` is
+ * set, and a line with a replacement character always is: the ROM prints its boot log at another speed than the
+ * sketch's, and read at the sketch's it decodes to such characters.
  */
-export function createLineSplitter(): LineSplitter {
+export function createLineSplitter({ keepBlank = false }: LineSplitterOptions = {}): LineSplitter {
   let pending = '';
   return {
     push(text) {
@@ -29,7 +34,7 @@ export function createLineSplitter(): LineSplitter {
         parts.push(pending);
         pending = '';
       }
-      return parts.filter((line) => line !== '' && !line.includes(REPLACEMENT_CHARACTER));
+      return parts.filter((line) => (keepBlank || line !== '') && !line.includes(REPLACEMENT_CHARACTER));
     },
   };
 }
