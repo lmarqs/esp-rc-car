@@ -4,6 +4,7 @@ import { TRACE_HEIGHT, TRACE_WINDOW_MS } from '../../lib/workbench/trace';
 // Read here, at build time, only: a browser script that imported it would carry every sketch's source.
 import { readStepSource } from '../../lib/workbench/readSource';
 import { newLines } from '../../lib/workbench/source';
+import { sketchKey } from '../../lib/flash/manifest';
 import { readManifest } from '../../lib/flash/readManifest';
 import { wording } from '../../lib/flash';
 import { boardStatusText, CLOCK_DASH, codeRows, crumbs, fileName, SERIAL_LINES } from './view';
@@ -45,9 +46,15 @@ const valueOf = (name: string) => openingRows.find((row) => row.name === name)?.
 const stepData = JSON.stringify(rail.map((step, index) => ({ key: step.key, source: sources[index] })));
 const id = (part: string) => `workbench-${project}-${part}`;
 const firmware = readManifest().sketches;
-// Only the steps' images, so the page does not carry the whole manifest.
+// Only the steps' images, so the page does not carry the whole manifest. The manifest names a sketch by its path, and
+// the session flashes a step by the key it prints.
 const manifest = {
-  sketches: Object.fromEntries(rail.flatMap((step) => (firmware[step.key] ? [[step.key, firmware[step.key]]] : []))),
+  sketches: Object.fromEntries(
+    rail.flatMap((step) => {
+      const images = firmware[sketchKey(step.sketch)];
+      return images ? [[step.key, images]] : [];
+    }),
+  ),
 };
 const flashable = Object.keys(manifest.sketches).length > 0;
 const simulated = boardStatusText({ kind: 'simulated' });
