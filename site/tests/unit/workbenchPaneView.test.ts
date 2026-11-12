@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { linkView, paneMotion, paneView } from '../../src/components/workbench/paneView';
+import { boardMessage } from '../../src/components/workbench/view';
 import type { SessionState } from '../../src/lib/flash/session';
 import type { BlinkBoard } from '../../src/lib/workbench/blinkBoard';
 import { initialPane, reducePane, type PaneEvent, type PaneProject, type PaneState } from '../../src/lib/workbench/pane';
@@ -166,6 +167,21 @@ describe('linkView', () => {
     expect(shown).toMatchObject({ kind: 'live', mode: 'simulator', flashAgain: false });
     expect(shown.tag.title).toContain('My board');
     expect(shown.message).toBeUndefined();
+  });
+
+  it('shows a refused Flash again over the live board, which stays live, until another step is picked', () => {
+    const refused: SessionState = { ...running, flashRefused: { key: 'blink/input', available: ['ESP32'] } };
+    const pressed: PaneEvent = { kind: 'press', action: 'flash' };
+    const shown = linkView(blink, pane(...live, pressed, { kind: 'session', state: refused }));
+    expect(shown).toMatchObject({ mode: 'live', tag: { word: 'Live' } });
+    expect(shown.message).toEqual(boardMessage(refused, 'blink/input', true));
+    expect(shown.message?.notice).toBe(true);
+
+    const other = pane(...live, { kind: 'session', state: refused }, { kind: 'tab', index: SIMPLE });
+    expect(linkView(blink, other).message).toEqual({
+      text: 'Your board runs input. Flash simple to see it here.',
+      notice: false,
+    });
   });
 
   it('shows the message and the percentage while the session flashes, and holds Flash again back', () => {

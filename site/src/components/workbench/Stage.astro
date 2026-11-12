@@ -68,6 +68,7 @@ const Picture = { led: Led, servo: Servo }[picture];
   /* As wide as its longest label, Flash commands, so it keeps its width as its label changes. */
   .action { justify-self: start; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 164px; height: 36px; font: inherit; font-size: 13px; font-weight: 700; line-height: 1.5; white-space: nowrap; color: var(--card); background: var(--coral); border: 2px solid var(--ink); border-radius: 999px; box-shadow: 0 3px 0 var(--ink); cursor: pointer; }
   .action[aria-disabled="true"] { opacity: .6; cursor: default; }
+  .action[data-off] { visibility: hidden; }
   .action:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
   .action svg { width: 14px; height: 14px; flex: none; }
   .action .i-plug path { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }

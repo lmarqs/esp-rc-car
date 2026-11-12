@@ -7,6 +7,7 @@ import type { Snapshot } from '../../lib/workbench/simulation';
 import { lineNumber } from '../../lib/workbench/source';
 import { emptyTrace, traceShape, traceTime, type TraceShape } from '../../lib/workbench/trace';
 import {
+  boardMessage,
   clockFace,
   liveClockFace,
   notSent,
@@ -149,7 +150,7 @@ export interface LinkView {
   readonly action: BoardAction | undefined;
   /** Whether Flash again shows on the frame, so the visitor can flash the step onto the board that is live. */
   readonly flashAgain: boolean;
-  /** What the My board view says in place of the picture; set only while it waits. */
+  /** What the board pane says in place of the picture: while My board waits, or over the live board a refused flash. */
   readonly message: BoardMessage | undefined;
 }
 
@@ -167,9 +168,27 @@ export function linkView<B>(project: PaneProject<B>, pane: PaneState<B>, board?:
     onBoard: status.kind === 'live' || status.kind === 'step' ? pane.heard : undefined,
     action,
     flashAgain: mode === 'live' && action?.disabled === false,
-    message:
-      mode === 'waiting'
-        ? waitingMessage(pane.session, status, project.ids[pane.selected], pane.flashed, showsRefusal(pane), board)
-        : undefined,
+    message: linkMessage(project, pane, status, board),
   };
+}
+
+/**
+ * What the board pane says in the picture's place: while My board waits, what to do; while live, only a flash the
+ * session refused, which leaves the board running the step.
+ */
+function linkMessage<B>(
+  project: PaneProject<B>,
+  pane: PaneState<B>,
+  status: BoardStatus,
+  board: BoardModel | undefined,
+): BoardMessage | undefined {
+  const refusal = showsRefusal(pane);
+  switch (pane.mode) {
+    case 'waiting':
+      return waitingMessage(pane.session, status, project.ids[pane.selected], pane.flashed, refusal, board);
+    case 'live':
+      return refusal ? boardMessage(pane.session, pane.flashed, refusal, board) : undefined;
+    case 'simulator':
+      return undefined;
+  }
 }

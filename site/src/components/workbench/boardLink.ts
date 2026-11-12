@@ -69,7 +69,7 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
       flashAgain.hidden = !view.flashAgain;
 
       const waiting = view.mode === 'waiting';
-      stage.toggleAttribute('data-message', waiting);
+      stage.toggleAttribute('data-message', view.message !== undefined);
       const shown = view.message;
       const words = shown?.text ?? '';
       // Only a change of text is announced: the progress picture carries the percentage.
@@ -80,6 +80,9 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
 
       if (actionButton !== null && actionLabel !== null) {
         actionButton.hidden = action === undefined;
+        // Live, the board runs the step: Flash again on the frame flashes it, and a refusal shows with no button. The
+        // button keeps its room, so the stage keeps its height.
+        actionButton.toggleAttribute('data-off', !waiting);
         if (action !== undefined) {
           actionLabel.textContent = action.short ?? action.label;
           if (action.short === undefined) actionButton.removeAttribute('aria-label');
