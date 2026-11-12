@@ -6,7 +6,6 @@ import {
   blinkInput,
   blinkSimple,
   blinkTimer,
-  LED_PIN,
   type BlinkStep,
 } from '../../src/lib/workbench/steps/blink';
 import type { BlinkBoard } from '../../src/lib/workbench/blinkBoard';
@@ -18,8 +17,8 @@ function after(step: BlinkStep, events: readonly Event[]): Followed<BlinkBoard> 
   return events.reduce(
     (followed, [kind, text, at]) =>
       kind === 'print'
-        ? receive(followed, step, blinkBoard, LED_PIN, text, at)
-        : send(followed, step, LED_PIN, text, at),
+        ? receive(followed, step, blinkBoard, text, at)
+        : send(followed, step, text, at),
     follow(blinkBoard, step.key),
   );
 }
@@ -31,7 +30,7 @@ describe('follow', () => {
     const followed = follow(blinkBoard, 'blink/simple');
     expect(followed.board).toEqual(blinkBoard.initial());
     expect(followed.output).toEqual([]);
-    expect(followed.trace).toEqual({ start: false, edges: [], marks: [] });
+    expect(followed.trace).toEqual({ start: 0, edges: [], marks: [] });
     expect(followed.arrow).toBeUndefined();
   });
 });
@@ -61,8 +60,8 @@ describe('receive', () => {
     ]);
     expect(followed.board.ledOn).toBe(false);
     expect(followed.trace.edges).toEqual([
-      { at: 1000, high: true },
-      { at: 1600, high: false },
+      { at: 1000, level: 1 },
+      { at: 1600, level: 0 },
     ]);
   });
 
@@ -150,7 +149,7 @@ describe('send and the answer that marks it applied', () => {
       ['applied', 1, 200],
     ]);
     expect(followed.unanswered).toEqual([{ id: 2, text: 'foo' }]);
-    const answered = receive(followed, blinkCommands, blinkBoard, LED_PIN, '? foo', 210);
+    const answered = receive(followed, blinkCommands, blinkBoard, '? foo', 210);
     expect(marks(answered).at(-1)).toEqual(['applied', 2, 210]);
   });
 

@@ -8,14 +8,20 @@ import { blinkSteps, LED_PIN, type BlinkEvent, type BlinkState } from './steps/b
 export interface WorkbenchProject<S, E, B> {
   readonly steps: readonly StepDefinition<S, E>[];
   readonly board: BoardModel<E, B, S>;
-  /** The GPIO whose level the trace shows. */
-  readonly tracedPin: number;
+  /** The picture the board pane draws. */
+  readonly picture: 'led';
+  /**
+   * What the trace draws: `caption`, short, above it, such as `GPIO 2`, and `name` for a screen reader, such as `The
+   * level of GPIO 2`; the page adds the window.
+   */
+  readonly trace: { readonly caption: string; readonly name: string };
 }
 
 export const blinkWorkbench: WorkbenchProject<BlinkState, BlinkEvent, BlinkBoard> = {
   steps: blinkSteps,
   board: blinkBoard,
-  tracedPin: LED_PIN,
+  picture: 'led',
+  trace: { caption: `GPIO ${LED_PIN}`, name: `The level of GPIO ${LED_PIN}` },
 };
 
 // Each project has its own state, line meaning and board, which only that project's steps and board use together.

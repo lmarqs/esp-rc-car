@@ -1,7 +1,7 @@
 import type { BoardModel } from './board';
 import type { Effect, LineRef, OutputLine, SentLine } from './simulator';
 import type { StepDefinition } from './step';
-import { emptyTrace, recordEffects, type Trace } from './trace';
+import { emptyTrace, recordEffects, recordLevel, type Trace } from './trace';
 
 /** The most lines of output a followed board keeps, far more than the terminal shows. */
 const MAX_OUTPUT = 64;
@@ -28,41 +28,41 @@ export interface Followed<B> {
  * says the page knows it, given what the page `known` of it before.
  */
 export function follow<B>(
-  model: Pick<BoardModel<unknown, B, unknown>, 'follow'>,
+  model: Pick<BoardModel<unknown, B, unknown>, 'follow' | 'level'>,
   step: string,
   known?: B,
 ): Followed<B> {
-  return { board: model.follow(step, known), trace: emptyTrace(), output: [], unanswered: [], nextId: 1 };
+  const board = model.follow(step, known);
+  return { board, trace: emptyTrace(model.level(board)), output: [], unanswered: [], nextId: 1 };
 }
 
 const keep = (output: readonly OutputLine[], line: OutputLine) => [...output, line].slice(-MAX_OUTPUT);
 
 /**
  * The pane after the board printed `text` at `at`. The board model applies what the line means, the trace takes the
- * LED's change of level on `pin`, and the arrow moves where the step places it. A line that answers a sent line marks
- * the oldest unanswered one applied, since a real board never reports reading a line.
+ * output's change of level, and the arrow moves where the step places it. A line that answers a sent line marks the
+ * oldest unanswered one applied, since a real board never reports reading a line.
  */
 export function receive<E, B>(
   followed: Followed<B>,
   step: Pick<StepDefinition<unknown, E>, 'parse' | 'liveLine' | 'answers'>,
-  model: Pick<BoardModel<E, B, unknown>, 'apply' | 'lit'>,
-  pin: number,
+  model: Pick<BoardModel<E, B, unknown>, 'apply' | 'level' | 'answered'>,
   text: string,
   at: number,
 ): Followed<B> {
   const event = step.parse(text);
-  const board = event === undefined ? followed.board : model.apply(followed.board, event, at);
+  let board = event === undefined ? followed.board : model.apply(followed.board, event, at);
   const placed = event === undefined ? undefined : step.liveLine?.(event);
   const arrow = placed ?? followed.arrow;
   const arrowAt = placed === undefined ? followed.arrowAt : at;
   const effects: Effect[] = [];
-  if (model.lit(board) !== model.lit(followed.board)) effects.push({ kind: 'write', pin, high: model.lit(board) });
   let unanswered = followed.unanswered;
-  if (unanswered.length > 0 && step.answers?.(text)) {
+  if (unanswered.length > 0 && step.answers?.(text, unanswered[0].text)) {
     effects.push({ kind: 'read', line: unanswered[0] });
+    board = model.answered?.(board, unanswered[0].text) ?? board;
     unanswered = unanswered.slice(1);
   }
-  const trace = recordEffects(followed.trace, effects, pin, at);
+  const trace = recordLevel(recordEffects(followed.trace, effects, at), model.level(board), at);
   return { ...followed, board, arrow, arrowAt, unanswered, trace, output: keep(followed.output, { text }) };
 }
 
@@ -84,7 +84,6 @@ export function withdraw<B>(followed: Followed<B>, id: number): Followed<B> {
 export function send<B>(
   followed: Followed<B>,
   step: Pick<StepDefinition<unknown, unknown>, 'expectsAnswer'>,
-  pin: number,
   text: string,
   at: number,
 ): Followed<B> {
@@ -93,7 +92,7 @@ export function send<B>(
     ...followed,
     nextId: line.id + 1,
     output: keep(followed.output, { text, sent: line.id }),
-    trace: recordEffects(followed.trace, [{ kind: 'sent', line }], pin, at),
+    trace: recordEffects(followed.trace, [{ kind: 'sent', line }], at),
     unanswered: step.expectsAnswer?.(text) ? [...followed.unanswered, line] : followed.unanswered,
   };
 }

@@ -1,0 +1,21 @@
+---
+/** The board pane's picture for Blink: the LED on GPIO 2, lit while it carries the class `on`. */
+---
+
+<svg class="led" viewBox="40 0 140 150" role="img" aria-label="An LED on GPIO 2" data-picture>
+  <circle class="halo" cx="110" cy="70" r="56" />
+  <g class="rays"><path d="M110 10 v-8 M150 24 l7 -7 M70 24 l-7 -7 M166 62 h9 M54 62 h-9" /></g>
+  <path class="bulb ink" d="M88 66 a22 22 0 0 1 44 0 v22 h-44 Z" />
+  <rect class="base ink" x="82" y="88" width="56" height="9" rx="3" />
+  <path class="ink" fill="none" d="M100 97 v34 M120 97 v26" />
+</svg>
+
+<style>
+  .led { width: 100%; }
+  .halo { fill: var(--tint-green); }
+  .rays { stroke: var(--green); stroke-width: 2.6; stroke-linecap: round; opacity: 0; transition: opacity .08s; }
+  .bulb { fill: var(--led-off); transition: fill .08s; }
+  .base { fill: var(--card); }
+  .led.on .bulb { fill: var(--green); }
+  .led.on .rays { opacity: 1; }
+</style>

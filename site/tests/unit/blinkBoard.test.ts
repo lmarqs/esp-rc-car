@@ -190,3 +190,13 @@ describe('the variable a real board tells', () => {
     expect(blinkBoard.variable(initialBlinkBoard(), 'lastToggle')).toBeUndefined();
   });
 });
+
+describe('the picture and the trace', () => {
+  it('light the LED and draw the level HIGH while the LED is on, and LOW while it is off', () => {
+    const on = after([[{ kind: 'high' }, 10]]);
+    expect(blinkBoard.picture('blink/simple', on)).toEqual({ flags: { on: true }, values: {} });
+    expect(blinkBoard.level(on)).toBe(1);
+    expect(blinkBoard.picture('blink/simple', initialBlinkBoard())).toEqual({ flags: { on: false }, values: {} });
+    expect(blinkBoard.level(initialBlinkBoard())).toBe(0);
+  });
+});

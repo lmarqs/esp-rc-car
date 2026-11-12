@@ -7,6 +7,18 @@ export interface WatchRow {
 }
 
 /**
+ * What the board pane's picture shows, for the page to paint without knowing the project: the classes the picture
+ * carries, such as `on` for a lit LED, and the numbers its styles read as custom properties, such as `--angle` for a
+ * servo's horn.
+ */
+export interface PictureView {
+  readonly flags: Readonly<Record<string, boolean>>;
+  readonly values: Readonly<Record<string, number>>;
+  /** The picture's name for a screen reader, which says what it shows; absent on a picture whose name never changes. */
+  readonly label?: string;
+}
+
+/**
  * What the workbench shows of a project's board. A real board is known only from what it printed; the simulator's
  * board follows the lines the program runs. `E` is what a printed line means, `B` the board as the page knows it and
  * `S` the simulated program's state.
@@ -34,8 +46,18 @@ export interface BoardModel<E, B, S> {
    * page does not know it.
    */
   watch(step: string, board: B, millis: number | undefined): readonly WatchRow[];
-  /** Whether the picture shows the board's output on, such as a lit LED. */
-  lit(board: B): boolean;
+  /** What the picture shows of `board` while the page shows `step`. */
+  picture(step: string, board: B): PictureView;
+  /**
+   * The output the trace draws, as a share of its range from 0 to 1, such as an LED's LOW and HIGH; `undefined` while
+   * the page does not know it.
+   */
+  level(board: B): number | undefined;
+  /**
+   * The board after its line answered the line `sent`, for what the answer alone does not tell, such as a sweep that
+   * an `angle` command stopped. Absent where every answer tells it all.
+   */
+  answered?(board: B, sent: string): B;
   /**
    * The value of the sketch's variable `name` as the board's lines tell it, such as `blinkDelay` from `delay <n>`, for
    * the editor's live value on a real board; `undefined` for a variable the lines do not tell, or have not told yet.

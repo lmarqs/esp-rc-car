@@ -7,6 +7,7 @@ import { newLines } from '../../lib/workbench/source';
 import { readManifest } from '../../lib/flash/readManifest';
 import { wording } from '../../lib/flash';
 import { boardStatusText, CLOCK_DASH, codeRows, crumbs, fileName, SERIAL_LINES } from './view';
+import Led from './pictures/Led.astro';
 
 interface Props {
   /** The project's page id, such as `blink`; the project must have step definitions. */
@@ -50,6 +51,7 @@ const manifest = {
 const flashable = Object.keys(manifest.sketches).length > 0;
 const simulated = boardStatusText({ kind: 'simulated' });
 // The notice is drawn with the longest keys while hidden, so it holds its height whichever keys it names.
+const Picture = { led: Led }[workbench.picture];
 const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.length > longest.length ? key : longest));
 ---
 
@@ -199,13 +201,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     <div class="board">
       <div class="stage" data-stage>
         <div class="led-row">
-          <svg class="led" viewBox="40 0 140 150" role="img" aria-label="An LED on GPIO 2" data-picture>
-            <circle class="halo" cx="110" cy="70" r="56" />
-            <g class="rays"><path d="M110 10 v-8 M150 24 l7 -7 M70 24 l-7 -7 M166 62 h9 M54 62 h-9" /></g>
-            <path class="bulb ink" d="M88 66 a22 22 0 0 1 44 0 v22 h-44 Z" />
-            <rect class="base ink" x="82" y="88" width="56" height="9" rx="3" />
-            <path class="ink" fill="none" d="M100 97 v34 M120 97 v26" />
-          </svg>
+          <Picture />
           <dl class="watch" aria-label="Watch">
             {
               workbench.board.fields.map((name) => (
@@ -229,7 +225,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       </div>
       <figure class="scope">
         <figcaption>
-          <span>GPIO {workbench.tracedPin}, last {TRACE_WINDOW_MS / 1000} s</span>
+          <span>{workbench.trace.caption}, last {TRACE_WINDOW_MS / 1000} s</span>
           <span class="legend">
             <svg viewBox="0 0 10 10" aria-hidden="true"><path class="sent" d="M0 1h10l-5 8z" /></svg>you sent
             <svg viewBox="0 0 10 10" aria-hidden="true"><circle class="applied" cx="5" cy="5" r="4" /></svg>board applied
@@ -239,7 +235,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
           class="trace"
           height={TRACE_HEIGHT}
           role="img"
-          aria-label={`The level of GPIO ${workbench.tracedPin} over the last ${TRACE_WINDOW_MS / 1000} seconds, with a mark for each line sent and applied`}
+          aria-label={`${workbench.trace.name} over the last ${TRACE_WINDOW_MS / 1000} seconds, with a mark for each line sent and applied`}
           data-trace
         >
           <path class="grid" data-trace-grid />
@@ -441,13 +437,6 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
   .link .readout { min-width: 4ch; text-align: right; font-family: var(--mono); }
   .led-row { display: grid; grid-template-columns: 96px 1fr 1fr; gap: 12px; align-items: center; }
   @media (max-width: 480px) { .led-row { grid-template-columns: 96px 1fr; } }
-  .led { width: 100%; }
-  .halo { fill: var(--tint-green); }
-  .rays { stroke: var(--green); stroke-width: 2.6; stroke-linecap: round; opacity: 0; transition: opacity .08s; }
-  .bulb { fill: var(--led-off); transition: fill .08s; }
-  .base { fill: var(--card); }
-  .led.on .bulb { fill: var(--green); }
-  .led.on .rays { opacity: 1; }
   /* Across both columns, so a value such as 1000 ms (fixed) stays on one line. */
   .watch { grid-column: 2 / -1; margin: 0; border: 1px solid var(--line); border-radius: 10px; font-family: var(--mono); font-size: 13px; overflow: hidden; }
   .watch div { display: flex; justify-content: space-between; gap: 10px; padding: 3px 10px; }
@@ -507,11 +496,11 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
   import type { Runner, RunnerView } from '../../lib/workbench/simulator';
   import { lineNumber } from '../../lib/workbench/source';
   import { tabAfterKey } from '../../lib/workbench/tabs';
-  import type { WatchRow } from '../../lib/workbench/board';
+  import type { PictureView, WatchRow } from '../../lib/workbench/board';
   import type { StepDefinition } from '../../lib/workbench/step';
   import type { BoardStatus } from '../../lib/workbench/link';
   import { createTypist } from '../../lib/workbench/typist';
-  import { emptyTrace, recordEffects, traceShape, traceTime, type Trace } from '../../lib/workbench/trace';
+  import { emptyTrace, recordEffects, recordLevel, traceShape, traceTime, type Trace } from '../../lib/workbench/trace';
   import { createFlasher, createSession, type Manifest } from '../../lib/flash';
   import { boardAction, boardStatus, paneMode, sketchOf, type BoardAction, type PaneMode } from '../../lib/workbench/link';
   import { follow, receive, send as sendFollowed, withdraw, type Followed } from '../../lib/workbench/live';
@@ -600,7 +589,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     let runner: Runner<unknown> | undefined;
     let view: RunnerView<unknown> | undefined;
     let board: unknown;
-    let trace: Trace = emptyTrace();
+    let trace: Trace = emptyTrace(undefined);
     let frame = 0;
     let slow: boolean = OPENING.slow;
     // Whether the visitor wants the sketch running: Pause and Step stop it, Continue and a tab pick start it.
@@ -636,7 +625,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
 
       runner?.dispose();
       board = project!.board.initial();
-      trace = emptyTrace();
+      trace = emptyTrace(project!.board.level(board));
       keepRunning = OPENING.running;
       mode = 'simulator';
       detached = false;
@@ -650,7 +639,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
           board = project!.board.simulate(board, next.state, effects, next.millis);
           // A line is sent between two lines of the program, part way through the one under way.
           const sentAt = traceTime(next, runner?.progress() ?? 0, reducedMotion.matches);
-          trace = recordEffects(trace, effects, project!.tracedPin, next.millis, sentAt);
+          trace = recordLevel(recordEffects(trace, effects, next.millis, sentAt), project!.board.level(board), next.millis);
           view = next;
           draw();
         },
@@ -676,7 +665,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       if (followed !== undefined) known = followed.board;
       followed = undefined;
       board = project!.board.initial();
-      trace = emptyTrace();
+      trace = emptyTrace(project!.board.level(board));
       resetWatch();
       runner?.restart();
       if (keepRunning) runner?.run();
@@ -720,7 +709,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       const step = steps[selected];
       const shown = mode === 'simulator' ? undefined : followed;
       const shownBoard = shown?.board ?? board;
-      picture.classList.toggle('on', project!.board.lit(shownBoard));
+      paintPicture(project!.board.picture(step.key, shownBoard));
       // A real board's clock is unknown: it prints no time.
       const rows = project!.board.watch(step.key, shownBoard, shown === undefined ? view.millis : undefined);
       for (const [name, element] of watchRows) {
@@ -784,6 +773,15 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       if (moving && !reducedMotion.matches) draw();
     }
 
+    /** Paints the picture's state: its classes, the custom properties its styles read and its accessible name. */
+    function paintPicture(shown: PictureView) {
+      for (const [name, on] of Object.entries(shown.flags)) picture.classList.toggle(name, on);
+      for (const [name, value] of Object.entries(shown.values)) picture.style.setProperty(`--${name}`, String(value));
+      if (shown.label !== undefined && picture.getAttribute('aria-label') !== shown.label) {
+        picture.setAttribute('aria-label', shown.label);
+      }
+    }
+
     /** Where the arrow sits on the followed board: only live, and only on a step whose lines place it. */
     function arrowOf(shown: Followed<unknown>): { text: string | undefined; occurrence: number } {
       const ref = mode === 'live' ? shown.arrow : undefined;
@@ -826,7 +824,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       if (mode !== 'live' || followed === undefined) return;
       const id = followed.nextId;
       const pane = following;
-      followed = sendFollowed(followed, definition!, project!.tracedPin, text, Date.now());
+      followed = sendFollowed(followed, definition!, text, Date.now());
       sendProblem = undefined;
       draw();
       // The line shows as sent at once; one the port refuses is taken back, so the page shows only what went out.
@@ -950,7 +948,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       if (mode === 'live') return detach();
       if (runner === undefined) return;
       board = project!.board.initial();
-      trace = emptyTrace();
+      trace = emptyTrace(project!.board.level(board));
       resetWatch();
       clearCommandLine();
       runner.restart();
@@ -1052,7 +1050,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
         }
         return;
       }
-      followed = receive(followed, followedStep(), project!.board, project!.tracedPin, text, at);
+      followed = receive(followed, followedStep(), project!.board, text, at);
       draw();
     });
     actionButton?.addEventListener('click', () => {

@@ -2,13 +2,21 @@ import type { Effect, RunnerView } from './simulator';
 
 /** How much of the board's time the trace shows, in milliseconds, ending at the board's present. */
 export const TRACE_WINDOW_MS = 10_000;
-/** The trace's height in pixels, and where it draws the pin's two levels. */
+/** The trace's height in pixels, and where it draws the top and the bottom of the output's range. */
 export const TRACE_HEIGHT = 64;
 export const HIGH_Y = 11;
 export const LOW_Y = 48;
 
-/** The most changes of level and marks the trace keeps; the window drops older ones before this bound is reached. */
-const MAX_EDGES = 512;
+/** The height the trace draws `level` at, to a tenth of a pixel. */
+export function levelY(level: number): number {
+  return Number((LOW_Y - level * (LOW_Y - HIGH_Y)).toFixed(1));
+}
+
+/**
+ * The most changes of level and marks the trace keeps; the window drops older ones before this bound is reached. A
+ * servo that sweeps one degree every 15 ms changes about 670 times in the window.
+ */
+export const MAX_EDGES = 1024;
 const MAX_MARKS = 128;
 
 /** `sent`: the visitor sent a line. `applied`: the program read that line, the same `id`. */
@@ -21,39 +29,42 @@ export interface TraceMark {
   readonly at: number;
 }
 
-/** A change of the pin's level at `at` milliseconds. */
+/**
+ * A change of the traced output at `at` milliseconds to `level`, its share of the output's range from 0 at the bottom
+ * to 1 at the top: an LED's LOW and HIGH, or a servo's angle over 180°.
+ */
 export interface TraceEdge {
   readonly at: number;
-  readonly high: boolean;
+  readonly level: number;
 }
 
-/** One pin's level and the visitor's lines over the last {@link TRACE_WINDOW_MS} of the board's time. */
+/** One output's level and the visitor's lines over the last {@link TRACE_WINDOW_MS} of the board's time. */
 export interface Trace {
-  /** The level before the first edge kept. */
-  readonly start: boolean;
+  /** The level before the first edge kept; `undefined` while the output's level is not known, which draws nothing. */
+  readonly start: number | undefined;
   /** The changes of level, oldest first. */
   readonly edges: readonly TraceEdge[];
   /** The marks, oldest first. */
   readonly marks: readonly TraceMark[];
 }
 
-/** A trace with the pin low and no marks, as at the start of a run. */
-export function emptyTrace(): Trace {
-  return { start: false, edges: [], marks: [] };
+/** A trace with no marks that starts at `start`, as at the start of a run; an LED starts low, at 0. */
+export function emptyTrace(start: number | undefined): Trace {
+  return { start, edges: [], marks: [] };
 }
 
-/** The level the pin has after the last edge kept. */
-export function traceLevel(trace: Trace): boolean {
-  return trace.edges.at(-1)?.high ?? trace.start;
+/** The level the output has after the last edge kept. */
+export function traceLevel(trace: Trace): number | undefined {
+  return trace.edges.at(-1)?.level ?? trace.start;
 }
 
-/** Drops what ended before the window that ends at `now`, keeping the level the pin had when the window starts. */
+/** Drops what ended before the window that ends at `now`, keeping the level the output had when the window starts. */
 function prune(trace: Trace, now: number): Trace {
   const from = now - TRACE_WINDOW_MS;
   let { start } = trace;
   let first = 0;
   while (first < trace.edges.length && (trace.edges[first].at < from || trace.edges.length - first > MAX_EDGES)) {
-    start = trace.edges[first].high;
+    start = trace.edges[first].level;
     first++;
   }
   const marks = trace.marks.filter((mark) => mark.at >= from).slice(-MAX_MARKS);
@@ -62,15 +73,22 @@ function prune(trace: Trace, now: number): Trace {
 }
 
 /**
- * The trace after a change on the board that did `effects`: a write to `pin` at `at` changes the level, a sent line
- * leaves a `sent` mark at `sentAt` and a line the program read an `applied` mark at `at`.
+ * The trace after the board's output stood at `level` at `at`: a level other than the last one kept is a change. A
+ * level the page does not know, `undefined`, changes nothing.
  */
-export function recordEffects(trace: Trace, effects: readonly Effect[], pin: number, at: number, sentAt = at): Trace {
+export function recordLevel(trace: Trace, level: number | undefined, at: number): Trace {
+  if (level === undefined || level === traceLevel(trace)) return trace;
+  return prune({ ...trace, edges: [...trace.edges, { at, level }] }, at);
+}
+
+/**
+ * The trace after a change on the board that did `effects`: a sent line leaves a `sent` mark at `sentAt` and a line
+ * the program read an `applied` mark at `at`.
+ */
+export function recordEffects(trace: Trace, effects: readonly Effect[], at: number, sentAt = at): Trace {
   let next = trace;
   for (const effect of effects) {
-    if (effect.kind === 'write' && effect.pin === pin && effect.high !== traceLevel(next)) {
-      next = { ...next, edges: [...next.edges, { at, high: effect.high }] };
-    } else if (effect.kind === 'sent') {
+    if (effect.kind === 'sent') {
       next = { ...next, marks: [...next.marks, { kind: 'sent', id: effect.line.id, at: sentAt }] };
     } else if (effect.kind === 'read') {
       next = { ...next, marks: [...next.marks, { kind: 'applied', id: effect.line.id, at }] };
@@ -95,7 +113,7 @@ export function traceTime(
 export interface TraceShape {
   /** A line at each second. */
   readonly grid: string;
-  /** The pin's level. */
+  /** The output's level; empty while it is not known. */
   readonly level: string;
   /** A bar with a triangle at its top for each line sent. */
   readonly sent: string;
@@ -108,12 +126,13 @@ const px = (value: number): string => value.toFixed(1);
 /** The trace as it stands at `now`, the right edge, with the window's start at the left edge. */
 export function traceShape(trace: Trace, now: number, width: number): TraceShape {
   const x = (at: number) => Math.min(width, Math.max(0, width - ((now - at) / TRACE_WINDOW_MS) * width));
-  const y = (high: boolean) => (high ? HIGH_Y : LOW_Y);
   const seconds = TRACE_WINDOW_MS / 1000;
   const grid = Array.from({ length: seconds - 1 }, (_, i) => `M${px((width * (i + 1)) / seconds)} 0V${TRACE_HEIGHT}`);
-  let level = `M0 ${y(trace.start)}`;
-  for (const edge of trace.edges) level += `H${px(x(edge.at))}V${y(edge.high)}`;
-  level += `H${px(width)}`;
+  let level = trace.start === undefined ? '' : `M0 ${levelY(trace.start)}`;
+  for (const edge of trace.edges) {
+    level += level === '' ? `M${px(x(edge.at))} ${levelY(edge.level)}` : `H${px(x(edge.at))}V${levelY(edge.level)}`;
+  }
+  if (level !== '') level += `H${px(width)}`;
   const bar = (at: number) => `M${px(x(at) - 1)} 3h2v${TRACE_HEIGHT - 6}h-2z`;
   const marks = (kind: TraceMarkKind, shape: (left: number) => string) =>
     trace.marks
