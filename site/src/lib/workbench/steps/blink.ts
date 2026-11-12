@@ -1,6 +1,7 @@
-import { nth, op, waitOp, type Board, type Cost, type LineRef, type Operation, type Sketch } from '../simulator';
+import { nth, op, waitOp, type Board, type LineRef, type Operation, type Sketch } from '../simulator';
 import type { LiveValue, SliderShortcut, StepDefinition } from '../step';
 import { isDigit, toInt, trim } from './arduino';
+import { passCost, readCommands, setup as setupWith } from './common';
 
 /** What the four Blink sketches keep: the LED, the interval and, in `commands`, whether blinking is paused. */
 export interface BlinkState {
@@ -30,25 +31,12 @@ const DEFAULT_DELAY = 1000;
 const MIN_DELAY = 100;
 const MAX_DELAY = 2000;
 
-/** What one pass through `loop()` costs where the sketch has no `delay()`: slow enough to follow while stepping. */
-const PASS_MS_WATCHED = 250;
-const PASS_MS_FULL_SPEED = 25;
-
-function passCost(board: Board<BlinkState>): Cost {
-  return () => (board.pace() === 'run' ? PASS_MS_FULL_SPEED : PASS_MS_WATCHED);
-}
-
 const initialState = (): BlinkState => ({ ledOn: false, blinkDelay: DEFAULT_DELAY, paused: false, lastToggle: 0 });
 
 const constrain = (value: number, low: number, high: number): number => Math.min(Math.max(value, low), high);
 
 /** What `setup()` does: a blank line, the sketch's name, then the LED pin. */
-function* setup(board: Board<BlinkState>, key: string): Generator<Operation, void, undefined> {
-  yield op('Serial.begin(115200);');
-  yield op('Serial.println();', () => board.print(''));
-  yield op(`Serial.println("sketch ${key}");`, () => board.print(`sketch ${key}`));
-  yield op('led.begin();');
-}
+const setup = (board: Board<BlinkState>, key: string) => setupWith(board, key, 'led.begin();');
 
 /** The lines `Serial.print("delay "); Serial.println(blinkDelay);` write as one line. */
 function* announceDelay(board: Board<BlinkState>): Generator<Operation, void, undefined> {
@@ -138,14 +126,7 @@ const timer: Sketch<BlinkState> = {
     const state = board.state;
     yield* setup(board, 'blink/timer');
     for (;;) {
-      // The pass is priced where it starts; the checks after each drained line cost nothing more.
-      yield op('while (Serial.available()) {', undefined, passCost(board));
-      while (board.available()) {
-        let line = '';
-        // The board reads the line a character at a time; the visitor sends whole lines, so this step takes one.
-        yield op('char c = Serial.read();', () => (line = board.read() ?? ''));
-        yield op("if (c != '\\n') {");
-        yield op('line.trim();', () => (line = trim(line)));
+      yield* readCommands(board, passCost(board), function* (line) {
         yield op('if (isDigit(line[0])) {');
         if (isDigit(line[0])) {
           yield op('blinkDelay = constrain(line.toInt(), 100, 2000);', () => {
@@ -153,9 +134,7 @@ const timer: Sketch<BlinkState> = {
           });
           yield* announceDelay(board);
         }
-        yield op('line = "";');
-        yield op('while (Serial.available()) {');
-      }
+      });
       yield* toggleWhenDue(
         board,
         'if (millis() - lastToggle >= blinkDelay) {',
@@ -171,40 +150,33 @@ const commands: Sketch<BlinkState> = {
     const state = board.state;
     yield* setup(board, 'blink/commands');
     for (;;) {
-      yield op('while (Serial.available()) {', undefined, passCost(board));
-      while (board.available()) {
-        let line = '';
-        yield op('char c = Serial.read();', () => (line = board.read() ?? ''));
-        yield op("if (c != '\\n') {");
-        yield op('line.trim();', () => (line = trim(line)));
+      yield* readCommands(board, passCost(board), function* (line) {
         yield op('if (line == "pause") {');
         if (line === 'pause') {
           yield op('paused = true;', () => (state.paused = true));
           yield op('Serial.println("paused");', () => board.print('paused'));
-        } else {
-          yield op('} else if (line == "run") {');
-          if (line === 'run') {
-            yield op('paused = false;', () => (state.paused = false));
-            yield op('Serial.println("running");', () => board.print('running'));
-          } else {
-            yield op('} else if (line.startsWith("delay ") && isDigit(line[6])) {');
-            if (line.startsWith('delay ') && isDigit(line[6])) {
-              yield op('blinkDelay = constrain(line.substring(6).toInt(), 100, 2000);', () => {
-                state.blinkDelay = constrain(toInt(line.slice(6)), MIN_DELAY, MAX_DELAY);
-              });
-              yield* announceDelay(board);
-            } else {
-              yield op('} else if (line.length() > 0) {');
-              if (line.length > 0) {
-                yield op('Serial.print("? ");');
-                yield op('Serial.println(line);', () => board.print(`? ${line}`));
-              }
-            }
-          }
+          return;
         }
-        yield op('line = "";');
-        yield op('while (Serial.available()) {');
-      }
+        yield op('} else if (line == "run") {');
+        if (line === 'run') {
+          yield op('paused = false;', () => (state.paused = false));
+          yield op('Serial.println("running");', () => board.print('running'));
+          return;
+        }
+        yield op('} else if (line.startsWith("delay ") && isDigit(line[6])) {');
+        if (line.startsWith('delay ') && isDigit(line[6])) {
+          yield op('blinkDelay = constrain(line.substring(6).toInt(), 100, 2000);', () => {
+            state.blinkDelay = constrain(toInt(line.slice(6)), MIN_DELAY, MAX_DELAY);
+          });
+          yield* announceDelay(board);
+          return;
+        }
+        yield op('} else if (line.length() > 0) {');
+        if (line.length > 0) {
+          yield op('Serial.print("? ");');
+          yield op('Serial.println(line);', () => board.print(`? ${line}`));
+        }
+      });
       yield* toggleWhenDue(
         board,
         'if (!paused && millis() - lastToggle >= blinkDelay) {',

@@ -1,6 +1,7 @@
-import { nth, op, waitOp, type Board, type Cost, type LineRef, type Operation, type Sketch } from '../simulator';
+import { nth, op, waitOp, type Board, type LineRef, type Operation, type Sketch } from '../simulator';
 import type { LiveValue, SliderShortcut, StepDefinition } from '../step';
 import { isDigit, toInt, trim } from './arduino';
+import { passCost, readCommands, setup as setupWith } from './common';
 
 /** What the four Servo sketches keep; `sweep` and `angle` use none of it, since their angle lives in a local. */
 export interface ServoState {
@@ -47,10 +48,6 @@ const ANGLE_ERROR = 'error angle must be 0-180';
 const SPEED_ERROR = 'error speed must be 1-360';
 const UNKNOWN_COMMAND = 'error unknown command';
 
-/** What one pass through a `loop()` that waits for nothing costs: slow enough to follow while stepping. */
-const IDLE_MS_WATCHED = 250;
-const IDLE_MS_FULL_SPEED = 25;
-
 const initialState = (): ServoState => ({
   angle: SETUP_ANGLE,
   target: SETUP_ANGLE,
@@ -68,26 +65,8 @@ export function isNumber(text: string, low: number, high: number): boolean {
   return toInt(text) >= low && toInt(text) <= high;
 }
 
-/**
- * What a pass through `loop()` costs: the idle time, or less when a move falls `due` sooner, so the move comes on
- * time. A pass never costs more than the idle time, so a line sent while a slow move waits is read within it, as
- * on the board, whose passes take microseconds.
- */
-function passCost(board: Board<ServoState>, due: (state: ServoState) => number | undefined): Cost {
-  return () => {
-    const idle = board.pace() === 'run' ? IDLE_MS_FULL_SPEED : IDLE_MS_WATCHED;
-    const at = due(board.state);
-    return at === undefined ? idle : Math.min(idle, Math.max(0, at - board.millis()));
-  };
-}
-
 /** What `setup()` does before it writes the servo: a blank line, the sketch's name, then the servo's pin. */
-function* setup(board: Board<ServoState>, key: string): Generator<Operation, void, undefined> {
-  yield op('Serial.begin(115200);');
-  yield op('Serial.println();', () => board.print(''));
-  yield op(`Serial.println("sketch ${key}");`, () => board.print(`sketch ${key}`));
-  yield op('servo.begin();');
-}
+const setup = (board: Board<ServoState>, key: string) => setupWith(board, key, 'servo.begin();');
 
 /** The body of `angle`'s `writeAngle(value)`: the servo, then the angle. */
 function* writeDegrees(board: Board<ServoState>, degrees: number): Generator<Operation, void, undefined> {
@@ -143,7 +122,7 @@ const angle: Sketch<ServoState> = {
     yield op('writeAngle(90);');
     yield* writeDegrees(board, SETUP_ANGLE);
     for (;;) {
-      yield op('if (Serial.available()) {', undefined, passCost(board, () => undefined));
+      yield op('if (Serial.available()) {', undefined, passCost(board));
       if (!board.available()) continue;
       let line = '';
       yield op("String line = Serial.readStringUntil('\\n');", () => (line = board.read() ?? ''));
@@ -159,27 +138,6 @@ const angle: Sketch<ServoState> = {
     }
   },
 };
-
-/**
- * The start of a pass in `commands` and `speed`: the board reads the lines sent, one whole line at a time where the
- * board reads a character at a time, and `handle` runs the branches the sketch takes for each.
- */
-function* readCommands(
-  board: Board<ServoState>,
-  cost: Cost,
-  handle: (line: string) => Generator<Operation, void, undefined>,
-): Generator<Operation, void, undefined> {
-  yield op('while (Serial.available()) {', undefined, cost);
-  while (board.available()) {
-    let line = '';
-    yield op('char c = Serial.read();', () => (line = board.read() ?? ''));
-    yield op("if (c != '\\n') {");
-    yield op('line.trim();', () => (line = trim(line)));
-    yield* handle(line);
-    yield op('line = "";');
-    yield op('while (Serial.available()) {');
-  }
-}
 
 /** The branches after `angle` and `speed`, which `commands` and `speed` share but for what `sweep` and `stop` set. */
 function* sweepOrStop(
