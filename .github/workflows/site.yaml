@@ -27,6 +27,7 @@ jobs:
         with:
           path: .arduino
           key: arduino-${{ hashFiles('sketches/*/sketch.yaml', 'arduino-cli.yaml') }}
+          restore-keys: arduino-
       - run: mise run node:setup
       - run: mise run python:setup
       - run: mise run arduino:firmware
