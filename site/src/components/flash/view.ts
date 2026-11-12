@@ -18,8 +18,6 @@ export interface View {
   /** The step the visitor is on. */
   step: Step;
   message: string;
-  /** 0 to 100 when the card shows the progress bar. */
-  progress?: number;
   /** Shows `message` as a notice, for a state that is not part of the happy path. */
   notice?: boolean;
   /** The buttons the card shows, in order, each with the event it sends. */
@@ -145,7 +143,7 @@ export function viewFor(
     case 'settings':
       return settingsView(state, title, settings);
     case 'flashing':
-      return { step: 'flash', message: wording.found(state.chip), progress: state.pct };
+      return { step: 'flash', message: wording.found(state.chip) };
     case 'flashMode':
       return {
         step: 'flash',

@@ -87,7 +87,7 @@ The site also puts the firmware on a board. Its parts:
   holds its port, which page owns it, and what the site knows of the board beyond the session's state: the sketch it
   runs and the lines it printed and was sent. It also holds the board models the site has images for, one per chip,
   and the visitor's pick of one, kept in the browser. `site/src/components/board/` holds the dock, along the bottom of every
-  page, and the flashing picture that the card and the workbench share. The card and the workbench point the board at
+  page, and the flash picture that the card and the workbench share. The card and the workbench point the board at
   their own sketches instead of opening a session; the slice depends on the flash slice.
 - **Router**: the site swaps pages in place with Astro's client router, so the board keeps its port from page to page
   and the dock persists across the swap. A page's script runs once per visit to the site, so each one mounts on every
@@ -151,7 +151,11 @@ session can restart the board without flashing, hands every line the board print
 listeners, writes a line, and flashes a manifest key onto the open port and keeps reading. After a write to an
 ESP8266 it waits 3 seconds for the `sketch <key>` line; without it, the board's adapter holds it in flash mode, which
 the port cannot undo, so the session releases the port and waits in `flashMode`. The next connect opens the port
-without the bootloader, reads the running board, and sends the settings the flash was asked with.
+without the bootloader, reads the running board, and sends the settings the flash was asked with. The dock's and the
+workbench's Connect read a picked ESP-01S the same way: its adapter reaches the bootloader only in flash mode, so the
+board is read as it runs, named by the chip the pick gives, and needs flash mode only for a flash. Such a board does
+not restart, so it names its sketch only once flashed, and a pick that is wrong shows only when the flash finds the
+chip.
 
 The dock names the board's chip and the sketch it runs, by the `sketch <key>` line or the key the site last flashed,
 links the sketch's project, at the step's tab for a step, and shows the last line it printed in the Serial button that
@@ -175,10 +179,14 @@ to a step:
   and the arrow are drawn from the lines the board prints, and what the visitor sends goes to the board.
 - When the key is another step's or another sketch's, the tab of the step it runs is marked, and under My board the
   pane waits.
-- Waiting, the stage says what the board runs and what to do in the picture's place, with one action: Connect my
-  board, Flash the selected step, or, while the session works, Connecting… or Flashing…, with the flash picture
-  for progress. The terminal is inert. What the session says of the board, such as a failed flash, shows only under
-  My board, so pressing Simulator leaves it.
+- Waiting, the stage draws the flash picture in the picture's place, the computer, the cable and the board's chip
+  with the steps Find, Write and Restart under them, and says what the board runs and what to do under it. Its one
+  action hangs above the cable: Connect my board, Flash the selected step, Try again after a failure, or, while the
+  session works, a pill that cannot be pressed, Connecting… or Flashing…. Try again after a failed flash connects and
+  flashes in one press. The picture marks where a failure happened, at the computer, on the cable or at the board,
+  and draws the hands-on step beside the words: the BOOT button, or the adapter's switch to PROG or to UART. The
+  stage is one height in every view, as tall as the picture and the longest notice. The terminal is inert. What the
+  session says of the board, such as a failed flash, shows only under My board, so pressing Simulator leaves it.
 - Pause, Step or Restart outside the simulator hands the pane to a fresh simulator with the port still open, and
   choosing My board brings the pane back to the board.
 - Flash again is a small button on the Live frame, which flashes the step the board runs; a flash the session

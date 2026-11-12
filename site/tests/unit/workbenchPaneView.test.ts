@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { linkView, paneMotion, paneView } from '../../src/components/workbench/paneView';
 import { boardMessage } from '../../src/components/workbench/view';
+import { boardModel } from '../../src/lib/board/models';
 import type { SessionState } from '../../src/lib/flash/session';
 import type { BlinkBoard } from '../../src/lib/workbench/blinkBoard';
 import { initialPane, reducePane, type PaneEvent, type PaneProject, type PaneState } from '../../src/lib/workbench/pane';
@@ -188,8 +189,14 @@ describe('linkView', () => {
     const flashing: SessionState = { kind: 'flashing', chip: 'ESP32', pct: 40 };
     const shown = linkView(blink, pane(...live, { kind: 'session', state: flashing }));
     expect(shown).toMatchObject({ mode: 'waiting', dot: 'busy', flashAgain: false, tag: { word: 'My board' } });
-    expect(shown.message).toMatchObject({ notice: false, progress: 40 });
+    expect(shown.message).toMatchObject({ notice: false });
+    expect(shown.scene).toMatchObject({ cable: 'packets', pct: 40 });
     expect(shown.action?.disabled).toBe(true);
+  });
+
+  it("draws the hint for the picked board's hands-on step when it does not answer", () => {
+    const shown = linkView(blink, pane(myBoard, { kind: 'session', state: { kind: 'noAnswer' } }), boardModel('esp01s'));
+    expect(shown.scene).toMatchObject({ broken: 'chip', hint: 'prog' });
   });
 
   it('shows no message in the simulator, whatever the session does', () => {

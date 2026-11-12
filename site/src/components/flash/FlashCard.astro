@@ -1,5 +1,6 @@
 ---
 import FlashPicture from '../board/FlashPicture.astro';
+import HandHint from '../board/HandHint.astro';
 import { sketchKey } from '../../lib/flash/manifest';
 import { readManifest } from '../../lib/flash/readManifest';
 import { defaultValues, passwordHelp, settingsOf } from '../../lib/flash/settings';
@@ -50,6 +51,7 @@ const helpOf = (field: (typeof fields)[number]) =>
         <p data-message aria-live="polite" tabindex="-1" />
         <div class="progress" data-progress hidden>
           <FlashPicture />
+          <HandHint />
         </div>
         <div class="output" data-output hidden>
           <div class="output-label" data-output-label aria-hidden="true" />
@@ -141,7 +143,8 @@ const helpOf = (field: (typeof fields)[number]) =>
   .output pre { margin: 0; min-height: calc(6 * 1.55em + 32px); font-family: var(--mono); }
   .output pre:empty::before { content: "Waiting for the board to print."; opacity: .7; }
   .actions { display: flex; flex-wrap: wrap; gap: 12px; }
-  .progress { max-width: 420px; margin: 0 0 12px; }
+  .progress { display: flex; align-items: center; gap: 16px; max-width: 520px; margin: 0 0 12px; }
+  .progress > :first-child { flex: 1; min-width: 0; }
   .settings { margin: 0 0 12px; }
   .settings .field { margin: 0 0 12px; }
   .settings label { display: block; font-weight: 700; margin: 0 0 4px; }
@@ -155,7 +158,7 @@ const helpOf = (field: (typeof fields)[number]) =>
 <script>
   import { theBoard } from '../../lib/board/board';
   import { thePick } from '../../lib/board/pick';
-  import { paintFlashPicture } from '../board/flashPicture';
+  import { flashScene, paintFlashPicture, paintHandHint } from '../board/flashPicture';
   import { runs } from '../../lib/board/record';
   import { href } from '../../lib/href';
   import { onEveryPage } from '../../lib/page';
@@ -163,6 +166,19 @@ const helpOf = (field: (typeof fields)[number]) =>
   import { isBusy, type SessionState } from '../../lib/flash/session';
   import { settingsOf } from '../../lib/flash/settings';
   import { stepsFor, viewFor } from './view';
+
+  /** The states the card draws the picture in: while it reaches and writes the board, and when that failed. */
+  const PICTURED: ReadonlySet<SessionState['kind']> = new Set([
+    'connecting',
+    'flashing',
+    'flashMode',
+    'noPort',
+    'portBusy',
+    'noAnswer',
+    'noImage',
+    'noDownload',
+    'dropped',
+  ]);
 
   onEveryPage((signal) => {
     for (const card of document.querySelectorAll<HTMLElement>('[data-flash-card]')) {
@@ -266,8 +282,13 @@ const helpOf = (field: (typeof fields)[number]) =>
           else li.removeAttribute('aria-current');
         });
 
-        progress.hidden = view.progress === undefined;
-        if (view.progress !== undefined) paintFlashPicture(progress, view.progress);
+        // From the press to the board running the sketch, and after a failure, the picture shows where things are.
+        progress.hidden = !PICTURED.has(state.kind);
+        if (!progress.hidden) {
+          const scene = flashScene(state, thePick().model);
+          paintFlashPicture(progress, scene);
+          paintHandHint(progress, scene.hint);
+        }
 
         // The output is not a live region: it changes with every line the board prints, and the status above says what
         // the card is doing.

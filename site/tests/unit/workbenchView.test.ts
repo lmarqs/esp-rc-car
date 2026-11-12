@@ -243,15 +243,14 @@ describe('boardMessage', () => {
     expect(states.map((state) => boardMessage(state, 'blink/input', true))).toEqual([undefined, undefined, undefined]);
   });
 
-  it("says what the page does in the flash card's words, with the progress while flashing", () => {
+  it("says what the page does in the flash card's words, and to keep the board plugged in while flashing", () => {
     expect(boardMessage({ kind: 'connecting' }, 'blink/input', true)).toEqual({
       text: viewFor({ kind: 'connecting' }, { title: '' }).message,
       notice: false,
     });
     expect(boardMessage({ kind: 'flashing', chip: 'ESP32', pct: 40 }, 'blink/input', true)).toEqual({
-      text: 'Found ESP32',
+      text: 'Found ESP32. Keep the board plugged in.',
       notice: false,
-      progress: 40,
     });
   });
 
@@ -279,13 +278,13 @@ describe('boardMessage', () => {
     );
   });
 
-  it('tells the visitor to connect again before flashing after a failed flash, as its button reads Connect', () => {
+  it('tells the visitor to press Try again after a failed flash, as its button reads', () => {
     expect(boardMessage({ kind: 'noDownload' }, 'blink/input', true)).toEqual({
-      text: 'The image did not download. Check your internet connection. Connect again, then press Flash step.',
+      text: 'The image did not download. Check your internet connection. Then press Try again.',
       notice: true,
     });
     expect(boardMessage({ kind: 'dropped', pct: 40 }, 'blink/input', true)).toEqual({
-      text: 'The connection dropped at 40%. Nothing is broken. Plug the board back in. Connect again, then press Flash step.',
+      text: 'The connection dropped at 40%. Nothing is broken. Plug the board back in. Then press Try again.',
       notice: true,
     });
   });

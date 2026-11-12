@@ -93,8 +93,9 @@ const flashable = Object.keys(manifest.sketches).length > 0;
   import type { PictureView } from '../../lib/workbench/board';
   import type { Manifest } from '../../lib/flash';
   import { DEFAULT_BAUD, theBoard } from '../../lib/board/board';
+  import { restartConnection } from '../../lib/board/models';
   import { thePick } from '../../lib/board/pick';
-  import type { BoardAction } from '../../lib/workbench/link';
+  import { isConnected, type BoardAction } from '../../lib/workbench/link';
   import {
     initialPane,
     paneAction,
@@ -399,8 +400,15 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     /** Presses the My board view's button, or Flash again, then asks the session for what the press starts. */
     function press(action: BoardAction['event']) {
       dispatch({ kind: 'press', action });
-      if (action === 'connect') void board.send({ type: 'connect', reset: true });
+      if (action === 'connect') void board.send(restartConnection(thePick().model));
       if (action === 'flash') void board.send({ type: 'flash', key: pane.flashed });
+      if (action === 'retry') void retry();
+    }
+
+    /** Connects again after a flash failed, then flashes the selected step onto the board that answered. */
+    async function retry() {
+      await board.send(restartConnection(thePick().model));
+      if (isConnected(session.state)) press('flash');
     }
 
     /** Opens step `index` and names it in the address, such as `#input`, so the address opens the step on screen. */

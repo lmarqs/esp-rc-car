@@ -73,9 +73,51 @@ describe('boardAction', () => {
     expect(boardAction({ kind: 'unsupported' }, undefined, input)).toBeUndefined();
   });
 
-  it('connects with a plug from idle, a failure or a lost board', () => {
-    const states: SessionState[] = [{ kind: 'idle' }, { kind: 'noAnswer' }, { kind: 'dropped', pct: 40 }, lost];
+  it('connects with a plug from idle, a lost board, a board left in flash mode or one with no image', () => {
+    const states: SessionState[] = [
+      { kind: 'idle' },
+      lost,
+      { kind: 'flashMode', chip: 'ESP8266' },
+      { kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] },
+    ];
     for (const state of states) expect(boardAction(state, undefined, input)).toEqual(connect);
+  });
+
+  it('tries a failed connect again as a connect', () => {
+    const failures: SessionState[] = [{ kind: 'noPort' }, { kind: 'portBusy' }, { kind: 'noAnswer' }];
+    for (const state of failures) {
+      for (const tried of [undefined, 'connect'] as const) {
+        expect(boardAction(state, undefined, input, undefined, tried)).toEqual({
+          label: 'Try again',
+          icon: 'again',
+          event: 'connect',
+          disabled: false,
+        });
+      }
+    }
+  });
+
+  it('tries a failed flash again in one press, which connects and then flashes', () => {
+    const failures: SessionState[] = [{ kind: 'noAnswer' }, { kind: 'noDownload' }, { kind: 'dropped', pct: 40 }];
+    for (const state of failures) {
+      for (const tried of ['flash', 'retry'] as const) {
+        expect(boardAction(state, undefined, input, undefined, tried)).toEqual({
+          label: 'Try again',
+          icon: 'again',
+          event: 'retry',
+          disabled: false,
+        });
+      }
+    }
+  });
+
+  it('names a retry under way as a connection', () => {
+    expect(boardAction({ kind: 'connecting' }, undefined, input, 'retry')).toEqual({
+      label: 'Connecting…',
+      icon: 'again',
+      event: 'retry',
+      disabled: true,
+    });
   });
 
   it('flashes the step, by the id its tab names it by, on a board that runs another sketch or has not named one', () => {

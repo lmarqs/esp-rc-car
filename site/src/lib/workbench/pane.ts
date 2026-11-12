@@ -50,6 +50,8 @@ export interface PaneState<B> {
   readonly simulation: number;
   /** What the visitor pressed in the My board view, or Flash again, while the session works on it. */
   readonly pressed?: BoardAction['event'];
+  /** What the visitor pressed whose work the session last finished, as Try again repeats it after a failure. */
+  readonly tried?: BoardAction['event'];
   /** The key of the step last flashed, or of the first step until one is: the step a missing image names. */
   readonly flashed: string;
   /** The refused flash the visitor moved on from by picking another step, which the pane no longer shows. */
@@ -104,7 +106,7 @@ export function paneStatus<B>(project: PaneProject<B>, state: PaneState<B>): Boa
 /** The My board view's button for the pane; `undefined` in a browser that cannot reach a board. */
 export function paneAction<B>(project: PaneProject<B>, state: PaneState<B>): BoardAction | undefined {
   const step = { key: selectedStep(project, state).key, id: project.ids[state.selected] };
-  return boardAction(state.session, state.heard, step, state.pressed);
+  return boardAction(state.session, state.heard, step, state.pressed, state.tried);
 }
 
 /** Whether the pane shows the session's refusal to flash: until the visitor picks another step. */
@@ -129,13 +131,15 @@ export function reducePane<B>(project: PaneProject<B>, state: PaneState<B>, even
         return sync(project, { ...state, session: event.state, heard: state.flashed, known: project.board.initial() });
       }
       const connecting = event.state.kind === 'connecting' && !awaitsRun(state.session);
+      const busy = isBusy(event.state);
       return sync(project, {
         ...state,
         session: event.state,
         heard: connecting ? undefined : state.heard,
         known: connecting ? undefined : state.known,
         // Once the session is done with the press, a press elsewhere, such as the dock's Flash again, starts its work.
-        pressed: isBusy(event.state) ? state.pressed : undefined,
+        pressed: busy ? state.pressed : undefined,
+        tried: busy || !isBusy(state.session) ? state.tried : state.pressed,
       });
     }
     case 'line':

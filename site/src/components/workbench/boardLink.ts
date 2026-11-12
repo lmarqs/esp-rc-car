@@ -1,4 +1,4 @@
-import { paintFlashPicture } from '../board/flashPicture';
+import { paintFlashPicture, paintHandHint } from '../board/flashPicture';
 import type { LinkView } from './paneView';
 
 /** What the visitor can press of the switch, the board pane's frame and the My board view. */
@@ -32,7 +32,7 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
   const flashAgain = root.querySelector<HTMLButtonElement>('[data-flash-again]')!;
   const stage = root.querySelector<HTMLElement>('[data-stage]')!;
   const message = root.querySelector<HTMLElement>('[data-board-message]')!;
-  const progress = root.querySelector<HTMLElement>('[data-board-progress]')!;
+  const link = root.querySelector<HTMLElement>('[data-board-link]')!;
   const actionButton = root.querySelector<HTMLButtonElement>('[data-board-action]');
   const actionLabel = root.querySelector<HTMLElement>('[data-board-action-label]');
 
@@ -78,11 +78,11 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
       stage.toggleAttribute('data-message', view.message !== undefined);
       const shown = view.message;
       const words = shown?.text ?? '';
-      // Only a change of text is announced: the progress picture carries the percentage.
+      // Only a change of text is announced: the picture carries the percentage.
       if (message.textContent !== words) message.textContent = words;
       message.classList.toggle('notice', shown?.notice ?? false);
-      progress.hidden = shown?.progress === undefined;
-      if (shown?.progress !== undefined) paintFlashPicture(progress, shown.progress);
+      paintFlashPicture(link, view.scene);
+      paintHandHint(link, view.scene.hint);
 
       if (actionButton !== null && actionLabel !== null) {
         actionButton.hidden = action === undefined;

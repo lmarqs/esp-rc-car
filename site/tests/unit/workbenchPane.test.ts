@@ -229,6 +229,15 @@ describe('the board pane', () => {
       expect(paneAction(blink, after(connected))).toMatchObject({ label: 'Flash simple to board', disabled: false });
     });
 
+    it('offers to try a failed flash again in one press, and a failed connect as a connect', () => {
+      const connecting: PaneEvent = { kind: 'session', state: { kind: 'connecting' } };
+      const noAnswer: PaneEvent = { kind: 'session', state: { kind: 'noAnswer' } };
+      const flashFailed = after(connected, { kind: 'press', action: 'flash' }, connecting, noAnswer);
+      expect(paneAction(blink, flashFailed)).toMatchObject({ label: 'Try again', event: 'retry' });
+      const connectFailed = after({ kind: 'press', action: 'connect' }, connecting, noAnswer);
+      expect(paneAction(blink, connectFailed)).toMatchObject({ label: 'Try again', event: 'connect' });
+    });
+
     it('names a flash started elsewhere after a connect the visitor pressed here', () => {
       const flashing: SessionState = { kind: 'flashing', chip: 'ESP32', pct: 10 };
       const connecting: SessionState = { kind: 'connecting' };

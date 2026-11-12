@@ -324,7 +324,7 @@ test.describe('flashing from the workbench', () => {
 
     await boardButton(page).click();
 
-    await expect(message(page)).toHaveText('Found ESP32');
+    await expect(message(page)).toHaveText('Found ESP32. Keep the board plugged in.');
     expect(await scope.boundingBox()).toEqual(before);
     await expect(bench(page).getByRole('progressbar', { name: 'Flashing' })).toHaveAttribute('aria-valuenow', '40');
     await expect(bench(page).getByText('40%')).toBeVisible();
@@ -401,7 +401,7 @@ test.describe('flashing from the workbench', () => {
     expect(await boardButton(page).evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   });
 
-  test("shows a failure in the flash card's words in place of the picture, and Connect tries again", async ({
+  test("shows a failure in the flash card's words in place of the picture, and Try again connects again", async ({
     page,
     fakeFlasher,
   }) => {
@@ -416,12 +416,46 @@ test.describe('flashing from the workbench', () => {
     await expect(message(page)).toHaveClass(/notice/);
     await expect(picture(page)).toBeHidden();
     await expect(tag(page)).toHaveText('My board Not connected');
-    await expect(boardButton(page)).toHaveAccessibleName('Connect my board');
+    await expect(boardButton(page)).toHaveAccessibleName('Try again');
 
     await boardButton(page).click();
 
     await expect(tagWord(page)).toHaveText('Live');
     await expect(picture(page)).toBeVisible();
+    expect((await fakeFlasher.calls()).filter((call) => call === 'load')).toHaveLength(0);
+  });
+
+  test('tries a dropped flash again in one press: it connects, then flashes the step', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/simple'], announce: true, failFirst: { write: 'NetworkError' } });
+    await page.goto(BLINK);
+    await connect(page);
+    await tab(page, '3 timer').click();
+
+    await boardButton(page).click();
+
+    await expect(message(page)).toContainText('The connection dropped');
+    await expect(boardButton(page)).toHaveAccessibleName('Try again');
+
+    await boardButton(page).click();
+
+    await expect(tagWord(page)).toHaveText('Live');
+    expect((await fakeFlasher.calls()).filter((call) => call === 'write')).toHaveLength(2);
+  });
+
+  test('draws the switch to PROG beside the words when a picked ESP-01S does not answer', async ({ page, fakeFlasher }) => {
+    // esptool-js failing to sync with the bootloader throws a plain error.
+    await fakeFlasher.install({ lines: ['led on'], failFirst: { connect: 'Error' } });
+    await page.goto('/robomania/learn/');
+    await page.getByRole('combobox', { name: 'My board' }).selectOption({ label: 'ESP-01S' });
+    await page.goto(BLINK);
+    await connect(page);
+    await expect(boardButton(page)).toHaveAccessibleName('Flash simple to board');
+
+    await boardButton(page).click();
+
+    await expect(message(page)).toContainText("Set the adapter's switch to PROG");
+    await expect(bench(page).locator('[data-hand-hint]')).toHaveAttribute('data-hint', 'prog');
+    await expect(bench(page).locator('[data-hand-hint]')).toBeVisible();
   });
 
   test('says the board stopped talking once the port is lost, and offers Connect', async ({ page, fakeFlasher }) => {
@@ -624,7 +658,7 @@ test.describe('the rail', () => {
         await connect(page);
         await expect(boardButton(page)).toHaveAccessibleName('Flash simple to board');
         await boardButton(page).click();
-        await expect(message(page)).toHaveText('Found ESP32');
+        await expect(message(page)).toHaveText('Found ESP32. Keep the board plugged in.');
       },
     },
   ];
@@ -817,7 +851,7 @@ test.describe('the finish of the switch and the frame', () => {
     expect(await myBoardButton(page).getAttribute('title')).toBe('My board: connected');
     await boardButton(page).click();
 
-    await expect(message(page)).toHaveText('Found ESP32');
+    await expect(message(page)).toHaveText('Found ESP32. Keep the board plugged in.');
     await expect(myBoardButton(page)).toHaveAttribute('title', 'My board: flashing…');
   });
 
@@ -854,7 +888,7 @@ test.describe('the finish of the switch and the frame', () => {
     expect(box!.x + box!.width).toBeLessThanOrEqual(mini!.x);
   });
 
-  test('keeps the stage as tall as its tallest step needs, in every view, with the message in the middle', async ({
+  test('keeps the stage one height in every step and view, with the button above the cable and the words under it', async ({
     page,
     fakeFlasher,
   }) => {
@@ -863,10 +897,9 @@ test.describe('the finish of the switch and the frame', () => {
     await page.goto(BLINK);
     const stage = bench(page).locator('.stage');
     const height = async (locator: Locator) => (await locator.boundingBox())!.height;
-    // Commands has the most values to watch: the stage is no taller than its watch, and no step changes its height.
     await tab(page, '4 commands').click();
     const simulatedHeight = await height(stage);
-    expect(Math.abs(simulatedHeight - (await height(bench(page).locator('.watch'))))).toBeLessThanOrEqual(1);
+    expect(simulatedHeight).toBeGreaterThanOrEqual(await height(bench(page).locator('.watch')));
     for (const name of ['1 simple', '2 input', '3 timer']) {
       await tab(page, name).click();
       expect(await height(stage), name).toBe(simulatedHeight);
@@ -877,13 +910,13 @@ test.describe('the finish of the switch and the frame', () => {
 
     await expect(message(page)).toBeVisible();
     expect(await height(stage)).toBe(simulatedHeight);
-    const stageBox = (await stage.boundingBox())!;
-    const link = (await bench(page).locator('[data-board-link]').boundingBox())!;
-    expect(Math.abs(link.y + link.height / 2 - (stageBox.y + stageBox.height / 2))).toBeLessThanOrEqual(1);
-    const words = (await message(page).boundingBox())!;
-    expect(Math.abs(words.y + words.height / 2 - (stageBox.y + stageBox.height / 2))).toBeLessThanOrEqual(1);
+    const cable = (await bench(page).locator('[data-board-link] .cable').boundingBox())!;
     const button = (await boardButton(page).boundingBox())!;
-    expect(button.x).toBeGreaterThan(words.x + words.width);
+    const words = (await message(page).boundingBox())!;
+    expect(button.y + button.height).toBeLessThanOrEqual(cable.y + cable.height / 2);
+    expect(button.x).toBeGreaterThan(cable.x);
+    expect(button.x + button.width).toBeLessThan(cable.x + cable.width);
+    expect(words.y).toBeGreaterThan(cable.y + cable.height);
   });
 
   for (const width of [380, 1100]) {

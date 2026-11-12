@@ -1,3 +1,4 @@
+import { flashScene, type FlashScene } from '../board/flashPicture';
 import type { PictureView, WatchRow } from '../../lib/workbench/board';
 import type { BoardModel } from '../../lib/board/models';
 import type { Followed } from '../../lib/workbench/live';
@@ -152,6 +153,8 @@ export interface LinkView {
   readonly flashAgain: boolean;
   /** What the board pane says in place of the picture: while My board waits, or over the live board a refused flash. */
   readonly message: BoardMessage | undefined;
+  /** What the My board view draws of the computer, the cable and the board. */
+  readonly scene: FlashScene;
 }
 
 /** What the page shows of the link between the pane and the visitor's board. */
@@ -169,6 +172,7 @@ export function linkView<B>(project: PaneProject<B>, pane: PaneState<B>, board?:
     action,
     flashAgain: mode === 'live' && action?.disabled === false,
     message: linkMessage(project, pane, status, board),
+    scene: flashScene(pane.session, board),
   };
 }
 

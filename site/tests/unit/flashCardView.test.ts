@@ -31,7 +31,7 @@ describe('viewFor', () => {
   it('shows the chip and the percentage while flashing, with no button', () => {
     const view = viewFor({ kind: 'flashing', chip: 'ESP32', pct: 42 }, context);
 
-    expect(view).toEqual({ step: 'flash', message: 'Found ESP32', progress: 42 });
+    expect(view).toEqual({ step: 'flash', message: 'Found ESP32' });
   });
 
   describe('once the board runs', () => {

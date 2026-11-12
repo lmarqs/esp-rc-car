@@ -297,12 +297,10 @@ export interface BoardMessage {
   readonly text: string;
   /** Shown as a notice: a state that is not part of the happy path. */
   readonly notice: boolean;
-  /** 0 to 100 while flashing. */
-  readonly progress?: number;
 }
 
-/** What to do after a flash failed: the session let go of the port, so the button reads Connect. */
-const RECONNECT = 'Connect again, then press Flash step.';
+/** What to do after a flash failed: the session let go of the port, and the button tries it all again. */
+const RETRY = 'Then press Try again.';
 
 /**
  * The board pane's message for the session's `state`, or `undefined` when the pane shows the picture. `key` is the
@@ -320,7 +318,7 @@ export function boardMessage(
     case 'connecting':
       return { text: wording.CONNECTING, notice: false };
     case 'flashing':
-      return { text: wording.found(state.chip), notice: false, progress: state.pct };
+      return { text: `${wording.found(state.chip)}. Keep the board plugged in.`, notice: false };
     case 'flashMode':
       return notice(wording.FLASH_MODE);
     case 'noPort':
@@ -332,9 +330,9 @@ export function boardMessage(
     case 'noImage':
       return notice(`${wording.noImage(state, key)} ${wording.otherBoardOrStep(state.available)}`);
     case 'noDownload':
-      return notice(`${wording.NO_DOWNLOAD}. ${RECONNECT}`);
+      return notice(`${wording.NO_DOWNLOAD}. ${RETRY}`);
     case 'dropped':
-      return notice(`${wording.droppedAt(state.pct)} Plug the board back in. ${RECONNECT}`);
+      return notice(`${wording.droppedAt(state.pct)} Plug the board back in. ${RETRY}`);
     case 'running':
       if (state.lost) return notice(wording.LOST);
       if (state.flashRefused !== undefined && showRefusal) {

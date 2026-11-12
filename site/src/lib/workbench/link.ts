@@ -21,9 +21,12 @@ export interface BoardAction {
   readonly label: string;
   /** What the button shows when that is shorter than its name, so the button keeps its width. */
   readonly short?: string;
-  readonly icon: 'plug' | 'bolt';
-  /** `connect` connects to a board; `flash` flashes the selected step onto the connected one. */
-  readonly event: 'connect' | 'flash';
+  readonly icon: 'plug' | 'bolt' | 'again';
+  /**
+   * `connect` connects to a board; `flash` flashes the selected step onto the connected one; `retry` does both, after a
+   * flash failed and the session let go of the port.
+   */
+  readonly event: 'connect' | 'flash' | 'retry';
   /** Set while the session works on the last press. */
   readonly disabled: boolean;
 }
@@ -54,15 +57,22 @@ export function boardStatus(
 /**
  * The My board view's button for the session's `state`, or `undefined` in a browser that cannot reach a board.
  * `step` is the selected step: its key and its id, such as `simple`, as its tab names it. `pressed` is what the
- * visitor pressed on this page, which names what the session works on while it is busy.
+ * visitor pressed on this page, which names what the session works on while it is busy. `tried` is the press whose work
+ * ended in the session's failure, which Try again repeats.
  */
 export function boardAction(
   state: SessionState,
   heard: string | undefined,
   step: { readonly key: string; readonly id: string },
   pressed?: BoardAction['event'],
+  tried?: BoardAction['event'],
 ): BoardAction | undefined {
   if (state.kind === 'unsupported') return undefined;
+  if (RETRYABLE.has(state.kind)) {
+    // A flash that failed is tried again in one press: the connection, then the flash.
+    const event = tried === 'flash' || tried === 'retry' ? 'retry' : 'connect';
+    return { label: 'Try again', icon: 'again', event, disabled: false };
+  }
   if (isBusy(state)) {
     // A press elsewhere on the site, such as the board dock's Flash again, leaves `pressed` unset: what the session
     // does names it.
@@ -96,6 +106,9 @@ export function paneMode(status: BoardStatus, chosen: PaneChoice): PaneMode {
   return status.kind === 'live' ? 'live' : 'waiting';
 }
 
-const ICONS: Readonly<Record<BoardAction['event'], BoardAction['icon']>> = { connect: 'plug', flash: 'bolt' };
+const ICONS: Readonly<Record<BoardAction['event'], BoardAction['icon']>> = { connect: 'plug', flash: 'bolt', retry: 'again' };
+
+/** The failures that the same press may get past: the visitor fixes what the notice says, then presses again. */
+const RETRYABLE: ReadonlySet<SessionState['kind']> = new Set(['noPort', 'portBusy', 'noAnswer', 'noDownload', 'dropped']);
 
 const CONNECT: BoardAction = { label: 'Connect my board', icon: 'plug', event: 'connect', disabled: false };
