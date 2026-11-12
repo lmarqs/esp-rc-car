@@ -34,6 +34,7 @@ const projects = defineCollection({
       /** The project's steps, in order; a project with one sketch sets `sketch` alone. */
       steps: z
         .array(step)
+        .min(1)
         .refine((steps) => new Set(steps.map(({ id }) => id)).size === steps.length, {
           message: 'Step ids must be unique.',
         })
@@ -55,7 +56,7 @@ const projects = defineCollection({
     })
     .superRefine((project, context) => {
       // A ladder's `sketch` is the sketch it starts on, so it cannot drift from the first step.
-      if (project.steps !== undefined && project.steps.length > 0 && project.sketch !== project.steps[0].sketch) {
+      if (project.steps !== undefined && project.sketch !== project.steps[0].sketch) {
         context.addIssue({
           code: 'custom',
           path: ['sketch'],
