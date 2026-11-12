@@ -17,18 +17,16 @@ const purpose: Record<string, string> = {
 const files = Object.entries(headers)
   .map(([path, source]) => ({ name: path.split('/').pop()!, source }))
   .sort((a, b) => a.name.localeCompare(b.name));
-const repo = 'https://github.com/lmarqs/robomania/blob/main/lib/';
+const github = 'https://github.com/lmarqs/robomania';
+const repo = `${github}/blob/main/lib/`;
 
-const propertiesPath = '../../../../lib/library.properties';
-const properties = import.meta.glob<string>('../../../../lib/library.properties', {
-  query: '?raw',
-  import: 'default',
-  eager: true,
-})[propertiesPath];
+const [properties] = Object.values(
+  import.meta.glob<string>('../../../../lib/library.properties', { query: '?raw', import: 'default', eager: true }),
+);
 const version = properties?.match(/^version=(\S+)\s*$/m)?.[1];
 if (!version) throw new Error('No "version=" line found in lib/library.properties');
 const zip = `Robomania-${version}.zip`;
-const zipUrl = `https://github.com/lmarqs/robomania/releases/download/lib-v${version}/${zip}`;
+const zipUrl = `${github}/releases/download/lib-v${version}/${zip}`;
 ---
 
 <Base title="Library" description="The drivers every Robomania project builds with, straight from the repository's lib/ folder.">

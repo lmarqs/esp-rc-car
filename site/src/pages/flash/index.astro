@@ -8,17 +8,14 @@ import { href } from '../../lib/href';
 import { readManifest } from '../../lib/flash/readManifest';
 
 const manifest = readManifest();
-const sketchName = (sketch: string) => sketch.split('/').pop()!;
 const withSketch = (await getCollection('projects'))
   .filter((p) => p.data.sketch)
-  .sort((a, b) => a.data.order - b.data.order);
-const flashable = withSketch
-  .filter((p) => manifest.sketches[sketchName(p.data.sketch!)])
-  .map((p) => ({
-    project: p,
-    chips: [...new Set(manifest.sketches[sketchName(p.data.sketch!)]!.images.map((image) => image.chipFamily))],
-  }));
-const fromComputer = withSketch.filter((p) => !manifest.sketches[sketchName(p.data.sketch!)]);
+  .sort((a, b) => a.data.order - b.data.order)
+  .map((project) => ({ project, entry: manifest.sketches[project.data.sketch!.split('/').pop()!] }));
+const flashable = withSketch.flatMap(({ project, entry }) =>
+  entry ? [{ project, chips: [...new Set(entry.images.map((image) => image.chipFamily))] }] : [],
+);
+const fromComputer = withSketch.filter(({ entry }) => !entry).map(({ project }) => project);
 ---
 
 <Base title="Flash" description="Pick a Robomania project and flash it onto your ESP board from the browser.">

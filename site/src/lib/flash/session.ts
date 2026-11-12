@@ -76,6 +76,13 @@ function connectFailure(error: unknown): Failure {
   return 'noAnswer';
 }
 
+const BUSY_KINDS: ReadonlySet<SessionState['kind']> = new Set(['connecting', 'settings', 'flashing']);
+
+/** Whether the session is talking to the board, so that leaving it would leave a write half-done. */
+export function isBusy(state: SessionState): boolean {
+  return BUSY_KINDS.has(state.kind);
+}
+
 function isDownloadError(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'name' in error && error.name === 'DownloadError';
 }

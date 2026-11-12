@@ -60,7 +60,7 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
     ) : (
       <p>
         This board is flashed from your computer with the tools, not from the browser.{' '}
-        <a href="#run-it-on-your-board">Run it on your board</a>
+        <a href={`${detailsHref ?? ''}#run-it-on-your-board`}>Run it on your board</a>
       </p>
     )
   }
@@ -91,7 +91,7 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
   import { createFlasher } from '../../lib/flash/createFlasher';
   import { href } from '../../lib/href';
   import type { Manifest } from '../../lib/flash/manifest';
-  import { createSession } from '../../lib/flash/session';
+  import { createSession, isBusy } from '../../lib/flash/session';
   import { STEPS, viewFor } from './view';
 
   for (const card of document.querySelectorAll<HTMLElement>('[data-flash-card]')) {
@@ -136,7 +136,7 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
 
     function render() {
       // The page that lists several cards reads this to keep a visitor from leaving a write half-done.
-      card.toggleAttribute('data-busy', ['connecting', 'settings', 'flashing'].includes(session.state.kind));
+      card.toggleAttribute('data-busy', isBusy(session.state));
       const view = viewFor(session.state, context);
       // Only a change of text is announced: the progress bar carries the percentage.
       if (message.textContent !== view.message) message.textContent = view.message;
@@ -190,7 +190,7 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
       );
     }
 
-    // The page asks a card it hides to let go of the board, which a card that is idle or busy ignores.
+    // The page asks a card it hides to let go of the board; `retry` leaves an idle, connecting or flashing card as it is.
     card.addEventListener('flash-release', () => void session.send({ type: 'retry' }));
 
     session.subscribe((state) => {
