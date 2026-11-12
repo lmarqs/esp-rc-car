@@ -4,6 +4,7 @@ import { lineNumber, newLines } from '../../src/lib/workbench/source';
 import { blinkSteps } from '../../src/lib/workbench/steps/blink';
 import { SERIAL_LINES } from '../../src/components/workbench/view';
 import { HOLD_MS, LETTER_MS } from '../../src/lib/workbench/typist';
+import { HIGH_Y, LOW_Y, TRACE_WINDOW_MS } from '../../src/lib/workbench/trace';
 
 const BLINK = '/robomania/projects/blink/';
 const source = (sketch: string) => readFileSync(new URL(`../../../${sketch}/${sketch.split('/').at(-1)}.ino`, import.meta.url), 'utf8');
@@ -51,6 +52,28 @@ async function freezeUntilRunning(page: Page, line: number) {
   }
   await expect(runningRow(page)).toHaveAttribute('data-line', String(line));
 }
+
+/** Moves the frozen page time on until the arrow is on `line`. */
+async function runUntilLine(page: Page, line: number) {
+  for (let i = 0; i < 200 && (await runningRow(page).getAttribute('data-line')) !== String(line); i++) {
+    await page.clock.runFor(50);
+  }
+  await expect(runningRow(page)).toHaveAttribute('data-line', String(line));
+}
+
+const trace = (page: Page) => bench(page).getByRole('img', { name: /^The level of GPIO 2/ });
+/** Where the trace draws each mark of `kind`, in pixels from its left edge. */
+const markXs = async (page: Page, kind: 'sent' | 'applied') => {
+  const d = (await trace(page).locator(`[data-trace-${kind}]`).getAttribute('d')) ?? '';
+  return [...d.matchAll(/M(-?[\d.]+) 3h2/g)].map((match) => Number(match[1]) + 1);
+};
+/** The trace's level path: where the pin stands at the right edge, and where it last rose. */
+const levelPath = async (page: Page) => {
+  const d = (await trace(page).locator('[data-trace-level]').getAttribute('d')) ?? '';
+  const ys = [...d.matchAll(/(?:^M0 |V)(\d+)/g)].map((match) => Number(match[1]));
+  const rise = [...d.matchAll(/H([\d.]+)V(\d+)/g)].filter((match) => Number(match[2]) === HIGH_Y).at(-1);
+  return { now: ys.at(-1), rise: rise === undefined ? undefined : Number(rise[1]) };
+};
 
 /** The line numbers of `sketch`'s lines whose text is `text`, in order. */
 const linesOf = (sketch: string, text: string) =>
@@ -580,6 +603,70 @@ test.describe('the Blink workbench', () => {
       expect(row.y).toBeGreaterThan(line.y + line.height - 1);
     });
   }
+
+  test('traces GPIO 2 over the last 10 s: low at the start, high once led.write(HIGH) runs, scrolling left', async ({
+    page,
+  }) => {
+    await expect(bench(page).locator('.scope figcaption')).toHaveText(/GPIO 2, last 10 s\s*you sent\s*board applied/);
+    await freeze(page);
+    await button(page, 'Restart').click();
+    await nextFrame(page);
+    expect(await levelPath(page)).toEqual({ now: LOW_Y, rise: undefined });
+
+    // led.write(HIGH) runs at 3000 ms in slow mode; the delay after it then fills for 1000 ms.
+    await page.clock.runFor(3050);
+    await expect(watchValue(page, 'LED')).toHaveText('HIGH');
+    const width = (await trace(page).boundingBox())!.width;
+    const first = await levelPath(page);
+    expect(first.now).toBe(HIGH_Y);
+    expect(first.rise).toBeGreaterThan(width - 10);
+    await page.clock.runFor(500);
+    const later = await levelPath(page);
+    // The page paints once a frame, so each reading may lag the clock by up to a frame of 1/60 s.
+    const frame = (width * 17) / TRACE_WINDOW_MS + 0.1;
+    expect(Math.abs(first.rise! - later.rise! - (width * 500) / TRACE_WINDOW_MS)).toBeLessThan(2 * frame);
+  });
+
+  test('on input a sent number reaches wait and the live delay only when the arrow is back at Serial.available(), the yellow mark before the green', async ({
+    page,
+  }) => {
+    const input = source('sketches/blink/input');
+    const at = (text: string, occurrence = 1) => lineNumber(input, text, occurrence)!;
+    await tab(page, '2 input').click();
+    const live = visibleCode(page).locator('[data-live]');
+    await freezeUntilRunning(page, at('delay(blinkDelay);'));
+
+    await commandLine(page).fill('1500');
+    await commandLine(page).press('Enter');
+    await nextFrame(page);
+    await expect(sentLines(page)).toHaveText(['› 1500']);
+    expect(await markXs(page, 'sent')).toHaveLength(1);
+    expect(await markXs(page, 'applied')).toHaveLength(0);
+    await expect(trace(page).locator('[data-trace-sent]')).toHaveCSS('fill', 'rgb(226, 164, 0)');
+
+    // The board runs out both delays first: the line waits in the queue.
+    await runUntilLine(page, at('if (Serial.available()) {'));
+    await expect(watchValue(page, 'wait')).toHaveText('1000 ms');
+    await expect(live).toHaveText('1000');
+    expect(await markXs(page, 'applied')).toHaveLength(0);
+
+    await runUntilLine(page, at("String line = Serial.readStringUntil('\\n');"));
+    await page.clock.runFor(500);
+    await expect(runningRow(page)).toHaveAttribute('data-line', String(at('line.trim();')));
+    expect(await markXs(page, 'applied')).toHaveLength(1);
+    await expect(trace(page).locator('[data-trace-applied]')).toHaveCSS('fill', 'rgb(46, 158, 107)');
+    await expect(watchValue(page, 'wait')).toHaveText('1000 ms');
+
+    await runUntilLine(page, at('Serial.print("delay ");'));
+    await expect(watchValue(page, 'wait')).toHaveText('1500 ms');
+    await expect(watchValue(page, 'wait')).toHaveAttribute('data-changed');
+    await expect(live).toHaveText('1500');
+    const [sent] = await markXs(page, 'sent');
+    const [applied] = await markXs(page, 'applied');
+    const width = (await trace(page).boundingBox())!.width;
+    // Sent part way through the first 1000 ms delay, read after it, the second delay and four slow lines.
+    expect(applied - sent).toBeGreaterThan((width * 1000) / TRACE_WINDOW_MS);
+  });
 
   test('stacks the panes code first at phone width with no sideways scroll', async ({ page }) => {
     await page.setViewportSize({ width: 400, height: 800 });

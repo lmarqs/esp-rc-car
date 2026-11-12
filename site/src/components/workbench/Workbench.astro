@@ -1,5 +1,6 @@
 ---
 import { OPENING, workbenchFor } from '../../lib/workbench/projects';
+import { TRACE_HEIGHT, TRACE_WINDOW_MS } from '../../lib/workbench/trace';
 // Read here, at build time, only: a browser script that imported it would carry every sketch's source.
 import { readStepSource } from '../../lib/workbench/readSource';
 import { newLines } from '../../lib/workbench/source';
@@ -160,6 +161,27 @@ const id = (part: string) => `workbench-${project}-${part}`;
           }
         </dl>
       </div>
+      <figure class="scope">
+        <figcaption>
+          <span>GPIO {workbench.tracedPin}, last {TRACE_WINDOW_MS / 1000} s</span>
+          <span class="legend">
+            <svg viewBox="0 0 10 10" aria-hidden="true"><path class="sent" d="M0 1h10l-5 8z" /></svg>you sent
+            <svg viewBox="0 0 10 10" aria-hidden="true"><circle class="applied" cx="5" cy="5" r="4" /></svg>board applied
+          </span>
+        </figcaption>
+        <svg
+          class="trace"
+          height={TRACE_HEIGHT}
+          role="img"
+          aria-label={`The level of GPIO ${workbench.tracedPin} over the last ${TRACE_WINDOW_MS / 1000} seconds, with a mark for each line sent and applied`}
+          data-trace
+        >
+          <path class="grid" data-trace-grid />
+          <path class="level" data-trace-level />
+          <path class="sent" data-trace-sent />
+          <path class="applied" data-trace-applied />
+        </svg>
+      </figure>
       <div class="term">
         <pre class="serial" role="log" aria-live="off" aria-label="Serial output" data-serial><span class="out">{
           Array.from({ length: SERIAL_LINES }, () => <span data-serial-line />)
@@ -314,6 +336,15 @@ const id = (part: string) => `workbench-${project}-${part}`;
   .watch dd { margin: 0; padding: 0 4px; border-radius: 4px; font-weight: 700; }
   .watch dd[data-changed] { background: var(--yellow); }
 
+  .scope { margin: 0; padding: 6px 10px 4px; border: 1px solid var(--line); border-radius: 10px; background: var(--chrome-light); }
+  .scope figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .legend { display: inline-flex; align-items: center; gap: 4px; }
+  .legend svg { width: 9px; height: 9px; margin-left: 6px; }
+  .trace { display: block; width: 100%; }
+  .trace .grid { stroke: var(--line); stroke-width: 1; }
+  .trace .level { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
+  .sent { fill: var(--yellow-strong); }
+  .applied { fill: var(--green); }
   .term { background: var(--ink); color: var(--on-ink); border-radius: 12px; font-family: var(--mono); font-size: 13px; overflow: hidden; }
   /* Six lines of 1.5em, as many as serialRows keeps, plus the padding. */
   .serial { margin: 0; padding: 10px 14px 6px; height: calc(6 * 1.5em + 16px); overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; white-space: pre; background: none; color: inherit; border-radius: 0; font-size: 13px; line-height: 1.5; }
@@ -348,6 +379,7 @@ const id = (part: string) => `workbench-${project}-${part}`;
   import type { WatchRow } from '../../lib/workbench/board';
   import type { StepDefinition } from '../../lib/workbench/step';
   import { createTypist } from '../../lib/workbench/typist';
+  import { emptyTrace, recordEffects, traceShape, traceTime, type Trace } from '../../lib/workbench/trace';
   import { changedRows, CLOCK_DASH, clockFace, debuggerControls, serialRows } from './view';
 
   /** How long a watch value stays highlighted after it changes. */
@@ -381,6 +413,19 @@ const id = (part: string) => `workbench-${project}-${part}`;
     const restartButton = root.querySelector<HTMLButtonElement>('[data-restart]')!;
     const slowButton = root.querySelector<HTMLButtonElement>('[data-slow]')!;
     const problem = root.querySelector<HTMLElement>('[data-problem]')!;
+    const traceView = root.querySelector<SVGSVGElement>('[data-trace]')!;
+    const tracePaths = {
+      grid: traceView.querySelector('[data-trace-grid]')!,
+      level: traceView.querySelector('[data-trace-level]')!,
+      sent: traceView.querySelector('[data-trace-sent]')!,
+      applied: traceView.querySelector('[data-trace-applied]')!,
+    };
+    let traceWidth = 0;
+    // With no viewBox the trace is drawn in CSS pixels, so its marks keep their shape at any width.
+    new ResizeObserver(([entry]) => {
+      traceWidth = entry.contentRect.width;
+      draw();
+    }).observe(traceView);
 
     let selected = 0;
     let definition: StepDefinition<unknown, unknown> | undefined;
@@ -390,6 +435,7 @@ const id = (part: string) => `workbench-${project}-${part}`;
     let runner: Runner<unknown> | undefined;
     let view: RunnerView<unknown> | undefined;
     let board: unknown;
+    let trace: Trace = emptyTrace();
     let frame = 0;
     let slow: boolean = OPENING.slow;
     // Whether the visitor wants the sketch running: Pause and Step stop it, Continue and a tab pick start it.
@@ -412,11 +458,15 @@ const id = (part: string) => `workbench-${project}-${part}`;
 
       runner?.dispose();
       board = project!.board.initial();
+      trace = emptyTrace();
       keepRunning = OPENING.running;
       runner = openRunner(
         chosen,
         (next, effects) => {
           board = project!.board.simulate(board, next.state, effects, next.millis);
+          // A line is sent between two lines of the program, part way through the one under way.
+          const sentAt = traceTime(next, runner?.progress() ?? 0, reducedMotion.matches);
+          trace = recordEffects(trace, effects, project!.tracedPin, next.millis, sentAt);
           view = next;
           draw();
         },
@@ -467,10 +517,14 @@ const id = (part: string) => `workbench-${project}-${part}`;
         row?.setAttribute('data-running', '');
         if (before !== null) showClock(before.querySelector('[data-pie]'), { waiting: false, fill: 0 });
       }
-      const face = clockFace(view, runner?.progress() ?? 0, reducedMotion.matches);
+      const progress = runner?.progress() ?? 0;
+      const face = clockFace(view, progress, reducedMotion.matches);
       showClock(row?.querySelector('[data-pie]') ?? null, face);
-      // The clock fills between the runner's notifications, so it is painted on every frame while it waits.
-      if (face.waiting && !reducedMotion.matches) draw();
+      const shape = traceShape(trace, traceTime(view, progress, reducedMotion.matches), traceWidth);
+      for (const [part, path] of Object.entries(tracePaths)) path.setAttribute('d', shape[part as keyof typeof shape]);
+      // The clock fills and the trace scrolls between the runner's notifications, so they are painted on every frame.
+      const moving = view.status === 'running' && (face.waiting || view.cost > 0);
+      if (moving && !reducedMotion.matches) draw();
     }
 
     /** Marks a watch value that just changed for a moment. */
@@ -586,6 +640,7 @@ const id = (part: string) => `workbench-${project}-${part}`;
     restartButton.addEventListener('click', () => {
       if (runner === undefined) return;
       board = project!.board.initial();
+      trace = emptyTrace();
       resetWatch();
       clearCommandLine();
       runner.restart();

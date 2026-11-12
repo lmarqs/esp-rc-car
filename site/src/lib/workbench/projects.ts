@@ -2,17 +2,20 @@ import { blinkBoard, type BlinkBoard } from './blinkBoard';
 import type { BoardModel } from './board';
 import { createRunner, type Effect, type RealClock, type Runner, type RunnerView } from './simulator';
 import type { StepDefinition } from './step';
-import { blinkSteps, type BlinkEvent, type BlinkState } from './steps/blink';
+import { blinkSteps, LED_PIN, type BlinkEvent, type BlinkState } from './steps/blink';
 
 /** A project the workbench can show: its steps, in the order of the project's ladder, and its board. */
 export interface WorkbenchProject<S, E, B> {
   readonly steps: readonly StepDefinition<S, E>[];
   readonly board: BoardModel<E, B, S>;
+  /** The GPIO whose level the trace shows. */
+  readonly tracedPin: number;
 }
 
 export const blinkWorkbench: WorkbenchProject<BlinkState, BlinkEvent, BlinkBoard> = {
   steps: blinkSteps,
   board: blinkBoard,
+  tracedPin: LED_PIN,
 };
 
 // Each project has its own state, line meaning and board, which only that project's steps and board use together.
