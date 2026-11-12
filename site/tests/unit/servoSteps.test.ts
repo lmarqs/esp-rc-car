@@ -49,9 +49,9 @@ function stepUntil(runner: Runner<ServoState>, line: string, maxSteps = 500): vo
 /** The first line of `loop()` each step comes back to between passes. */
 const LOOP_START: Record<string, string> = {
   'servo/sweep': 'for (int angle = 0; angle <= 180; angle += 1) {',
-  'servo/angle': 'if (Serial.available()) {',
-  'servo/commands': 'while (Serial.available()) {',
-  'servo/speed': 'while (Serial.available()) {',
+  'servo/angle': 'if (input.ready()) {',
+  'servo/commands': 'while (input.ready()) {',
+  'servo/speed': 'while (input.ready()) {',
 };
 
 /** What `step` printed after setup in answer to each of `inputs`, sent one at a time, stepping line by line. */
@@ -111,7 +111,7 @@ describe('line references', () => {
   });
 
   it.each(scenarios)(
-    '$key: every statement from setup() on is named, but those taking one character and the bare } else {',
+    '$key: every statement from setup() on is named, but the bare } else {',
     (step, inputs) => {
       const source = readStepSource(step.sketch);
       const named = new Set(
@@ -121,12 +121,12 @@ describe('line references', () => {
       const setupAt = lines.findIndex((line) => line.trim() === 'void setup() {');
       const unnamed = lines
         .map((text, index) => ({ text: text.trim(), number: index + 1 }))
-        .filter(({ text, number }) => number > setupAt + 1 && text !== '' && !/^\}?$|^void \w+\(\) \{$/.test(text))
+        .filter(({ text, number }) => number > setupAt + 1 && text !== '' && !/^\}?$|^(static )?void \w+\([^)]*\) \{$/.test(text))
         .filter(({ number }) => !named.has(number))
         .map(({ text }) => text);
       const unnamedIn: Record<string, string[]> = {
-        'servo/commands': ['line += c;', 'continue;', '} else {'],
-        'servo/speed': ['line += c;', 'continue;', '} else {', '} else {'],
+        'servo/commands': ['} else {'],
+        'servo/speed': ['} else {', '} else {'],
       };
       expect(unnamed).toEqual(unnamedIn[step.key] ?? []);
     },
@@ -144,7 +144,7 @@ describe('line references', () => {
 
   it('names both copies of the lines sweep holds twice', () => {
     const lines = [...visitedLines(servoSweep, [], 6000).keys()];
-    for (const text of ['servo.write(angle);', 'Serial.println(angle);', 'delay(15);']) {
+    for (const text of ['servo.write(angle);', 'output.println(angle);', 'delay(15);']) {
       expect(lines).toContain(`${text}#1`);
       expect(lines).toContain(`${text}#2`);
     }
@@ -537,7 +537,7 @@ describe('the cost of a pass through loop()', () => {
 
   it('is the idle time while nothing moves: 250 ms when stepping, 25 ms at full speed', () => {
     const { runner } = start(servoCommands);
-    stepUntil(runner, 'while (Serial.available()) {');
+    stepUntil(runner, 'while (input.ready()) {');
     expect(runner.view().cost).toBe(250);
     runner.setSlow(false);
     runner.run();
@@ -547,17 +547,17 @@ describe('the cost of a pass through loop()', () => {
 
   it('is the idle time at most while a slow move waits, and the rest of the wait as the move falls due', () => {
     const { runner } = start(servoSpeed);
-    stepUntil(runner, 'while (Serial.available()) {');
+    stepUntil(runner, 'while (input.ready()) {');
     runner.send('speed 1');
     runner.send('angle 92');
-    stepUntil(runner, 'Serial.println(angle);');
-    stepUntil(runner, 'while (Serial.available()) {');
+    stepUntil(runner, 'output.println(angle);');
+    stepUntil(runner, 'while (input.ready()) {');
     expect(runner.view().cost).toBe(250);
     const moved = runner.view().millis;
     for (let pass = 0; pass < 4; pass++) {
       expect(runner.view().cost).toBe(Math.min(250, moved + 1000 - runner.view().millis));
       runner.step();
-      stepUntil(runner, 'while (Serial.available()) {');
+      stepUntil(runner, 'while (input.ready()) {');
     }
     expect(runner.view().millis).toBe(moved + 1000);
   });

@@ -14,8 +14,8 @@ import {
   type BlinkStep,
 } from '../../src/lib/workbench/steps/blink';
 
-const IF_AVAILABLE = 'if (Serial.available()) {';
-const WHILE_AVAILABLE = 'while (Serial.available()) {';
+const IF_AVAILABLE = 'if (input.ready()) {';
+const WHILE_AVAILABLE = 'while (input.ready()) {';
 const TIMER_GUARD = 'if (millis() - lastToggle >= blinkDelay) {';
 const COMMANDS_GUARD = 'if (!paused && millis() - lastToggle >= blinkDelay) {';
 
@@ -79,7 +79,7 @@ describe('line references', () => {
     expect(missing).toEqual([]);
   });
 
-  it.each(scenarios)('$key: every statement of the .ino is named, but the ones taking one character', (step, inputs) => {
+  it.each(scenarios)('$key: every statement of the .ino is named', (step, inputs) => {
     const source = readStepSource(step.sketch);
     const named = new Set(
       [...visitedLines(step, inputs).values()].filter((number): number is number => number !== undefined),
@@ -88,11 +88,10 @@ describe('line references', () => {
     const setupAt = lines.findIndex((line) => line.trim() === 'void setup() {');
     const unnamed = lines
       .map((text, index) => ({ text: text.trim(), number: index + 1 }))
-      .filter(({ text, number }) => number > setupAt + 1 && text !== '' && !/^\}?$|^void \w+\(\) \{$/.test(text))
+      .filter(({ text, number }) => number > setupAt + 1 && text !== '' && !/^\}?$|^(static )?void \w+\([^)]*\) \{$/.test(text))
       .filter(({ number }) => !named.has(number))
       .map(({ text }) => text);
-    const perCharacter = step === blinkTimer || step === blinkCommands ? ['line += c;', 'continue;'] : [];
-    expect(unnamed).toEqual(perCharacter);
+    expect(unnamed).toEqual([]);
   });
 
   it('names both delays of a sketch that has two with the same text', () => {
@@ -158,7 +157,7 @@ describe('the four steps', () => {
 
   it.each(blinkSteps)('$key prints a blank line, then its name, as setup() does', (step) => {
     const { runner, printed } = start(step);
-    stepUntil(runner, step === blinkSimple ? 'Serial.println("HIGH");' : (step === blinkInput ? IF_AVAILABLE : WHILE_AVAILABLE));
+    stepUntil(runner, step === blinkSimple ? 'output.println("HIGH");' : (step === blinkInput ? IF_AVAILABLE : WHILE_AVAILABLE));
     expect(printed.map((line) => line.text)).toEqual(['', `sketch ${step.key}`]);
     expect(step.parse(printed[0].text)).toBeUndefined();
     expect(step.parse(printed[1].text)).toEqual({ kind: 'sketch', key: step.key });
@@ -197,20 +196,20 @@ describe('blink/simple', () => {
 
   it('runs the lines of loop() in the order of the sketch', () => {
     const { runner } = start(blinkSimple);
-    stepUntil(runner, 'Serial.println("HIGH");');
+    stepUntil(runner, 'output.println("HIGH");');
     const lines: (string | undefined)[] = [];
     for (let i = 0; i < 7; i++) {
       lines.push(runner.view().line);
       runner.step();
     }
     expect(lines).toEqual([
-      'Serial.println("HIGH");',
+      'output.println("HIGH");',
       'led.write(HIGH);',
       'delay(1000);',
-      'Serial.println("LOW");',
+      'output.println("LOW");',
       'led.write(LOW);',
       'delay(1000);',
-      'Serial.println("HIGH");',
+      'output.println("HIGH");',
     ]);
   });
 });
@@ -238,7 +237,7 @@ describe('the sketches that read one number per pass or per drain', () => {
   ];
 
   describe.each([
-    [blinkInput, 'Serial.println("HIGH");'],
+    [blinkInput, 'output.println("HIGH");'],
     [blinkTimer, TIMER_GUARD],
   ] as const)('$key', (step, stopLine) => {
     it.each(numberCases)('answers %j with %j', (text, expected) => {
@@ -276,7 +275,7 @@ describe('blink/input', () => {
   beforeEach(() => void vi.useFakeTimers());
   afterEach(() => void vi.useRealTimers());
 
-  it('reads a sent number only when the arrow returns to the Serial.available() line', () => {
+  it('reads a sent number only when the arrow returns to the input.ready() line', () => {
     const { runner } = start(blinkInput);
     stepUntil(runner, 'delay(blinkDelay);');
     runner.send('300');
@@ -289,14 +288,14 @@ describe('blink/input', () => {
     }
     expect(executed).toEqual([
       'delay(blinkDelay);',
-      'Serial.println("LOW");',
+      'output.println("LOW");',
       'led.write(LOW);',
       'delay(blinkDelay);',
       IF_AVAILABLE,
-      "String line = Serial.readStringUntil('\\n');",
+      'String line = input.take();',
     ]);
     expect(runner.view().state.blinkDelay).toBe(1000);
-    stepUntil(runner, 'Serial.println("HIGH");');
+    stepUntil(runner, 'output.println("HIGH");');
     expect(runner.view().state.blinkDelay).toBe(300);
   });
 
@@ -463,7 +462,7 @@ describe('the cost of a pass through loop()', () => {
   ] as const)('$key: 250 ms of simulated time while slow, with each line lasting 500 ms', (step, guard) => {
     const { runner } = start(step, { slow: true });
     runner.run();
-    vi.advanceTimersByTime(2000);
+    vi.advanceTimersByTime(1000);
     expect(runner.view()).toMatchObject({ line: WHILE_AVAILABLE, millis: 0, pace: 'slow', duration: 500 });
     vi.advanceTimersByTime(500);
     expect(runner.view()).toMatchObject({ line: guard, millis: 250 });
@@ -513,10 +512,10 @@ describe('the LED pin', () => {
     return writes;
   }
 
-  // One pass: setup's four lines, then simple's six lines of loop() and input's seven.
+  // One pass: setup's two lines, then simple's six lines of loop() and input's seven.
   it.each([
-    [blinkSimple, 10],
-    [blinkInput, 11],
+    [blinkSimple, 8],
+    [blinkInput, 9],
   ])('%#: changes at the led.write line, not at the print before it', (step, lines) => {
     expect(pinWrites(step, lines)).toEqual([`led.write(HIGH); ${LED_PIN} true`, `led.write(LOW); ${LED_PIN} false`]);
   });

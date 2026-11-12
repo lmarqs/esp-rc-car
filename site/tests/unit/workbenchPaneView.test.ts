@@ -78,7 +78,7 @@ describe('paneView', () => {
 
 describe('paneMotion', () => {
   it('keeps moving while the simulator runs a waiting line, and rests once it is paused', () => {
-    const { simulation, snapshot } = simulated(3000, SIMPLE);
+    const { simulation, snapshot } = simulated(2500, SIMPLE);
     expect(paneMotion(blink, pane(), snapshot, 0, 300, false)).toMatchObject({ clock: { waiting: true }, moving: true });
     simulation.toggle();
     const paused = simulation.snapshot() as Snapshot<unknown, BlinkBoard>;
@@ -93,7 +93,7 @@ describe('paneMotion', () => {
   });
 
   it('fills the clock at once under reduced motion', () => {
-    const { snapshot } = simulated(3000, SIMPLE);
+    const { snapshot } = simulated(2500, SIMPLE);
     expect(paneMotion(blink, pane(), snapshot, 0, 300, true).clock).toEqual({ waiting: true, fill: 1 });
   });
 });

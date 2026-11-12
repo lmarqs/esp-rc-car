@@ -1,9 +1,12 @@
 #include <Arduino.h>
 #include <ledc_pin.h>
+#include <serial_io.h>
 #include <servo.h>
 
 EspLedcOutPin servoPin(13, 50, 16);
 PositionalServo servo(&servoPin);
+SerialInput input;
+SerialOutput output;
 
 static bool isNumber(String text, int low, int high) {
   if (text.length() < 1 || text.length() > 3) {
@@ -19,26 +22,23 @@ static bool isNumber(String text, int low, int high) {
 
 static void writeAngle(int value) {
   servo.write(value);
-  Serial.print("angle ");
-  Serial.println(value);
+  output.print("angle ");
+  output.println(value);
 }
 
 void setup() {
-  Serial.begin(115200);
-  Serial.println();
-  Serial.println("sketch servo/angle");
+  output.begin("servo/angle");
   servo.begin();
   writeAngle(90);
 }
 
 void loop() {
-  if (Serial.available()) {
-    String line = Serial.readStringUntil('\n');
-    line.trim();
+  if (input.ready()) {
+    String line = input.take();
     if (isNumber(line, 0, 180)) {
       writeAngle(line.toInt());
     } else if (line.length() > 0) {
-      Serial.println("error angle must be 0-180");
+      output.println("error angle must be 0-180");
     }
   }
 }

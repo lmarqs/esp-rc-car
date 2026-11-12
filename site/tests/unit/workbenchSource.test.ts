@@ -89,7 +89,7 @@ describe('the real ladders', () => {
       expect(number).toBeLessThanOrEqual(inputLines.length);
       expect(inputLines[number - 1]).not.toBe(simpleLines[number - 1]);
     }
-    expect(added).toContain(lineNumber(input, 'if (Serial.available()) {'));
+    expect(added).toContain(lineNumber(input, 'if (input.ready()) {'));
     // Writing the LED is shared with simple.ino, so it is not new; the delay it waits now is.
     expect(added).not.toContain(lineNumber(input, 'led.write(HIGH);'));
     expect(added).toContain(lineNumber(input, 'delay(blinkDelay);'));

@@ -71,8 +71,8 @@ const setup = (board: Board<ServoState>, key: string) => setupWith(board, key, '
 /** The body of `angle`'s `writeAngle(value)`: the servo, then the angle. */
 function* writeDegrees(board: Board<ServoState>, degrees: number): Generator<Operation, void, undefined> {
   yield op('servo.write(value);', () => board.turn(SERVO_PIN, degrees));
-  yield op('Serial.print("angle ");');
-  yield op('Serial.println(value);', () => board.print(`angle ${degrees}`));
+  yield op('output.print("angle ");');
+  yield op('output.println(value);', () => board.print(`angle ${degrees}`));
 }
 
 /** The body of `commands`' and `speed`'s `writeAngle(value)`, which keep the angle in `angle`. */
@@ -80,8 +80,8 @@ function* writeKept(board: Board<ServoState>, degrees: number): Generator<Operat
   const state = board.state;
   yield op('angle = value;', () => (state.angle = degrees));
   yield op('servo.write(angle);', () => board.turn(SERVO_PIN, state.angle));
-  yield op('Serial.print("angle ");');
-  yield op('Serial.println(angle);', () => board.print(`angle ${state.angle}`));
+  yield op('output.print("angle ");');
+  yield op('output.println(angle);', () => board.print(`angle ${state.angle}`));
 }
 
 /** One of `sweep`'s two `for` loops: `header` is its line, and `occurrence` tells its body's lines from the other's. */
@@ -98,8 +98,8 @@ function* sweepOnce(
     yield op(header);
     if (!holds(angle)) return;
     yield op(at('servo.write(angle);'), () => board.turn(SERVO_PIN, angle));
-    yield op(at('Serial.print("angle ");'));
-    yield op(at('Serial.println(angle);'), () => board.print(`angle ${angle}`));
+    yield op(at('output.print("angle ");'));
+    yield op(at('output.println(angle);'), () => board.print(`angle ${angle}`));
     yield waitOp(at('delay(15);'), SWEEP_DELAY);
   }
 }
@@ -122,18 +122,17 @@ const angle: Sketch<ServoState> = {
     yield op('writeAngle(90);');
     yield* writeDegrees(board, SETUP_ANGLE);
     for (;;) {
-      yield op('if (Serial.available()) {', undefined, passCost(board));
+      yield op('if (input.ready()) {', undefined, passCost(board));
       if (!board.available()) continue;
       let line = '';
-      yield op("String line = Serial.readStringUntil('\\n');", () => (line = board.read() ?? ''));
-      yield op('line.trim();', () => (line = trim(line)));
+      yield op('String line = input.take();', () => (line = trim(board.read() ?? '')));
       yield op('if (isNumber(line, 0, 180)) {');
       if (isNumber(line, 0, MAX_ANGLE)) {
         yield op('writeAngle(line.toInt());');
         yield* writeDegrees(board, toInt(line));
       } else {
         yield op('} else if (line.length() > 0) {');
-        if (line.length > 0) yield op(`Serial.println("${ANGLE_ERROR}");`, () => board.print(ANGLE_ERROR));
+        if (line.length > 0) yield op(`output.println("${ANGLE_ERROR}");`, () => board.print(ANGLE_ERROR));
       }
     }
   },
@@ -150,17 +149,17 @@ function* sweepOrStop(
   if (line === 'sweep') {
     yield op('if (!sweeping) {');
     if (!board.state.sweeping) yield* startSweep;
-    yield op('Serial.println("sweeping");', () => board.print('sweeping'));
+    yield op('output.println("sweeping");', () => board.print('sweeping'));
     return;
   }
   yield op('} else if (line == "stop") {');
   if (line === 'stop') {
     yield* stop;
-    yield op('Serial.println("stopped");', () => board.print('stopped'));
+    yield op('output.println("stopped");', () => board.print('stopped'));
     return;
   }
   yield op('} else if (line.length() > 0) {');
-  if (line.length > 0) yield op(`Serial.println("${UNKNOWN_COMMAND}");`, () => board.print(UNKNOWN_COMMAND));
+  if (line.length > 0) yield op(`output.println("${UNKNOWN_COMMAND}");`, () => board.print(UNKNOWN_COMMAND));
 }
 
 const commands: Sketch<ServoState> = {
@@ -172,7 +171,7 @@ const commands: Sketch<ServoState> = {
     yield* writeKept(board, state.angle);
     const cost = passCost(board, (s) => (s.sweeping ? s.lastStep + SWEEP_DELAY : undefined));
     for (;;) {
-      yield* readCommands(board, cost, function* (line) {
+      yield* readCommands(board, cost, 'runCommand(input.take());', function* (line) {
         yield op('if (line.startsWith("angle ")) {');
         if (line.startsWith('angle ')) {
           let text = '';
@@ -183,7 +182,7 @@ const commands: Sketch<ServoState> = {
             yield op('writeAngle(text.toInt());');
             yield* writeKept(board, toInt(text));
           } else {
-            yield op(`Serial.println("${ANGLE_ERROR}");`, () => board.print(ANGLE_ERROR));
+            yield op(`output.println("${ANGLE_ERROR}");`, () => board.print(ANGLE_ERROR));
           }
           return;
         }
@@ -233,7 +232,7 @@ const speed: Sketch<ServoState> = {
     const cost = passCost(board, (s) => (moving(s) ? (s.lastMove + moveInterval(s)) / 1000 : undefined));
     const sweepEnd = () => (state.target = state.angle === MAX_ANGLE ? 0 : MAX_ANGLE);
     for (;;) {
-      yield* readCommands(board, cost, function* (line) {
+      yield* readCommands(board, cost, 'runCommand(input.take());', function* (line) {
         yield op('if (line.startsWith("angle ")) {');
         if (line.startsWith('angle ')) {
           let text = '';
@@ -242,10 +241,10 @@ const speed: Sketch<ServoState> = {
           if (isNumber(text, 0, MAX_ANGLE)) {
             yield op('sweeping = false;', () => (state.sweeping = false));
             yield op('target = text.toInt();', () => (state.target = toInt(text)));
-            yield op('Serial.print("target ");');
-            yield op('Serial.println(target);', () => board.print(`target ${state.target}`));
+            yield op('output.print("target ");');
+            yield op('output.println(target);', () => board.print(`target ${state.target}`));
           } else {
-            yield op(`Serial.println("${ANGLE_ERROR}");`, () => board.print(ANGLE_ERROR));
+            yield op(`output.println("${ANGLE_ERROR}");`, () => board.print(ANGLE_ERROR));
           }
           return;
         }
@@ -256,10 +255,10 @@ const speed: Sketch<ServoState> = {
           yield op('if (isNumber(text, 1, 360)) {');
           if (isNumber(text, MIN_SPEED, MAX_SPEED)) {
             yield op('speed = text.toInt();', () => (state.speed = toInt(text)));
-            yield op('Serial.print("speed ");');
-            yield op('Serial.println(speed);', () => board.print(`speed ${state.speed}`));
+            yield op('output.print("speed ");');
+            yield op('output.println(speed);', () => board.print(`speed ${state.speed}`));
           } else {
-            yield op(`Serial.println("${SPEED_ERROR}");`, () => board.print(SPEED_ERROR));
+            yield op(`output.println("${SPEED_ERROR}");`, () => board.print(SPEED_ERROR));
           }
           return;
         }

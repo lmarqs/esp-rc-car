@@ -416,7 +416,7 @@ test.describe('back to the board', () => {
       await expect(statusLine(page)).toHaveText(`Live: ${sentence}`);
       await expect(runningRow(page)).toHaveAttribute(
         'data-line',
-        String(lineNumber(source('input'), 'Serial.begin(115200);')),
+        String(lineNumber(source('input'), 'output.begin("blink/input");')),
       );
       // Pause and Step leave the simulator paused; Restart, as in the simulator, keeps it running.
       await expect(debuggerButton(page, pressed === 'Restart' ? 'Pause' : 'Continue')).toBeVisible();

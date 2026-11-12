@@ -38,10 +38,10 @@ const constrain = (value: number, low: number, high: number): number => Math.min
 /** What `setup()` does: a blank line, the sketch's name, then the LED pin. */
 const setup = (board: Board<BlinkState>, key: string) => setupWith(board, key, 'led.begin();');
 
-/** The lines `Serial.print("delay "); Serial.println(blinkDelay);` write as one line. */
+/** The lines `output.print("delay "); output.println(blinkDelay);` write as one line. */
 function* announceDelay(board: Board<BlinkState>): Generator<Operation, void, undefined> {
-  yield op('Serial.print("delay ");');
-  yield op('Serial.println(blinkDelay);', () => board.print(`delay ${board.state.blinkDelay}`));
+  yield op('output.print("delay ");');
+  yield op('output.println(blinkDelay);', () => board.print(`delay ${board.state.blinkDelay}`));
 }
 
 const simple: Sketch<BlinkState> = {
@@ -50,13 +50,13 @@ const simple: Sketch<BlinkState> = {
     const state = board.state;
     yield* setup(board, 'blink/simple');
     for (;;) {
-      yield op('Serial.println("HIGH");', () => board.print('HIGH'));
+      yield op('output.println("HIGH");', () => board.print('HIGH'));
       yield op('led.write(HIGH);', () => {
         state.ledOn = true;
         board.write(LED_PIN, true);
       });
       yield waitOp('delay(1000);', DEFAULT_DELAY);
-      yield op('Serial.println("LOW");', () => board.print('LOW'));
+      yield op('output.println("LOW");', () => board.print('LOW'));
       yield op('led.write(LOW);', () => {
         state.ledOn = false;
         board.write(LED_PIN, false);
@@ -73,11 +73,10 @@ const input: Sketch<BlinkState> = {
     yield* setup(board, 'blink/input');
     for (;;) {
       // One line per pass: the line is read only when the arrow comes back here, after both delays.
-      yield op('if (Serial.available()) {');
+      yield op('if (input.ready()) {');
       if (board.available()) {
         let line = '';
-        yield op("String line = Serial.readStringUntil('\\n');", () => (line = board.read() ?? ''));
-        yield op('line.trim();', () => (line = trim(line)));
+        yield op('String line = input.take();', () => (line = trim(board.read() ?? '')));
         yield op('if (isDigit(line[0])) {');
         if (isDigit(line[0])) {
           yield op('blinkDelay = constrain(line.toInt(), 100, 2000);', () => {
@@ -86,13 +85,13 @@ const input: Sketch<BlinkState> = {
           yield* announceDelay(board);
         }
       }
-      yield op('Serial.println("HIGH");', () => board.print('HIGH'));
+      yield op('output.println("HIGH");', () => board.print('HIGH'));
       yield op('led.write(HIGH);', () => {
         state.ledOn = true;
         board.write(LED_PIN, true);
       });
       yield waitOp('delay(blinkDelay);', () => state.blinkDelay);
-      yield op('Serial.println("LOW");', () => board.print('LOW'));
+      yield op('output.println("LOW");', () => board.print('LOW'));
       yield op('led.write(LOW);', () => {
         state.ledOn = false;
         board.write(LED_PIN, false);
@@ -116,7 +115,7 @@ function* toggleWhenDue(
   if (!due(state, board.millis())) return;
   yield op('lastToggle = millis();', () => (state.lastToggle = board.millis()));
   yield op('ledOn = !ledOn;', () => (state.ledOn = !state.ledOn));
-  yield op('Serial.println(ledOn ? "HIGH" : "LOW");', () => board.print(state.ledOn ? 'HIGH' : 'LOW'));
+  yield op('output.println(ledOn ? "HIGH" : "LOW");', () => board.print(state.ledOn ? 'HIGH' : 'LOW'));
   yield op('led.write(ledOn);', () => board.write(LED_PIN, state.ledOn));
 }
 
@@ -130,7 +129,7 @@ const timer: Sketch<BlinkState> = {
     const state = board.state;
     yield* setup(board, 'blink/timer');
     for (;;) {
-      yield* readCommands(board, togglePassCost(board), function* (line) {
+      yield* readCommands(board, togglePassCost(board), 'String line = input.take();', function* (line) {
         yield op('if (isDigit(line[0])) {');
         if (isDigit(line[0])) {
           yield op('blinkDelay = constrain(line.toInt(), 100, 2000);', () => {
@@ -154,17 +153,17 @@ const commands: Sketch<BlinkState> = {
     const state = board.state;
     yield* setup(board, 'blink/commands');
     for (;;) {
-      yield* readCommands(board, togglePassCost(board), function* (line) {
+      yield* readCommands(board, togglePassCost(board), 'runCommand(input.take());', function* (line) {
         yield op('if (line == "pause") {');
         if (line === 'pause') {
           yield op('paused = true;', () => (state.paused = true));
-          yield op('Serial.println("paused");', () => board.print('paused'));
+          yield op('output.println("paused");', () => board.print('paused'));
           return;
         }
         yield op('} else if (line == "run") {');
         if (line === 'run') {
           yield op('paused = false;', () => (state.paused = false));
-          yield op('Serial.println("running");', () => board.print('running'));
+          yield op('output.println("running");', () => board.print('running'));
           return;
         }
         yield op('} else if (line.startsWith("delay ") && isDigit(line[6])) {');
@@ -177,8 +176,8 @@ const commands: Sketch<BlinkState> = {
         }
         yield op('} else if (line.length() > 0) {');
         if (line.length > 0) {
-          yield op('Serial.print("? ");');
-          yield op('Serial.println(line);', () => board.print(`? ${line}`));
+          yield op('output.print("? ");');
+          yield op('output.println(line);', () => board.print(`? ${line}`));
         }
       });
       yield* toggleWhenDue(
@@ -265,7 +264,7 @@ export const blinkInput: BlinkStep = {
   program: input,
   shortcuts: [delaySlider((ms) => String(ms))],
   placeholder: 'a number, then Enter',
-  hint: 'Send a number: the board reads it only when it is back at the Serial.available() line, after both delays, so the blink under way keeps the old pace.',
+  hint: 'Send a number: the board reads it only when it is back at the input.ready() line, after both delays, so the blink under way keeps the old pace.',
   live: liveDelay,
   parse: parseBlinkLine,
   liveLine: delayAfterWrite('delay(blinkDelay);'),

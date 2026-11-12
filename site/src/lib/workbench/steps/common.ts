@@ -18,36 +18,35 @@ export function passCost<S>(board: Board<S>, due?: (state: S) => number | undefi
   };
 }
 
-/** What every step's `setup()` does: a blank line, the sketch's name, then `begin`, the line that starts its output. */
+/** What every step's `setup()` does: `output.begin` prints a blank line and the sketch's name, then `begin` runs. */
 export function* setup(
   board: Pick<Board<unknown>, 'print'>,
   key: string,
   begin: string,
 ): Generator<Operation, void, undefined> {
-  yield op('Serial.begin(115200);');
-  yield op('Serial.println();', () => board.print(''));
-  yield op(`Serial.println("sketch ${key}");`, () => board.print(`sketch ${key}`));
+  yield op(`output.begin("${key}");`, () => {
+    board.print('');
+    board.print(`sketch ${key}`);
+  });
   yield op(begin);
 }
 
 /**
- * The start of a pass in a sketch that takes commands: the board reads the lines sent, one whole line at a time where
- * the board reads a character at a time, since the visitor sends whole lines, and `handle` runs the branches the
- * sketch takes for each. The pass is priced at `cost` where it starts; the checks after each line read cost nothing.
+ * The start of a pass in a sketch that takes commands: while `input.ready()`, the board takes a line at `take`, the
+ * line that calls `input.take()`, and `handle` runs the branches the sketch takes for it. The pass is priced at `cost`
+ * where it starts; the checks after each line cost nothing.
  */
 export function* readCommands<S>(
   board: Board<S>,
   cost: Cost,
+  take: string,
   handle: (line: string) => Generator<Operation, void, undefined>,
 ): Generator<Operation, void, undefined> {
-  yield op('while (Serial.available()) {', undefined, cost);
+  yield op('while (input.ready()) {', undefined, cost);
   while (board.available()) {
     let line = '';
-    yield op('char c = Serial.read();', () => (line = board.read() ?? ''));
-    yield op("if (c != '\\n') {");
-    yield op('line.trim();', () => (line = trim(line)));
+    yield op(take, () => (line = trim(board.read() ?? '')));
     yield* handle(line);
-    yield op('line = "";');
-    yield op('while (Serial.available()) {');
+    yield op('while (input.ready()) {');
   }
 }

@@ -24,7 +24,7 @@ describe('the simulation', () => {
   it('opens running in slow mode, with the LED off', () => {
     expect(OPENING).toEqual({ slow: true, running: true });
     const { simulation } = opened();
-    expect(simulation.view).toMatchObject({ status: 'running', slow: true, line: 'Serial.begin(115200);' });
+    expect(simulation.view).toMatchObject({ status: 'running', slow: true, line: 'output.begin("blink/simple");' });
     expect(simulation.board.ledOn).toBe(false);
   });
 

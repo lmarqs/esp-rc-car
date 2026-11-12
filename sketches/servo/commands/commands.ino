@@ -1,14 +1,16 @@
 #include <Arduino.h>
 #include <ledc_pin.h>
+#include <serial_io.h>
 #include <servo.h>
 
 EspLedcOutPin servoPin(13, 50, 16);
 PositionalServo servo(&servoPin);
+SerialInput input;
+SerialOutput output;
 int angle = 90;
 int step = 1;
 bool sweeping = false;
 unsigned long lastStep = 0;
-String line;
 
 static bool isNumber(String text, int low, int high) {
   if (text.length() < 1 || text.length() > 3) {
@@ -25,47 +27,42 @@ static bool isNumber(String text, int low, int high) {
 static void writeAngle(int value) {
   angle = value;
   servo.write(angle);
-  Serial.print("angle ");
-  Serial.println(angle);
+  output.print("angle ");
+  output.println(angle);
 }
 
 void setup() {
-  Serial.begin(115200);
-  Serial.println();
-  Serial.println("sketch servo/commands");
+  output.begin("servo/commands");
   servo.begin();
   writeAngle(angle);
 }
 
-void loop() {
-  while (Serial.available()) {
-    char c = Serial.read();
-    if (c != '\n') {
-      line += c;
-      continue;
-    }
-    line.trim();
-    if (line.startsWith("angle ")) {
-      String text = line.substring(6);
-      if (isNumber(text, 0, 180)) {
-        sweeping = false;
-        writeAngle(text.toInt());
-      } else {
-        Serial.println("error angle must be 0-180");
-      }
-    } else if (line == "sweep") {
-      if (!sweeping) {
-        sweeping = true;
-        step = 1;
-      }
-      Serial.println("sweeping");
-    } else if (line == "stop") {
+static void runCommand(String line) {
+  if (line.startsWith("angle ")) {
+    String text = line.substring(6);
+    if (isNumber(text, 0, 180)) {
       sweeping = false;
-      Serial.println("stopped");
-    } else if (line.length() > 0) {
-      Serial.println("error unknown command");
+      writeAngle(text.toInt());
+    } else {
+      output.println("error angle must be 0-180");
     }
-    line = "";
+  } else if (line == "sweep") {
+    if (!sweeping) {
+      sweeping = true;
+      step = 1;
+    }
+    output.println("sweeping");
+  } else if (line == "stop") {
+    sweeping = false;
+    output.println("stopped");
+  } else if (line.length() > 0) {
+    output.println("error unknown command");
+  }
+}
+
+void loop() {
+  while (input.ready()) {
+    runCommand(input.take());
   }
   if (sweeping && millis() - lastStep >= 15) {
     lastStep = millis();

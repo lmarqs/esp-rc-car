@@ -1,20 +1,20 @@
 #include <Arduino.h>
 #include <digital_pin.h>
+#include <serial_io.h>
 
 DigitalOutPin led(2);
+SerialOutput output;
 
 void setup() {
-  Serial.begin(115200);
-  Serial.println();
-  Serial.println("sketch blink/simple");
+  output.begin("blink/simple");
   led.begin();
 }
 
 void loop() {
-  Serial.println("HIGH");
+  output.println("HIGH");
   led.write(HIGH);
   delay(1000);
-  Serial.println("LOW");
+  output.println("LOW");
   led.write(LOW);
   delay(1000);
 }

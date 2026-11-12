@@ -168,11 +168,11 @@ test.describe('the Blink workbench', () => {
     const simple = source('sketches/blink/simple');
     await expect(visibleCode(page).locator('[data-running]')).toHaveAttribute(
       'data-line',
-      String(lineNumber(simple, 'Serial.begin(115200);')),
+      String(lineNumber(simple, 'output.begin("blink/simple");')),
     );
     await expect(serial(page)).toHaveText('');
 
-    await page.clock.runFor(1600);
+    await page.clock.runFor(600);
     await expect(serial(page)).toContainText('sketch blink/simple');
     await expect(serial(page)).not.toContainText('HIGH');
     await expect(watchValue(page, 'LED')).toHaveText('LOW');
@@ -337,17 +337,15 @@ test.describe('the Blink workbench', () => {
     const input = source('sketches/blink/input');
     const at = (text: string, occurrence = 1) => lineNumber(input, text, occurrence)!;
     // Each line in the order Step runs them, what it prints and which watch values it changes.
-    const runs: { line: number; prints?: string; watch?: Record<string, string> }[] = [
-      { line: at('Serial.begin(115200);') },
-      { line: at('Serial.println();'), prints: '' },
-      { line: at('Serial.println("sketch blink/input");'), prints: 'sketch blink/input' },
+    const runs: { line: number; prints?: string | string[]; watch?: Record<string, string> }[] = [
+      { line: at('output.begin("blink/input");'), prints: ['', 'sketch blink/input'] },
       { line: at('led.begin();') },
-      { line: at('if (Serial.available()) {') },
-      { line: at('Serial.println("HIGH");'), prints: 'HIGH' },
+      { line: at('if (input.ready()) {') },
+      { line: at('output.println("HIGH");'), prints: 'HIGH' },
       { line: at('led.write(HIGH);'), watch: { LED: 'HIGH' } },
       // Step runs a whole delay at once, with no real wait.
       { line: at('delay(blinkDelay);') },
-      { line: at('Serial.println("LOW");'), prints: 'LOW' },
+      { line: at('output.println("LOW");'), prints: 'LOW' },
       { line: at('led.write(LOW);'), watch: { LED: 'LOW', measured: '1000 ms' } },
       { line: at('delay(blinkDelay);', 2) },
     ];
@@ -367,7 +365,7 @@ test.describe('the Blink workbench', () => {
       await button(page, 'Step').click();
       await nextFrame(page);
       await expect(runningRow(page)).toHaveAttribute('data-line', String(runs[index + 1].line));
-      if (run.prints !== undefined) output.push(run.prints);
+      if (run.prints !== undefined) output.push(...[run.prints].flat());
       watch = { ...watch, ...run.watch };
       await expectBoard();
     }
@@ -377,7 +375,7 @@ test.describe('the Blink workbench', () => {
   test('Restart starts again from the first line with the output and watch cleared, and keeps on running', async ({
     page,
   }) => {
-    const first = String(lineNumber(source('sketches/blink/simple'), 'Serial.begin(115200);'));
+    const first = String(lineNumber(source('sketches/blink/simple'), 'output.begin("blink/simple");'));
     await page.clock.runFor(5100);
     await expect(serial(page)).toContainText('LOW');
     await expect(watchValue(page, 'measured')).toHaveText('1000 ms');
@@ -388,12 +386,12 @@ test.describe('the Blink workbench', () => {
     await expect(watchValue(page, 'LED')).toHaveText('LOW');
     await expect(watchValue(page, 'measured')).toHaveText('…');
     await expect(button(page, 'Pause')).toBeVisible();
-    await page.clock.runFor(1600);
+    await page.clock.runFor(600);
     await expect(serial(page)).toHaveText('\nsketch blink/simple');
   });
 
   test('Restart stays paused when the visitor had paused', async ({ page }) => {
-    const first = String(lineNumber(source('sketches/blink/simple'), 'Serial.begin(115200);'));
+    const first = String(lineNumber(source('sketches/blink/simple'), 'output.begin("blink/simple");'));
     await page.clock.runFor(2600);
     await button(page, 'Pause').click();
     await button(page, 'Restart').click();
@@ -409,8 +407,8 @@ test.describe('the Blink workbench', () => {
     await freeze(page);
     await button(page, 'Restart').click();
     await expect(led).not.toHaveAttribute('data-changed');
-    // led.write(HIGH) runs at 3000 ms in slow mode.
-    await page.clock.runFor(3050);
+    // led.write(HIGH) runs at 2000 ms in slow mode.
+    await page.clock.runFor(2050);
     await expect(led).toHaveText('HIGH');
     await expect(led).toHaveAttribute('data-changed');
     await expect(led).toHaveCSS('background-color', 'rgb(247, 201, 72)');
@@ -669,8 +667,8 @@ test.describe('the Blink workbench', () => {
     await nextFrame(page);
     expect(await levelPath(page)).toEqual({ now: LOW_Y, rise: undefined });
 
-    // led.write(HIGH) runs at 3000 ms in slow mode; the delay after it then fills for 1000 ms.
-    await page.clock.runFor(3050);
+    // led.write(HIGH) runs at 2000 ms in slow mode; the delay after it then fills for 1000 ms.
+    await page.clock.runFor(2050);
     await expect(watchValue(page, 'LED')).toHaveText('HIGH');
     const width = (await trace(page).boundingBox())!.width;
     const first = await levelPath(page);
@@ -683,7 +681,7 @@ test.describe('the Blink workbench', () => {
     expect(Math.abs(first.rise! - later.rise! - (width * 500) / TRACE_WINDOW_MS)).toBeLessThan(2 * frame);
   });
 
-  test('on input a sent number reaches wait and the live delay only when the arrow is back at Serial.available(), the yellow mark before the green', async ({
+  test('on input a sent number reaches wait and the live delay only when the arrow is back at input.ready(), the yellow mark before the green', async ({
     page,
   }) => {
     const input = source('sketches/blink/input');
@@ -701,19 +699,19 @@ test.describe('the Blink workbench', () => {
     await expect(trace(page).locator('[data-trace-sent]')).toHaveCSS('fill', 'rgb(226, 164, 0)');
 
     // The board runs out both delays first: the line waits in the queue.
-    await runUntilLine(page, at('if (Serial.available()) {'));
+    await runUntilLine(page, at('if (input.ready()) {'));
     await expect(watchValue(page, 'wait')).toHaveText('1000 ms');
     await expect(live).toHaveText('1000');
     expect(await markXs(page, 'applied')).toHaveLength(0);
 
-    await runUntilLine(page, at("String line = Serial.readStringUntil('\\n');"));
+    await runUntilLine(page, at('String line = input.take();'));
     await page.clock.runFor(500);
-    await expect(runningRow(page)).toHaveAttribute('data-line', String(at('line.trim();')));
+    await expect(runningRow(page)).toHaveAttribute('data-line', String(at('if (isDigit(line[0])) {')));
     expect(await markXs(page, 'applied')).toHaveLength(1);
     await expect(trace(page).locator('[data-trace-applied]')).toHaveCSS('fill', 'rgb(46, 158, 107)');
     await expect(watchValue(page, 'wait')).toHaveText('1000 ms');
 
-    await runUntilLine(page, at('Serial.print("delay ");'));
+    await runUntilLine(page, at('output.print("delay ");'));
     await expect(watchValue(page, 'wait')).toHaveText('1500 ms');
     await expect(watchValue(page, 'wait')).toHaveAttribute('data-changed');
     await expect(live).toHaveText('1500');

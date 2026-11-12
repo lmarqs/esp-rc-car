@@ -89,7 +89,7 @@ test.describe('the Servo workbench', () => {
     await stepUntil(page, lineNumber(sweep, 'servo.write(angle);')!);
     await expect(picture(page)).not.toHaveClass(/\bknown\b/);
     await button(page, 'Step').click();
-    await expect(runningRow(page)).toHaveAttribute('data-line', String(lineNumber(sweep, 'Serial.print("angle ");')));
+    await expect(runningRow(page)).toHaveAttribute('data-line', String(lineNumber(sweep, 'output.print("angle ");')));
     await expect(picture(page)).toHaveClass(/\bknown\b/);
     expect(await horn(page)).toBe('0');
     await expect(watchValue(page, 'angle')).toHaveText('0°');
