@@ -5,9 +5,10 @@ import { LED_PIN, type BlinkEvent, type BlinkState } from './steps/blink';
 /** What the Blink workbench shows of the board, built only from the lines the board printed. */
 export interface BlinkBoard {
   readonly ledOn: boolean;
-  /** The interval in milliseconds, as the board last announced it with `delay <n>`. */
-  readonly wait: number;
-  readonly paused: boolean;
+  /** The interval in milliseconds, as the board last announced it with `delay <n>`; `undefined` while unknown. */
+  readonly wait: number | undefined;
+  /** `undefined` while unknown: a real board followed from the middle of its run has not said yet. */
+  readonly paused: boolean | undefined;
   /** When the LED last changed, and the time of the change before it when there was one; oldest first. */
   readonly changes: readonly number[];
 }
@@ -25,6 +26,21 @@ const FIXED_WAIT_STEPS = new Set(['blink/simple']);
 
 export function initialBlinkBoard(): BlinkBoard {
   return { ledOn: false, wait: DEFAULT_WAIT, paused: false, changes: [] };
+}
+
+/**
+ * The board as the page starts following a real board that runs `step`. What the page `known` of that board before
+ * stays true, since only the board's own lines change it; else the interval is known only on the step whose source
+ * fixes it, and whether it is paused only on the steps that cannot pause.
+ */
+export function followBlink(step: string, known?: BlinkBoard): BlinkBoard {
+  const fresh = initialBlinkBoard();
+  if (known !== undefined) return { ...fresh, wait: known.wait, paused: known.paused };
+  return {
+    ...fresh,
+    wait: FIXED_WAIT_STEPS.has(step) ? fresh.wait : undefined,
+    paused: PAUSE_STEPS.has(step) ? undefined : false,
+  };
 }
 
 /**
@@ -79,11 +95,11 @@ export function blinkWatch(step: string, board: BlinkBoard, millis: number | und
   const measured = measuredInterval(board);
   const rows: WatchRow[] = [
     { name: 'LED', value: board.ledOn ? 'HIGH' : 'LOW' },
-    { name: 'wait', value: FIXED_WAIT_STEPS.has(step) ? `${board.wait} ms (fixed)` : `${board.wait} ms` },
+    { name: 'wait', value: board.wait === undefined ? '…' : `${board.wait} ms${FIXED_WAIT_STEPS.has(step) ? ' (fixed)' : ''}` },
     { name: 'measured', value: measured === undefined ? '…' : `${measured} ms` },
   ];
   if (CLOCK_STEPS.has(step)) rows.push({ name: 'millis()', value: millis === undefined ? '…' : String(millis) });
-  if (PAUSE_STEPS.has(step)) rows.push({ name: 'paused', value: String(board.paused) });
+  if (PAUSE_STEPS.has(step)) rows.push({ name: 'paused', value: board.paused === undefined ? '…' : String(board.paused) });
   return rows;
 }
 
@@ -91,9 +107,10 @@ export const blinkBoard: BoardModel<BlinkEvent, BlinkBoard, BlinkState> = {
   fields: BLINK_WATCH_FIELDS,
   steady: ['millis()'],
   initial: initialBlinkBoard,
+  follow: followBlink,
   apply: applyBlinkEvent,
   simulate: simulateBlink,
   watch: blinkWatch,
   lit: (board) => board.ledOn,
-  variable: (board, name) => (name === 'blinkDelay' ? String(board.wait) : undefined),
+  variable: (board, name) => (name === 'blinkDelay' && board.wait !== undefined ? String(board.wait) : undefined),
 };

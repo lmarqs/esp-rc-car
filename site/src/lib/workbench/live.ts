@@ -21,9 +21,16 @@ export interface Followed<B> {
   readonly arrow?: LineRef;
 }
 
-/** The pane as the page starts following a board: what the board shows before it printed anything. */
-export function follow<B>(model: Pick<BoardModel<unknown, B, unknown>, 'initial'>): Followed<B> {
-  return { board: model.initial(), trace: emptyTrace(), output: [], unanswered: [], nextId: 1 };
+/**
+ * The pane as the page starts following a board that runs `step`, before it printed anything: the board as the model
+ * says the page knows it, given what the page `known` of it before.
+ */
+export function follow<B>(
+  model: Pick<BoardModel<unknown, B, unknown>, 'follow'>,
+  step: string,
+  known?: B,
+): Followed<B> {
+  return { board: model.follow(step, known), trace: emptyTrace(), output: [], unanswered: [], nextId: 1 };
 }
 
 const keep = (output: readonly OutputLine[], line: OutputLine) => [...output, line].slice(-MAX_OUTPUT);

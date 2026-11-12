@@ -102,6 +102,48 @@ test.describe('live mode', () => {
     await expect(livePill(page)).toHaveText('500');
   });
 
+  test('keeps the interval the board announced across Back to live', async ({ page, fakeFlasher }) => {
+    await connectTo(page, fakeFlasher, 'blink/input', '2 input', 'Live');
+    // The sketch line means the board just started, with the interval its source sets.
+    await expect(watchValue(page, 'wait')).toHaveText('1000 ms');
+    await fakeFlasher.print('delay 500');
+    await expect(watchValue(page, 'wait')).toHaveText('500 ms');
+
+    await debuggerButton(page, 'Pause').click();
+    await expect(watchValue(page, 'wait')).toHaveText('1000 ms');
+    await boardButton(page).click();
+
+    await expect(boardButton(page)).toHaveAccessibleName('Flash again');
+    await expect(watchValue(page, 'wait')).toHaveText('500 ms');
+    await expect(livePill(page)).toHaveText('500');
+  });
+
+  test('shows the interval as unknown, in the watch and the code, until the board announces it', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await connectTo(page, fakeFlasher, 'blink/input', '2 input', 'Live');
+    await debuggerButton(page, 'Pause').click();
+    // The board restarts while the simulator has the pane: the page did not see what it did since.
+    await fakeFlasher.print('', 'sketch blink/input', 'HIGH');
+    await boardButton(page).click();
+
+    await expect(watchValue(page, 'wait')).toHaveText('…');
+    await expect(livePill(page)).toHaveText('…');
+    await fakeFlasher.print('delay 700');
+    await expect(watchValue(page, 'wait')).toHaveText('700 ms');
+    await expect(livePill(page)).toHaveText('700');
+  });
+
+  test('shows the interval simple fixes in its source', async ({ page, fakeFlasher }) => {
+    await connectTo(page, fakeFlasher, 'blink/simple', '1 simple', 'Live');
+    await debuggerButton(page, 'Pause').click();
+    await fakeFlasher.print('sketch blink/simple');
+    await boardButton(page).click();
+
+    await expect(watchValue(page, 'wait')).toHaveText('1000 ms (fixed)');
+  });
+
   test('writes the shortcuts to the board', async ({ page, fakeFlasher }) => {
     await connectTo(page, fakeFlasher, 'blink/commands', '4 commands', 'Live');
 

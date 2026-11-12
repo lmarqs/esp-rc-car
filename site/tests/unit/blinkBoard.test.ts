@@ -3,6 +3,7 @@ import {
   applyBlinkEvent,
   blinkBoard,
   blinkWatch,
+  followBlink,
   initialBlinkBoard,
   measuredInterval,
   simulateBlink,
@@ -152,6 +153,30 @@ describe('simulateBlink', () => {
     const assignment = waits.findIndex((entry) => entry.startsWith('blinkDelay = '));
     expect(waits[assignment - 1]).toMatch(/ 1000$/);
     expect(waits[assignment]).toBe('blinkDelay = constrain(line.toInt(), 100, 2000); 300');
+  });
+});
+
+describe('followBlink', () => {
+  it('knows the interval only on simple, and whether it is paused only where nothing pauses', () => {
+    expect(followBlink('blink/simple')).toEqual({ ...initialBlinkBoard(), wait: 1000, paused: false });
+    expect(followBlink('blink/input')).toEqual({ ...initialBlinkBoard(), wait: undefined, paused: false });
+    expect(followBlink('blink/commands')).toEqual({ ...initialBlinkBoard(), wait: undefined, paused: undefined });
+  });
+
+  it('keeps the interval and the pause it knew, but not the LED, which changed meanwhile', () => {
+    const known = { ledOn: true, wait: 500, paused: true, changes: [1, 2] };
+    expect(followBlink('blink/commands', known)).toEqual({ ledOn: false, wait: 500, paused: true, changes: [] });
+  });
+
+  it('shows what it does not know as …', () => {
+    expect(blinkWatch('blink/commands', followBlink('blink/commands'), undefined).map((row) => row.value)).toEqual([
+      'LOW',
+      '…',
+      '…',
+      '…',
+      '…',
+    ]);
+    expect(blinkBoard.variable(followBlink('blink/input'), 'blinkDelay')).toBeUndefined();
   });
 });
 

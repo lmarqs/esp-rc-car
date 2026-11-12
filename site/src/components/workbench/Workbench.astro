@@ -608,6 +608,9 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     let detached = false;
     // The real board as its lines tell it, while the pane follows it.
     let followed: Followed<unknown> | undefined;
+    // What the page last knew of the connected board, such as its interval, kept while the pane shows something else:
+    // only the board's own lines change it, and those sent meanwhile went to the simulator.
+    let known: unknown;
 
     function select(index: number) {
       selected = index;
@@ -631,6 +634,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       keepRunning = OPENING.running;
       mode = 'simulator';
       detached = false;
+      if (followed !== undefined) known = followed.board;
       followed = undefined;
       runner = openRunner(
         chosen,
@@ -655,12 +659,13 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     /** Hands the pane to the board, from the next line it prints; the simulator waits, paused. */
     function startFollowing() {
       runner?.pause();
-      followed = follow(project!.board);
+      followed = follow(project!.board, followedStep().key, known);
       resetWatch();
     }
 
     /** Hands the pane to a fresh simulator at the sketch's first line, running if the visitor wants it running. */
     function startSimulator() {
+      if (followed !== undefined) known = followed.board;
       followed = undefined;
       board = project!.board.initial();
       trace = emptyTrace();
@@ -737,7 +742,8 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       if (live !== null && definition?.live !== undefined) {
         const value =
           shown === undefined ? definition.live.value(view.state) : project!.board.variable(shown.board, definition.live.name);
-        if (value !== undefined) live.textContent = value;
+        // A value the board has not told yet shows as unknown rather than as the number in the source.
+        live.textContent = value ?? '…';
       }
       const before = code.querySelector('[data-running]');
       const row = running === undefined ? null : code.querySelector(`[data-line="${running}"]`);
@@ -985,7 +991,10 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     }
 
     session.subscribe((state) => {
-      if (state.kind === 'connecting') heard = undefined;
+      if (state.kind === 'connecting') {
+        heard = undefined;
+        known = undefined;
+      }
       showLink();
     });
     session.subscribeLines(({ text, at }) => {
@@ -994,8 +1003,12 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
         heard = key;
         showLink();
       }
-      // Lines the board prints while the simulator has the pane are not shown, nor kept for later.
-      if (followed === undefined) return;
+      // Lines the board prints while the simulator has the pane are not shown, nor kept for later. A board that
+      // restarts meanwhile no longer holds what the page knew of it.
+      if (followed === undefined) {
+        if (key !== undefined) known = undefined;
+        return;
+      }
       followed = receive(followed, followedStep(), project!.board, project!.tracedPin, text, at);
       draw();
     });

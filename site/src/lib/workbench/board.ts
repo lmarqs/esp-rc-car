@@ -17,6 +17,11 @@ export interface BoardModel<E, B, S> {
   /** The rows that change on every pass, such as a clock, which the page does not highlight when they change. */
   readonly steady: readonly string[];
   initial(): B;
+  /**
+   * The board as the page starts following a real board that runs `step`: what the page `known` of it before, else
+   * only what the step's source fixes, since the board may be in the middle of its run.
+   */
+  follow(step: string, known?: B): B;
   /** The board after it printed a line meaning `event` at `at` milliseconds. */
   apply(board: B, event: E, at: number): B;
   /**
@@ -33,7 +38,7 @@ export interface BoardModel<E, B, S> {
   lit(board: B): boolean;
   /**
    * The value of the sketch's variable `name` as the board's lines tell it, such as `blinkDelay` from `delay <n>`, for
-   * the editor's live value on a real board; `undefined` for a variable the lines do not tell.
+   * the editor's live value on a real board; `undefined` for a variable the lines do not tell, or have not told yet.
    */
   variable(board: B, name: string): string | undefined;
 }

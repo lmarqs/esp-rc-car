@@ -20,7 +20,7 @@ function after(step: BlinkStep, events: readonly Event[]): Followed<BlinkBoard> 
       kind === 'print'
         ? receive(followed, step, blinkBoard, LED_PIN, text, at)
         : send(followed, step, LED_PIN, text, at),
-    follow(blinkBoard),
+    follow(blinkBoard, step.key),
   );
 }
 
@@ -28,11 +28,28 @@ const marks = (followed: Followed<unknown>) => followed.trace.marks.map(({ kind,
 
 describe('follow', () => {
   it('starts from the board before it printed anything, with no output, marks or arrow', () => {
-    const followed = follow(blinkBoard);
+    const followed = follow(blinkBoard, 'blink/simple');
     expect(followed.board).toEqual(blinkBoard.initial());
     expect(followed.output).toEqual([]);
     expect(followed.trace).toEqual({ start: false, edges: [], marks: [] });
     expect(followed.arrow).toBeUndefined();
+  });
+});
+
+describe('what the page knows of the interval', () => {
+  it('is unknown on a step that reads one until the board announces it, and fixed on simple', () => {
+    expect(follow(blinkBoard, 'blink/input').board.wait).toBeUndefined();
+    expect(follow(blinkBoard, 'blink/simple').board.wait).toBe(1000);
+    expect(after(blinkInput, [['print', 'delay 500', 0]]).board.wait).toBe(500);
+  });
+
+  it('is the source’s again once the board restarts', () => {
+    expect(after(blinkInput, [['print', 'sketch blink/input', 0]]).board.wait).toBe(1000);
+  });
+
+  it('carries over what the page knew of the board when it follows it again', () => {
+    const known = after(blinkInput, [['print', 'delay 500', 0]]).board;
+    expect(follow(blinkBoard, 'blink/input', known).board.wait).toBe(500);
   });
 });
 
