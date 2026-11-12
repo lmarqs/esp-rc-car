@@ -25,6 +25,7 @@ const shortcuts = (page: Page) => bench(page).locator('[data-shortcuts]:visible 
 const chip = (page: Page, text: string) => shortcutRow(page).getByRole('button', { name: text, exact: true });
 const slider = (page: Page, name: string) => shortcutRow(page).getByRole('slider', { name });
 const runningRow = (page: Page) => bench(page).locator('[data-code]:visible [data-running]');
+const railHeight = (page: Page) => bench(page).locator('.rail').boundingBox().then((box) => box!.height);
 const status = (page: Page) => bench(page).locator('[data-board-word]');
 const boardButton = (page: Page) => bench(page).locator('[data-board-action]');
 const cell = (page: Page) => bench(page).locator('[data-board-cell]');
@@ -282,9 +283,12 @@ test.describe('the Servo workbench', () => {
       await page.goto(SERVO);
       await expect(status(page)).toHaveText('Simulated');
       const simulated = await boxes();
+      // Each step's idea fits on one line, so the rail is as tall as Blink's.
+      expect(await railHeight(page)).toBe(70);
       await boardButton(page).click();
       await expect(status(page)).toHaveText(word);
       expect(await boxes()).toEqual(simulated);
+      expect(await railHeight(page)).toBe(70);
     });
   }
 

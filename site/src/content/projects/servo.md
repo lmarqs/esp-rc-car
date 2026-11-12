@@ -9,13 +9,13 @@ sketch: sketches/servo/sweep
 steps:
   - id: sweep
     sketch: sketches/servo/sweep
-    idea: Sweep and print the angle
+    idea: Sweep 0–180°
   - id: angle
     sketch: sketches/servo/angle
-    idea: Check a number before using it
+    idea: Check the number
   - id: commands
     sketch: sketches/servo/commands
-    idea: Commands and a non-blocking sweep
+    idea: Non-blocking commands
   - id: speed
     sketch: sketches/servo/speed
     idea: Move at a limited speed
