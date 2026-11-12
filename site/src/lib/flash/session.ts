@@ -1,19 +1,38 @@
 import type { Flasher } from './flasher';
 import { keepLast } from './lines';
 import { imageFor, isMissing, type ChipFamily, type Manifest, type ManifestImage } from './manifest';
+import {
+  changedValues,
+  NO_ANSWER,
+  parseCfgLine,
+  refusalText,
+  sendOrder,
+  settingsOf,
+  validate,
+  type CfgReply,
+  type FieldErrors,
+  type SettingValues,
+} from './settings';
 
 export type SessionState =
   | { kind: 'unsupported' }
   /** `released` is set once the visitor disconnected a running board, which goes on running its sketch. */
   | { kind: 'idle'; released?: true }
   | { kind: 'connecting' }
-  | { kind: 'settings'; chip: string }
+  /**
+   * The form of the sketch's settings. `flashed` is set once the board runs the sketch, so submitting it sends the
+   * values without flashing. `errors` holds what is wrong with each value, found by the page or refused by the board;
+   * `noAnswer` is set when the board did not list its settings.
+   */
+  | { kind: 'settings'; chip: string; flashed?: true; errors?: FieldErrors; noAnswer?: true }
   | { kind: 'flashing'; chip: string; pct: number }
   /**
    * `output` is the last lines the board printed, which stay empty when the session has no baud to read at. `lost`
    * is set when the port stopped answering without the visitor disconnecting it.
    */
   | { kind: 'running'; chip: string; output: readonly string[]; lost?: true }
+  /** Sending the settings to the board that runs the sketch, one `cfg` line at a time. */
+  | { kind: 'applying'; chip: string }
   | { kind: 'noPort' }
   | { kind: 'portBusy' }
   | { kind: 'noAnswer' }
@@ -24,8 +43,15 @@ export type SessionState =
 export type SessionEvent =
   /** From `idle`, a failure or a lost `running`: asks for a port and connects to the board. */
   | { type: 'connect' }
-  /** From `settings`: downloads the image and flashes the board. */
-  | { type: 'startFlash' }
+  /**
+   * From `settings`: checks the values against their limits, flashes the board unless it already runs the sketch,
+   * then sends the board each value that differs from what it holds.
+   */
+  | { type: 'submitSettings'; values: SettingValues }
+  /** From `running`, for a sketch with settings: reopens the form, to send values without flashing. */
+  | { type: 'changeSettings' }
+  /** From the form a running board reopened: returns to `running` and sends nothing. */
+  | { type: 'closeSettings' }
   /** From a failure, `settings` or `running`: releases the port and returns to `idle`. */
   | { type: 'retry' }
   /** From `running`: releases the port and returns to `idle`. */
@@ -36,7 +62,10 @@ export interface SessionOptions {
   flasher: Flasher | null;
   manifest: Manifest;
   sketch: string;
-  /** The speed the sketch prints at. Absent when the sketch prints nothing, and then the session reads nothing. */
+  /**
+   * The speed the sketch prints at. Absent when the sketch prints nothing, and then the session reads nothing and
+   * asks for no settings, which the board answers on that port.
+   */
   baud?: number;
 }
 
@@ -76,7 +105,13 @@ function connectFailure(error: unknown): Failure {
   return 'noAnswer';
 }
 
-const BUSY_KINDS: ReadonlySet<SessionState['kind']> = new Set(['connecting', 'settings', 'flashing']);
+const BUSY_KINDS: ReadonlySet<SessionState['kind']> = new Set(['connecting', 'settings', 'flashing', 'applying']);
+
+/** `cfg get` is sent this often, as many times, until the board lists its settings; it may still be starting. */
+const GET_INTERVAL_MS = 1000;
+const GET_TRIES = 10;
+/** How long the board has to answer one `cfg set`. */
+const SET_TIMEOUT_MS = 3000;
 
 /** Whether the session is talking to the board, so that leaving it would leave a write half-done. */
 export function isBusy(state: SessionState): boolean {
@@ -94,6 +129,10 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
   let lastPct = 0;
   let downloading = false;
   let reading = 0;
+  let lost = false;
+  let output: readonly string[] = [];
+  let onReply: ((reply: CfgReply) => void) | undefined;
+  const fields = settingsOf(manifest, sketch, baud);
 
   function enter(next: SessionState) {
     state = next;
@@ -120,14 +159,15 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
     }
     image = found;
 
-    if (manifest.sketches[sketch]?.settings?.length) {
+    if (fields.length > 0) {
       enter({ kind: 'settings', chip });
       return;
     }
     await flash(active, chip);
   }
 
-  async function flash(active: Flasher, chip: string) {
+  /** Flashes the board and, with `values`, sends it the settings once it runs the sketch. */
+  async function flash(active: Flasher, chip: string, values?: SettingValues) {
     downloading = true;
     try {
       await active.load(image!.parts);
@@ -157,24 +197,151 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
       enter({ kind: 'dropped', pct: lastPct });
       return;
     }
-    enter({ kind: 'running', chip, output: [] });
+    output = [];
+    if (values) {
+      read(active, baud!);
+      await apply(active, chip, values);
+      return;
+    }
+    enter({ kind: 'running', chip, output });
     if (baud !== undefined) {
       read(active, baud);
     }
   }
 
-  /** Shows what the board prints for as long as the card stays on `running`. */
+  async function submit(active: Flasher, form: Extract<SessionState, { kind: 'settings' }>, values: SettingValues) {
+    const errors = validate(fields, values);
+    if (Object.keys(errors).length > 0) {
+      enter({ kind: 'settings', chip: form.chip, ...(form.flashed && { flashed: true }), errors });
+      return;
+    }
+    if (form.flashed) {
+      await apply(active, form.chip, values);
+    } else {
+      await flash(active, form.chip, values);
+    }
+  }
+
+  /**
+   * Sends `line` and waits up to `timeout` for the reply that `isLast` accepts, handing it every `cfg` reply until
+   * then. Resolves with that reply, or `undefined` when none came in time.
+   */
+  function exchange(active: Flasher, line: string, isLast: (reply: CfgReply) => boolean, timeout: number) {
+    return new Promise<CfgReply | undefined>((resolve) => {
+      const finish = (reply?: CfgReply) => {
+        clearTimeout(timer);
+        onReply = undefined;
+        resolve(reply);
+      };
+      const timer = setTimeout(finish, timeout);
+      onReply = (reply) => {
+        if (isLast(reply)) finish(reply);
+      };
+      // A line the port refuses gets no reply, which the timeout reports.
+      active.send(line).catch(() => {});
+    });
+  }
+
+  /** The values the board's next boot uses, by key, as `cfg get` lists them; `undefined` when it never does. */
+  async function readBoard(active: Flasher): Promise<Record<string, string> | undefined> {
+    for (let attempt = 0; attempt < GET_TRIES && !lost; attempt++) {
+      const listed: Record<string, string> = {};
+      const end = await exchange(
+        active,
+        'cfg get',
+        (reply) => {
+          if (reply.kind === 'value') listed[reply.key] = reply.value;
+          return reply.kind === 'end';
+        },
+        GET_INTERVAL_MS,
+      );
+      if (end) {
+        return listed;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Sends the board each value that differs from what it holds, one line at a time, and restarts it once every one
+   * is accepted. A refused value keeps the visitor on the form, with the board not restarted.
+   */
+  async function apply(active: Flasher, chip: string, values: SettingValues) {
+    enter({ kind: 'applying', chip });
+    const board = await readBoard(active);
+    if (lost) {
+      enter({ kind: 'running', chip, output, lost: true });
+      return;
+    }
+    if (!board) {
+      enter({ kind: 'settings', chip, flashed: true, noAnswer: true });
+      return;
+    }
+
+    const errors: Record<string, string> = {};
+    const order = sendOrder(fields, changedValues(fields, values, board), board);
+    for (const [key, value] of order) {
+      const reply = await exchange(
+        active,
+        `cfg set ${key} ${value}`,
+        (candidate) => (candidate.kind === 'ok' || candidate.kind === 'err') && candidate.key === key,
+        SET_TIMEOUT_MS,
+      );
+      if (lost) {
+        enter({ kind: 'running', chip, output, lost: true });
+        return;
+      }
+      if (reply?.kind !== 'ok') {
+        const field = fields.find((candidate) => candidate.key === key)!;
+        errors[key] = refusalText(field, reply?.kind === 'err' ? reply.reason : NO_ANSWER);
+      }
+    }
+    if (Object.keys(errors).length > 0) {
+      enter({ kind: 'settings', chip, flashed: true, errors });
+      return;
+    }
+    if (order.length > 0) {
+      // The values take effect at the next boot.
+      await active.send('cfg restart').catch(() => {});
+    }
+    enter({ kind: 'running', chip, output });
+  }
+
+  /**
+   * Reads the board until the port is released: hands each `cfg` line to the settings exchange, and shows the other
+   * lines while the card is on `running`.
+   */
   function read(active: Flasher, speed: number) {
     const reader = ++reading;
+    lost = false;
     const markLost = () => {
-      if (reader === reading && state.kind === 'running') {
-        enter({ ...state, lost: true });
+      if (reader !== reading) {
+        return;
+      }
+      lost = true;
+      if (state.kind === 'running' || (state.kind === 'settings' && state.flashed)) {
+        enter({ kind: 'running', chip: state.chip, output, lost: true });
       }
     };
     active
       .monitor(speed, (lines) => {
-        if (reader === reading && state.kind === 'running') {
-          enter({ ...state, output: keepLast(state.output, lines) });
+        if (reader !== reading) {
+          return;
+        }
+        const printed: string[] = [];
+        for (const line of lines) {
+          if (line.startsWith('cfg ')) {
+            const reply = parseCfgLine(line);
+            if (reply) onReply?.(reply);
+          } else {
+            printed.push(line);
+          }
+        }
+        if (printed.length > 0) {
+          output = keepLast(output, printed);
+          if (state.kind === 'running') {
+            enter({ ...state, output });
+          }
         }
       })
       .then(markLost, (error) => {
@@ -212,9 +379,19 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
             await connect(flasher);
           }
           break;
-        case 'startFlash':
+        case 'submitSettings':
           if (state.kind === 'settings') {
-            await flash(flasher, state.chip);
+            await submit(flasher, state, event.values);
+          }
+          break;
+        case 'changeSettings':
+          if (state.kind === 'running' && !state.lost && fields.length > 0) {
+            enter({ kind: 'settings', chip: state.chip, flashed: true });
+          }
+          break;
+        case 'closeSettings':
+          if (state.kind === 'settings' && state.flashed) {
+            enter({ kind: 'running', chip: state.chip, output });
           }
           break;
         case 'retry':

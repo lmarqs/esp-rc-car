@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DownloadError, type Flasher } from '../../src/lib/flash/flasher';
 import type { Manifest } from '../../src/lib/flash/manifest';
-import { createSession, type SessionState } from '../../src/lib/flash/session';
+import { createSession, isBusy, type SessionState } from '../../src/lib/flash/session';
 
 const parts = [
   { path: 'servo/bluepad32/servo.ino.bootloader.bin', offset: 4096 },
@@ -16,10 +16,18 @@ const manifest: Manifest = {
         { profile: 'esp32', chipFamily: 'ESP32', parts },
         { profile: 'esp01', chipFamily: 'ESP8266', parts: [{ path: 'web-relay/esp01/web-relay.ino.bin', offset: 0 }] },
       ],
-      settings: [{ key: 'ssid' }],
+      settings: [
+        { key: 'ap_ssid', label: 'Hotspot name', type: 'text', default: 'web-relay', minLength: 1, maxLength: 32 },
+        { key: 'ap_password', label: 'Hotspot password', type: 'password', default: 'web-relay-1234', minLength: 8 },
+        { key: 'low', label: 'Low', type: 'number', default: 0, min: 0, max: 1, group: 'band' },
+        { key: 'high', label: 'High', type: 'number', default: 0, min: 0, max: 1, group: 'band' },
+      ],
     },
   },
 };
+
+/** The form of web-relay as it opens: each field at its default. */
+const DEFAULTS = { ap_ssid: 'web-relay', ap_password: 'web-relay-1234', low: '0', high: '0' };
 
 interface FakeFlasher extends Flasher {
   calls: string[];
@@ -31,6 +39,8 @@ interface FakeFlasher extends Flasher {
 
 interface FakeFlasherOptions {
   chip?: string;
+  /** The lines the board prints in answer to each line sent to it. Default: none. */
+  answer?: (line: string) => string[];
   progress?: number[];
   failAt?: Partial<Record<'connect' | 'load' | 'write' | 'reset', unknown>>;
   /** The write waits for this before it reports progress. */
@@ -39,7 +49,7 @@ interface FakeFlasherOptions {
 
 /** A flasher that connects to `chip`, writes by reporting each of `progress`, and fails where `failAt` says. */
 function fakeFlasher(options: FakeFlasherOptions = {}): FakeFlasher {
-  const { chip = 'ESP32', progress = [10, 50, 100], failAt = {}, writeGate } = options;
+  const { chip = 'ESP32', progress = [10, 50, 100], failAt = {}, writeGate, answer = () => [] } = options;
   const calls: string[] = [];
   let onLines: ((lines: string[]) => void) | undefined;
   let endMonitor = (_error?: unknown) => {};
@@ -55,6 +65,13 @@ function fakeFlasher(options: FakeFlasherOptions = {}): FakeFlasher {
       await new Promise<void>((resolve, reject) => {
         endMonitor = (error) => (error === undefined ? resolve() : reject(error));
       });
+    },
+    async send(line) {
+      calls.push(`send ${line}`);
+      const lines = answer(line);
+      if (lines.length > 0) {
+        queueMicrotask(() => onLines!(lines));
+      }
     },
     async connect() {
       calls.push('connect');
@@ -198,11 +215,11 @@ describe('a session for a sketch without settings', () => {
     expect(flasher.calls).toEqual([]);
   });
 
-  it('ignores startFlash outside settings', async () => {
+  it('ignores submitSettings outside settings', async () => {
     const flasher = fakeFlasher();
     const session = createSession({ flasher, manifest, sketch: 'servo' });
 
-    await session.send({ type: 'startFlash' });
+    await session.send({ type: 'submitSettings', values: {} });
 
     expect(session.state).toEqual({ kind: 'idle' });
     expect(flasher.calls).toEqual([]);
@@ -220,17 +237,48 @@ describe('a session for a sketch without settings', () => {
 });
 
 describe('a session for a sketch with settings', () => {
-  it('waits in settings after connecting, and flashes on startFlash', async () => {
-    const flasher = fakeFlasher();
-    const session = createSession({ flasher, manifest, sketch: 'web-relay' });
-    const states = record(session);
+  const BOARD = { ap_ssid: 'web-relay', ap_password: 'set', low: '0', high: '0' };
 
+  /**
+   * A board that holds `stored`, as the sketch's `cfg` protocol answers: `cfg get` lists them, and `cfg set` stores a
+   * value unless `refuse` names its key, with the reason to refuse it with.
+   */
+  function board(stored: Record<string, string> = BOARD, refuse: Record<string, string> = {}) {
+    const values = { ...stored };
+    return (line: string): string[] => {
+      if (line === 'cfg get') {
+        return [...Object.entries(values).map(([key, value]) => `cfg ${key}=${value}`), 'cfg end'];
+      }
+      const set = /^cfg set (\S+) (.*)$/.exec(line);
+      if (set) {
+        const [, key, value] = set as unknown as [string, string, string];
+        if (key in refuse) {
+          return [`cfg err ${key} ${refuse[key]}`];
+        }
+        values[key] = value;
+        return [`cfg ok ${key}`];
+      }
+      return [];
+    };
+  }
+
+  async function connected(options: FakeFlasherOptions = {}) {
+    const flasher = fakeFlasher({ answer: board(), ...options });
+    const session = createSession({ flasher, manifest, sketch: 'web-relay', baud: 115200 });
+    const states = record(session);
     await session.send({ type: 'connect' });
+    return { flasher, session, states };
+  }
+
+  const sent = (flasher: FakeFlasher) => flasher.calls.filter((call) => call.startsWith('send '));
+
+  it('waits in settings after connecting, then flashes and reads what the board holds', async () => {
+    const { flasher, session, states } = await connected();
 
     expect(session.state).toEqual({ kind: 'settings', chip: 'ESP32' });
     expect(flasher.calls).toEqual(['connect']);
 
-    await session.send({ type: 'startFlash' });
+    await session.send({ type: 'submitSettings', values: DEFAULTS });
 
     expect(states.map((state) => state.kind)).toEqual([
       'connecting',
@@ -239,25 +287,237 @@ describe('a session for a sketch with settings', () => {
       'flashing',
       'flashing',
       'flashing',
+      'applying',
       'running',
     ]);
-    expect(flasher.calls).toEqual(['connect', 'load', 'write 4096,65536', 'reset']);
+    expect(flasher.calls).toEqual(['connect', 'load', 'write 4096,65536', 'reset', 'monitor 115200', 'send cfg get']);
+    expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [] });
   });
 
   it('writes the parts of the image built for the chip it found', async () => {
-    const flasher = fakeFlasher({ chip: 'ESP8266' });
-    const session = createSession({ flasher, manifest, sketch: 'web-relay' });
+    const { flasher, session } = await connected({ chip: 'ESP8266' });
 
-    await session.send({ type: 'connect' });
-    await session.send({ type: 'startFlash' });
+    await session.send({ type: 'submitSettings', values: DEFAULTS });
 
     expect(flasher.calls).toContain('write 0');
   });
 
-  it('releases the port and returns to idle on retry from settings', async () => {
+  it('sends each changed value, one at a time and keeping a group ordered, then restarts the board', async () => {
+    const { flasher, session } = await connected();
+
+    await session.send({ type: 'submitSettings', values: { ...DEFAULTS, ap_ssid: 'lamp', low: '0.2', high: '0.4' } });
+
+    expect(sent(flasher)).toEqual([
+      'send cfg get',
+      'send cfg set ap_ssid lamp',
+      'send cfg set high 0.4',
+      'send cfg set low 0.2',
+      'send cfg restart',
+    ]);
+    expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [] });
+  });
+
+  it('sends a default the board holds another value for, since flashing keeps what it stored', async () => {
+    const { flasher, session } = await connected({ answer: board({ ...BOARD, ap_ssid: 'old' }) });
+
+    await session.send({ type: 'submitSettings', values: DEFAULTS });
+
+    expect(sent(flasher)).toEqual(['send cfg get', 'send cfg set ap_ssid web-relay', 'send cfg restart']);
+  });
+
+  it('names what is wrong with each value before it flashes anything', async () => {
+    const { flasher, session } = await connected();
+
+    await session.send({ type: 'submitSettings', values: { ...DEFAULTS, ap_password: 'short', low: '2' } });
+
+    expect(session.state).toEqual({
+      kind: 'settings',
+      chip: 'ESP32',
+      errors: { ap_password: 'Use at least 8 characters.', low: 'Use a number from 0 to 1.' },
+    });
+    expect(flasher.calls).toEqual(['connect']);
+  });
+
+  it('keeps the visitor on the form with each refusal beside its field, and does not restart the board', async () => {
+    const { flasher, session } = await connected({ answer: board(BOARD, { high: 'armed' }) });
+
+    await session.send({ type: 'submitSettings', values: { ...DEFAULTS, ap_ssid: 'lamp', high: '0.5' } });
+
+    expect(session.state).toEqual({
+      kind: 'settings',
+      chip: 'ESP32',
+      flashed: true,
+      errors: { high: 'The board is armed. Disarm it, then send the settings again.' },
+    });
+    expect(sent(flasher)).toEqual(['send cfg get', 'send cfg set ap_ssid lamp', 'send cfg set high 0.5']);
+  });
+
+  it('sends the values again without flashing, and only those the board does not hold yet', async () => {
+    const refusing = board(BOARD, { high: 'armed' });
+    let armed = true;
+    const { flasher, session } = await connected({
+      answer: (line) => (armed || !line.startsWith('cfg set high') ? refusing(line) : [`cfg ok high`]),
+    });
+    await session.send({ type: 'submitSettings', values: { ...DEFAULTS, ap_ssid: 'lamp', high: '0.5' } });
+    flasher.calls.length = 0;
+    armed = false;
+
+    await session.send({ type: 'submitSettings', values: { ...DEFAULTS, ap_ssid: 'lamp', high: '0.5' } });
+
+    expect(flasher.calls).toEqual(['send cfg get', 'send cfg set high 0.5', 'send cfg restart']);
+    expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [] });
+  });
+
+  it('reports a value the board does not answer about within 3 seconds', async () => {
+    vi.useFakeTimers();
+    try {
+      const silent = board();
+      const { flasher, session } = await connected({
+        answer: (line) => (line.startsWith('cfg set') ? [] : silent(line)),
+      });
+
+      const applying = session.send({ type: 'submitSettings', values: { ...DEFAULTS, ap_ssid: 'lamp' } });
+      await vi.advanceTimersByTimeAsync(2999);
+      expect(session.state.kind).toBe('applying');
+      await vi.advanceTimersByTimeAsync(1);
+      await applying;
+
+      expect(session.state).toEqual({
+        kind: 'settings',
+        chip: 'ESP32',
+        flashed: true,
+        errors: { ap_ssid: 'The board did not answer.' },
+      });
+      expect(sent(flasher)).toEqual(['send cfg get', 'send cfg set ap_ssid lamp']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('asks the board for its settings every second until it lists them', async () => {
+    vi.useFakeTimers();
+    try {
+      const starting = board();
+      let asked = 0;
+      const { flasher, session } = await connected({
+        answer: (line) => (line === 'cfg get' && ++asked < 3 ? [] : starting(line)),
+      });
+
+      const applying = session.send({ type: 'submitSettings', values: DEFAULTS });
+      await vi.advanceTimersByTimeAsync(2000);
+      await applying;
+
+      expect(sent(flasher)).toEqual(['send cfg get', 'send cfg get', 'send cfg get']);
+      expect(session.state.kind).toBe('running');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('gives up after 10 tries and stays on the form, saying the board did not answer', async () => {
+    vi.useFakeTimers();
+    try {
+      const { flasher, session } = await connected({ answer: () => [] });
+
+      const applying = session.send({ type: 'submitSettings', values: DEFAULTS });
+      await vi.advanceTimersByTimeAsync(10_000);
+      await applying;
+
+      expect(sent(flasher)).toEqual(Array(10).fill('send cfg get'));
+      expect(session.state).toEqual({ kind: 'settings', chip: 'ESP32', flashed: true, noAnswer: true });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('marks the board lost when the port goes while it sends the settings', async () => {
+    vi.useFakeTimers();
+    try {
+      const { flasher, session } = await connected({ answer: () => [] });
+      const applying = session.send({ type: 'submitSettings', values: DEFAULTS });
+      await vi.advanceTimersByTimeAsync(0);
+
+      flasher.endMonitor();
+      await vi.advanceTimersByTimeAsync(1000);
+      await applying;
+
+      expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [], lost: true });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps the lines of the protocol out of the output', async () => {
+    const { flasher, session } = await connected();
+    await session.send({ type: 'submitSettings', values: DEFAULTS });
+
+    flasher.print('cfg ap_ssid=web-relay', 'HIGH', 'cfg end', 'cfg err - syntax');
+
+    expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: ['HIGH'] });
+  });
+
+  it('reopens the form from running, and sends the values without flashing', async () => {
+    const { flasher, session } = await connected();
+    await session.send({ type: 'submitSettings', values: DEFAULTS });
+    flasher.calls.length = 0;
+
+    await session.send({ type: 'changeSettings' });
+
+    expect(session.state).toEqual({ kind: 'settings', chip: 'ESP32', flashed: true });
+
+    await session.send({ type: 'submitSettings', values: { ...DEFAULTS, ap_password: 'a-new-secret' } });
+
+    expect(flasher.calls).toEqual(['send cfg get', 'send cfg set ap_password a-new-secret', 'send cfg restart']);
+    expect(session.state.kind).toBe('running');
+  });
+
+  it('returns to running with its lines when the visitor closes the reopened form', async () => {
+    const { flasher, session } = await connected();
+    await session.send({ type: 'submitSettings', values: DEFAULTS });
+    flasher.print('HIGH');
+    await session.send({ type: 'changeSettings' });
+    flasher.print('LOW');
+
+    await session.send({ type: 'closeSettings' });
+
+    expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: ['HIGH', 'LOW'] });
+  });
+
+  it('ignores closeSettings on the form before the flash', async () => {
+    const { session } = await connected();
+
+    await session.send({ type: 'closeSettings' });
+
+    expect(session.state).toEqual({ kind: 'settings', chip: 'ESP32' });
+  });
+
+  it('ignores changeSettings for a sketch without settings', async () => {
+    const flasher = fakeFlasher();
+    const session = createSession({ flasher, manifest, sketch: 'servo', baud: 9600 });
+    await session.send({ type: 'connect' });
+
+    await session.send({ type: 'changeSettings' });
+
+    expect(session.state.kind).toBe('running');
+  });
+
+  it('asks for no settings when the sketch prints nothing, since the board answers on that port', async () => {
     const flasher = fakeFlasher();
     const session = createSession({ flasher, manifest, sketch: 'web-relay' });
+
     await session.send({ type: 'connect' });
+
+    expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [] });
+  });
+
+  it('is busy while it sends the settings', () => {
+    expect(isBusy({ kind: 'applying', chip: 'ESP32' })).toBe(true);
+    expect(isBusy({ kind: 'settings', chip: 'ESP32', flashed: true })).toBe(true);
+    expect(isBusy({ kind: 'running', chip: 'ESP32', output: [] })).toBe(false);
+  });
+
+  it('releases the port and returns to idle on retry from settings', async () => {
+    const { flasher, session } = await connected();
 
     await session.send({ type: 'retry' });
 
@@ -308,14 +568,14 @@ describe('failures', () => {
 
   it('fetches the image only after the settings step', async () => {
     const flasher = fakeFlasher({ failAt: { load: new DownloadError('offline') } });
-    const session = createSession({ flasher, manifest, sketch: 'web-relay' });
+    const session = createSession({ flasher, manifest, sketch: 'web-relay', baud: 115200 });
 
     await session.send({ type: 'connect' });
 
     expect(session.state).toEqual({ kind: 'settings', chip: 'ESP32' });
     expect(flasher.calls).toEqual(['connect']);
 
-    await session.send({ type: 'startFlash' });
+    await session.send({ type: 'submitSettings', values: DEFAULTS });
 
     expect(session.state).toEqual({ kind: 'noDownload' });
     expect(flasher.calls).toEqual(['connect', 'load', 'disconnect']);
@@ -342,7 +602,7 @@ describe('failures', () => {
     expect(console.error).toHaveBeenCalledWith(failure);
   });
 
-  it('ignores connect, startFlash and retry during a flash', async () => {
+  it('ignores connect, submitSettings and retry during a flash', async () => {
     let finish!: () => void;
     const flasher = fakeFlasher({ writeGate: new Promise<void>((resolve) => (finish = resolve)) });
     const session = createSession({ flasher, manifest, sketch: 'servo' });
@@ -350,7 +610,7 @@ describe('failures', () => {
     await vi.waitFor(() => expect(session.state.kind).toBe('flashing'));
 
     await session.send({ type: 'connect' });
-    await session.send({ type: 'startFlash' });
+    await session.send({ type: 'submitSettings', values: {} });
     await session.send({ type: 'retry' });
 
     expect(session.state).toEqual({ kind: 'flashing', chip: 'ESP32', pct: 0 });
