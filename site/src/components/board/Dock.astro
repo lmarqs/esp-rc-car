@@ -63,7 +63,7 @@ const manifest = readManifest();
         data-dock-sketch
       ></span>
     </span>
-    <span class="notice" role="status" data-dock-notice hidden></span>
+    <span class="correction" role="status" data-dock-notice hidden></span>
     <span class="meter" data-dock-meter hidden>
       <span class="track" role="progressbar" aria-label="Flashing" aria-valuemin="0" aria-valuemax="100" data-dock-track>
         <i data-dock-fill></i>
@@ -112,7 +112,7 @@ const manifest = readManifest();
   .pick { font: inherit; font-weight: 700; font-size: 12px; color: var(--card); background: var(--ink-raised); border: 1px solid var(--on-ink-edge); border-radius: 999px; padding: 3px 8px; cursor: pointer; }
   .pick:hover { border-color: var(--yellow); }
   .pick:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-  .notice { flex: 1 1 100%; order: 1; color: var(--yellow); }
+  .correction { flex: 1 1 100%; order: 1; color: var(--yellow); }
   .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--faint); flex: none; }
   .dot.on { background: var(--green); box-shadow: 0 0 0 3px var(--green-halo); }
   .status { min-width: 0; flex: 0 1 auto; }
