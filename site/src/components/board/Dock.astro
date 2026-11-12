@@ -170,9 +170,9 @@ const manifest = readManifest();
       if (link.hidden === linked || (linked ? link.textContent : doing.textContent) !== view.doing) {
         link.hidden = !linked;
         link.textContent = linked ? view.doing : '';
-        if (linked) link.href = view.path!;
         doing.textContent = linked ? '' : view.doing;
       }
+      if (linked) link.href = view.path!;
       meter.hidden = view.progress === undefined;
       if (view.progress !== undefined) {
         track.setAttribute('aria-valuenow', String(view.progress));
