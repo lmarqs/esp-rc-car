@@ -514,7 +514,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
   import { emptyTrace, recordEffects, traceShape, traceTime, type Trace } from '../../lib/workbench/trace';
   import { createFlasher, createSession, type Manifest } from '../../lib/flash';
   import { boardAction, boardStatus, paneMode, sketchOf, type BoardAction, type PaneMode } from '../../lib/workbench/link';
-  import { follow, receive, send as sendFollowed, type Followed } from '../../lib/workbench/live';
+  import { follow, receive, send as sendFollowed, withdraw, type Followed } from '../../lib/workbench/live';
   import {
     boardMessage,
     boardStatusText,
@@ -522,6 +522,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     CLOCK_DASH,
     clockFace,
     liveClockFace,
+    notSent,
     OTHER_STEP_PLACEHOLDER,
     otherStepKeys,
     serialRows,
@@ -612,6 +613,10 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     // What the page last knew of the connected board, such as its interval, kept while the pane shows something else:
     // only the board's own lines change it, and those sent meanwhile went to the simulator.
     let known: unknown;
+    // What went wrong with the last line sent to the board, shown until the next one goes out or the pane changes.
+    let sendProblem: string | undefined;
+    // Counts the times the pane started following the board, so a late answer reaches only the pane it belongs to.
+    let following = 0;
 
     function select(index: number) {
       selected = index;
@@ -660,6 +665,8 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     /** Hands the pane to the board, from the next line it prints; the simulator waits, paused. */
     function startFollowing() {
       runner?.pause();
+      sendProblem = undefined;
+      following++;
       followed = follow(project!.board, followedStep().key, known);
       resetWatch();
     }
@@ -734,8 +741,9 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       restartButton.disabled = !controls.canRestart;
       slowButton.disabled = !controls.canSlow;
       slowButton.setAttribute('aria-pressed', String(controls.slow));
-      problem.hidden = controls.problem === undefined;
-      problem.textContent = controls.problem ?? '';
+      const trouble = controls.problem ?? (shown === undefined ? undefined : sendProblem);
+      problem.hidden = trouble === undefined;
+      problem.textContent = trouble ?? '';
       const at = shown === undefined ? { text: view.line, occurrence: view.occurrence } : arrowOf(shown);
       const running = at.text === undefined ? undefined : lineNumber(step.source, at.text, at.occurrence);
       const code = root.querySelector<HTMLElement>(`[data-code][data-for-step="${selected}"]`)!;
@@ -814,10 +822,19 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
         return;
       }
       if (mode !== 'live' || followed === undefined) return;
+      const id = followed.nextId;
+      const pane = following;
       followed = sendFollowed(followed, definition!, project!.tracedPin, text, Date.now());
+      sendProblem = undefined;
       draw();
-      // A write the port refuses means the board went away, which the session reports through its state.
-      session.sendLine(text).catch(() => {});
+      // The line shows as sent at once; one the port refuses is taken back, so the page shows only what went out.
+      session.sendLine(text).catch(() => {
+        // A pane started since holds other lines under the same ids.
+        if (followed === undefined || pane !== following) return;
+        followed = withdraw(followed, id);
+        sendProblem = notSent(text);
+        draw();
+      });
     }
 
     /** Shows `text` in the command line in yellow: typed by a shortcut, or about to be sent by the slider. */

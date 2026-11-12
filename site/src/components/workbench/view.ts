@@ -160,6 +160,11 @@ export function toolbar(mode: PaneMode, status: RunStatus, error: unknown, slow:
   }
 }
 
+/** What the board pane says when the port refused a line the visitor sent to the board, and what to do. */
+export function notSent(text: string): string {
+  return `The board did not get ${text}. Check that it is still plugged in, then send it again.`;
+}
+
 /** The command line's placeholder while the board runs another sketch, which takes no line from the page. */
 export const OTHER_STEP_PLACEHOLDER = 'the board runs another step';
 

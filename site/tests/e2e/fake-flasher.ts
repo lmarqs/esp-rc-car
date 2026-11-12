@@ -20,7 +20,7 @@ export interface FakeFlasherOptions {
    * Makes the first call of a method reject with an error of this name, as the layer below does; later calls succeed.
    * `write` rejects after it has reported `progress`.
    */
-  failFirst?: { connect?: string; load?: string; write?: string };
+  failFirst?: { connect?: string; load?: string; write?: string; send?: string };
   /** The lines `monitor` prints right away, one call each; it then waits until `disconnect`. Default: none. */
   lines?: string[];
   /** The first `monitor` returns after it printed `lines`, as when the port is lost, instead of waiting for `disconnect`. */
@@ -85,7 +85,7 @@ function installFakeFlasher(options: FakeFlasherOptions) {
 
   const chips = [options.chip ?? 'ESP32'].flat();
   const failing = { ...options.failFirst };
-  function failOnce(method: 'connect' | 'load' | 'write') {
+  function failOnce(method: 'connect' | 'load' | 'write' | 'send') {
     const name = failing[method];
     delete failing[method];
     if (name) {
@@ -141,6 +141,7 @@ function installFakeFlasher(options: FakeFlasherOptions) {
     },
     async send(line) {
       calls.push(`send ${line}`);
+      failOnce('send');
       const lines = answer(line);
       if (lines.length > 0) {
         setTimeout(() => printLines(lines));

@@ -169,6 +169,27 @@ test.describe('live mode', () => {
     await expect(watchValue(page, 'wait')).toHaveText('1000 ms (fixed)');
   });
 
+  test('takes back a line the port refused, and says the board did not get it', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ lines: ['', 'sketch blink/input'], failFirst: { send: 'NetworkError' } });
+    await page.goto(BLINK);
+    await tab(page, '2 input').click();
+    await boardButton(page).click();
+    await expect(status(page)).toHaveText('Live');
+
+    await commandLine(page).fill('500');
+    await commandLine(page).press('Enter');
+
+    const problem = bench(page).locator('[data-problem]');
+    await expect(problem).toHaveText('The board did not get 500. Check that it is still plugged in, then send it again.');
+    await expect(serial(page).locator('[data-sent]')).toHaveCount(0);
+    expect(await tracePath(page, 'sent')).toBe('');
+
+    await commandLine(page).fill('600');
+    await commandLine(page).press('Enter');
+    await expect(serial(page).locator('[data-sent]')).toHaveText('› 600');
+    await expect(problem).toBeHidden();
+  });
+
   test('writes the shortcuts to the board', async ({ page, fakeFlasher }) => {
     await connectTo(page, fakeFlasher, 'blink/commands', '4 commands', 'Live');
 

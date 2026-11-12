@@ -8,6 +8,7 @@ import {
   debuggerControls,
   otherStepKeys,
   liveClockFace,
+  notSent,
   toolbar,
   crumbs,
   fileName,
@@ -275,5 +276,11 @@ describe('liveClockFace', () => {
   it('stays empty while the wait or the line the board waits in is unknown', () => {
     expect(liveClockFace(1000, undefined, 1250, false)).toEqual({ waiting: false, fill: 0 });
     expect(liveClockFace(undefined, 500, 1250, false)).toEqual({ waiting: false, fill: 0 });
+  });
+});
+
+describe('notSent', () => {
+  it('names the line the board did not get and says what to do', () => {
+    expect(notSent('500')).toBe('The board did not get 500. Check that it is still plugged in, then send it again.');
   });
 });

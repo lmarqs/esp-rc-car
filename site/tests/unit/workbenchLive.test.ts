@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { blinkBoard, measuredInterval } from '../../src/lib/workbench/blinkBoard';
-import { follow, receive, send, type Followed } from '../../src/lib/workbench/live';
+import { follow, receive, send, withdraw, type Followed } from '../../src/lib/workbench/live';
 import {
   blinkCommands,
   blinkInput,
@@ -195,6 +195,19 @@ describe('send and the answer that marks it applied', () => {
     ]);
     expect(marks(followed)).toEqual([['sent', 1, 0]]);
     expect(followed.unanswered).toEqual([]);
+  });
+
+  it('takes back a line that never reached the board: its output line, its mark and the answer it waited for', () => {
+    const followed = after(blinkInput, [
+      ['send', '300', 0],
+      ['send', '500', 10],
+      ['print', 'HIGH', 20],
+    ]);
+    const back = withdraw(followed, 2);
+    expect(back.output).toEqual([{ text: '300', sent: 1 }, { text: 'HIGH' }]);
+    expect(marks(back)).toEqual([['sent', 1, 0]]);
+    expect(back.unanswered).toEqual([{ id: 1, text: '300' }]);
+    expect(back.trace.edges).toEqual(followed.trace.edges);
   });
 
   it('gives each sent line its own id', () => {

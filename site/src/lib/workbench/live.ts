@@ -66,6 +66,16 @@ export function receive<E, B>(
   return { ...followed, board, arrow, arrowAt, unanswered, trace, output: keep(followed.output, { text }) };
 }
 
+/** The pane without the sent line `id`, which never reached the board: its line in the output and its marks go. */
+export function withdraw<B>(followed: Followed<B>, id: number): Followed<B> {
+  return {
+    ...followed,
+    output: followed.output.filter((line) => line.sent !== id),
+    trace: { ...followed.trace, marks: followed.trace.marks.filter((mark) => mark.id !== id) },
+    unanswered: followed.unanswered.filter((line) => line.id !== id),
+  };
+}
+
 /**
  * The pane after the visitor sent `text` to the board at `at`: the terminal shows it as sent and the trace marks it.
  * It waits for an answer only when the step's sketch answers that line, so an answer is never matched to a line the
