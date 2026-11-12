@@ -102,7 +102,8 @@ test.describe('the Servo workbench', () => {
     await stepUntil(page, lineNumber(sweep, 'servo.write(angle);')!);
     expect(await horn(page)).toBe('0');
     await button(page, 'Step').click();
-    expect(await horn(page)).toBe('1');
+    // The picture repaints on the next frame, after the Step.
+    await expect.poll(() => horn(page)).toBe('1');
   });
 
   test('answers a bad angle with an error in the serial output and leaves the horn where it is', async ({ page }) => {
