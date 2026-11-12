@@ -17,10 +17,10 @@ static bool isNumber(String text, int low, int high) {
   return text.toInt() >= low && text.toInt() <= high;
 }
 
-static void writeAngle(int degrees) {
-  servo.write(degrees);
+static void writeAngle(int value) {
+  servo.write(value);
   Serial.print("angle ");
-  Serial.println(degrees);
+  Serial.println(value);
 }
 
 void setup() {

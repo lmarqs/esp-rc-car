@@ -23,8 +23,8 @@ static bool isNumber(String text, int low, int high) {
   return text.toInt() >= low && text.toInt() <= high;
 }
 
-static void writeAngle(int degrees) {
-  angle = degrees;
+static void writeAngle(int value) {
+  angle = value;
   servo.write(angle);
   Serial.print("angle ");
   Serial.println(angle);

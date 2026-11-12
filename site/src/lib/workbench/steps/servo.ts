@@ -89,17 +89,17 @@ function* setup(board: Board<ServoState>, key: string): Generator<Operation, voi
   yield op('servo.begin();');
 }
 
-/** The body of `angle`'s `writeAngle(degrees)`: the servo, then the angle. */
+/** The body of `angle`'s `writeAngle(value)`: the servo, then the angle. */
 function* writeDegrees(board: Board<ServoState>, degrees: number): Generator<Operation, void, undefined> {
-  yield op('servo.write(degrees);', () => board.turn(SERVO_PIN, degrees));
+  yield op('servo.write(value);', () => board.turn(SERVO_PIN, degrees));
   yield op('Serial.print("angle ");');
-  yield op('Serial.println(degrees);', () => board.print(`angle ${degrees}`));
+  yield op('Serial.println(value);', () => board.print(`angle ${degrees}`));
 }
 
-/** The body of `commands`' and `speed`'s `writeAngle(degrees)`, which keep the angle in `angle`. */
+/** The body of `commands`' and `speed`'s `writeAngle(value)`, which keep the angle in `angle`. */
 function* writeKept(board: Board<ServoState>, degrees: number): Generator<Operation, void, undefined> {
   const state = board.state;
-  yield op('angle = degrees;', () => (state.angle = degrees));
+  yield op('angle = value;', () => (state.angle = degrees));
   yield op('servo.write(angle);', () => board.turn(SERVO_PIN, state.angle));
   yield op('Serial.print("angle ");');
   yield op('Serial.println(angle);', () => board.print(`angle ${state.angle}`));

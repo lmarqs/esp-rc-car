@@ -134,7 +134,7 @@ describe('line references', () => {
 
   it('names the body of writeAngle(), where the servo turns', () => {
     for (const [step, write] of [
-      [servoAngle, 'servo.write(degrees);'],
+      [servoAngle, 'servo.write(value);'],
       [servoCommands, 'servo.write(angle);'],
       [servoSpeed, 'servo.write(angle);'],
     ] as const) {
@@ -334,11 +334,11 @@ describe('servo/angle', () => {
     expect(turns).toEqual([`${SERVO_PIN} 90`]);
   });
 
-  it('turns the servo at servo.write(degrees), before it prints the angle', () => {
+  it('turns the servo at servo.write(value), before it prints the angle', () => {
     const { runner, printed, turns } = start(servoAngle);
     stepUntil(runner, LOOP_START['servo/angle']);
     runner.send('30');
-    stepUntil(runner, 'servo.write(degrees);');
+    stepUntil(runner, 'servo.write(value);');
     expect(turns).toEqual([`${SERVO_PIN} 90`]);
     runner.step();
     expect(turns).toEqual([`${SERVO_PIN} 90`, `${SERVO_PIN} 30`]);
