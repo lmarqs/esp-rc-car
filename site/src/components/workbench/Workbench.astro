@@ -212,6 +212,10 @@ const id = (part: string) => `workbench-${project}-${part}`;
   .pause.is-paused .i-play { display: inline; color: var(--green); }
   .dbg .toggle { border-radius: 7px; }
   .dbg .toggle[aria-pressed="true"] { background: var(--ink); color: var(--card); border-color: var(--ink); }
+  @media (max-width: 480px) {
+    .dbg { flex-wrap: wrap; gap: 6px; padding: 4px; }
+    .dbg button { padding: 4px 7px; }
+  }
   .crumbs { font-size: 12px; color: var(--muted); padding: 5px 14px 2px 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .crumbs .sep { color: var(--faint); white-space: pre; }
   .edbody { flex: 1; padding: 4px 0 14px; overflow-x: auto; }

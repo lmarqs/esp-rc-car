@@ -407,6 +407,13 @@ test.describe('the Blink workbench', () => {
       client: document.scrollingElement!.clientWidth,
     }));
     expect(scroll.width).toBeLessThanOrEqual(scroll.client);
+
+    const edge = await bench(page).boundingBox();
+    for (const control of await toolbar(page).getByRole('button').all()) {
+      const box = await control.boundingBox();
+      expect(box!.x).toBeGreaterThanOrEqual(edge!.x);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(edge!.x + edge!.width);
+    }
   });
 });
 
