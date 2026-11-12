@@ -39,8 +39,8 @@ test.describe('the board dock', () => {
     await dock(page).getByRole('button', { name: 'Connect board' }).click();
 
     await expect(dock(page).getByRole('link', { name: 'Blink · step 2' })).toHaveAttribute('href', '/robomania/projects/blink/');
-    await expect(dock(page)).toContainText('ESP32');
-    await expect(dock(page).locator('[data-dock-last]')).toHaveText('wait 1000');
+    await expect(dock(page)).toContainText('ESP32 is running Blink · step 2');
+    await expect(dock(page).getByRole('button', { name: 'Serial' })).toHaveAccessibleDescription('wait 1000');
     await expect(dock(page).getByRole('button', { name: 'Connect board' })).toBeHidden();
     // The dock restarts the board into what it holds, read at the speed every ladder step prints at.
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
@@ -89,7 +89,7 @@ test.describe('the board dock', () => {
 
     await dock(page).getByRole('button', { name: 'Flash again' }).click();
 
-    await expect(dock(page)).toContainText('Writing Blink · step 1');
+    await expect(dock(page)).toContainText('ESP32 is writing Blink · step 1');
     await expect(dock(page).getByRole('progressbar', { name: 'Flashing' })).toHaveAttribute('aria-valuenow', '40');
     await fakeFlasher.release();
     await expect(dock(page).getByRole('link', { name: 'Blink · step 1' })).toBeVisible();
@@ -121,5 +121,23 @@ test.describe('the board dock', () => {
     const end = (await dock(page).boundingBox())!;
     expect(footer.y + footer.height).toBeLessThanOrEqual(end.y + 1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+  });
+
+  test('keeps the Serial button in place and the same width as lines arrive and buttons come and go', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/input'] });
+    await page.goto('/robomania/learn/');
+    const serial = dock(page).getByRole('button', { name: 'Serial' });
+    const before = (await serial.boundingBox())!;
+
+    await dock(page).getByRole('button', { name: 'Connect board' }).click();
+    await expect(dock(page).getByRole('button', { name: 'Disconnect' })).toBeVisible();
+    await fakeFlasher.print('distance=182 cm left=0.42 right=0.40 heading=271 battery=7.4V and more besides');
+    await expect(serial).toHaveAccessibleDescription(/^distance=182/);
+
+    const after = (await serial.boundingBox())!;
+    expect([after.x, after.width]).toEqual([before.x, before.width]);
   });
 });

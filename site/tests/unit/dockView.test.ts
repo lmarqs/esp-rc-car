@@ -38,7 +38,8 @@ describe('the board dock', () => {
       shown: true,
       connected: true,
       chip: 'ESP32',
-      doing: 'Blink · step 2',
+      doing: 'is running',
+      sketch: 'Blink · step 2',
       path: '/robomania/projects/blink/',
       last: 'wait 1000',
       connect: false,
@@ -50,33 +51,47 @@ describe('the board dock', () => {
 
   it('names a sketch the site does not know by its key, and offers no Flash again for it', () => {
     const view = dockView(running, { heard: 'mine/sketch', lines: [] }, names, flashable);
-    expect(view).toMatchObject({ doing: 'mine/sketch', flashAgain: false, disconnect: true });
+    expect(view).toMatchObject({ doing: 'is running', sketch: 'mine/sketch', flashAgain: false, disconnect: true });
     expect(view.path).toBeUndefined();
   });
 
   it('names a sketch whose key is a property every object has by its key, not by what the object holds', () => {
-    expect(dockView(running, { heard: 'constructor', lines: [] }, names, flashable).doing).toBe('constructor');
+    expect(dockView(running, { heard: 'constructor', lines: [] }, names, flashable).sketch).toBe('constructor');
   });
 
   it('says a board running an unnamed sketch runs a sketch', () => {
-    expect(dockView(running, EMPTY_RECORD, names, flashable).doing).toBe('Running a sketch');
+    const view = dockView(running, EMPTY_RECORD, names, flashable);
+    expect(view).toMatchObject({ chip: 'ESP32', doing: 'is running a sketch' });
+    expect(view.sketch).toBeUndefined();
   });
 
   it('shows what a flash writes with its percentage, then that the board restarts', () => {
     const pending: BoardRecord = { pending: 'blink/input', lines: [] };
     expect(dockView({ kind: 'flashing', chip: 'ESP32', pct: 40 }, pending, names, flashable)).toMatchObject({
-      doing: 'Writing Blink · step 2',
+      doing: 'is writing',
+      sketch: 'Blink · step 2',
       progress: 40,
       flashAgain: false,
       canSend: false,
     });
-    expect(dockView({ kind: 'flashing', chip: 'ESP32', pct: 100 }, pending, names, flashable).doing).toBe('Restarting');
+    expect(dockView({ kind: 'flashing', chip: 'ESP32', pct: 100 }, pending, names, flashable)).toMatchObject({
+      doing: 'is restarting',
+      progress: 100,
+    });
+  });
+
+  it('names what the board does in words that follow its chip while it connects or is busy', () => {
+    expect(dockView({ kind: 'connecting' }, EMPTY_RECORD, names, flashable)).toMatchObject({
+      chip: 'Board',
+      doing: 'is connecting',
+    });
   });
 
   it('says the board stopped talking, and offers to connect again, when the port is lost', () => {
     expect(dockView({ ...running, lost: true }, heard, names, flashable)).toMatchObject({
       connected: false,
-      doing: 'The board stopped talking to the page. Plug it back in and connect again.',
+      chip: 'ESP32',
+      doing: 'stopped talking to the page. Plug it back in and connect again.',
       connect: true,
       canSend: false,
     });

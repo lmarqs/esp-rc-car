@@ -46,25 +46,45 @@ const manifest = readManifest();
   </div>
   <div class="bar wrap">
     <span class="dot" aria-hidden="true" data-dock-dot></span>
-    <b class="chip" data-dock-chip>No board</b>
-    <span class="doing" aria-live="polite"><a data-dock-link hidden></a><span data-dock-doing></span></span>
+    <span class="status" aria-live="polite" data-dock-status>
+      <b class="chip" data-dock-chip>No board</b>{' '}<span data-dock-doing></span>{' '}<a data-dock-link hidden></a><span
+        data-dock-sketch
+      ></span>
+    </span>
     <span class="meter" data-dock-meter hidden>
       <span class="track" role="progressbar" aria-label="Flashing" aria-valuemin="0" aria-valuemax="100" data-dock-track>
         <i data-dock-fill></i>
       </span>
       <span class="pct" data-dock-pct></span>
     </span>
-    <code class="last" data-dock-last></code>
+    {/* Serial comes last, so the buttons that come and go never move it. */}
     <span class="acts">
-      <button type="button" aria-expanded="false" aria-controls="board-monitor" data-dock-serial>
-        Serial <span class="caret" aria-hidden="true"></span>
+      <button type="button" class="primary" data-dock-connect hidden>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 1.6v3M10 1.6v3M4 4.6h8v2.6a4 4 0 0 1-8 0zM8 11.2v3.2"></path></svg>
+        Connect board
       </button>
       <button type="button" data-dock-again hidden>
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.5v3h-3"></path></svg>
         Flash again
       </button>
-      <button type="button" data-dock-disconnect hidden>Disconnect</button>
-      <button type="button" class="primary" data-dock-connect hidden>Connect board</button>
+      <button type="button" data-dock-disconnect hidden>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v5M4.6 4.2a5 5 0 1 0 6.8 0"></path></svg>
+        Disconnect
+      </button>
+      <button
+        type="button"
+        class="serial"
+        aria-label="Serial"
+        aria-describedby="board-last"
+        aria-expanded="false"
+        aria-controls="board-monitor"
+        data-dock-serial
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4.5 6 8l-3.5 3.5M8 12h5.5"></path></svg>
+        <span aria-hidden="true">Serial</span>
+        <span class="last" id="board-last" data-dock-last></span>
+        <span class="caret" aria-hidden="true"></span>
+      </button>
     </span>
   </div>
 </aside>
@@ -77,26 +97,32 @@ const manifest = readManifest();
   .bar { display: flex; align-items: center; gap: 10px; min-height: 44px; padding-top: 6px; padding-bottom: 6px; flex-wrap: wrap; }
   .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--faint); flex: none; }
   .dot.on { background: var(--green); box-shadow: 0 0 0 3px var(--green-halo); }
+  .status { min-width: 0; flex: 0 1 auto; }
   .chip { color: var(--card); white-space: nowrap; }
-  .doing { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .doing a { color: var(--on-ink); }
+  .status a { color: var(--on-ink); }
   .meter { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 120px; min-width: 100px; }
   .track { flex: 1; height: 6px; border-radius: 3px; background: var(--on-ink-line); overflow: hidden; }
   .track i { display: block; height: 100%; width: 0; background: var(--yellow); transition: width .15s; }
   .pct { font-family: var(--mono); color: var(--yellow); min-width: 4ch; text-align: right; }
-  .last { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: none; padding: 0; color: var(--yellow); font-size: 13px; }
-  .last:not(:empty)::before { content: "› "; color: var(--faint); }
-  .acts { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+  .acts { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
   .acts button { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-weight: 700; font-size: 12px; color: var(--on-ink); background: transparent; border: 1px solid var(--on-ink-edge); border-radius: 999px; padding: 3px 11px; cursor: pointer; white-space: nowrap; }
   .acts button:hover { border-color: var(--yellow); color: var(--yellow); }
   .acts button[aria-expanded="true"] { background: var(--yellow); border-color: var(--yellow); color: var(--ink); }
   .acts button.primary { background: var(--yellow); border-color: var(--yellow); color: var(--ink); }
-  .acts svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .acts svg { width: 12px; height: 12px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .caret { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 5px solid currentColor; }
   [aria-expanded="true"] .caret { border-bottom: 0; border-top: 5px solid currentColor; }
   .dock button:focus-visible, .dock a:focus-visible, .lines:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
   .cmd:has(input:focus-visible) { box-shadow: inset 0 0 0 2px var(--blue); }
-  @media (max-width: 560px) { .last { display: none; } }
+  /* The same width whatever the board last printed, so the bar never shifts as lines arrive. */
+  .acts .serial { width: 300px; border-radius: 6px; padding: 3px 10px; background: var(--ink-raised); }
+  .last { flex: 1 1 0; min-width: 0; padding-left: 8px; border-left: 1px solid var(--on-ink-line); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; font-family: var(--mono); font-size: 13px; font-weight: 400; }
+  .last:empty::before { content: "Nothing printed yet"; opacity: .7; }
+  .serial .caret { flex: none; }
+  @media (max-width: 560px) {
+    .acts { flex: 1 1 100%; }
+    .acts .serial { flex: 1 1 100%; width: auto; }
+  }
 
   .monitor { border-bottom: 1px solid var(--on-ink-line); }
   /* Eight lines of 1.5em; older lines scroll up. */
@@ -143,6 +169,7 @@ const manifest = readManifest();
     const chip = find<HTMLElement>('chip');
     const link = find<HTMLAnchorElement>('link');
     const doing = find<HTMLElement>('doing');
+    const sketch = find<HTMLElement>('sketch');
     const meter = find<HTMLElement>('meter');
     const track = find<HTMLElement>('track');
     const fill = find<HTMLElement>('fill');
@@ -164,13 +191,20 @@ const manifest = readManifest();
       dock.hidden = !view.shown;
       if (!view.shown) return;
       dot.classList.toggle('on', view.connected);
-      chip.textContent = view.chip;
       // Set only on a change, since what the board does is a live region.
       const linked = view.path !== undefined;
-      if (link.hidden === linked || (linked ? link.textContent : doing.textContent) !== view.doing) {
+      const name = view.sketch ?? '';
+      if (
+        chip.textContent !== view.chip ||
+        doing.textContent !== view.doing ||
+        link.hidden === linked ||
+        (linked ? link.textContent : sketch.textContent) !== name
+      ) {
+        chip.textContent = view.chip;
+        doing.textContent = view.doing;
         link.hidden = !linked;
-        link.textContent = linked ? view.doing : '';
-        doing.textContent = linked ? '' : view.doing;
+        link.textContent = linked ? name : '';
+        sketch.textContent = linked ? '' : name;
       }
       if (linked) link.href = view.path!;
       meter.hidden = view.progress === undefined;

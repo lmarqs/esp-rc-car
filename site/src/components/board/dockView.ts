@@ -1,4 +1,4 @@
-import { isBusy, wording, type SessionState } from '../../lib/flash';
+import { isBusy, type SessionState } from '../../lib/flash';
 import type { SketchName } from '../../lib/board/names';
 import { runs, type BoardRecord } from '../../lib/board/record';
 
@@ -8,13 +8,15 @@ export interface DockView {
   readonly shown: boolean;
   /** Whether the site reads a board, which lights the dock's dot. */
   readonly connected: boolean;
-  /** The board's chip, such as `ESP32`, or what the dock says in its place. */
+  /** The board's chip, such as `ESP32`, or what the dock says in its place: the subject of what it does. */
   readonly chip: string;
-  /** What the board runs or what the session does, in words. */
+  /** What the board does, or what the visitor does next, in words that follow the chip, such as `is running`. */
   readonly doing: string;
-  /** The page of the project whose sketch the board runs, which `doing` links to. */
+  /** The sketch the board runs or is written with, named after `doing`. */
+  readonly sketch?: string;
+  /** The page of the project whose sketch the board runs, which `sketch` links to. */
   readonly path?: string;
-  /** The last line the board printed, shown beside what it runs. */
+  /** The last line the board printed, shown in the Serial button that opens the rest. */
   readonly last?: string;
   /** The flash's percentage while one writes. */
   readonly progress?: number;
@@ -50,7 +52,14 @@ export function dockView(
   }
   if (state.kind === 'running') {
     if (state.lost) {
-      return { shown: true, connected: false, chip: state.chip, doing: wording.LOST, ...NOTHING, connect: true };
+      return {
+        shown: true,
+        connected: false,
+        chip: state.chip,
+        doing: 'stopped talking to the page. Plug it back in and connect again.',
+        ...NOTHING,
+        connect: true,
+      };
     }
     const key = runs(record);
     const name = nameOf(names, key);
@@ -59,7 +68,8 @@ export function dockView(
       shown: true,
       connected: true,
       chip: state.chip,
-      doing: name?.title ?? 'Running a sketch',
+      doing: name === undefined ? 'is running a sketch' : 'is running',
+      ...(name !== undefined && { sketch: name.title }),
       ...(name?.path && { path: name.path }),
       ...(last !== undefined && { last }),
       connect: false,
@@ -70,16 +80,17 @@ export function dockView(
   }
   if (state.kind === 'flashing') {
     const title = nameOf(names, record.pending)?.title;
-    const doing = state.pct >= 100 ? 'Restarting' : title ? `Writing ${title}` : 'Writing';
-    return { shown: true, connected: true, chip: state.chip, doing, progress: state.pct, ...NOTHING };
+    const writing = title ? { doing: 'is writing', sketch: title } : { doing: 'is writing a sketch' };
+    const doing = state.pct >= 100 ? { doing: 'is restarting' } : writing;
+    return { shown: true, connected: true, chip: state.chip, ...doing, progress: state.pct, ...NOTHING };
   }
   if (state.kind === 'connecting') {
-    return { shown: true, connected: false, chip: 'Board', doing: wording.CONNECTING, ...NOTHING };
+    return { shown: true, connected: false, chip: 'Board', doing: 'is connecting', ...NOTHING };
   }
   if (isBusy(state)) {
     // Settings, read or sent: the card that asked for them shows the form and what the board answered.
     const chip = 'chip' in state ? state.chip : 'Board';
-    return { shown: true, connected: true, chip, doing: 'Settings', ...NOTHING };
+    return { shown: true, connected: true, chip, doing: 'is busy with its settings', ...NOTHING };
   }
   return { shown: true, connected: false, chip: 'No board', doing: 'Plug one in over USB', ...NOTHING, connect: true };
 }

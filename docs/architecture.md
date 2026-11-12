@@ -149,7 +149,7 @@ session can restart the board without flashing, hands every line the board print
 listeners, writes a line, and flashes a manifest key onto the open port and keeps reading.
 
 The dock names the board's chip and the sketch it runs, by the `sketch <key>` line or the key the site last flashed,
-links the sketch's project, and shows the last line it printed. It connects a board, flashes the sketch it runs again,
+links the sketch's project, and shows the last line it printed in the Serial button that opens the rest. It connects a board, flashes the sketch it runs again,
 lets it go, and opens a serial monitor that shows the lines and sends one. Every page carries the names of every
 project's sketches and the whole manifest for it.
 
