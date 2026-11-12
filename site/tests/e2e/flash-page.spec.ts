@@ -35,6 +35,28 @@ test.describe('the Flash page', () => {
     await expect(card(page)).toHaveCount(0);
   });
 
+  test('says on each card that picking it flashes it here, and once picked, that the card below flashes it', async ({
+    page,
+  }) => {
+    await page.goto('/robomania/flash/');
+    const hint = (title: 'Omnidirectional robot' | 'Balance beam') =>
+      page
+        .getByRole('listitem')
+        .filter({ has: page.getByRole('button', { name: title, exact: true }) })
+        .locator('[data-pick-hint] > span:visible');
+
+    for (const title of ['Omnidirectional robot', 'Balance beam'] as const) {
+      await expect(hint(title)).toHaveText('Pick to flash here');
+      await expect(hint(title).locator('svg:visible')).toHaveCount(1);
+    }
+
+    await pick(page, 'Balance beam').click();
+
+    await expect(hint('Balance beam')).toHaveText('Flash it below');
+    await expect(hint('Balance beam').locator('svg:visible')).toHaveCount(1);
+    await expect(hint('Omnidirectional robot')).toHaveText('Pick to flash here');
+  });
+
   test('picking omnidirectional shows its card and the link to its wiring', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install();
     await page.goto('/robomania/flash/');
