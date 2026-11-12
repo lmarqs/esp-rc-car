@@ -1,12 +1,12 @@
 # esp-rc-car
 
 Firmware for an ESP32 RC car: drivers in `lib/` and sketches in `sketches/`, and Robomania, its website,
-in `site/`. The [README](README.md) says how to build and flash it.
+in `site/`. The [README](README.md) says how to build and flash.
 
 Stack: C++ on the Arduino cores `esp32-bluepad32:esp32` 4, `esp8266:esp8266` 3 and `digistump:avr` 1, pinned in
 each sketch's `sketch.yaml`; arduino-cli 1,
 Python 3.12, uv, clang-format, ruff and the-cook, pinned in `mise.toml`; pyserial 3, pinned in `pyproject.toml`. The
-website: Astro 7, pinned in `site/package.json`, on Node 24 and pnpm 12, pinned in `mise.toml` and the root
+website: Astro 7 pinned in `site/package.json`, Node 24 in `mise.toml`, pnpm 12 in `mise.toml` and the root
 `package.json`.
 
 ## Quick reference
@@ -16,8 +16,8 @@ website: Astro 7, pinned in `site/package.json`, on Node 24 and pnpm 12, pinned 
   (unverified); a website package: `pnpm --filter @robomania/site add <package>`
 - Run: `mise run arduino:run <sketch> --port <port>` (unverified)
 - Flash a compiled sketch: `mise run arduino:upload <sketch> --port <port>`
-- Build: `mise run arduino:compile <sketch>`; the website: `mise run site:build` or
-  `site:dev`, which serves it
+- Build: `mise run arduino:compile sketches/<name>`; the website: `mise run site:build` or
+  `site:dev` (serves it)
 - Test: `mise run lib:test`; the website: `mise run site:test`
 - Lint or format one file: `mise exec -- clang-format -i <file>`; Python: `mise exec -- ruff format <file>`
 - Generate: `mise run arduino:hexdump <sketch>`, a C header per `<sketch>/data` file; the website's firmware images,
@@ -81,8 +81,8 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 
 ## Gotchas
 
-- Upload only to a port `arduino-cli board list` shows; with none listed, ask the developer to connect the board.
-  Leave `arduino:monitor` to the developer: it streams until stopped.
+- Upload only to a port `mise exec -- arduino-cli board list` shows; with none listed, ask the developer to connect
+  the board. Leave `arduino:monitor` to the developer: it streams until stopped.
 
 ## Deep dive (read on demand)
 
