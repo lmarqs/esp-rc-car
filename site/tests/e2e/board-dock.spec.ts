@@ -38,12 +38,15 @@ test.describe('the board dock', () => {
 
     await dock(page).getByRole('button', { name: 'Connect board' }).click();
 
-    await expect(dock(page).getByRole('link', { name: 'Blink · step 2' })).toHaveAttribute('href', '/robomania/projects/blink/');
-    await expect(dock(page)).toContainText('ESP32 is running Blink · step 2');
+    await expect(dock(page).getByRole('link', { name: 'Blink · 2 input' })).toHaveAttribute('href', '/robomania/projects/blink/#input');
+    await expect(dock(page)).toContainText('ESP32 is running Blink · 2 input');
     await expect(dock(page).getByRole('button', { name: 'Serial' })).toHaveAccessibleDescription('wait 1000');
     await expect(dock(page).getByRole('button', { name: 'Connect board' })).toBeHidden();
     // The dock restarts the board into what it holds, read at the speed every ladder step prints at.
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
+
+    await dock(page).getByRole('link', { name: 'Blink · 2 input' }).click();
+    await expect(page.getByRole('tab', { name: '2 input' })).toHaveAttribute('aria-selected', 'true');
   });
 
   test('opens a serial monitor with what the board printed, and sends it a line', async ({ page, fakeFlasher }) => {
@@ -110,10 +113,10 @@ test.describe('the board dock', () => {
 
     await dock(page).getByRole('button', { name: 'Flash again' }).click();
 
-    await expect(dock(page)).toContainText('ESP32 is writing Blink · step 1');
+    await expect(dock(page)).toContainText('ESP32 is writing Blink · 1 simple');
     await expect(dock(page).getByRole('progressbar', { name: 'Flashing' })).toHaveAttribute('aria-valuenow', '40');
     await fakeFlasher.release();
-    await expect(dock(page).getByRole('link', { name: 'Blink · step 1' })).toBeVisible();
+    await expect(dock(page).getByRole('link', { name: 'Blink · 1 simple' })).toBeVisible();
     expect(await fakeFlasher.loaded()).toEqual([['blink/simple/esp32/simple.ino.bootloader.bin', 'blink/simple/esp32/simple.ino.bin']]);
   });
 
@@ -121,7 +124,7 @@ test.describe('the board dock', () => {
     await fakeFlasher.install({ lines: ['sketch blink/input'] });
     await page.goto('/robomania/learn/');
     await dock(page).getByRole('button', { name: 'Connect board' }).click();
-    await expect(dock(page).getByRole('link', { name: 'Blink · step 2' })).toBeVisible();
+    await expect(dock(page).getByRole('link', { name: 'Blink · 2 input' })).toBeVisible();
 
     await dock(page).getByRole('button', { name: 'Disconnect' }).click();
 

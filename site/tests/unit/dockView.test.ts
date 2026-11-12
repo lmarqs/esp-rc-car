@@ -3,7 +3,7 @@ import { dockView } from '../../src/components/board/dockView';
 import { EMPTY_RECORD, type BoardRecord } from '../../src/lib/board/record';
 import type { SessionState } from '../../src/lib/flash';
 
-const names = { 'blink/input': { title: 'Blink · step 2', path: '/robomania/projects/blink/' } };
+const names = { 'blink/input': { title: 'Blink · 2 input', path: '/robomania/projects/blink/#input' } };
 const flashable = new Set(['blink/input']);
 const running: SessionState = { kind: 'running', chip: 'ESP32', output: [] };
 const heard: BoardRecord = {
@@ -40,8 +40,8 @@ describe('the board dock', () => {
       connected: true,
       chip: 'ESP32',
       doing: 'is running',
-      sketch: 'Blink · step 2',
-      path: '/robomania/projects/blink/',
+      sketch: 'Blink · 2 input',
+      path: '/robomania/projects/blink/#input',
       last: 'wait 1000',
       connect: false,
       flashAgain: true,
@@ -70,7 +70,7 @@ describe('the board dock', () => {
     const pending: BoardRecord = { pending: 'blink/input', lines: [] };
     expect(dockView({ kind: 'flashing', chip: 'ESP32', pct: 40 }, pending, names, flashable)).toMatchObject({
       doing: 'is writing',
-      sketch: 'Blink · step 2',
+      sketch: 'Blink · 2 input',
       progress: 40,
       flashAgain: false,
       canSend: false,

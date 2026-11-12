@@ -12,13 +12,13 @@ export interface NamedProject {
   readonly data: {
     readonly title: string;
     readonly sketch?: string;
-    readonly steps?: readonly { readonly sketch: string }[];
+    readonly steps?: readonly { readonly id: string; readonly sketch: string }[];
   };
 }
 
 /**
- * Each sketch of `projects` by the key it is flashed and printed by, such as `blink/input`: a project's title, and the
- * step's number in a project in steps, as the workbench numbers it.
+ * Each sketch of `projects` by the key it is flashed and printed by, such as `blink/input`: a project's title, and a
+ * step's name as its tab shows it, such as `2 input`, with a link that opens the step in the workbench.
  */
 export function sketchNames(projects: readonly NamedProject[]): Record<string, SketchName> {
   const names: Record<string, SketchName> = {};
@@ -26,7 +26,7 @@ export function sketchNames(projects: readonly NamedProject[]): Record<string, S
     const path = `/projects/${id}/`;
     if (data.steps !== undefined) {
       data.steps.forEach((step, index) => {
-        names[sketchKey(step.sketch)] = { title: `${data.title} · step ${index + 1}`, path };
+        names[sketchKey(step.sketch)] = { title: `${data.title} · ${index + 1} ${step.id}`, path: `${path}#${step.id}` };
       });
     } else if (data.sketch !== undefined) {
       names[sketchKey(data.sketch)] = { title: data.title, path };
