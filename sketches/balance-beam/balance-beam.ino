@@ -4,6 +4,7 @@
 #include <esc.h>
 #include <imu.h>
 #include <ledc_pin.h>
+#include <serial_io.h>
 
 #include "./balancer.h"
 #include "./config.h"
@@ -42,7 +43,7 @@ static const ConfigDefaults CONFIG_DEFAULTS{DEFAULT_AP_SSID,       DEFAULT_AP_PA
 static StoredConfig storedConfig = emptyConfig();
 // Written in setup() before the control task starts, and only read after.
 static BoardSettings settings;
-static ConfigLineReader serialLine;
+static SerialInput serialInput;
 
 // Only the control task touches these.
 static PidGains gains{KP, KI, KD};
@@ -244,13 +245,12 @@ static void handleConfigCommand(const char* line) {
 }
 
 static void pollSerial() {
-  while (Serial.available()) {
-    if (serialLine.feed(static_cast<char>(Serial.read()))) {
-      if (isConfigLine(serialLine.line())) {
-        handleConfigCommand(serialLine.line());
-      } else {
-        handleCommand(serialLine.line());
-      }
+  while (serialInput.ready()) {
+    const String line = serialInput.take();
+    if (isConfigLine(line.c_str())) {
+      handleConfigCommand(line.c_str());
+    } else {
+      handleCommand(line.c_str());
     }
   }
 }

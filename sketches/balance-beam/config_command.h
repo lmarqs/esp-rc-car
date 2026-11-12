@@ -64,8 +64,7 @@ struct ConfigResult {
   ConfigField field;
 };
 
-/** The longest line the reader keeps, with its terminator, and the room handleConfigLine needs for its reply. */
-static const size_t CONFIG_LINE_MAX = 128;
+/** The room handleConfigLine needs for its reply. */
 static const size_t CONFIG_REPLY_MAX = 256;
 
 /** A record with nothing stored. */
@@ -109,6 +108,8 @@ bool isConfigLine(const char* line);
  *   cfg restart            ->  an empty reply and Restart
  *   anything else          ->  "cfg err - syntax"
  *
+ * A line as long as LineReader keeps, which it may have cut short, is a syntax error too.
+ *
  * The keys are ap_ssid, ap_password, angle_offset_deg, throttle_min, throttle_mid, throttle_max and
  * tilt_limit_deg. The reasons, in the order a set checks them:
  *   armed    the balancer is armed; every set is refused, since saving blocks the control task
@@ -132,21 +133,3 @@ bool isConfigLine(const char* line);
  */
 ConfigResult handleConfigLine(const char* line, StoredConfig& config, const ConfigDefaults& defaults, bool armed,
                               char* reply, size_t n);
-
-/**
- * Collects serial bytes into lines. CR and LF each end a line, so CRLF works, and an empty line is skipped. Bytes
- * past CONFIG_LINE_MAX - 1 are dropped, which handleConfigLine answers as a syntax error.
- */
-class ConfigLineReader {
- public:
-  ConfigLineReader() { buffer_[0] = '\0'; }
-
-  /** Takes one byte. Returns true when it ended a line, which line() holds until the next call. */
-  bool feed(char c);
-  const char* line() const { return buffer_; }
-
- private:
-  char buffer_[CONFIG_LINE_MAX];
-  size_t length_ = 0;
-  bool ready_ = false;
-};
