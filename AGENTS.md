@@ -5,8 +5,8 @@ in `site/`. The [README](README.md) says how to build and flash.
 
 Stack: C++ on the Arduino cores `esp32-bluepad32:esp32` 4, `esp8266:esp8266` 3 and `digistump:avr` 1, pinned in
 each sketch's `sketch.yaml`; arduino-cli 1,
-Python 3.12, uv, clang-format, ruff and the-cook, pinned in `mise.toml`; pyserial 3, pinned in `pyproject.toml`. The
-website: Astro 7 pinned in `site/package.json`, Node 24 in `mise.toml`, pnpm 12 in `mise.toml` and the root
+Python 3.12, uv, clang-format, ruff and the-cook, pinned in `mise.toml`; pyserial 3 in `pyproject.toml`. The
+website: Astro 7 in `site/package.json`, Node 24 in `mise.toml`, pnpm 12 in `mise.toml` and the root
 `package.json`.
 
 ## Quick reference
@@ -55,9 +55,9 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 ## Where things go
 
 - New code: drivers in `lib/`, sketches in `sketches/<name>/` or `sketches/<project>/<variant>/`, laid out as
-  [Code layout](README.md#code-layout) says; no design document; website pages in `site/src/content/projects/` and
-  `site/src/content/topics/`, one Markdown file each; playable examples in `site/src/components/examples/`, a step
-  project's workbench in `site/src/components/workbench/`
+  [Code layout](README.md#code-layout) says; no design document; website pages in `site/src/content/{projects,topics}/`,
+  one Markdown file each; playable examples in `site/src/components/examples/`, a step project's workbench in
+  `site/src/components/workbench/`
 - Tests: `test/test_<header>.cpp`, only for `lib/` drivers needing no hardware; the website's in `site/tests`
   (Vitest `unit`, Playwright `e2e`)
 - Settings: `.env` (gitignored, loaded by mise), arduino-cli in `arduino-cli.yaml`, board profiles in `sketch.yaml`;
@@ -76,7 +76,7 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 - Change only what the task needs, matching the surrounding code.
 - Format with `.clang-format`.
 - Commits: one change per commit, pushed straight to `main`; no pull requests
-- Deploy: a push to `main` releases the website on a `#site-release` commit message, and the `lib/` library on
+- Deploy: a push to `main` releases the website on a `#site-release` commit message, and the library on
   `#lib-release` after raising `version` in `lib/library.properties`; the library goes first: the
   Library page links its `lib-v<version>` asset
 
@@ -91,5 +91,6 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 - Changing what agents may run, or how Claude or Codex is wired: the `agents-layout` skill and `.agents/README.md`.
 <!-- cook:begin io.github.lmarqs.cookbook:git#worktrees/worktrees -->
 <!-- io.github.lmarqs.cookbook:git#worktrees --instructions=AGENTS.md --instructions=README.md -->
-- Worktrees: `.worktrees/README.md` says how to create one ready to run and remove it.
+- Worktrees: branch `<branch>` is checked out at `.worktrees/<branch>`; `.worktrees/README.md` says how to
+  create one ready to run and remove it.
 <!-- cook:end io.github.lmarqs.cookbook:git#worktrees/worktrees -->
