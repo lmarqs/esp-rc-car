@@ -92,7 +92,7 @@ const manifest = readManifest();
 <style>
   [hidden] { display: none !important; }
   /* At the foot of the page and stuck to the bottom of the window above it, so it covers none of the page's end. */
-  .dock { position: sticky; bottom: 0; z-index: 10; background: var(--ink); color: var(--on-ink); font-size: 13px; line-height: 1.5; box-shadow: 0 -2px 0 var(--ink); }
+  .dock { position: sticky; bottom: 0; z-index: 10; background: var(--ink); color: var(--on-ink); font-size: 13px; line-height: 1.5; border-top: 1px solid var(--on-ink-edge); box-shadow: 0 -8px 20px var(--ink-shadow); }
   .dock:focus { outline: none; }
   .bar { display: flex; align-items: center; gap: 10px; min-height: 44px; padding-top: 6px; padding-bottom: 6px; flex-wrap: wrap; }
   .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--faint); flex: none; }
@@ -124,7 +124,7 @@ const manifest = readManifest();
     .acts .serial { flex: 1 1 100%; width: auto; }
   }
 
-  .monitor { border-bottom: 1px solid var(--on-ink-line); }
+  .monitor { background: var(--ink-raised); border-bottom: 1px solid var(--on-ink-line); }
   /* Eight lines of 1.5em; older lines scroll up. */
   .lines { margin: 0; padding: 10px 0 6px; height: calc(8 * 1.5em + 16px); overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: none; color: inherit; border-radius: 0; font-family: var(--mono); font-size: 13px; line-height: 1.5; }
   .lines :global([data-sent]) { color: var(--yellow); }
