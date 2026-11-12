@@ -41,6 +41,18 @@ export interface EsptoolFlasherOptions {
 const ROM_BAUD_RATE = 115200;
 const FLASH_BAUD_RATE = 460800;
 
+/** The errors of Web Serial's `read` after which `port.readable` still gives a usable stream. */
+const RECOVERABLE_READ_ERRORS: ReadonlySet<string> = new Set([
+  'BufferOverrunError',
+  'BreakError',
+  'FramingError',
+  'ParityError',
+]);
+
+function isRecoverable(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'name' in error && RECOVERABLE_READ_ERRORS.has(String(error.name));
+}
+
 const silentTerminal = { clean() {}, write() {}, writeLine() {} };
 
 /**
@@ -143,23 +155,36 @@ export class EsptoolFlasher implements Flasher {
       await port.close().catch(() => {});
       return;
     }
-    const reader = port.readable!.getReader();
+    // Opening the port can pull DTR and RTS, which reset an ESP-01S on a CH340 adapter into its boot loader.
+    await port.setSignals({ dataTerminalReady: false, requestToSend: false }).catch(() => {});
+    let reader = port.readable!.getReader();
     this.reader = reader;
     const decoder = new TextDecoder();
     const splitter = createLineSplitter();
     try {
       for (;;) {
-        const { value, done } = await reader.read();
-        if (done) {
-          break;
-        }
-        const lines = splitter.push(decoder.decode(value, { stream: true }));
-        if (lines.length > 0) {
-          onLines(lines);
+        try {
+          const { value, done } = await reader.read();
+          if (done) {
+            break;
+          }
+          const lines = splitter.push(decoder.decode(value, { stream: true }));
+          if (lines.length > 0) {
+            onLines(lines);
+          }
+        } catch (error) {
+          // A board at another speed than the reader's causes errors that leave the port usable, and `readable`
+          // then returns a fresh stream. Any other error means the board was unplugged, which ends the reading as
+          // disconnecting does.
+          const next = this.transport === transport && isRecoverable(error) ? port.readable : null;
+          if (!next) {
+            break;
+          }
+          reader.releaseLock();
+          reader = next.getReader();
+          this.reader = reader;
         }
       }
-    } catch {
-      // The board was unplugged, which ends the reading as disconnecting does.
     } finally {
       reader.releaseLock();
       if (this.reader === reader) {

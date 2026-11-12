@@ -230,7 +230,12 @@ describe('EsptoolFlasher.monitor', () => {
   const encoder = new TextEncoder();
   let controller: ReadableStreamDefaultController<Uint8Array>;
   let order: string[];
-  let port: { open: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn>; readable: ReadableStream<Uint8Array> };
+  let port: {
+    open: ReturnType<typeof vi.fn>;
+    close: ReturnType<typeof vi.fn>;
+    setSignals: ReturnType<typeof vi.fn>;
+    readable: ReadableStream<Uint8Array> | null;
+  };
 
   beforeEach(() => {
     order = [];
@@ -240,6 +245,9 @@ describe('EsptoolFlasher.monitor', () => {
       }),
       close: vi.fn(async () => {
         order.push('close');
+      }),
+      setSignals: vi.fn(async () => {
+        order.push('setSignals');
       }),
       readable: new ReadableStream<Uint8Array>({
         start(started) {
@@ -270,9 +278,34 @@ describe('EsptoolFlasher.monitor', () => {
     const monitoring = target.monitor(9600, () => {});
 
     await vi.waitFor(() => expect(port.open).toHaveBeenCalledWith({ baudRate: 9600 }));
-    expect(order).toEqual(['release', 'open']);
+    expect(order).toEqual(['release', 'open', 'setSignals']);
     controller.close();
     await monitoring;
+  });
+
+  it('turns DTR and RTS off once the port is open, so an ESP-01S on a CH340 adapter keeps running', async () => {
+    const target = await connected();
+    const monitoring = target.monitor(115200, () => {});
+
+    await vi.waitFor(() => expect(port.setSignals).toHaveBeenCalledWith({ dataTerminalReady: false, requestToSend: false }));
+    expect(order.indexOf('setSignals')).toBeGreaterThan(order.indexOf('open'));
+    controller.close();
+    await monitoring;
+  });
+
+  it('reads on when setSignals is refused', async () => {
+    port.setSignals.mockRejectedValue(new DOMException('Not supported.', 'NetworkError'));
+    const target = await connected();
+    const received: string[][] = [];
+    const monitoring = target.monitor(9600, (lines) => received.push(lines));
+    await vi.waitFor(() => expect(port.setSignals).toHaveBeenCalled());
+
+    await vi.waitFor(() => expect(port.readable!.locked).toBe(true));
+    controller.enqueue(encoder.encode('HIGH\n'));
+    controller.close();
+    await monitoring;
+
+    expect(received.flat()).toEqual(['HIGH']);
   });
 
   it('calls onLines with the lines each piece completes, decoding text split inside a character', async () => {
@@ -282,8 +315,8 @@ describe('EsptoolFlasher.monitor', () => {
     await vi.waitFor(() => expect(port.open).toHaveBeenCalled());
 
     const bytes = encoder.encode('tilt 3\u00b0\r\nHIGH\npart');
-    controller.enqueue(bytes.slice(0, 8));
-    controller.enqueue(bytes.slice(8));
+    controller.enqueue(bytes.slice(0, 7));
+    controller.enqueue(bytes.slice(7));
     controller.enqueue(encoder.encode('ial\n'));
     controller.close();
     await monitoring;
@@ -291,27 +324,68 @@ describe('EsptoolFlasher.monitor', () => {
     expect(received.flat()).toEqual(['tilt 3\u00b0', 'HIGH', 'partial']);
   });
 
-  it('resolves once disconnect has ended the reading, and closes the port', async () => {
+  it('resolves once disconnect has ended the reading, and lets esptool-js close the port', async () => {
     const target = await connected();
     const monitoring = target.monitor(9600, () => {});
     await vi.waitFor(() => expect(port.open).toHaveBeenCalled());
-    await vi.waitFor(() => expect(port.readable.locked).toBe(true));
+    await vi.waitFor(() => expect(port.readable!.locked).toBe(true));
 
     await target.disconnect();
 
     await expect(monitoring).resolves.toBeUndefined();
-    expect(port.readable.locked).toBe(false);
+    expect(port.readable!.locked).toBe(false);
     expect(esptool.disconnect).toHaveBeenCalledTimes(2);
   });
 
   it('resolves when the port is lost', async () => {
     const target = await connected();
     const monitoring = target.monitor(9600, () => {});
-    await vi.waitFor(() => expect(port.readable.locked).toBe(true));
+    await vi.waitFor(() => expect(port.readable!.locked).toBe(true));
 
     controller.error(new DOMException('The device has been lost.', 'NetworkError'));
 
     await expect(monitoring).resolves.toBeUndefined();
+  });
+
+  it.each(['BufferOverrunError', 'BreakError', 'FramingError', 'ParityError'])(
+    'keeps reading from a fresh stream after a %s',
+    async (name) => {
+      const target = await connected();
+      const received: string[][] = [];
+      const monitoring = target.monitor(9600, (lines) => received.push(lines));
+      await vi.waitFor(() => expect(port.readable!.locked).toBe(true));
+      controller.enqueue(encoder.encode('before\n'));
+      await vi.waitFor(() => expect(received).toHaveLength(1));
+      const first = controller;
+      let second!: ReadableStreamDefaultController<Uint8Array>;
+      port.readable = new ReadableStream<Uint8Array>({
+        start(started) {
+          second = started;
+        },
+      });
+
+      first.error(new DOMException('Bad frame.', name));
+      await vi.waitFor(() => expect(port.readable!.locked).toBe(true));
+      second.enqueue(encoder.encode('after\n'));
+      await vi.waitFor(() => expect(received).toHaveLength(2));
+      await target.disconnect();
+
+      await expect(monitoring).resolves.toBeUndefined();
+      expect(received.flat()).toEqual(['before', 'after']);
+    },
+  );
+
+  it('ends after a recoverable error when the port has no stream left', async () => {
+    const target = await connected();
+    const monitoring = target.monitor(9600, () => {});
+    await vi.waitFor(() => expect(port.readable!.locked).toBe(true));
+    const lost = port.readable;
+    port.readable = null;
+
+    controller.error(new DOMException('Bad frame.', 'FramingError'));
+
+    await expect(monitoring).resolves.toBeUndefined();
+    expect(lost!.locked).toBe(false);
   });
 
   it('closes the port it opened when disconnect ran while the port changed speed', async () => {
