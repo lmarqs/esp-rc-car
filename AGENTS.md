@@ -6,13 +6,13 @@ in `site/`. The [README](README.md) says what is built and how to build and flas
 Stack: C++ on the Arduino cores `esp32-bluepad32:esp32` 4, `esp8266:esp8266` 3 and `digistump:avr` 1, pinned in
 each sketch's `sketch.yaml`; arduino-cli 1,
 Python 3.12, uv, clang-format, ruff and the-cook, pinned in `mise.toml`; pyserial 3, pinned in `pyproject.toml`. The
-website: Astro 7 on Node 24 and pnpm 12, pinned in `mise.toml` and `package.json`.
+website: Astro 7 on Node 24 and pnpm 12, pinned in `mise.toml` and `site/package.json`.
 
 ## Quick reference
 
 - Install or add a dependency: `mise install && mise run '*:setup'`, [Build a sketch](README.md#build-a-sketch) says
-  why; a Python package: `uv add <package>` (unverified); a core or Arduino library: add it to the sketch's
-  `sketch.yaml` profile (unverified); a website package: `pnpm add <package>`
+  why; a Python package: `uv add <package>` (unverified); a core or Arduino library: add to the sketch's
+  `sketch.yaml` profile (unverified); a website package: `pnpm --filter @robomania/site add <package>`
 - Run: `mise run arduino:run <sketch> --port <port>` (unverified)
 - Flash a compiled sketch: `mise run arduino:upload <sketch> --port <port>`, with the port from
   `mise exec -- arduino-cli board list`
@@ -25,7 +25,7 @@ website: Astro 7 on Node 24 and pnpm 12, pinned in `mise.toml` and `package.json
 - Worktrees: `git worktree add .worktrees/<branch> -b <branch> && (cd .worktrees/<branch> && .worktrees/setup)`;
   remove with `(cd .worktrees/<branch> && .worktrees/teardown) && git worktree remove .worktrees/<branch>`
 - Quick check: `mise exec -- clang-format --dry-run --Werror <file>` on each changed file,
-  then the Build command for the sketch the change touches, or `mise run site:build` for a change to `site/`
+  then the Build command for the sketch the change touches, or `mise run site:build` for a `site/` change
 - Done check:
   `mise exec -- clang-format --dry-run --Werror lib/* test/* sketches/*/*.ino`, then
   `mise exec -- ruff check . .vscode/*.py && mise exec -- ruff format --check . .vscode/*.py`, `mise run lib:test`,
