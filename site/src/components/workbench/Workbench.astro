@@ -340,7 +340,8 @@ const id = (part: string) => `workbench-${project}-${part}`;
   .scope figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-family: var(--mono); font-size: 11px; color: var(--muted); }
   .legend { display: inline-flex; align-items: center; gap: 4px; }
   .legend svg { width: 9px; height: 9px; margin-left: 6px; }
-  .trace { display: block; width: 100%; }
+  /* A mark made just now sits on the right edge; its shape may reach into the padding rather than be cut. */
+  .trace { display: block; width: 100%; overflow: visible; }
   .trace .grid { stroke: var(--line); stroke-width: 1; }
   .trace .level { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
   .sent { fill: var(--yellow-strong); }
