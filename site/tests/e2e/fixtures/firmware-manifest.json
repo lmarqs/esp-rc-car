@@ -1,0 +1,16 @@
+{
+  "sketches": {
+    "blink": {
+      "images": [
+        {
+          "profile": "esp32",
+          "chipFamily": "ESP32",
+          "parts": [
+            { "path": "blink/esp32/blink.ino.bootloader.bin", "offset": 4096 },
+            { "path": "blink/esp32/blink.ino.bin", "offset": 65536 }
+          ]
+        }
+      ]
+    }
+  }
+}

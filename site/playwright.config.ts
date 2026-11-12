@@ -10,9 +10,14 @@ export default defineConfig({
   reporter: [['list'], ['html', { open: 'never' }]],
   use: { baseURL: `http://localhost:${port}` },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  // Serves the production build that `mise run site:build` writes to site/dist.
+  // Serves a production build of its own, made with a fixture manifest so that flashable pages exist without building
+  // images. It goes to site/dist-e2e, so site/dist keeps the real build.
   webServer: {
-    command: `pnpm exec astro preview --ignore-lock --port ${port}`,
+    command: `pnpm exec astro build && pnpm exec astro preview --ignore-lock --port ${port}`,
+    env: {
+      ROBOMANIA_FIRMWARE_MANIFEST: 'tests/e2e/fixtures/firmware-manifest.json',
+      ROBOMANIA_OUT_DIR: 'dist-e2e',
+    },
     url: `http://localhost:${port}/robomania/`,
     reuseExistingServer: false,
   },
