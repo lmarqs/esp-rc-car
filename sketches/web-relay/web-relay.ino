@@ -15,6 +15,7 @@ using HttpServer = WebServer;
 #include "./blink_controller.h"
 #include "./blink_setting.h"
 #include "./blink_setting_update.h"
+#include "./config_command.h"
 #include "./data/index.html.h"
 
 #if __has_include("local.h")
@@ -57,9 +58,19 @@ static const Output relay{23, HIGH};
 static const Output led{2, HIGH};
 #endif
 
-static const size_t EEPROM_SIZE = 64;
+// The blink setting sits at 0 and the serial settings after it, with room left for a record to grow.
+static const size_t EEPROM_SIZE = 256;
+static const size_t BLINK_SETTING_OFFSET = 0;
+static const size_t CONFIG_OFFSET = 16;
+static_assert(CONFIG_OFFSET >= BLINK_SETTING_OFFSET + sizeof(BlinkSetting),
+              "the serial settings overlap the blink setting");
+static_assert(CONFIG_OFFSET + sizeof(StoredConfig) <= EEPROM_SIZE, "the serial settings do not fit in the EEPROM");
+
+static const ConfigDefaults CONFIG_DEFAULTS{WEB_RELAY_AP_SSID, WEB_RELAY_AP_PASSWORD, WEB_RELAY_OTA_PASSWORD};
 
 static BlinkController blinker;
+static StoredConfig config = emptyConfig();
+static ConfigLineReader serialLine;
 static HttpServer server(80);
 
 static void applyOutput() {
@@ -79,16 +90,52 @@ static void tick() {
 }
 
 static void loadSetting() {
-  EEPROM.begin(EEPROM_SIZE);
   BlinkSetting s{};
-  EEPROM.get(0, s);
+  EEPROM.get(BLINK_SETTING_OFFSET, s);
   applyBlinkSetting(s, blinker);
 }
 
 static void saveSetting() {
   const BlinkSetting s = blinkSettingFrom(blinker);
-  EEPROM.put(0, s);
+  EEPROM.put(BLINK_SETTING_OFFSET, s);
   EEPROM.commit();
+}
+
+static void loadConfig() {
+  StoredConfig raw{};
+  EEPROM.get(CONFIG_OFFSET, raw);
+  config = storedConfigFrom(raw);
+}
+
+static void saveConfig() {
+  EEPROM.put(CONFIG_OFFSET, config);
+  EEPROM.commit();
+}
+
+// Serial settings are read at boot, so a new value takes effect after `cfg restart`.
+static void handleSerialLine(const char* line) {
+  char reply[CONFIG_REPLY_MAX];
+  const ConfigAction action = handleConfigLine(line, config, CONFIG_DEFAULTS, reply, sizeof(reply));
+  if (action == ConfigAction::Save) {
+    saveConfig();
+  }
+  Serial.print(reply);
+  switch (action) {
+    case ConfigAction::Restart:
+      Serial.flush();
+      ESP.restart();
+      break;
+    default:
+      break;
+  }
+}
+
+static void readSerial() {
+  while (Serial.available() > 0) {
+    if (serialLine.feed(static_cast<char>(Serial.read()))) {
+      handleSerialLine(serialLine.line());
+    }
+  }
 }
 
 static void sendStatus() {
@@ -135,13 +182,16 @@ void setup() {
   led.begin();
 
   Serial.begin(115200);
+  EEPROM.begin(EEPROM_SIZE);
   loadSetting();
+  loadConfig();
 
+  const char* apSsid = effectiveApSsid(config, CONFIG_DEFAULTS);
   WiFi.mode(WIFI_AP);
-  WiFi.softAP(WEB_RELAY_AP_SSID, WEB_RELAY_AP_PASSWORD);
-  Serial.printf("\nAP \"%s\" up at %s\n", WEB_RELAY_AP_SSID, WiFi.softAPIP().toString().c_str());
+  WiFi.softAP(apSsid, effectiveApPassword(config, CONFIG_DEFAULTS));
+  Serial.printf("\nAP \"%s\" up at %s\n", apSsid, WiFi.softAPIP().toString().c_str());
 
-  ArduinoOTA.setPassword(WEB_RELAY_OTA_PASSWORD);
+  ArduinoOTA.setPassword(effectiveOtaPassword(config, CONFIG_DEFAULTS));
   ArduinoOTA.begin();
 
   server.on("/", HTTP_GET, handleIndex);
@@ -155,5 +205,6 @@ void setup() {
 void loop() {
   ArduinoOTA.handle();
   server.handleClient();
+  readSerial();
   tick();
 }
