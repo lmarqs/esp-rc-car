@@ -178,6 +178,40 @@ test.describe('a board that runs another step', () => {
     expect(await fakeFlasher.calls()).not.toContainEqual(expect.stringMatching(/^send /));
   });
 
+  for (const width of [1280, 400]) {
+    test(`shows the notice in the hint's place, moving nothing, at ${width} px`, async ({ page, fakeFlasher }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await fakeFlasher.install({ lines: ['sketch blink/simple'] });
+      await page.goto(BLINK);
+      await tab(page, '2 input').click();
+      const hint = bench(page).locator('[data-hint]:visible');
+      const boxes = async () => ({
+        bench: await bench(page).boundingBox(),
+        say: await bench(page).locator('[data-say]').boundingBox(),
+        term: await bench(page).locator('.term').boundingBox(),
+      });
+      const before = await boxes();
+      await expect(hint).toBeVisible();
+
+      await boardButton(page).click();
+      await expect(status(page)).toHaveText('Runs step 1');
+
+      await expect(notice(page)).toBeVisible();
+      await expect(hint).toBeHidden();
+      expect(await boxes()).toEqual(before);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+      // The whole placeholder shows.
+      const room = await commandLine(page).evaluate((input: HTMLInputElement) => {
+        const style = getComputedStyle(input);
+        const context = document.createElement('canvas').getContext('2d')!;
+        context.font = `${style.fontSize} ${style.fontFamily}`;
+        const free = input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+        return free - context.measureText(input.placeholder).width;
+      });
+      expect(room).toBeGreaterThan(0);
+    });
+  }
+
   test('gives the Send area back and hides the notice once the visitor picks the step the board runs', async ({
     page,
     fakeFlasher,

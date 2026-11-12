@@ -6,7 +6,7 @@ import {
   clockFace,
   codeRows,
   debuggerControls,
-  otherStepNotice,
+  otherStepKeys,
   toolbar,
   crumbs,
   fileName,
@@ -242,18 +242,20 @@ describe('toolbar', () => {
   });
 });
 
-describe('otherStepNotice', () => {
-  it('names the step the board runs and the one to flash, by their full keys', () => {
-    expect(otherStepNotice({ kind: 'step', key: 'blink/simple', number: 1 }, 'blink/input')).toBe(
-      'Your board runs blink/simple. Flash blink/input to control it from here.',
-    );
-    expect(otherStepNotice({ kind: 'sketch', key: 'servo/sweep' }, 'blink/input')).toBe(
-      'Your board runs servo/sweep. Flash blink/input to control it from here.',
-    );
+describe('otherStepKeys', () => {
+  it('names the sketch the board runs and the step to flash, by their full keys', () => {
+    expect(otherStepKeys({ kind: 'step', key: 'blink/simple', number: 1 }, 'blink/input')).toEqual({
+      running: 'blink/simple',
+      wanted: 'blink/input',
+    });
+    expect(otherStepKeys({ kind: 'sketch', key: 'servo/sweep' }, 'blink/input')).toEqual({
+      running: 'servo/sweep',
+      wanted: 'blink/input',
+    });
   });
 
-  it('says nothing while simulated or live', () => {
-    expect(otherStepNotice({ kind: 'simulated' }, 'blink/input')).toBeUndefined();
-    expect(otherStepNotice({ kind: 'live' }, 'blink/input')).toBeUndefined();
+  it('names nothing while simulated or live', () => {
+    expect(otherStepKeys({ kind: 'simulated' }, 'blink/input')).toBeUndefined();
+    expect(otherStepKeys({ kind: 'live' }, 'blink/input')).toBeUndefined();
   });
 });

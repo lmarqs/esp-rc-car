@@ -49,6 +49,8 @@ const manifest = {
 };
 const flashable = Object.keys(manifest.sketches).length > 0;
 const simulated = boardStatusText({ kind: 'simulated' });
+// The notice is drawn with the longest keys while hidden, so it holds its height whichever keys it names.
+const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.length > longest.length ? key : longest));
 ---
 
 <section
@@ -306,14 +308,20 @@ const simulated = boardStatusText({ kind: 'simulated' });
         }
       </div>
       <p class="problem" role="alert" data-problem hidden></p>
-      {
-        rail.map((step, index) => (
-          <p class="hint" data-for-step={index} data-hint hidden={index !== 0}>
-            {step.hint}
-          </p>
-        ))
-      }
-      <p class="notice" role="status" data-other-step hidden></p>
+      <div class="say" data-say>
+        {
+          rail.map((step, index) => (
+            <p class="hint" data-for-step={index} data-hint hidden={index !== 0}>
+              {step.hint}
+            </p>
+          ))
+        }
+        {/* The Board cell's status announces the change; this says what to do about it. */}
+        <p class="elsewhere" data-other-step>
+          Your board runs <b data-other-running>{longestKey}</b>. Flash <b data-other-wanted>{longestKey}</b> to control it
+          from here.
+        </p>
+      </div>
     </div>
   </div>
 </section>
@@ -467,12 +475,14 @@ const simulated = boardStatusText({ kind: 'simulated' });
   .cmd input { flex: 1; min-width: 0; padding: 8px 0; border: 0; background: transparent; color: var(--card); font: inherit; outline: none; }
   .cmd input::placeholder { color: var(--faint); }
   .cmd :disabled, .shortcuts :disabled { cursor: default; }
-  .send:disabled, .shortcuts :disabled { opacity: .45; }
+  .send:disabled, .chip:disabled, .slider:has(:disabled) { opacity: .45; }
   .cmd input[data-typing] { color: var(--yellow); }
   .cmd:has(input:focus-visible) { box-shadow: inset 0 0 0 2px var(--blue); }
   .send { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-family: var(--sans); font-size: 13px; font-weight: 700; line-height: 1.5; color: var(--ink); background: var(--yellow); border: 0; border-radius: 6px; padding: 4px 12px; cursor: pointer; }
   .send svg { width: 13px; height: 13px; fill: currentColor; }
   .send:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  /* Room for the longest placeholder, the board runs another step, at phone width. */
+  @media (max-width: 480px) { .send { padding: 4px 8px; } }
   .shortcuts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 8px 12px 8px 14px; border-top: 1px solid var(--on-ink-line); background: var(--ink-raised); color: var(--on-ink); }
   .chips { display: flex; gap: 6px; }
   .chip { font: inherit; font-size: 13px; line-height: 1.5; color: var(--on-ink); background: transparent; border: 1px solid var(--on-ink-edge); border-radius: 6px; padding: 2px 10px; cursor: pointer; }
@@ -483,7 +493,12 @@ const simulated = boardStatusText({ kind: 'simulated' });
   /* Four digits, the most the value has, so the slider keeps its length as the value changes. */
   .slider output { min-width: 4ch; text-align: right; color: var(--card); }
   .hint { font-size: 13px; color: var(--muted); margin: 0; }
-  .board > .notice { margin: 0; font-size: 14px; }
+  /* The notice takes the hint's place, which says how to send and does not apply then, so nothing below moves. */
+  .say { display: grid; }
+  .say > * { grid-area: 1 / 1; }
+  .elsewhere { visibility: hidden; margin: 0; padding: 8px 12px; border: 1.5px solid var(--coral); border-radius: 12px; background: var(--wash-coral); font-size: 14px; }
+  .say[data-elsewhere] .hint { visibility: hidden; }
+  .say[data-elsewhere] .elsewhere { visibility: visible; }
   .problem { margin: 0; padding: 8px 12px; border: 1.5px solid var(--ink); border-radius: 10px; font-size: 14px; font-weight: 600; }
 </style>
 
@@ -507,7 +522,7 @@ const simulated = boardStatusText({ kind: 'simulated' });
     CLOCK_DASH,
     clockFace,
     OTHER_STEP_PLACEHOLDER,
-    otherStepNotice,
+    otherStepKeys,
     serialRows,
     toolbar,
   } from './view';
@@ -538,7 +553,9 @@ const simulated = boardStatusText({ kind: 'simulated' });
     const commandLine = root.querySelector<HTMLInputElement>('[data-command-line]')!;
     const sendButton = command.querySelector<HTMLButtonElement>('button[type="submit"]')!;
     const shortcutControls = [...root.querySelectorAll<HTMLButtonElement | HTMLInputElement>('[data-shortcut]')];
-    const otherStep = root.querySelector<HTMLElement>('[data-other-step]')!;
+    const say = root.querySelector<HTMLElement>('[data-say]')!;
+    const otherRunning = root.querySelector<HTMLElement>('[data-other-running]')!;
+    const otherWanted = root.querySelector<HTMLElement>('[data-other-wanted]')!;
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
     const pauseButton = root.querySelector<HTMLButtonElement>('[data-pause]')!;
     const pauseLabel = root.querySelector<HTMLElement>('[data-pause-label]')!;
@@ -959,9 +976,12 @@ const simulated = boardStatusText({ kind: 'simulated' });
       sendButton.disabled = !usable;
       for (const control of shortcutControls) control.disabled = !usable;
       commandLine.placeholder = usable ? definition!.placeholder : OTHER_STEP_PLACEHOLDER;
-      const notice = otherStepNotice(status, key);
-      otherStep.hidden = notice === undefined;
-      if (otherStep.textContent !== (notice ?? '')) otherStep.textContent = notice ?? '';
+      const keys = otherStepKeys(status, key);
+      say.toggleAttribute('data-elsewhere', keys !== undefined);
+      if (keys !== undefined) {
+        otherRunning.textContent = keys.running;
+        otherWanted.textContent = keys.wanted;
+      }
     }
 
     session.subscribe((state) => {

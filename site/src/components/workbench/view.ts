@@ -149,12 +149,12 @@ export function toolbar(mode: PaneMode, status: RunStatus, error: unknown, slow:
 export const OTHER_STEP_PLACEHOLDER = 'the board runs another step';
 
 /**
- * What the board pane says when the board runs a sketch other than the `selected` step: which one, in full, and that
- * flashing the selected step lets the page control it. `undefined` for any other status.
+ * The keys the board pane's notice names when the board runs a sketch other than the `selected` step: the one it
+ * runs, and the one to flash so the page can control it. `undefined` for any other status.
  */
-export function otherStepNotice(status: BoardStatus, selected: string): string | undefined {
+export function otherStepKeys(status: BoardStatus, selected: string): { running: string; wanted: string } | undefined {
   if (status.kind !== 'step' && status.kind !== 'sketch') return undefined;
-  return `Your board runs ${status.key}. Flash ${selected} to control it from here.`;
+  return { running: status.key, wanted: selected };
 }
 
 function reason(error: unknown): string {
