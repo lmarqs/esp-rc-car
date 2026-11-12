@@ -15,6 +15,9 @@ const watchValue = (page: Page, name: string) => bench(page).locator(`[data-watc
 const serial = (page: Page) => bench(page).getByRole('log', { name: 'Serial output' });
 const toolbar = (page: Page) => bench(page).getByRole('toolbar', { name: 'Debugger' });
 const button = (page: Page, name: string) => toolbar(page).getByRole('button', { name, exact: true });
+const commandLine = (page: Page) => bench(page).getByRole('textbox', { name: 'Line to send to the board' });
+const sendButton = (page: Page) => bench(page).getByRole('button', { name: 'Send', exact: true });
+const sentLines = (page: Page) => serial(page).locator('[data-sent]');
 const runningLine = (page: Page) => runningRow(page).getAttribute('data-line').then(Number);
 const runningRow = (page: Page) => visibleCode(page).locator('[data-running]');
 const clockFill = (row: Locator) =>
@@ -399,6 +402,51 @@ test.describe('the Blink workbench', () => {
     await expect(tab(page, '4 commands')).toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('ArrowRight');
     await expect(tab(page, '1 simple')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  test('sends the command line with Enter or the Send button, and shows a sent line in yellow after ›', async ({
+    page,
+  }) => {
+    await tab(page, '4 commands').click();
+    await expect(commandLine(page)).toHaveAttribute('placeholder', 'type a command and press Enter');
+    const term = bench(page).locator('.term');
+    const output = await serial(page).boundingBox();
+    const line = await commandLine(page).boundingBox();
+    expect(Math.abs(line!.y - (output!.y + output!.height))).toBeLessThan(2);
+    await expect(sendButton(page).locator('svg')).toBeVisible();
+    await expect(sendButton(page)).toHaveCSS('background-color', 'rgb(247, 201, 72)');
+
+    await commandLine(page).fill('pause');
+    await commandLine(page).press('Enter');
+    await expect(commandLine(page)).toHaveValue('');
+    await expect(serial(page)).toHaveText(/› pause$/);
+    await expect(sentLines(page)).toHaveText(['› pause']);
+    await expect(sentLines(page)).toHaveCSS('color', 'rgb(247, 201, 72)');
+    await expect(term.locator('[data-serial-line]:not([data-sent])').first()).toHaveCSS('color', 'rgb(232, 238, 243)');
+
+    await commandLine(page).fill('run');
+    await sendButton(page).click();
+    await expect(commandLine(page)).toHaveValue('');
+    await expect(sentLines(page)).toHaveText(['› pause', '› run']);
+
+    await sendButton(page).click();
+    await expect(sentLines(page)).toHaveCount(2);
+  });
+
+  test('gives each step the placeholder its sketch needs', async ({ page }) => {
+    for (const [index, step] of blinkSteps.entries()) {
+      await tab(page, `${index + 1} ${step.key.split('/')[1]}`).click();
+      await expect(commandLine(page)).toHaveAttribute('placeholder', step.placeholder);
+    }
+  });
+
+  test('leaves the LED alone when the visitor types HIGH: only the sketch drives it', async ({ page }) => {
+    await button(page, 'Pause').click();
+    await commandLine(page).fill('HIGH');
+    await commandLine(page).press('Enter');
+    await expect(serial(page)).toHaveText(/› HIGH$/);
+    await expect(watchValue(page, 'LED')).toHaveText('LOW');
+    await expect(bench(page).locator('[data-picture]')).not.toHaveClass(/\bon\b/);
   });
 
   test('stacks the panes code first at phone width with no sideways scroll', async ({ page }) => {

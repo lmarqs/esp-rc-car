@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { changedRows, clockFace, codeRows, debuggerControls, crumbs, fileName, serialText, shortcutNames, SERIAL_LINES } from '../../src/components/workbench/view';
+import { changedRows, clockFace, codeRows, debuggerControls, crumbs, fileName, serialRows, shortcutNames, SERIAL_LINES } from '../../src/components/workbench/view';
 import { blinkCommands, blinkSimple } from '../../src/lib/workbench/steps/blink';
 
 describe('codeRows', () => {
@@ -61,17 +61,22 @@ describe('crumbs and fileName', () => {
   });
 });
 
-describe('serialText', () => {
+describe('serialRows', () => {
   it('keeps the newest lines and marks a line the visitor sent', () => {
     const output = Array.from({ length: SERIAL_LINES + 2 }, (_, index) => ({ text: `line ${index}` }));
-    const text = serialText([...output, { text: 'pause', sent: 1 }]);
-    expect(text.split('\n')).toHaveLength(SERIAL_LINES);
-    expect(text.split('\n').at(-1)).toBe('› pause');
-    expect(text.split('\n')[0]).toBe('line 3');
+    const rows = serialRows([...output, { text: 'pause', sent: 1 }]);
+    expect(rows).toHaveLength(SERIAL_LINES);
+    expect(rows[0]).toEqual({ text: 'line 3\n', sent: false });
+    expect(rows.at(-1)).toEqual({ text: '› pause', sent: true });
+  });
+
+  it('reads as the output when joined, a blank line included', () => {
+    const rows = serialRows([{ text: '' }, { text: 'sketch blink/input' }, { text: '1500', sent: 2 }]);
+    expect(rows.map((row) => row.text).join('')).toBe('\nsketch blink/input\n› 1500');
   });
 
   it('is empty before the board prints', () => {
-    expect(serialText([])).toBe('');
+    expect(serialRows([])).toEqual([]);
   });
 });
 

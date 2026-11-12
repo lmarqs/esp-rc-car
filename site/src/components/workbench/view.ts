@@ -78,12 +78,22 @@ export function fileName(sketch: string): string {
   return crumbs(sketch).at(-1) ?? '';
 }
 
-/** The terminal's text: the last {@link SERIAL_LINES} lines of output, a line the visitor sent marked with `›`. */
-export function serialText(output: readonly OutputLine[]): string {
-  return output
-    .slice(-SERIAL_LINES)
-    .map((line) => (line.sent === undefined ? line.text : `› ${line.text}`))
-    .join('\n');
+/** One line of the terminal: its text, ending in a newline unless it is the last, and whether the visitor sent it. */
+export interface SerialRow {
+  readonly text: string;
+  readonly sent: boolean;
+}
+
+/**
+ * The terminal's lines: the last {@link SERIAL_LINES} lines of output, a line the visitor sent marked with `›`. Every
+ * line but the last ends in a newline, so the lines read as the output's text when joined.
+ */
+export function serialRows(output: readonly OutputLine[]): SerialRow[] {
+  const shown = output.slice(-SERIAL_LINES);
+  return shown.map((line, index) => {
+    const text = line.sent === undefined ? line.text : `› ${line.text}`;
+    return { text: index < shown.length - 1 ? `${text}\n` : text, sent: line.sent !== undefined };
+  });
 }
 
 /** What each of a step's shortcuts sends or sets, such as `pause run delay`; empty for a step with none. */

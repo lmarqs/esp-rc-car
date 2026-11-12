@@ -3,7 +3,7 @@ import { OPENING, workbenchFor } from '../../lib/workbench/projects';
 // Read here, at build time, only: a browser script that imported it would carry every sketch's source.
 import { readStepSource } from '../../lib/workbench/readSource';
 import { newLines } from '../../lib/workbench/source';
-import { CLOCK_DASH, codeRows, crumbs, fileName, shortcutNames } from './view';
+import { CLOCK_DASH, codeRows, crumbs, fileName, SERIAL_LINES, shortcutNames } from './view';
 
 interface Props {
   /** The project's page id, such as `blink`; the project must have step definitions. */
@@ -25,6 +25,7 @@ const rail = steps.map((step, index) => {
     number: index + 1,
     key: definition.key,
     hint: definition.hint,
+    placeholder: definition.placeholder,
     shortcuts: shortcutNames(definition.shortcuts),
     file: fileName(step.sketch),
     crumbs: crumbs(step.sketch),
@@ -160,7 +161,24 @@ const id = (part: string) => `workbench-${project}-${part}`;
         </dl>
       </div>
       <div class="term">
-        <pre class="serial" role="log" aria-live="off" aria-label="Serial output" data-serial></pre>
+        <pre class="serial" role="log" aria-live="off" aria-label="Serial output" data-serial><span class="out">{
+          Array.from({ length: SERIAL_LINES }, () => <span data-serial-line />)
+        }</span></pre>
+        <form class="cmd" data-command>
+          <span class="prompt" aria-hidden="true">›</span>
+          <input
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            aria-label="Line to send to the board"
+            placeholder={first.placeholder}
+            data-command-line
+          />
+          <button class="send" type="submit">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 2.2 14.5 8 2 13.8l1.6-5.1L9.5 8 3.6 7.3z" /></svg>
+            Send
+          </button>
+        </form>
         <div data-shortcuts={first.shortcuts} hidden></div>
       </div>
       <p class="problem" role="alert" data-problem hidden></p>
@@ -259,8 +277,18 @@ const id = (part: string) => `workbench-${project}-${part}`;
   .watch dd[data-changed] { background: var(--yellow); }
 
   .term { background: var(--ink); color: var(--on-ink); border-radius: 12px; font-family: var(--mono); font-size: 13px; overflow: hidden; }
-  /* Six lines of 1.5em, as many as serialText keeps, plus the padding. */
+  /* Six lines of 1.5em, as many as serialRows keeps, plus the padding. */
   .serial { margin: 0; padding: 10px 14px 6px; height: calc(6 * 1.5em + 16px); overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; white-space: pre; background: none; color: inherit; border-radius: 0; font-size: 13px; line-height: 1.5; }
+  .serial [data-sent] { color: var(--yellow); }
+  .cmd { display: flex; align-items: center; gap: 8px; padding: 0 12px 0 14px; border-top: 1px solid var(--on-ink-line); }
+  .prompt { color: var(--yellow); }
+  .cmd input { flex: 1; min-width: 0; padding: 8px 0; border: 0; background: transparent; color: var(--card); font: inherit; outline: none; }
+  .cmd input::placeholder { color: var(--faint); }
+  .cmd input[data-typing] { color: var(--yellow); }
+  .cmd:focus-within { box-shadow: inset 0 0 0 2px var(--blue); }
+  .send { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-family: var(--sans); font-size: 13px; font-weight: 700; line-height: 1.5; color: var(--ink); background: var(--yellow); border: 0; border-radius: 6px; padding: 4px 12px; cursor: pointer; }
+  .send svg { width: 13px; height: 13px; fill: currentColor; }
+  .send:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
   .hint { font-size: 13px; color: var(--muted); margin: 0; }
   .problem { margin: 0; padding: 8px 12px; border: 1.5px solid var(--ink); border-radius: 10px; font-size: 14px; font-weight: 600; }
 </style>
@@ -272,7 +300,7 @@ const id = (part: string) => `workbench-${project}-${part}`;
   import { tabAfterKey } from '../../lib/workbench/tabs';
   import type { WatchRow } from '../../lib/workbench/board';
   import type { StepDefinition } from '../../lib/workbench/step';
-  import { changedRows, CLOCK_DASH, clockFace, debuggerControls, serialText, shortcutNames } from './view';
+  import { changedRows, CLOCK_DASH, clockFace, debuggerControls, serialRows, shortcutNames } from './view';
 
   /** How long a watch value stays highlighted after it changes. */
   const HIGHLIGHT_MS = 900;
@@ -295,7 +323,9 @@ const id = (part: string) => `workbench-${project}-${part}`;
     const watchRows = new Map(
       [...root.querySelectorAll<HTMLElement>('[data-watch-row]')].map((row) => [row.dataset.watchRow!, row]),
     );
-    const serial = root.querySelector<HTMLElement>('[data-serial]')!;
+    const serialLines = [...root.querySelectorAll<HTMLElement>('[data-serial-line]')];
+    const command = root.querySelector<HTMLFormElement>('[data-command]')!;
+    const commandLine = root.querySelector<HTMLInputElement>('[data-command-line]')!;
     const shortcuts = root.querySelector<HTMLElement>('[data-shortcuts]')!;
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
     const pauseButton = root.querySelector<HTMLButtonElement>('[data-pause]')!;
@@ -330,6 +360,8 @@ const id = (part: string) => `workbench-${project}-${part}`;
       panel.setAttribute('aria-labelledby', tabs[index].id);
       for (const element of perStep) element.hidden = element.dataset.forStep !== String(index);
       shortcuts.dataset.shortcuts = shortcutNames(chosen.shortcuts);
+      commandLine.value = '';
+      commandLine.placeholder = chosen.placeholder;
       resetWatch();
 
       runner?.dispose();
@@ -365,7 +397,11 @@ const id = (part: string) => `workbench-${project}-${part}`;
       }
       for (const name of changedRows(shownRows, rows, project!.board.steady)) highlight(name);
       shownRows = rows;
-      serial.textContent = serialText(view.output);
+      const serialText = serialRows(view.output);
+      serialLines.forEach((element, at) => {
+        element.textContent = serialText[at]?.text ?? '';
+        element.toggleAttribute('data-sent', serialText[at]?.sent ?? false);
+      });
       const controls = debuggerControls(view.status, view.error);
       pauseButton.classList.toggle('is-paused', controls.paused);
       pauseLabel.textContent = controls.label;
@@ -413,6 +449,18 @@ const id = (part: string) => `workbench-${project}-${part}`;
       const fill = pie.querySelector<SVGElement>('.fill')!;
       fill.style.strokeDasharray = `${face.fill * CLOCK_DASH} ${CLOCK_DASH}`;
     }
+
+    /** Sends a line the visitor typed or a shortcut typed for them to the sketch's serial input. */
+    function sendToBoard(text: string) {
+      runner?.send(text);
+    }
+
+    command.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const text = commandLine.value.trim();
+      commandLine.value = '';
+      if (text !== '') sendToBoard(text);
+    });
 
     pauseButton.addEventListener('click', () => {
       if (runner?.view().status === 'running') {
