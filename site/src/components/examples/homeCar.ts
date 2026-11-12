@@ -53,7 +53,8 @@ export function stepCar(car: Car, drive: Drive, still: boolean, now: number): Ca
   const vx = car.vx + (drive.steer * TOP_SPEED - car.vx) * (still ? 1 : 0.12);
   const x = Math.max(LEFT_END, Math.min(RIGHT_END, car.x + vx));
   const air = still ? liftStill(car, drive, now) : fly(car, drive);
-  const contact = air.y > -30 ? Math.max(0, x - WHEEL_GAP) : 0;
+  // In the air the car leaves the loose wheel where it is, so the wheel neither rolls back under it nor jumps on landing.
+  const contact = air.y > -30 ? Math.max(0, x - WHEEL_GAP) : car.push;
   const push = contact > car.push ? contact : car.push + (contact - car.push) * 0.05;
   return { ...car, ...air, x, vx, push };
 }

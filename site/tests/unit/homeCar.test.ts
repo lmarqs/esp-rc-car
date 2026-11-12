@@ -40,8 +40,9 @@ describe('stepCar', () => {
   });
 
   it('holding right for 2 seconds with reduced motion also reaches x = 120, at full speed from the first frame', () => {
-    const [first] = run(PARKED, hold(RIGHT, 1), true);
-    expect(first.vx).toBe(5);
+    const frames = run(PARKED, hold(RIGHT, 120), true);
+    expect(frames[0].vx).toBe(5);
+    expect(frames.at(-1)!.x).toBe(120);
   });
 
   it('a jump leaves the ground, comes back, and squashes the car on the frame it lands', () => {
@@ -67,5 +68,12 @@ describe('stepCar', () => {
 
     expect(atEnd.push).toBe(48);
     expect(backedOff.push).toBeLessThan(1);
+  });
+
+  it('leaves the pushed wheel where it is while the car jumps at its right end', () => {
+    const atEnd = run(PARKED, hold(RIGHT, 120)).at(-1)!;
+    const jump = run(atEnd, [{ steer: 1, jump: true }, ...hold(RIGHT, 60)]);
+
+    expect(jump.map((car) => car.push)).toEqual(jump.map(() => 48));
   });
 });
