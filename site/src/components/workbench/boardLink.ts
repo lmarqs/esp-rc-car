@@ -35,11 +35,11 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
     show(view: LinkView) {
       cell.dataset.status = view.kind;
       // Set only on a change, and in one, since the status is a live region: two would be announced twice.
-      if (statusWord.textContent !== view.word || statusSentence.textContent !== `: ${view.title}`) {
+      if (statusWord.textContent !== view.tag.word || statusSentence.textContent !== `: ${view.tag.title}`) {
         const word = statusWord.cloneNode() as HTMLElement;
         const sentence = statusSentence.cloneNode() as HTMLElement;
-        word.textContent = view.word;
-        sentence.textContent = `: ${view.title}`;
+        word.textContent = view.tag.word;
+        sentence.textContent = `: ${view.tag.title}`;
         statusText.replaceChildren(word, sentence);
         statusWord = word;
         statusSentence = sentence;
@@ -47,7 +47,7 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
 
       const { action } = view;
       needsBrowser.hidden = action !== undefined;
-      simulatorButton.setAttribute('aria-pressed', String(!view.live));
+      simulatorButton.setAttribute('aria-pressed', String(view.chosen === 'simulator'));
       // A browser that cannot reach a board has the note in the board half's place, and nothing to flash again.
       if (flashAgain !== null) flashAgain.hidden = action === undefined;
       // Dimmed, not hidden, so the switch keeps its width; aria-disabled keeps the focus on it while it flashes.
@@ -55,7 +55,7 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
       else flashAgain?.setAttribute('aria-disabled', 'true');
       if (actionButton !== null && actionLabel !== null) {
         actionButton.hidden = action === undefined;
-        actionButton.setAttribute('aria-pressed', String(view.live));
+        actionButton.setAttribute('aria-pressed', String(view.chosen === 'board'));
         if (action !== undefined) {
           actionLabel.textContent = action.short ?? action.label;
           if (action.short === undefined) actionButton.removeAttribute('aria-label');

@@ -4,7 +4,7 @@ import type { WatchRow } from '../../lib/workbench/board';
 import type { OutputLine, RunnerView, RunStatus } from '../../lib/workbench/simulator';
 import { sketchSourcePath } from '../../lib/workbench/source';
 import { wording, type SessionState } from '../../lib/flash';
-import type { BoardStatus, PaneMode } from '../../lib/workbench/link';
+import type { BoardAction, BoardStatus, PaneMode } from '../../lib/workbench/link';
 import type { SliderShortcut } from '../../lib/workbench/step';
 
 /** How many lines of serial output the terminal shows, the newest at the bottom. */
@@ -161,13 +161,15 @@ export interface Toolbar extends DebuggerControls {
 
 /**
  * The toolbar for the pane's `mode`. The simulator's comes from its run, `status` and `error`, with its `slow` setting.
- * Live, Pause, Step and Restart hand the pane to the simulator, and Slow, which a real board cannot follow, is off.
+ * Under My board, live or waiting, Pause, Step and Restart hand the pane to the simulator, and Slow, which a real
+ * board cannot follow, is off.
  */
 export function toolbar(mode: PaneMode, status: RunStatus, error: unknown, slow: boolean): Toolbar {
   switch (mode) {
     case 'simulator':
       return { ...debuggerControls(status, error), canRestart: true, canSlow: true, slow };
     case 'live':
+    case 'waiting':
       return { ...debuggerControls('running'), canRestart: true, canSlow: false, slow: false };
   }
 }
@@ -220,25 +222,73 @@ export function changedRows(
 }
 
 /**
- * What the Board cell reads for a status, short enough for its fixed width, and the sentence that names the board's
- * sketch in full, for the tooltip and for a screen reader. `detached` is set while the board runs the selected step
- * but the visitor handed the pane to the simulator.
+ * The tag on the board pane's frame: a word that names what the pane shows, and a sentence that says more, as the
+ * pane's `mode` and the board's `status` have it. While the session works on the My board view's `action`, the
+ * sentence names what it does.
  */
-export function boardStatusText(status: BoardStatus, detached = false): { readonly word: string; readonly title: string } {
+export function paneTag(
+  mode: PaneMode,
+  status: BoardStatus,
+  action: BoardAction | undefined,
+): { readonly word: string; readonly title: string } {
+  switch (mode) {
+    case 'simulator':
+      return {
+        word: 'Simulated',
+        title:
+          status.kind === 'live'
+            ? 'Running in the browser; your board runs this step under My board'
+            : 'Running in the browser',
+      };
+    case 'live':
+      return { word: 'Live', title: 'Drawn from what your board prints' };
+    case 'waiting':
+      return { word: 'My board', title: action?.disabled ? action.label : waitingTitle(status) };
+  }
+}
+
+function waitingTitle(status: BoardStatus): string {
   switch (status.kind) {
     case 'simulated':
-      return { word: 'Simulated', title: 'Running in the browser' };
+      return 'Not connected';
     case 'connected':
-      return { word: 'Connected', title: 'Waiting for the board to name its sketch; flash a step to use it here' };
+      return 'Waiting for it to name its sketch';
     case 'live':
-      return {
-        word: 'Live',
-        title: detached ? 'Live — the pane shows the simulator until My board' : 'Your board runs this step',
-      };
+      return 'Runs this step';
     case 'step':
-      return { word: `Runs ${status.id}`, title: `Your board runs ${status.key}` };
+      return `Runs ${status.id}`;
     case 'sketch':
-      return { word: 'Other sketch', title: `Your board runs ${status.key}` };
+      return `Runs ${status.key}`;
+  }
+}
+
+/**
+ * What the My board view says while the board does not run the selected step: what the session does or what failed,
+ * as {@link boardMessage} has it, else what the board runs and what to do. `selectedId` is the selected step's id, as
+ * its tab names it; the other arguments are {@link boardMessage}'s. `undefined` for a board that runs the step.
+ */
+export function waitingMessage(
+  session: SessionState,
+  status: BoardStatus,
+  selectedId: string,
+  flashed: string,
+  showRefusal: boolean,
+  board?: BoardModel,
+): BoardMessage | undefined {
+  const message = boardMessage(session, flashed, showRefusal, board);
+  if (message !== undefined) return message;
+  const say = (text: string): BoardMessage => ({ text, notice: false });
+  switch (status.kind) {
+    case 'simulated':
+      return say('No board connected. Plug it in with a USB cable, then connect.');
+    case 'connected':
+      return say(`Your board is connected but has not named its sketch. Flash ${selectedId} to use it here.`);
+    case 'live':
+      return undefined;
+    case 'step':
+      return say(`Your board runs ${status.id}. Flash ${selectedId} to see it here.`);
+    case 'sketch':
+      return say(`Your board runs ${status.key}. Flash ${selectedId} to see it here.`);
   }
 }
 

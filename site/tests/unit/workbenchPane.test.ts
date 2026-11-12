@@ -32,24 +32,27 @@ const wait = (state: PaneState<BlinkBoard>) => state.known && blink.board.variab
 const followedWait = (state: PaneState<BlinkBoard>) =>
   state.followed && blink.board.variable(state.followed.board, 'blinkDelay');
 
+const myBoard: PaneEvent = { kind: 'choose', chosen: 'board' };
+const simulator: PaneEvent = { kind: 'choose', chosen: 'simulator' };
+
 describe('the board pane', () => {
   it('opens on the first step, simulated, knowing nothing of a board', () => {
     const pane = initialPane(blink, idle);
-    expect(pane).toMatchObject({ selected: 0, mode: 'simulator', detached: false, following: 0, simulation: 0 });
+    expect(pane).toMatchObject({ selected: 0, chosen: 'simulator', mode: 'simulator', following: 0, simulation: 0 });
     expect(pane.heard).toBeUndefined();
     expect(pane.followed).toBeUndefined();
     expect(paneStatus(blink, pane)).toEqual({ kind: 'simulated' });
   });
 
-  it('opens following a board the site kept connected from another page, when it runs the first step', () => {
+  it('opens on My board, following a board the site kept connected, when it runs the first step', () => {
     const pane = initialPane(blink, running, 'blink/simple');
-    expect(pane).toMatchObject({ selected: 0, mode: 'live', heard: 'blink/simple', following: 1 });
+    expect(pane).toMatchObject({ selected: 0, chosen: 'board', mode: 'live', heard: 'blink/simple', following: 1 });
     expect(paneStatus(blink, pane)).toEqual({ kind: 'live' });
   });
 
   it('opens simulated beside a board the site kept connected that runs another step', () => {
     const pane = initialPane(blink, running, 'blink/input');
-    expect(pane).toMatchObject({ selected: 0, mode: 'simulator', heard: 'blink/input' });
+    expect(pane).toMatchObject({ selected: 0, chosen: 'simulator', mode: 'simulator', heard: 'blink/input' });
     expect(paneStatus(blink, pane)).toEqual({ kind: 'step', key: 'blink/input', id: 'input' });
   });
 
@@ -60,80 +63,120 @@ describe('the board pane', () => {
     expect(pane.following).toBe(0);
   });
 
-  it('follows the board from the line that names the selected step, which the pane then shows', () => {
-    const pane = after(connected, line(''), line('sketch blink/simple', 5));
+  it('keeps the simulator the visitor chose though the board runs the selected step', () => {
+    const pane = after(connected, line('sketch blink/simple'));
+    expect(pane).toMatchObject({ chosen: 'simulator', mode: 'simulator', following: 0 });
+    expect(paneStatus(blink, pane)).toEqual({ kind: 'live' });
+  });
+
+  it('waits under My board, holding the simulator, until the board runs the selected step', () => {
+    const before = after();
+    const waiting = reducePane(blink, before, myBoard);
+    expect(waiting).toMatchObject({ chosen: 'board', mode: 'waiting', following: 0, simulation: before.simulation });
+    expect(after(myBoard, connected, line('HIGH')).mode).toBe('waiting');
+  });
+
+  it('follows the board under My board from the line that names the selected step, which the pane then shows', () => {
+    const pane = after(myBoard, connected, line(''), line('sketch blink/simple', 5));
     expect(pane).toMatchObject({ mode: 'live', heard: 'blink/simple', following: 1 });
     expect(pane.followed?.output).toEqual([{ text: 'sketch blink/simple' }]);
     expect(paneStatus(blink, pane)).toEqual({ kind: 'live' });
   });
 
-  it('simulates a step the board does not run, and follows the board once its step is picked', () => {
-    const other = after(connected, line('sketch blink/commands'));
-    expect(other).toMatchObject({ mode: 'simulator', following: 0 });
+  it('follows at once on My board when the board already runs the selected step', () => {
+    const pane = after(connected, line('sketch blink/simple'), myBoard);
+    expect(pane).toMatchObject({ chosen: 'board', mode: 'live', following: 1 });
+  });
+
+  it('waits on a step the board does not run, and follows the board once its step is picked', () => {
+    const other = after(myBoard, connected, line('sketch blink/commands'));
+    expect(other).toMatchObject({ mode: 'waiting', following: 0 });
     expect(other.followed).toBeUndefined();
     expect(paneStatus(blink, other)).toEqual({ kind: 'step', key: 'blink/commands', id: 'commands' });
 
     const live = reducePane(blink, other, tab(COMMANDS));
-    expect(live).toMatchObject({ mode: 'live', selected: COMMANDS, following: 1 });
+    expect(live).toMatchObject({ chosen: 'board', mode: 'live', selected: COMMANDS, following: 1 });
     expect(reducePane(blink, other, { kind: 'sent', text: 'pause', at: 0 })).toBe(other);
   });
 
-  it('keeps what it knew of the board when a tab pick hands the pane to the simulator', () => {
-    const live = after(tab(INPUT), connected, line('sketch blink/input'), line('delay 700'));
+  it('keeps the simulator on a tab pick while the visitor chose it', () => {
+    const other = after(connected, line('sketch blink/commands'), tab(COMMANDS));
+    expect(other).toMatchObject({ chosen: 'simulator', mode: 'simulator', following: 0 });
+  });
+
+  it('keeps what it knew of the board when a tab pick leaves the pane waiting', () => {
+    const live = after(myBoard, tab(INPUT), connected, line('sketch blink/input'), line('delay 700'));
     expect(followedWait(live)).toBe('700');
     const other = reducePane(blink, live, tab(SIMPLE));
-    expect(other).toMatchObject({ mode: 'simulator', selected: SIMPLE });
+    expect(other).toMatchObject({ chosen: 'board', mode: 'waiting', selected: SIMPLE, simulation: live.simulation });
     expect(other.followed).toBeUndefined();
     expect(wait(other)).toBe('700');
   });
 
-  it("reads the board's lines by the step it runs while another is simulated", () => {
-    const other = after(tab(SIMPLE), connected, line('sketch blink/input'), line('delay 700'));
-    expect(other.mode).toBe('simulator');
-    expect(wait(other)).toBe('700');
-    expect(followedWait(reducePane(blink, other, tab(INPUT)))).toBe('700');
+  it("reads the board's lines by the step it runs while the pane shows another", () => {
+    const simulated = after(tab(SIMPLE), connected, line('sketch blink/input'), line('delay 700'));
+    expect(simulated.mode).toBe('simulator');
+    expect(wait(simulated)).toBe('700');
+
+    const waiting = after(myBoard, tab(SIMPLE), connected, line('sketch blink/input'), line('delay 700'));
+    expect(waiting.mode).toBe('waiting');
+    expect(wait(waiting)).toBe('700');
+    expect(followedWait(reducePane(blink, waiting, tab(INPUT)))).toBe('700');
   });
 
-  describe('Pause, Step or Restart while live', () => {
-    const live = after(tab(INPUT), connected, line('sketch blink/input'), line('delay 700'));
-    const detached = reducePane(blink, live, { kind: 'detach' });
+  describe('choose simulator while live', () => {
+    const live = after(myBoard, tab(INPUT), connected, line('sketch blink/input'), line('delay 700'));
+    const simulated = reducePane(blink, live, simulator);
 
     it('hands the pane to a fresh simulator and keeps the board, still Live', () => {
-      expect(detached).toMatchObject({ mode: 'simulator', detached: true, simulation: live.simulation + 1 });
-      expect(detached.followed).toBeUndefined();
-      expect(wait(detached)).toBe('700');
-      expect(paneStatus(blink, detached)).toEqual({ kind: 'live' });
+      expect(simulated).toMatchObject({ chosen: 'simulator', mode: 'simulator', simulation: live.simulation + 1 });
+      expect(simulated.followed).toBeUndefined();
+      expect(wait(simulated)).toBe('700');
+      expect(paneStatus(blink, simulated)).toEqual({ kind: 'live' });
     });
 
     it('counts a reply that arrives meanwhile in what the page knows, without showing it', () => {
-      const replied = reducePane(blink, detached, line('delay 500', 900));
+      const replied = reducePane(blink, simulated, line('delay 500', 900));
       expect(replied.mode).toBe('simulator');
       expect(replied.followed).toBeUndefined();
       expect(wait(replied)).toBe('500');
     });
 
     it("takes the source's values from a sketch line that arrives meanwhile, since the board restarted", () => {
-      const restarted = reducePane(blink, detached, line('sketch blink/input'));
+      const restarted = reducePane(blink, simulated, line('sketch blink/input'));
       expect(restarted.mode).toBe('simulator');
       expect(restarted.known).toEqual(blink.board.initial());
       expect(wait(restarted)).toBe('1000');
     });
 
     it('follows the board again on My board, from what the page knows', () => {
-      const back = reducePane(blink, reducePane(blink, detached, line('delay 500')), { kind: 'press', action: 'live' });
-      expect(back).toMatchObject({ mode: 'live', detached: false, following: live.following + 1 });
+      const back = reducePane(blink, reducePane(blink, simulated, line('delay 500')), myBoard);
+      expect(back).toMatchObject({ chosen: 'board', mode: 'live', following: live.following + 1 });
       expect(followedWait(back)).toBe('500');
       expect(back.followed?.output).toEqual([]);
     });
 
-    it('lets go of the detached state once the board no longer runs the step', () => {
-      const elsewhere = reducePane(blink, detached, line('sketch blink/commands'));
-      expect(elsewhere).toMatchObject({ mode: 'simulator', detached: false });
+    it('stays on the simulator once the board runs another step', () => {
+      const elsewhere = reducePane(blink, simulated, line('sketch blink/commands'));
+      expect(elsewhere).toMatchObject({ chosen: 'simulator', mode: 'simulator', simulation: simulated.simulation });
+    });
+
+    it('changes nothing when the simulator already has the pane', () => {
+      expect(reducePane(blink, simulated, simulator)).toBe(simulated);
+    });
+
+    it('starts a fresh simulator from the waiting view', () => {
+      const waiting = after(myBoard);
+      expect(reducePane(blink, waiting, simulator)).toMatchObject({
+        chosen: 'simulator',
+        mode: 'simulator',
+        simulation: waiting.simulation + 1,
+      });
     });
   });
 
   describe('a line sent to the board', () => {
-    const live = after(tab(INPUT), connected, line('sketch blink/input'));
+    const live = after(myBoard, tab(INPUT), connected, line('sketch blink/input'));
 
     it('shows as sent and waits for its answer', () => {
       const sent = reducePane(blink, live, { kind: 'sent', text: '500', at: 10 });
@@ -151,7 +194,7 @@ describe('the board pane', () => {
 
     it('is left alone when refused after the pane changed hands', () => {
       const sent = reducePane(blink, live, { kind: 'sent', text: '500', at: 10 });
-      const again = reducePane(blink, reducePane(blink, sent, { kind: 'detach' }), { kind: 'press', action: 'live' });
+      const again = reducePane(blink, reducePane(blink, sent, simulator), myBoard);
       const late = reducePane(blink, again, { kind: 'refused', id: 1, pane: sent.following, text: '500' });
       expect(late).toBe(again);
     });
@@ -184,11 +227,13 @@ describe('the board pane', () => {
     });
   });
 
-  it('forgets what it heard and knew as the session connects again, and simulates once the board is lost', () => {
-    const live = after(tab(INPUT), connected, line('sketch blink/input'), line('delay 700'));
+  it('forgets what it heard and knew as the session connects again, and waits once the board is lost', () => {
+    const live = after(myBoard, tab(INPUT), connected, line('sketch blink/input'), line('delay 700'));
     const lost = reducePane(blink, live, { kind: 'session', state: { ...running, lost: true } });
-    expect(lost).toMatchObject({ mode: 'simulator', simulation: live.simulation + 1 });
+    expect(lost).toMatchObject({ chosen: 'board', mode: 'waiting', simulation: live.simulation });
+    expect(lost.followed).toBeUndefined();
     expect(paneStatus(blink, lost)).toEqual({ kind: 'simulated' });
+    expect(paneAction(blink, lost)).toMatchObject({ event: 'connect', label: 'Connect my board' });
 
     const again = reducePane(blink, lost, { kind: 'session', state: { kind: 'connecting' } });
     expect(again.heard).toBeUndefined();

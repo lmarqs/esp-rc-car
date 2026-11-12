@@ -316,21 +316,21 @@ const flashable = Object.keys(manifest.sketches).length > 0;
      * Hands the pane from the board to a fresh simulator, running if `running`. The simulator starts as the pane changes
      * hands, so the visitor's wish is set first.
      */
-    function detach(running: boolean) {
+    function chooseSimulator(running: boolean) {
       simulation.want(running);
-      dispatch({ kind: 'detach' });
+      dispatch({ kind: 'choose', chosen: 'simulator' });
     }
 
     pauseButton.addEventListener('click', () => {
-      if (pane.mode === 'live') return detach(false);
+      if (pane.mode !== 'simulator') return chooseSimulator(false);
       simulation.toggle();
     });
     stepButton.addEventListener('click', () => {
-      if (pane.mode === 'live') return detach(false);
+      if (pane.mode !== 'simulator') return chooseSimulator(false);
       simulation.step();
     });
     restartButton.addEventListener('click', () => {
-      if (pane.mode === 'live') return dispatch({ kind: 'detach' });
+      if (pane.mode !== 'simulator') return dispatch({ kind: 'choose', chosen: 'simulator' });
       watch.reset();
       commandLine.reset();
       simulation.restart();
@@ -350,13 +350,14 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       action() {
         const action = paneAction(paneProject, pane);
         if (action === undefined || action.disabled) return;
+        dispatch({ kind: 'choose', chosen: 'board' });
         press(action.event);
       },
       flashAgain: () => press('flash'),
       // The board keeps running its step; the simulator starts it again in the pane.
       simulator() {
-        if (pane.mode !== 'live') return;
-        detach(true);
+        if (pane.mode === 'simulator') return;
+        chooseSimulator(true);
       },
     });
 

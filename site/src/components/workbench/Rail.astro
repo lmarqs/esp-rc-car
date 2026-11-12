@@ -1,7 +1,7 @@
 ---
 import { wording } from '../../lib/flash';
 import { elementId, type RailStep } from './rail';
-import { boardStatusText } from './view';
+import { paneTag } from './view';
 
 interface Props {
   project: string;
@@ -12,7 +12,7 @@ interface Props {
 
 const { project, steps, flashable } = Astro.props;
 const id = (part: string) => elementId(project, part);
-const simulated = boardStatusText({ kind: 'simulated' });
+const simulated = paneTag('simulator', { kind: 'simulated' }, undefined);
 ---
 
 <div class="rail">

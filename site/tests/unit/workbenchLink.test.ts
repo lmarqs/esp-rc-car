@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SessionState } from '../../src/lib/flash/session';
 import { sketchOf } from '../../src/lib/flash/lines';
-import { boardAction, boardStatus, isConnected, paneMode } from '../../src/lib/workbench/link';
+import { boardAction, boardDot, boardStatus, isConnected, paneMode } from '../../src/lib/workbench/link';
 
 const running: SessionState = { kind: 'running', chip: 'ESP32', output: [] };
 const lost: SessionState = { kind: 'running', chip: 'ESP32', output: [], lost: true };
@@ -84,11 +84,11 @@ describe('boardAction', () => {
     expect(boardAction(running, undefined, input)).toEqual(flashStep);
   });
 
-  it('reads My board, live, on a board that runs the selected step', () => {
+  it('flashes the step again on a board that runs the selected step', () => {
     expect(boardAction(running, 'blink/input', input)).toEqual({
-      label: 'My board, live',
-      icon: 'dot',
-      event: 'live',
+      label: 'Flash again',
+      icon: 'bolt',
+      event: 'flash',
       disabled: false,
     });
   });
@@ -111,39 +111,41 @@ describe('boardAction', () => {
     expect(boardAction({ kind: 'connecting' }, undefined, input)).toEqual({ ...connect, label: 'Connecting…', disabled: true });
   });
 
-  it('goes back to the board while the simulator has the pane of a board that runs the selected step', () => {
-    expect(boardAction(running, 'blink/input', input, undefined, true)).toEqual({
-      label: 'My board',
-      icon: 'dot',
-      event: 'live',
-      disabled: false,
-    });
+  it('connects again, not Flash again, once the board is lost', () => {
+    expect(boardAction(lost, 'blink/input', input)).toEqual(connect);
   });
+});
 
-  it('flashes the step, not back to the board, once the board runs another step', () => {
-    expect(boardAction(running, 'blink/simple', input, undefined, true)).toMatchObject({ label: 'Flash input to board' });
-  });
-
-  it('connects again, not back to the board, once the board is lost', () => {
-    expect(boardAction(lost, 'blink/input', input, undefined, true)).toEqual(connect);
+describe('boardDot', () => {
+  it('is off without a board, busy while the session works and on while it holds a board', () => {
+    const states: SessionState[] = [
+      { kind: 'idle' },
+      { kind: 'unsupported' },
+      { kind: 'noPort' },
+      { kind: 'connecting' },
+      { kind: 'flashing', chip: 'ESP32', pct: 10 },
+      running,
+      lost,
+    ];
+    expect(states.map(boardDot)).toEqual(['off', 'off', 'off', 'busy', 'busy', 'on', 'off']);
   });
 });
 
 describe('paneMode', () => {
-  it('simulates while no board names its sketch', () => {
-    expect(paneMode({ kind: 'simulated' }, false)).toBe('simulator');
-    expect(paneMode({ kind: 'simulated' }, true)).toBe('simulator');
-    expect(paneMode({ kind: 'connected' }, false)).toBe('simulator');
-    expect(paneMode({ kind: 'connected' }, true)).toBe('simulator');
+  it('is the simulator whenever the visitor chose it, whatever the board runs', () => {
+    expect(paneMode({ kind: 'simulated' }, 'simulator')).toBe('simulator');
+    expect(paneMode({ kind: 'live' }, 'simulator')).toBe('simulator');
+    expect(paneMode({ kind: 'step', key: 'blink/simple', id: 'simple' }, 'simulator')).toBe('simulator');
   });
 
-  it('follows a board that runs the selected step, until the visitor hands the pane to the simulator', () => {
-    expect(paneMode({ kind: 'live' }, false)).toBe('live');
-    expect(paneMode({ kind: 'live' }, true)).toBe('simulator');
+  it('follows the board under My board while it runs the selected step', () => {
+    expect(paneMode({ kind: 'live' }, 'board')).toBe('live');
   });
 
-  it('simulates the selected step while the board runs another step or sketch', () => {
-    expect(paneMode({ kind: 'step', key: 'blink/simple', id: 'simple' }, false)).toBe('simulator');
-    expect(paneMode({ kind: 'sketch', key: 'servo/sweep' }, true)).toBe('simulator');
+  it('waits under My board while the board does not run the selected step', () => {
+    expect(paneMode({ kind: 'simulated' }, 'board')).toBe('waiting');
+    expect(paneMode({ kind: 'connected' }, 'board')).toBe('waiting');
+    expect(paneMode({ kind: 'step', key: 'blink/simple', id: 'simple' }, 'board')).toBe('waiting');
+    expect(paneMode({ kind: 'sketch', key: 'servo/sweep' }, 'board')).toBe('waiting');
   });
 });

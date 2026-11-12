@@ -1,7 +1,15 @@
 import { awaitsRun, type SessionState } from '../flash';
 import type { BoardModel } from './board';
 import { sketchOf } from '../flash/lines';
-import { boardAction, boardStatus, paneMode, type BoardAction, type BoardStatus, type PaneMode } from './link';
+import {
+  boardAction,
+  boardStatus,
+  paneMode,
+  type BoardAction,
+  type BoardStatus,
+  type PaneChoice,
+  type PaneMode,
+} from './link';
 import { follow, receive, send, withdraw, type Followed } from './live';
 import type { StepDefinition } from './step';
 
@@ -14,7 +22,7 @@ export interface PaneProject<B> {
 }
 
 /**
- * Who has the workbench's board pane, and what the page knows of the visitor's board. The simulator's own run is the
+ * What the workbench's board pane shows, and what the page knows of the visitor's board. The simulator's own run is the
  * page's: the pane says only when a fresh one starts and when it waits.
  */
 export interface PaneState<B> {
@@ -22,9 +30,9 @@ export interface PaneState<B> {
   readonly session: SessionState;
   /** The index of the selected step in rail order. */
   readonly selected: number;
+  /** The half of the switch the visitor last pressed, or that the page opened on. */
+  readonly chosen: PaneChoice;
   readonly mode: PaneMode;
-  /** Set when the visitor paused, stepped or restarted while live: the simulator keeps the pane until My board. */
-  readonly detached: boolean;
   /** The sketch the connected board said it runs; unknown again from each connection until it says. */
   readonly heard?: string;
   /**
@@ -40,7 +48,7 @@ export interface PaneState<B> {
   readonly following: number;
   /** Counts the times a fresh simulator took the pane from the board; the page then starts its run again. */
   readonly simulation: number;
-  /** What the visitor last pressed on the board half of the Board switch, which the session may still work on. */
+  /** What the visitor last pressed in the My board view, or Flash again, which the session may still work on. */
   readonly pressed?: BoardAction['event'];
   /** The key of the step last flashed, or of the first step until one is: the step a missing image names. */
   readonly flashed: string;
@@ -59,12 +67,12 @@ export type PaneEvent =
   | { readonly kind: 'session'; readonly state: SessionState }
   /** The board printed `text` at `at` milliseconds of the page's clock. */
   | { readonly kind: 'line'; readonly text: string; readonly at: number }
-  /** Pause, Step, Restart or Simulator pressed while live: the simulator takes the pane, and the board keeps its port. */
-  | { readonly kind: 'detach' }
   /**
-   * The board half of the Board switch pressed: `connect` and `flash` start the session's work, which the page asks
-   * of it; `live`, My board, hands the pane back to the board.
+   * The visitor pressed a half of the switch, or Pause, Step or Restart outside the simulator, which choose it. The
+   * simulator takes the pane with the board keeping its port; My board shows the board, or what it takes to show it.
    */
+  | { readonly kind: 'choose'; readonly chosen: PaneChoice }
+  /** The My board view's button or Flash again pressed: starts the session's work, which the page asks of it. */
   | { readonly kind: 'press'; readonly action: BoardAction['event'] }
   /** The visitor sent `text` to the board at `at`. */
   | { readonly kind: 'sent'; readonly text: string; readonly at: number }
@@ -73,24 +81,25 @@ export type PaneEvent =
 
 /**
  * The pane as the page opens: the first step, simulated, unless the board, which the site keeps connected from page to
- * page, already said it runs it, as `heard`.
+ * page, already said it runs it, as `heard`: then My board, following it.
  */
 export function initialPane<B>(project: PaneProject<B>, session: SessionState, heard?: string): PaneState<B> {
   const flashed = project.steps[0].key;
-  const opening: PaneState<B> = { session, selected: 0, mode: 'simulator', detached: false, following: 0, simulation: 0, flashed };
-  return heard === undefined ? opening : sync(project, { ...opening, heard });
+  const chosen = heard === flashed ? 'board' : 'simulator';
+  const opening = { session, selected: 0, chosen, mode: 'simulator', following: 0, simulation: 0 } as const;
+  return sync(project, { ...opening, flashed, heard });
 }
 
-/** The Board cell's status for `state`. */
+/** What the visitor's board runs for `state`. */
 export function paneStatus<B>(project: PaneProject<B>, state: PaneState<B>): BoardStatus {
   const keys = project.steps.map((step) => step.key);
   return boardStatus(state.session, state.heard, keys[state.selected], keys, project.ids);
 }
 
-/** The board half of the Board switch for the pane; `undefined` in a browser that cannot reach a board. */
+/** The My board view's button for the pane; `undefined` in a browser that cannot reach a board. */
 export function paneAction<B>(project: PaneProject<B>, state: PaneState<B>): BoardAction | undefined {
   const step = { key: selectedStep(project, state).key, id: project.ids[state.selected] };
-  return boardAction(state.session, state.heard, step, state.pressed, state.detached);
+  return boardAction(state.session, state.heard, step, state.pressed);
 }
 
 /** Whether the pane shows the session's refusal to flash: until the visitor picks another step. */
@@ -105,8 +114,7 @@ export function reducePane<B>(project: PaneProject<B>, state: PaneState<B>, even
       return sync(project, {
         ...handBack(state),
         selected: event.index,
-        mode: 'simulator',
-        detached: false,
+        mode: state.chosen === 'simulator' ? 'simulator' : 'waiting',
         dismissed: state.session.kind === 'running' ? state.session.flashRefused : state.dismissed,
       });
     case 'session': {
@@ -125,11 +133,12 @@ export function reducePane<B>(project: PaneProject<B>, state: PaneState<B>, even
     }
     case 'line':
       return readLine(project, state, event.text, event.at);
-    case 'detach':
-      return sync(project, startSimulator({ ...state, detached: true, mode: 'simulator' }));
+    case 'choose':
+      if (event.chosen === 'board') return sync(project, { ...state, chosen: 'board' });
+      if (state.mode === 'simulator') return state;
+      return startSimulator({ ...state, chosen: 'simulator', mode: 'simulator' });
     case 'press':
       if (event.action === 'flash') return { ...state, pressed: event.action, flashed: selectedStep(project, state).key };
-      if (event.action === 'live') return sync(project, { ...state, pressed: event.action, detached: false });
       return { ...state, pressed: event.action };
     case 'sent':
       if (state.mode !== 'live' || state.followed === undefined) return state;
@@ -147,7 +156,7 @@ export function reducePane<B>(project: PaneProject<B>, state: PaneState<B>, even
 
 /**
  * The pane after the board printed `text`. A `sketch` line names what the board runs, which may hand the pane over.
- * Lines the board prints while the simulator has the pane are not shown, nor kept for later, but what they tell of
+ * Lines the board prints while the pane does not follow it are not shown, nor kept for later, but what they tell of
  * the board still counts, such as the answer to a line sent before the visitor paused. A restart sets the source's
  * values, since it wipes whatever was sent before.
  */
@@ -163,14 +172,18 @@ function readLine<B>(project: PaneProject<B>, state: PaneState<B>, text: string,
   return event === undefined ? named : { ...named, known: project.board.apply(named.known, event, at) };
 }
 
-/** Puts the pane where the board's status and the visitor's last choice say it goes. */
+/** Puts the pane where the board's status and the visitor's choice say it goes. */
 function sync<B>(project: PaneProject<B>, state: PaneState<B>): PaneState<B> {
-  const status = paneStatus(project, state);
-  const detached = status.kind === 'live' && state.detached;
-  const mode = paneMode(status, detached);
-  const placed = { ...state, detached };
-  if (mode === state.mode) return placed;
-  return mode === 'simulator' ? startSimulator({ ...placed, mode }) : startFollowing(project, { ...placed, mode });
+  const mode = paneMode(paneStatus(project, state), state.chosen);
+  if (mode === state.mode) return state;
+  switch (mode) {
+    case 'simulator':
+      return startSimulator({ ...state, mode });
+    case 'live':
+      return startFollowing(project, { ...state, mode });
+    case 'waiting':
+      return handBack({ ...state, mode });
+  }
 }
 
 /** Hands the pane to the board, from the next line it prints; the simulator waits, paused. */
