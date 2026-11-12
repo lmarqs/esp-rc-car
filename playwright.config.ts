@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const port = 4321;
+const port = 4322;
 
 export default defineConfig({
   testDir: 'site/tests/e2e',
@@ -14,6 +14,6 @@ export default defineConfig({
   webServer: {
     command: `pnpm exec astro preview --root site --ignore-lock --port ${port}`,
     url: `http://localhost:${port}/robomania/`,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
   },
 });
