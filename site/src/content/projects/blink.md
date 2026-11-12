@@ -22,8 +22,8 @@ Blink proves that a build, an upload and the board all work. It needs nothing bu
 
 ## Run it on your board
 
-With the tools installed (the [tooling page](../../learn/tooling/) says how), connect the board over USB and run,
-from the repository's root:
+The card above flashes this sketch onto your board from Chrome or Edge on a computer, with no tools installed. To build and flash it yourself, install the tools (the [tooling page](../../learn/tooling/) says how), connect the
+board over USB and run, from the repository's root:
 
 ```sh
 mise run arduino:run sketches/blink --port /dev/ttyUSB0 --monitor

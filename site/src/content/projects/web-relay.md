@@ -39,8 +39,8 @@ uploads over its own USB port.
 
 ## Run it on your board
 
-With the tools installed (the [tooling page](../../learn/tooling/) says how), put the ESP-01S in its USB adapter
-and run, from the repository's root:
+Put the ESP-01S in its USB adapter. The card above flashes this sketch onto your board from Chrome or Edge on a computer, with no tools installed. To build and flash it yourself, install the tools (the
+[tooling page](../../learn/tooling/) says how) and run, from the repository's root:
 
 ```sh
 mise run arduino:run sketches/web-relay --port /dev/ttyUSB0

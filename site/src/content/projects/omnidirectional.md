@@ -37,11 +37,15 @@ command for 500 ms, so a robot whose input goes quiet does not drive on with its
 
 ## Run it on your board
 
-With the tools installed (the [tooling page](../../learn/tooling/) says how), run from the repository's root:
+The card above flashes this sketch onto your board from Chrome or Edge on a computer, with no tools installed. To build and flash it yourself, install the tools (the [tooling page](../../learn/tooling/) says how) and run from
+the repository's root:
 
 ```sh
 mise run arduino:run sketches/omnidirectional --port /dev/ttyUSB0
 ```
+
+The sketch compiles; uploading has not been tried from this repository yet. If a step fails, the repository wants to
+hear about it.
 
 ## How the code works
 

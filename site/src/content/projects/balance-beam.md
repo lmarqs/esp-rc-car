@@ -48,8 +48,12 @@ sources and as STL and 3MF files ready to slice.
 
 ## Run it on your board
 
-A fresh build cannot spin a motor: the range of throttle the loop may use is zero until you set it. Put your
-rig's values in `sketches/balance-beam/local.h`, a file Git ignores. The reference rig uses:
+The card above flashes this sketch onto your board from Chrome or Edge on a computer, with no tools installed. Its
+Settings step asks for the throttle band, the angle offset, the tilt limit and the hotspot, and sends them to the board.
+
+To build and flash it yourself: a fresh build cannot spin a motor, since the range of throttle the loop may use is
+zero until you set it. Put your rig's values in `sketches/balance-beam/local.h`, a file Git ignores. The reference
+rig uses:
 
 ```cpp
 #define BALANCE_BEAM_THROTTLE_MIN 0.080f
