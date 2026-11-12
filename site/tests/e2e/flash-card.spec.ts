@@ -321,8 +321,8 @@ test.describe('a failure', () => {
     );
     await expect(card(page).getByRole('button')).toHaveCount(0);
     await expect(card(page).getByRole('link')).toHaveText([
-      'esp32: blink.ino.bootloader.bin',
-      'esp32: blink.ino.bin',
+      'esp32: blink.ino.bootloader.bin at 0x1000',
+      'esp32: blink.ino.bin at 0x10000',
       'Run it on your board',
     ]);
     const hrefs = await card(page)

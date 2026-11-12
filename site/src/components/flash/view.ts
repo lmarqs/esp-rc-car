@@ -76,7 +76,7 @@ const BUILD_IT_YOURSELF = '#run-it-on-your-board';
 function imageLinks(images: readonly ManifestImage[], firmwareUrl: string): ViewLink[] {
   return images.flatMap((image) =>
     image.parts.map((part) => ({
-      label: `${image.profile}: ${part.path.split('/').pop()}`,
+      label: `${image.profile}: ${part.path.split('/').pop()} at 0x${part.offset.toString(16)}`,
       href: firmwareUrl + part.path,
     })),
   );

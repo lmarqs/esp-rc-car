@@ -111,7 +111,7 @@ describe('viewFor', () => {
     });
   });
 
-  it('links the images and the build-it-yourself section where the browser cannot flash', () => {
+  it('links the images, each part with its offset, and the build-it-yourself section where the browser cannot flash', () => {
     const images = [
       {
         profile: 'esp32',
@@ -127,8 +127,8 @@ describe('viewFor', () => {
     expect(view.message).toBe('This browser cannot reach a USB board. Open this page in Chrome or Edge on a computer.');
     expect(view.actions).toBeUndefined();
     expect(view.links).toEqual([
-      { label: 'esp32: blink.ino.bootloader.bin', href: '/robomania/firmware/blink/esp32/blink.ino.bootloader.bin' },
-      { label: 'esp32: blink.ino.bin', href: '/robomania/firmware/blink/esp32/blink.ino.bin' },
+      { label: 'esp32: blink.ino.bootloader.bin at 0x1000', href: '/robomania/firmware/blink/esp32/blink.ino.bootloader.bin' },
+      { label: 'esp32: blink.ino.bin at 0x10000', href: '/robomania/firmware/blink/esp32/blink.ino.bin' },
       { label: 'Run it on your board', href: '#run-it-on-your-board' },
     ]);
   });
