@@ -42,10 +42,13 @@ const projects = defineCollection({
       /** The flash card's copy for a sketch the browser flashes; a project whose sketch has no image sets none. */
       flash: z
         .object({
-          /** The speed of the sketch's `Serial.begin`; absent for a sketch that prints nothing, which gets no board output. */
+          /**
+           * The speed of the sketch's `Serial.begin`; absent for a sketch that prints nothing, which gets no board
+           * output.
+           */
           baud: z.number().int().positive().optional(),
-          /** What to do once the board runs. */
-          next: z.string(),
+          /** What to do once the board runs, which the flash card says; a project with steps has no flash card. */
+          next: z.string().optional(),
         })
         .optional(),
       topics: z.array(z.string()).default([]),
@@ -57,6 +60,13 @@ const projects = defineCollection({
           code: 'custom',
           path: ['sketch'],
           message: "A project with steps sets `sketch` to its first step's sketch.",
+        });
+      }
+      if (project.steps === undefined && project.flash !== undefined && project.flash.next === undefined) {
+        context.addIssue({
+          code: 'custom',
+          path: ['flash', 'next'],
+          message: 'A project with one sketch says what to do once the board runs.',
         });
       }
     }),

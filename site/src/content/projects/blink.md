@@ -21,7 +21,6 @@ steps:
     idea: Pause and run by name
 flash:
   baud: 115200
-  next: "Watch the LED on GPIO 2: it turns on for one second, then off, and the board prints HIGH and LOW as it changes."
 topics: [tooling, sketches-and-drivers]
 ---
 

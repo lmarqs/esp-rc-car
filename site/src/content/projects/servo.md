@@ -21,7 +21,6 @@ steps:
     idea: Move at a limited speed
 flash:
   baud: 115200
-  next: "Connect the servo's signal wire to GPIO 13. It sweeps from 0° to 180° and back, about 2.7 seconds each way."
 topics: [servo, pwm]
 ---
 
