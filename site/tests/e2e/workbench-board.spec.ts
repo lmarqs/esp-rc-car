@@ -400,3 +400,22 @@ test.describe('the rail', () => {
     for (const centre of centres) expect(Math.abs(centre - centres[0])).toBeLessThanOrEqual(1);
   });
 });
+
+test.describe('the watch', () => {
+  for (const width of [1280, 821, 400]) {
+    test(`keeps each value of every step on one line at ${width} px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(BLINK);
+      await expect(bench(page).locator('.watch div:visible').filter({ hasText: '1000 ms (fixed)' })).toHaveCount(1);
+
+      for (const name of ['1 simple', '2 input', '3 timer', '4 commands']) {
+        await tab(page, name).click();
+        for (const row of await bench(page).locator('.watch div:visible').all()) {
+          const [label, value] = await Promise.all([row.locator('dt').boundingBox(), row.locator('dd').boundingBox()]);
+          expect(value!.height, `${name}: ${await row.textContent()}`).toBe(label!.height);
+        }
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+    });
+  }
+});

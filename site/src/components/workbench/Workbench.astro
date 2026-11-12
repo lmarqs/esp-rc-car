@@ -438,11 +438,12 @@ const simulated = boardStatusText({ kind: 'simulated' });
   .base { fill: var(--card); }
   .led.on .bulb { fill: var(--green); }
   .led.on .rays { opacity: 1; }
-  .watch { margin: 0; border: 1px solid var(--line); border-radius: 10px; font-family: var(--mono); font-size: 13px; overflow: hidden; }
+  /* Across both columns, so a value such as 1000 ms (fixed) stays on one line. */
+  .watch { grid-column: 2 / -1; margin: 0; border: 1px solid var(--line); border-radius: 10px; font-family: var(--mono); font-size: 13px; overflow: hidden; }
   .watch div { display: flex; justify-content: space-between; gap: 10px; padding: 3px 10px; }
   .watch div + div { border-top: 1px solid var(--line); }
   .watch dt { color: var(--muted); }
-  .watch dd { margin: 0; padding: 0 4px; border-radius: 4px; font-weight: 700; }
+  .watch dd { margin: 0; padding: 0 4px; border-radius: 4px; font-weight: 700; white-space: nowrap; }
   .watch dd[data-changed] { background: var(--yellow); }
 
   .scope { margin: 0; padding: 6px 10px 4px; border: 1px solid var(--line); border-radius: 10px; background: var(--chrome-light); }
