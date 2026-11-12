@@ -12,6 +12,16 @@
   --tint-blue: #dbe8f5;
   --tint-coral: #fbe0d6;
   --tint-green: #d9f0e4;
+  --wash-yellow: #fff7d6;
+  --faint: #a9b3bd;
+  --chrome: #ebe7dc;
+  --chrome-light: #fbfaf6;
+  --on-ink: #e8eef3;
+  --led-off: #cfe7da;
+  --syntax-keyword: #8a3ea8;
+  --syntax-string: #2e7d5b;
+  --syntax-function: #2a6db0;
+  --syntax-number: #b3541e;
   --radius: 16px;
   --stroke: 2px solid var(--ink);
   --mono: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
