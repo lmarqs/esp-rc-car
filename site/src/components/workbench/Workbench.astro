@@ -3,7 +3,7 @@ import { OPENING, workbenchFor } from '../../lib/workbench/projects';
 // Read here, at build time, only: a browser script that imported it would carry every sketch's source.
 import { readStepSource } from '../../lib/workbench/readSource';
 import { newLines } from '../../lib/workbench/source';
-import { CLOCK_DASH, codeRows, crumbs, fileName, SERIAL_LINES, shortcutNames } from './view';
+import { CLOCK_DASH, codeRows, crumbs, fileName, SERIAL_LINES } from './view';
 
 interface Props {
   /** The project's page id, such as `blink`; the project must have step definitions. */
@@ -26,7 +26,7 @@ const rail = steps.map((step, index) => {
     key: definition.key,
     hint: definition.hint,
     placeholder: definition.placeholder,
-    shortcuts: shortcutNames(definition.shortcuts),
+    shortcuts: definition.shortcuts,
     file: fileName(step.sketch),
     crumbs: crumbs(step.sketch),
     rows: codeRows(sources[index], newLines(sources[index - 1], sources[index]), definition.live?.name),
@@ -179,7 +179,45 @@ const id = (part: string) => `workbench-${project}-${part}`;
             Send
           </button>
         </form>
-        <div data-shortcuts={first.shortcuts} hidden></div>
+        {
+          rail.map(
+            (step, index) =>
+              step.shortcuts.length > 0 && (
+                <div class="shortcuts" role="group" aria-label="Shortcuts" data-for-step={index} data-shortcuts hidden={index !== 0}>
+                  {step.shortcuts.some((shortcut) => shortcut.kind === 'chip') && (
+                    <span class="chips">
+                      {step.shortcuts.map(
+                        (shortcut, at) =>
+                          shortcut.kind === 'chip' && (
+                            <button type="button" class="chip" data-shortcut={at}>
+                              {shortcut.text}
+                            </button>
+                          ),
+                      )}
+                    </span>
+                  )}
+                  {step.shortcuts.map(
+                    (shortcut, at) =>
+                      shortcut.kind === 'slider' && (
+                        <label class="slider">
+                          {shortcut.label}
+                          <input
+                            type="range"
+                            min={shortcut.min}
+                            max={shortcut.max}
+                            step={shortcut.step}
+                            value={shortcut.initial}
+                            aria-label={`${shortcut.label} in ${shortcut.unit}`}
+                            data-shortcut={at}
+                          />
+                          <output>{shortcut.initial}</output>
+                        </label>
+                      ),
+                  )}
+                </div>
+              ),
+          )
+        }
       </div>
       <p class="problem" role="alert" data-problem hidden></p>
       {
@@ -289,6 +327,15 @@ const id = (part: string) => `workbench-${project}-${part}`;
   .send { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-family: var(--sans); font-size: 13px; font-weight: 700; line-height: 1.5; color: var(--ink); background: var(--yellow); border: 0; border-radius: 6px; padding: 4px 12px; cursor: pointer; }
   .send svg { width: 13px; height: 13px; fill: currentColor; }
   .send:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .shortcuts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 8px 12px 8px 14px; border-top: 1px solid var(--on-ink-line); background: var(--ink-raised); color: var(--on-ink); }
+  .chips { display: flex; gap: 6px; }
+  .chip { font: inherit; font-size: 13px; line-height: 1.5; color: var(--on-ink); background: transparent; border: 1px solid var(--on-ink-edge); border-radius: 6px; padding: 2px 10px; cursor: pointer; }
+  .chip:hover { border-color: var(--yellow); color: var(--yellow); }
+  .chip:focus-visible, .slider input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .slider { display: flex; flex: 1 1 220px; align-items: center; gap: 8px; min-width: 0; }
+  .slider input { flex: 1; min-width: 80px; margin: 0; accent-color: var(--yellow); }
+  /* Four digits, the most the value has, so the slider keeps its length as the value changes. */
+  .slider output { min-width: 4ch; text-align: right; color: var(--card); }
   .hint { font-size: 13px; color: var(--muted); margin: 0; }
   .problem { margin: 0; padding: 8px 12px; border: 1.5px solid var(--ink); border-radius: 10px; font-size: 14px; font-weight: 600; }
 </style>
@@ -300,7 +347,8 @@ const id = (part: string) => `workbench-${project}-${part}`;
   import { tabAfterKey } from '../../lib/workbench/tabs';
   import type { WatchRow } from '../../lib/workbench/board';
   import type { StepDefinition } from '../../lib/workbench/step';
-  import { changedRows, CLOCK_DASH, clockFace, debuggerControls, serialRows, shortcutNames } from './view';
+  import { createTypist } from '../../lib/workbench/typist';
+  import { changedRows, CLOCK_DASH, clockFace, debuggerControls, serialRows } from './view';
 
   /** How long a watch value stays highlighted after it changes. */
   const HIGHLIGHT_MS = 900;
@@ -326,7 +374,6 @@ const id = (part: string) => `workbench-${project}-${part}`;
     const serialLines = [...root.querySelectorAll<HTMLElement>('[data-serial-line]')];
     const command = root.querySelector<HTMLFormElement>('[data-command]')!;
     const commandLine = root.querySelector<HTMLInputElement>('[data-command-line]')!;
-    const shortcuts = root.querySelector<HTMLElement>('[data-shortcuts]')!;
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
     const pauseButton = root.querySelector<HTMLButtonElement>('[data-pause]')!;
     const pauseLabel = root.querySelector<HTMLElement>('[data-pause-label]')!;
@@ -359,9 +406,8 @@ const id = (part: string) => `workbench-${project}-${part}`;
       });
       panel.setAttribute('aria-labelledby', tabs[index].id);
       for (const element of perStep) element.hidden = element.dataset.forStep !== String(index);
-      shortcuts.dataset.shortcuts = shortcutNames(chosen.shortcuts);
-      commandLine.value = '';
       commandLine.placeholder = chosen.placeholder;
+      clearCommandLine();
       resetWatch();
 
       runner?.dispose();
@@ -455,12 +501,74 @@ const id = (part: string) => `workbench-${project}-${part}`;
       runner?.send(text);
     }
 
+    /** Shows `text` in the command line in yellow: typed by a shortcut, or about to be sent by the slider. */
+    function showTyped(text: string) {
+      commandLine.value = text;
+      commandLine.setAttribute('data-typing', '');
+    }
+
+    /** Empties the command line and drops the line a shortcut was typing, unsent; resets the sliders. */
+    function clearCommandLine() {
+      typist.stop();
+      commandLine.value = '';
+      commandLine.removeAttribute('data-typing');
+      for (const slider of sliders) {
+        const shortcut = shortcutOf(slider);
+        if (shortcut?.kind !== 'slider') continue;
+        slider.value = String(shortcut.initial);
+        slider.nextElementSibling!.textContent = slider.value;
+      }
+    }
+
+    const typist = createTypist({
+      show: showTyped,
+      send(text) {
+        commandLine.value = '';
+        commandLine.removeAttribute('data-typing');
+        sendToBoard(text);
+      },
+      reduceMotion: () => reducedMotion.matches,
+    });
+
+    const sliders = [...root.querySelectorAll<HTMLInputElement>('input[type="range"][data-shortcut]')];
+    function shortcutOf(control: HTMLElement) {
+      const stepIndex = Number(control.closest<HTMLElement>('[data-for-step]')!.dataset.forStep);
+      const step = project!.steps.find((candidate) => candidate.key === steps[stepIndex].key);
+      return step?.shortcuts[Number(control.dataset.shortcut)];
+    }
+
     command.addEventListener('submit', (event) => {
       event.preventDefault();
+      // A line a shortcut is typing goes out as it would after its pause.
+      if (typist.busy) return typist.finish();
       const text = commandLine.value.trim();
       commandLine.value = '';
+      commandLine.removeAttribute('data-typing');
       if (text !== '') sendToBoard(text);
     });
+    commandLine.addEventListener('input', () => {
+      typist.stop();
+      commandLine.removeAttribute('data-typing');
+    });
+    for (const chip of root.querySelectorAll<HTMLButtonElement>('button[data-shortcut]')) {
+      chip.addEventListener('click', () => {
+        const shortcut = shortcutOf(chip);
+        if (shortcut?.kind === 'chip') typist.type(shortcut.text);
+      });
+    }
+    for (const slider of sliders) {
+      const line = () => {
+        const shortcut = shortcutOf(slider);
+        return shortcut?.kind === 'slider' ? shortcut.command(Number(slider.value)) : '';
+      };
+      // Dragging only shows the line; releasing sends it, so the values passed on the way never reach the board.
+      slider.addEventListener('input', () => {
+        typist.finish();
+        slider.nextElementSibling!.textContent = slider.value;
+        showTyped(line());
+      });
+      slider.addEventListener('change', () => typist.type(line(), line().length));
+    }
 
     pauseButton.addEventListener('click', () => {
       if (runner?.view().status === 'running') {
@@ -479,6 +587,7 @@ const id = (part: string) => `workbench-${project}-${part}`;
       if (runner === undefined) return;
       board = project!.board.initial();
       resetWatch();
+      clearCommandLine();
       runner.restart();
       // The runner keeps running or paused, and comes back paused from an end or an error.
       if (keepRunning) runner.run();

@@ -2,7 +2,6 @@ import { highlightLine, type Token } from '../../lib/workbench/highlight';
 import type { WatchRow } from '../../lib/workbench/board';
 import type { OutputLine, RunnerView, RunStatus } from '../../lib/workbench/simulator';
 import { sketchSourcePath } from '../../lib/workbench/source';
-import type { Shortcut } from '../../lib/workbench/step';
 
 /** How many lines of serial output the terminal shows, the newest at the bottom. */
 export const SERIAL_LINES = 6;
@@ -94,11 +93,6 @@ export function serialRows(output: readonly OutputLine[]): SerialRow[] {
     const text = line.sent === undefined ? line.text : `› ${line.text}`;
     return { text: index < shown.length - 1 ? `${text}\n` : text, sent: line.sent !== undefined };
   });
-}
-
-/** What each of a step's shortcuts sends or sets, such as `pause run delay`; empty for a step with none. */
-export function shortcutNames(shortcuts: readonly Shortcut[]): string {
-  return shortcuts.map((shortcut) => (shortcut.kind === 'chip' ? shortcut.text : shortcut.label)).join(' ');
 }
 
 /** What the debugger's toolbar shows for a run: the Pause button's word, which buttons work, and any problem. */

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { changedRows, clockFace, codeRows, debuggerControls, crumbs, fileName, serialRows, shortcutNames, SERIAL_LINES } from '../../src/components/workbench/view';
-import { blinkCommands, blinkSimple } from '../../src/lib/workbench/steps/blink';
+import { changedRows, clockFace, codeRows, debuggerControls, crumbs, fileName, serialRows, SERIAL_LINES } from '../../src/components/workbench/view';
 
 describe('codeRows', () => {
   it('numbers each line from 1, marks the new ones and colours the text', () => {
@@ -77,13 +76,6 @@ describe('serialRows', () => {
 
   it('is empty before the board prints', () => {
     expect(serialRows([])).toEqual([]);
-  });
-});
-
-describe('shortcutNames', () => {
-  it('lists what each chip sends and each slider sets', () => {
-    expect(shortcutNames(blinkCommands.shortcuts)).toBe('pause run delay');
-    expect(shortcutNames(blinkSimple.shortcuts)).toBe('');
   });
 });
 

@@ -3,6 +3,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { lineNumber, newLines } from '../../src/lib/workbench/source';
 import { blinkSteps } from '../../src/lib/workbench/steps/blink';
 import { SERIAL_LINES } from '../../src/components/workbench/view';
+import { HOLD_MS, LETTER_MS } from '../../src/lib/workbench/typist';
 
 const BLINK = '/robomania/projects/blink/';
 const source = (sketch: string) => readFileSync(new URL(`../../../${sketch}/${sketch.split('/').at(-1)}.ino`, import.meta.url), 'utf8');
@@ -18,6 +19,24 @@ const button = (page: Page, name: string) => toolbar(page).getByRole('button', {
 const commandLine = (page: Page) => bench(page).getByRole('textbox', { name: 'Line to send to the board' });
 const sendButton = (page: Page) => bench(page).getByRole('button', { name: 'Send', exact: true });
 const sentLines = (page: Page) => serial(page).locator('[data-sent]');
+const shortcutRow = (page: Page) => bench(page).locator('[data-shortcuts]:visible');
+const chip = (page: Page, text: string) => shortcutRow(page).getByRole('button', { name: text, exact: true });
+const delaySlider = (page: Page) => shortcutRow(page).getByRole('slider', { name: 'delay in ms' });
+/** Stops the page's time from flowing on its own, so a test moves it on with `runFor` alone. */
+const freeze = async (page: Page) => page.clock.pauseAt((await page.evaluate(() => Date.now())) + 500);
+/** Lets the page paint once while its time is frozen. */
+const nextFrame = (page: Page) => page.clock.runFor(20);
+
+/** Drags the delay slider's thumb to `share` of its track and holds it there, the mouse still down. */
+async function dragDelay(page: Page, share: number) {
+  await delaySlider(page).scrollIntoViewIfNeeded();
+  const box = (await delaySlider(page).boundingBox())!;
+  const value = Number(await delaySlider(page).inputValue());
+  const at = (fraction: number) => box.x + 8 + fraction * (box.width - 16);
+  await page.mouse.move(at((value - 100) / 1900), box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(at(share), box.y + box.height / 2, { steps: 5 });
+}
 const runningLine = (page: Page) => runningRow(page).getAttribute('data-line').then(Number);
 const runningRow = (page: Page) => visibleCode(page).locator('[data-running]');
 const clockFill = (row: Locator) =>
@@ -76,10 +95,17 @@ test.describe('the Blink workbench', () => {
       await expect(visibleCode(page).locator('.ln')).toHaveCount(lines.length);
       await expect(visibleCode(page).locator('.ln > span')).toHaveText(lines.map((line) => line.trim()));
       await expect(bench(page).locator('[data-hint]:visible')).toHaveText(step.hint);
-      await expect(bench(page).locator('[data-shortcuts]')).toHaveAttribute(
-        'data-shortcuts',
-        step.shortcuts.map((shortcut) => (shortcut.kind === 'chip' ? shortcut.text : shortcut.label)).join(' '),
-      );
+      const chips = step.shortcuts.flatMap((shortcut) => (shortcut.kind === 'chip' ? [shortcut.text] : []));
+      const sliders = step.shortcuts.filter((shortcut) => shortcut.kind === 'slider');
+      await expect(shortcutRow(page)).toHaveCount(step.shortcuts.length > 0 ? 1 : 0);
+      await expect(shortcutRow(page).locator('.chip')).toHaveText(chips);
+      await expect(shortcutRow(page).getByRole('slider')).toHaveCount(sliders.length);
+      for (const slider of sliders) {
+        await expect(shortcutRow(page).getByRole('slider', { name: `${slider.label} in ${slider.unit}` })).toHaveValue(
+          String(slider.initial),
+        );
+        await expect(shortcutRow(page).locator('output')).toHaveText(String(slider.initial));
+      }
     });
   }
 
@@ -448,6 +474,112 @@ test.describe('the Blink workbench', () => {
     await expect(watchValue(page, 'LED')).toHaveText('LOW');
     await expect(bench(page).locator('[data-picture]')).not.toHaveClass(/\bon\b/);
   });
+
+  test('a chip types its word letter by letter in yellow, holds it, then sends it and clears the line', async ({
+    page,
+  }) => {
+    await tab(page, '4 commands').click();
+    await freeze(page);
+    await chip(page, 'pause').click();
+    await expect(commandLine(page)).toHaveValue('');
+    await expect(commandLine(page)).toHaveAttribute('data-typing', '');
+    for (const typed of ['p', 'pa', 'pau', 'paus', 'pause']) {
+      await page.clock.runFor(LETTER_MS);
+      await expect(commandLine(page)).toHaveValue(typed);
+    }
+    await expect(commandLine(page)).toHaveCSS('color', 'rgb(247, 201, 72)');
+    await page.clock.runFor(HOLD_MS - 20);
+    await expect(commandLine(page)).toHaveValue('pause');
+    await expect(sentLines(page)).toHaveCount(0);
+    await page.clock.runFor(20);
+    await expect(commandLine(page)).toHaveValue('');
+    await expect(commandLine(page)).not.toHaveAttribute('data-typing');
+    await nextFrame(page);
+    await expect(sentLines(page)).toHaveText(['› pause']);
+  });
+
+  test('a second shortcut used while one types sends the first at once, then types the next', async ({ page }) => {
+    await tab(page, '4 commands').click();
+    await freeze(page);
+    await chip(page, 'pause').click();
+    await page.clock.runFor(2 * LETTER_MS);
+    await expect(commandLine(page)).toHaveValue('pa');
+    await chip(page, 'run').click();
+    await nextFrame(page);
+    await expect(sentLines(page)).toHaveText(['› pause']);
+    await expect(commandLine(page)).toHaveValue('');
+    await page.clock.runFor(3 * LETTER_MS);
+    await expect(commandLine(page)).toHaveValue('run');
+    await page.clock.runFor(HOLD_MS);
+    await nextFrame(page);
+    await expect(sentLines(page)).toHaveText(['› pause', '› run']);
+  });
+
+  test('typing in the command line by hand stops a shortcut typing', async ({ page }) => {
+    await tab(page, '4 commands').click();
+    await freeze(page);
+    await chip(page, 'pause').click();
+    await page.clock.runFor(2 * LETTER_MS);
+    await commandLine(page).press('End');
+    await commandLine(page).pressSequentially('x');
+    await expect(commandLine(page)).toHaveValue('pax');
+    await expect(commandLine(page)).not.toHaveAttribute('data-typing');
+    await expect(commandLine(page)).toHaveCSS('color', 'rgb(255, 255, 255)');
+    await page.clock.runFor(10 * HOLD_MS);
+    await expect(commandLine(page)).toHaveValue('pax');
+    await expect(sentLines(page)).toHaveCount(0);
+  });
+
+  test('a chip shows its whole word at once under reduced motion, and still sends it', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await tab(page, '4 commands').click();
+    await freeze(page);
+    await chip(page, 'run').click();
+    await expect(commandLine(page)).toHaveValue('run');
+    await page.clock.runFor(HOLD_MS);
+    await nextFrame(page);
+    await expect(sentLines(page)).toHaveText(['› run']);
+  });
+
+  for (const [id, number, line] of [
+    ['commands', 4, (ms: string) => `delay ${ms}`],
+    ['input', 2, (ms: string) => ms],
+  ] as const) {
+    test(`the delay slider on ${id} shows the line it would send while dragged, and sends it on release`, async ({
+      page,
+    }) => {
+      await tab(page, `${number} ${id}`).click();
+      await freeze(page);
+      await dragDelay(page, 0.75);
+      const value = await delaySlider(page).inputValue();
+      expect(Number(value)).toBeGreaterThan(1000);
+      await expect(shortcutRow(page).locator('output')).toHaveText(value);
+      await expect(commandLine(page)).toHaveValue(line(value));
+      await expect(commandLine(page)).toHaveCSS('color', 'rgb(247, 201, 72)');
+      await page.clock.runFor(2 * HOLD_MS);
+      await expect(sentLines(page)).toHaveCount(0);
+
+      await page.mouse.up();
+      await expect(commandLine(page)).toHaveValue(line(value));
+      await page.clock.runFor(HOLD_MS);
+      await nextFrame(page);
+      await expect(sentLines(page)).toHaveText([`› ${line(value)}`]);
+      await expect(commandLine(page)).toHaveValue('');
+    });
+  }
+
+  for (const width of [1280, 400]) {
+    test(`ends the slider's value and the Send button at the same right edge at ${width} px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await tab(page, '4 commands').click();
+      const value = (await shortcutRow(page).locator('output').boundingBox())!;
+      const send = (await sendButton(page).boundingBox())!;
+      expect(Math.abs(value.x + value.width - (send.x + send.width))).toBeLessThan(1);
+      const row = (await shortcutRow(page).boundingBox())!;
+      const line = (await commandLine(page).boundingBox())!;
+      expect(row.y).toBeGreaterThan(line.y + line.height - 1);
+    });
+  }
 
   test('stacks the panes code first at phone width with no sideways scroll', async ({ page }) => {
     await page.setViewportSize({ width: 400, height: 800 });
