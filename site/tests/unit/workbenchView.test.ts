@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { changedRows, clockFace, codeRows, debuggerControls, crumbs, fileName, serialRows, SERIAL_LINES } from '../../src/components/workbench/view';
+import {
+  boardMessage,
+  boardStatusText,
+  changedRows,
+  clockFace,
+  codeRows,
+  debuggerControls,
+  crumbs,
+  fileName,
+  serialRows,
+  SERIAL_LINES,
+} from '../../src/components/workbench/view';
+import { viewFor } from '../../src/components/flash/view';
+import type { SessionState } from '../../src/lib/flash/session';
 
 describe('codeRows', () => {
   it('numbers each line from 1, marks the new ones and colours the text', () => {
@@ -114,5 +127,69 @@ describe('changedRows', () => {
 
   it('names nothing after a reset, when there is no previous panel', () => {
     expect(changedRows(undefined, rows({ LED: 'HIGH' }), [])).toEqual([]);
+  });
+});
+
+describe('boardStatusText', () => {
+  it('reads Simulated, Live or Runs and the key, with a sentence for the tooltip', () => {
+    expect(boardStatusText({ kind: 'simulated' })).toEqual({ word: 'Simulated', title: 'Running in the browser' });
+    expect(boardStatusText({ kind: 'live' })).toEqual({ word: 'Live', title: 'Your board runs this step' });
+    expect(boardStatusText({ kind: 'other', key: 'blink/commands' })).toEqual({
+      word: 'Runs blink/commands',
+      title: 'Your board runs blink/commands',
+    });
+  });
+});
+
+describe('boardMessage', () => {
+  const running: SessionState = { kind: 'running', chip: 'ESP32', output: [] };
+
+  it('shows the picture while idle, while running and in a browser that cannot reach a board', () => {
+    const states: SessionState[] = [{ kind: 'idle' }, running, { kind: 'unsupported' }];
+    expect(states.map((state) => boardMessage(state, 'blink/input', true))).toEqual([undefined, undefined, undefined]);
+  });
+
+  it("says what the page does in the flash card's words, with the progress while flashing", () => {
+    expect(boardMessage({ kind: 'connecting' }, 'blink/input', true)).toEqual({
+      text: viewFor({ kind: 'connecting' }, { title: '' }).message,
+      notice: false,
+      progress: undefined,
+    });
+    expect(boardMessage({ kind: 'flashing', chip: 'ESP32', pct: 40 }, 'blink/input', true)).toEqual({
+      text: 'Found ESP32',
+      notice: false,
+      progress: 40,
+    });
+  });
+
+  it("gives each failure the flash card's notice, naming the step for a missing image", () => {
+    const failures: SessionState[] = [
+      { kind: 'noPort' },
+      { kind: 'portBusy' },
+      { kind: 'noAnswer' },
+      { kind: 'noDownload' },
+      { kind: 'dropped', pct: 40 },
+      { kind: 'running', chip: 'ESP32', output: [], lost: true },
+    ];
+    for (const state of failures) {
+      expect(boardMessage(state, 'blink/input', true)).toEqual({
+        text: viewFor(state, { title: 'blink/input' }).message,
+        notice: true,
+        progress: undefined,
+      });
+    }
+    expect(boardMessage({ kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] }, 'blink/input', true)?.text).toBe(
+      'This board is an ESP8266. blink/input has images for: ESP32.',
+    );
+  });
+
+  it('shows a refused flash until the page drops it', () => {
+    const refused: SessionState = { ...running, flashRefused: { key: 'blink/timer', available: ['ESP32'] } };
+    expect(boardMessage(refused, 'blink/input', true)).toEqual({
+      text: 'This board is an ESP32. blink/timer has images for: ESP32.',
+      notice: true,
+      progress: undefined,
+    });
+    expect(boardMessage(refused, 'blink/input', false)).toBeUndefined();
   });
 });

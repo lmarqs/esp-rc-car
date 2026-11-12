@@ -2,6 +2,9 @@ import { highlightLine, type Token } from '../../lib/workbench/highlight';
 import type { WatchRow } from '../../lib/workbench/board';
 import type { OutputLine, RunnerView, RunStatus } from '../../lib/workbench/simulator';
 import { sketchSourcePath } from '../../lib/workbench/source';
+import type { SessionState } from '../../lib/flash/session';
+import type { BoardStatus } from '../../lib/workbench/link';
+import { viewFor } from '../flash/view';
 
 /** How many lines of serial output the terminal shows, the newest at the bottom. */
 export const SERIAL_LINES = 6;
@@ -136,4 +139,58 @@ export function changedRows(
   return after
     .filter((row) => !steady.includes(row.name) && previous.has(row.name) && previous.get(row.name) !== row.value)
     .map((row) => row.name);
+}
+
+/** What the Board cell reads for a status, and the longer sentence its tooltip gives, which an ellipsis may cut. */
+export function boardStatusText(status: BoardStatus): { readonly word: string; readonly title: string } {
+  switch (status.kind) {
+    case 'simulated':
+      return { word: 'Simulated', title: 'Running in the browser' };
+    case 'live':
+      return { word: 'Live', title: 'Your board runs this step' };
+    case 'other':
+      return { word: `Runs ${status.key}`, title: `Your board runs ${status.key}` };
+  }
+}
+
+/** What the board pane shows in place of the picture while the page talks to the board, or after it failed. */
+export interface BoardMessage {
+  readonly text: string;
+  /** Shown as a notice: a state that is not part of the happy path. */
+  readonly notice: boolean;
+  /** 0 to 100 while flashing. */
+  readonly progress?: number;
+}
+
+const MESSAGE_KINDS: ReadonlySet<SessionState['kind']> = new Set([
+  'connecting',
+  'flashing',
+  'noPort',
+  'portBusy',
+  'noAnswer',
+  'noImage',
+  'noDownload',
+  'dropped',
+]);
+
+/**
+ * The board pane's message for the session's `state`, in the flash card's words, or `undefined` when the pane shows
+ * the picture. `key` is the step last flashed, which a missing image names. `showRefusal` keeps the refusal of a step
+ * with no image for the board on screen; the page drops it once the visitor picks another step.
+ */
+export function boardMessage(state: SessionState, key: string, showRefusal: boolean): BoardMessage | undefined {
+  if (state.kind === 'running') {
+    if (state.lost) return cardMessage(state, key);
+    if (state.flashRefused !== undefined && showRefusal) {
+      const { key: refused, available } = state.flashRefused;
+      return cardMessage({ kind: 'noImage', chip: state.chip, available }, refused);
+    }
+    return undefined;
+  }
+  return MESSAGE_KINDS.has(state.kind) ? cardMessage(state, key) : undefined;
+}
+
+function cardMessage(state: SessionState, title: string): BoardMessage {
+  const view = viewFor(state, { title });
+  return { text: view.message, notice: view.notice ?? false, progress: view.progress };
 }
