@@ -255,7 +255,8 @@ const id = (part: string) => `workbench-${project}-${part}`;
   .watch dd[data-changed] { background: var(--yellow); }
 
   .term { background: var(--ink); color: var(--on-ink); border-radius: 12px; font-family: var(--mono); font-size: 13px; overflow: hidden; }
-  .serial { margin: 0; padding: 10px 14px 6px; height: 118px; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; white-space: pre; background: none; color: inherit; border-radius: 0; font-size: 13px; line-height: 1.5; }
+  /* Six lines of 1.5em, as many as serialText keeps, plus the padding. */
+  .serial { margin: 0; padding: 10px 14px 6px; height: calc(6 * 1.5em + 16px); overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; white-space: pre; background: none; color: inherit; border-radius: 0; font-size: 13px; line-height: 1.5; }
   .hint { font-size: 13px; color: var(--muted); margin: 0; }
   .problem { margin: 0; padding: 8px 12px; border: 1.5px solid var(--ink); border-radius: 10px; font-size: 14px; font-weight: 600; }
 </style>

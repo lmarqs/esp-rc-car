@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { lineNumber, newLines } from '../../src/lib/workbench/source';
 import { blinkSteps } from '../../src/lib/workbench/steps/blink';
+import { SERIAL_LINES } from '../../src/components/workbench/view';
 
 const BLINK = '/robomania/projects/blink/';
 const source = (sketch: string) => readFileSync(new URL(`../../../${sketch}/${sketch.split('/').at(-1)}.ino`, import.meta.url), 'utf8');
@@ -364,6 +365,18 @@ test.describe('the Blink workbench', () => {
       widths.push((await live.boundingBox())!.width);
     }
     expect(new Set(widths).size).toBe(1);
+  });
+
+  test('has room for all six lines the serial output keeps', async ({ page }) => {
+    await page.clock.runFor(9100);
+    const text = await serial(page).textContent();
+    expect(text!.split('\n')).toHaveLength(SERIAL_LINES);
+    const room = await serial(page).evaluate((pre) => {
+      const style = getComputedStyle(pre);
+      const content = pre.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+      return content / parseFloat(style.lineHeight);
+    });
+    expect(room).toBeGreaterThanOrEqual(SERIAL_LINES);
   });
 
   test('moves between tabs with the arrow keys and shows the focus', async ({ page }) => {
