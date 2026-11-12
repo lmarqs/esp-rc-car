@@ -29,6 +29,7 @@ UPLOAD_RECIPES = ("tools.esptool_py.upload.pattern_args", "tools.esptool.upload.
 PROFILE = re.compile(r"^  (\w[\w-]*):\s*$")
 PLATFORM = re.compile(r"^\s+- platform:\s*(\S+)")
 HEX_OFFSET = re.compile(r"^0x[0-9a-fA-F]+$")
+SETTING_TYPES = ("text", "password", "number")
 
 
 def esp_profiles(sketch: Path) -> list[str]:
@@ -96,6 +97,32 @@ def publish(sketch: Path, profile: str) -> dict:
     return {"profile": profile, "chipFamily": chip_family(arguments), "parts": parts}
 
 
+def is_number(value: object) -> bool:
+    return isinstance(value, int | float) and not isinstance(value, bool)
+
+
+def field_problem(field: object) -> str | None:
+    """What keeps a settings.json entry from being a field the website's card can show, or None."""
+    if not isinstance(field, dict):
+        return "expected an object"
+    for name in ("key", "label"):
+        if not isinstance(field.get(name), str) or not field[name]:
+            return f"{name} must be a non-empty string"
+    if field.get("type") not in SETTING_TYPES:
+        return f"type must be one of {', '.join(SETTING_TYPES)}"
+    if "default" not in field:
+        return "default is missing"
+    if field["type"] == "number":
+        if not is_number(field["default"]):
+            return "default must be a number"
+        for bound in ("min", "max", "step"):
+            if bound in field and not is_number(field[bound]):
+                return f"{bound} must be a number"
+    elif not isinstance(field["default"], str):
+        return "default must be a string"
+    return None
+
+
 def settings(sketch: Path) -> list | None:
     """The fields of the sketch's settings.json, which the website asks for before it flashes; None without one."""
     path = sketch / "settings.json"
@@ -107,6 +134,9 @@ def settings(sketch: Path) -> list | None:
         raise SystemExit(f"{path}: {error}") from error
     if not isinstance(fields, list):
         raise SystemExit(f"{path}: expected a list of fields")
+    for index, field in enumerate(fields):
+        if problem := field_problem(field):
+            raise SystemExit(f"{path}: field {index}: {problem}")
     return fields
 
 
