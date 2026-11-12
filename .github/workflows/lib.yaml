@@ -1,4 +1,4 @@
-name: Library
+name: lib
 
 on:
   push:
