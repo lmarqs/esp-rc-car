@@ -1,4 +1,4 @@
-import { isBusy, type SessionState } from '../flash/session';
+import { isBusy, type SessionState } from '../flash';
 
 /**
  * Which board the workbench's pictures follow, as the Board cell names it: the simulator, the visitor's board running

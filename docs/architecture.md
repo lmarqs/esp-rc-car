@@ -80,8 +80,9 @@ The site also puts the firmware on a board. Its parts:
   rejects an entry the card cannot show.
 - **Flash slice**: `site/src/lib/flash/` holds the logic and `site/src/components/flash/` the card. The logic reads
   the manifest, talks to the board over Web Serial and walks one session through connecting, the settings form,
-  flashing and running. The rest of the site imports the card, `FlashCard`, and the manifest reader; the workbench
-  also imports the session, `createFlasher`, and the card's `viewFor` for the card's wording.
+  flashing and running. The rest of the site imports the card, `FlashCard`, the manifest reader, and
+  `site/src/lib/flash/index.ts`, which gives the workbench the session, `createFlasher` and the wording the card
+  and the workbench share.
 - **Pages**: the `/flash/` page lists the projects that have an image and shows the card of the one picked; each
   project page with a sketch shows the same card above its text, except a page with a workbench, whose Board cell
   connects to the board and flashes the selected step. A project page keeps its own section on building
@@ -91,8 +92,12 @@ The site also puts the firmware on a board. Its parts:
 flowchart TD
   sketches[Sketches] -->|arduino:firmware| images[Images and manifest]
   images --> card[Flash card]
+  images --> workbench
   pages[Flash and project pages] --> card
-  card -->|Web Serial| board[Board]
+  pages --> workbench[Workbench]
+  card --> session[Flash session]
+  workbench --> session
+  session -->|Web Serial| board[Board]
 ```
 
 The card reads the manifest at build time and flashes in the visitor's browser, which Chrome and Edge allow on a

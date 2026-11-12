@@ -5,7 +5,7 @@ import { TRACE_HEIGHT, TRACE_WINDOW_MS } from '../../lib/workbench/trace';
 import { readStepSource } from '../../lib/workbench/readSource';
 import { newLines } from '../../lib/workbench/source';
 import { readManifest } from '../../lib/flash/readManifest';
-import { viewFor } from '../flash/view';
+import { wording } from '../../lib/flash';
 import { boardStatusText, CLOCK_DASH, codeRows, crumbs, fileName, SERIAL_LINES } from './view';
 
 interface Props {
@@ -49,7 +49,7 @@ const manifest = {
 };
 const flashable = Object.keys(manifest.sketches).length > 0;
 const simulated = boardStatusText({ kind: 'simulated' });
-const needsBrowser = viewFor({ kind: 'unsupported' }, { title: project }).message;
+const needsBrowser = wording.UNSUPPORTED;
 ---
 
 <section
@@ -483,9 +483,7 @@ const needsBrowser = viewFor({ kind: 'unsupported' }, { title: project }).messag
   import type { StepDefinition } from '../../lib/workbench/step';
   import { createTypist } from '../../lib/workbench/typist';
   import { emptyTrace, recordEffects, traceShape, traceTime, type Trace } from '../../lib/workbench/trace';
-  import { createFlasher } from '../../lib/flash/createFlasher';
-  import type { Manifest } from '../../lib/flash/manifest';
-  import { createSession } from '../../lib/flash/session';
+  import { createFlasher, createSession, type Manifest } from '../../lib/flash';
   import { boardAction, boardStatus, sketchOf, type BoardAction } from '../../lib/workbench/link';
   import {
     boardMessage,

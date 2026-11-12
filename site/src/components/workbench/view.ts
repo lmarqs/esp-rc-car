@@ -2,9 +2,8 @@ import { highlightLine, type Token } from '../../lib/workbench/highlight';
 import type { WatchRow } from '../../lib/workbench/board';
 import type { OutputLine, RunnerView, RunStatus } from '../../lib/workbench/simulator';
 import { sketchSourcePath } from '../../lib/workbench/source';
-import type { SessionState } from '../../lib/flash/session';
+import { wording, type SessionState } from '../../lib/flash';
 import type { BoardStatus } from '../../lib/workbench/link';
-import { viewFor } from '../flash/view';
 
 /** How many lines of serial output the terminal shows, the newest at the bottom. */
 export const SERIAL_LINES = 6;
@@ -162,35 +161,41 @@ export interface BoardMessage {
   readonly progress?: number;
 }
 
-const MESSAGE_KINDS: ReadonlySet<SessionState['kind']> = new Set([
-  'connecting',
-  'flashing',
-  'noPort',
-  'portBusy',
-  'noAnswer',
-  'noImage',
-  'noDownload',
-  'dropped',
-]);
+/** What to do after a flash failed: the session let go of the port, so the button reads Connect. */
+const RECONNECT = 'Connect again, then press Flash step.';
 
 /**
- * The board pane's message for the session's `state`, in the flash card's words, or `undefined` when the pane shows
- * the picture. `key` is the step last flashed, which a missing image names. `showRefusal` keeps the refusal of a step
- * with no image for the board on screen; the page drops it once the visitor picks another step.
+ * The board pane's message for the session's `state`, or `undefined` when the pane shows the picture. `key` is the
+ * step last flashed, which a missing image names. `showRefusal` keeps the refusal of a step with no image for the
+ * board on screen; the page drops it once the visitor picks another step.
  */
 export function boardMessage(state: SessionState, key: string, showRefusal: boolean): BoardMessage | undefined {
-  if (state.kind === 'running') {
-    if (state.lost) return cardMessage(state, key);
-    if (state.flashRefused !== undefined && showRefusal) {
-      const { key: refused, available } = state.flashRefused;
-      return cardMessage({ kind: 'noImage', chip: state.chip, available }, refused);
-    }
-    return undefined;
+  const notice = (text: string): BoardMessage => ({ text, notice: true });
+  switch (state.kind) {
+    case 'connecting':
+      return { text: wording.CONNECTING, notice: false };
+    case 'flashing':
+      return { text: wording.found(state.chip), notice: false, progress: state.pct };
+    case 'noPort':
+      return notice(wording.NO_PORT);
+    case 'portBusy':
+      return notice(wording.PORT_BUSY);
+    case 'noAnswer':
+      return notice(wording.NO_ANSWER);
+    case 'noImage':
+      return notice(wording.noImage(state, key));
+    case 'noDownload':
+      return notice(`${wording.NO_DOWNLOAD}. ${RECONNECT}`);
+    case 'dropped':
+      return notice(`${wording.droppedAt(state.pct)} Plug the board back in. ${RECONNECT}`);
+    case 'running':
+      if (state.lost) return notice(wording.LOST);
+      if (state.flashRefused !== undefined && showRefusal) {
+        const { key: refused, available } = state.flashRefused;
+        return notice(wording.noImage({ kind: 'noImage', chip: state.chip, available }, refused));
+      }
+      return undefined;
+    default:
+      return undefined;
   }
-  return MESSAGE_KINDS.has(state.kind) ? cardMessage(state, key) : undefined;
-}
-
-function cardMessage(state: SessionState, title: string): BoardMessage {
-  const view = viewFor(state, { title });
-  return { text: view.message, notice: view.notice ?? false, progress: view.progress };
 }
