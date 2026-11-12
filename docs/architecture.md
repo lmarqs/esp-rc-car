@@ -14,7 +14,8 @@ Releases, for sketches outside this repository. The Arduino Library Manager inde
 the one release. The library workflow, `.github/workflows/lib.yaml`, zips `lib/` and tags it `lib-v<version>`, with
 the version from `lib/library.properties`, when a push to `main` includes a commit whose message contains
 `#lib-release`, or when someone runs it by hand. A version already released fails the run, so each release raises
-the version first. The website has its own marker, `#site-release`, so each releases alone.
+the version first. The website has its own marker, `#site-release`, so each releases alone. The Library page links
+the `lib-v<version>` asset, so a raised version is released before the site.
 
 ## Firmware
 
@@ -77,7 +78,7 @@ The site also puts the firmware on a board. Its parts:
   the card cannot show.
 - **Flash slice**: `site/src/lib/flash/` holds the logic and `site/src/components/flash/` the card. The logic reads
   the manifest, talks to the board over Web Serial and walks one session through connecting, the settings form,
-  flashing and running. The rest of the site imports only the card, `FlashCard`.
+  flashing and running. The rest of the site imports only the card, `FlashCard`, and the manifest reader.
 - **Pages**: the `/flash/` page lists the projects that have an image and shows the card of the one picked; each
   project page with a sketch shows the same card above its text. A project page keeps its own section on building
   and flashing the sketch with the tools.
@@ -94,8 +95,7 @@ The card reads the manifest at build time and flashes in the visitor's browser, 
 computer. It picks the image for the chip it finds on the port. For a sketch with settings and a baud, it asks for the
 values first, flashes the board, and once the board has reset reads its serial output at the sketch's baud. It sends
 `cfg get` until the board lists its values, `cfg set` for each one that differs, and `cfg restart` so the new values
-take effect. A password left empty on the form keeps the board's; only "Use the defaults" sends the default over a
-stored one. A sketch with no baud prints nothing, so its card flashes without settings. The tests, in `site/tests`,
+take effect. A sketch with no baud prints nothing, so its card flashes without settings. The tests, in `site/tests`,
 run the card in a browser against a fake serial port.
 
 The workflow publishes a new site version to GitHub Pages, at <https://lmarqs.github.io/robomania/>, when a push to
