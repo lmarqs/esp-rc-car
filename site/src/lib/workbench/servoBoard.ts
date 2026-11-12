@@ -154,7 +154,7 @@ export const servoBoard: BoardModel<ServoEvent, ServoBoard, ServoState> = {
   follow: followServo,
   apply: applyServoEvent,
   answered: servoAnswered,
-  simulate: (board, state, effects) => simulateServo(board, state, effects),
+  simulate: simulateServo,
   watch: servoWatch,
   picture: servoPicture,
   level: (board) => (board.angle === undefined ? undefined : board.angle / MAX_ANGLE),
