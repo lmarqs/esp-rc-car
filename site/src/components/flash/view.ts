@@ -69,7 +69,9 @@ export function viewFor(state: SessionState, { title, next, baud, images, firmwa
     case 'idle':
       return {
         step: 'connect',
-        message: 'Plug the board in over USB. This replaces whatever is on the board.',
+        message: state.released
+          ? 'The board is released and keeps running. Connect again to flash it.'
+          : 'Plug the board in over USB. This replaces whatever is on the board.',
         actions: [{ label: 'Connect board', event: 'connect' }],
       };
     case 'connecting':

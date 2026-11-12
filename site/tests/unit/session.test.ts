@@ -178,7 +178,7 @@ describe('a session for a sketch without settings', () => {
 
     await session.send({ type: 'disconnect' });
 
-    expect(session.state).toEqual({ kind: 'idle' });
+    expect(session.state).toEqual({ kind: 'idle', released: true });
     expect(flasher.calls.at(-1)).toBe('disconnect');
   });
 
@@ -508,7 +508,7 @@ describe('a session with a baud rate', () => {
 
     flasher.print('late');
 
-    expect(session.state).toEqual({ kind: 'idle' });
+    expect(session.state).toEqual({ kind: 'idle', released: true });
     expect(states).toHaveLength(entered);
   });
 

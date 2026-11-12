@@ -12,6 +12,14 @@ describe('viewFor', () => {
     });
   });
 
+  it('says the board keeps running once the visitor disconnected it', () => {
+    expect(viewFor({ kind: 'idle', released: true }, context)).toEqual({
+      step: 'connect',
+      message: 'The board is released and keeps running. Connect again to flash it.',
+      actions: [{ label: 'Connect board', event: 'connect' }],
+    });
+  });
+
   it('offers no button while connecting', () => {
     expect(viewFor({ kind: 'connecting' }, context).actions).toBeUndefined();
   });

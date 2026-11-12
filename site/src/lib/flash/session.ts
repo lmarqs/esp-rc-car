@@ -4,7 +4,8 @@ import { imageFor, isMissing, type ChipFamily, type Manifest, type ManifestImage
 
 export type SessionState =
   | { kind: 'unsupported' }
-  | { kind: 'idle' }
+  /** `released` is set once the visitor disconnected a running board, which goes on running its sketch. */
+  | { kind: 'idle'; released?: true }
   | { kind: 'connecting' }
   | { kind: 'settings'; chip: string }
   | { kind: 'flashing'; chip: string; pct: number }
@@ -164,10 +165,10 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
       .catch((error) => console.error(error));
   }
 
-  async function release(active: Flasher) {
+  async function release(active: Flasher, released?: true) {
     reading++;
     await active.disconnect();
-    enter({ kind: 'idle' });
+    enter(released ? { kind: 'idle', released } : { kind: 'idle' });
   }
 
   return {
@@ -201,7 +202,7 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
           break;
         case 'disconnect':
           if (kind === 'running') {
-            await release(flasher);
+            await release(flasher, true);
           }
           break;
       }

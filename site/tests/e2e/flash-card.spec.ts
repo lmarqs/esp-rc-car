@@ -131,6 +131,9 @@ test.describe('the Running step', () => {
     await card(page).getByRole('button', { name: 'Disconnect' }).click();
 
     await expect(card(page).getByRole('button', { name: 'Connect board' })).toBeVisible();
+    await expect(card(page).locator('[data-message]')).toHaveText(
+      'The board is released and keeps running. Connect again to flash it.',
+    );
     await expect(card(page).locator('[aria-current="step"]')).toHaveText('Connect');
     await expect(output(page)).toBeHidden();
     expect((await fakeFlasher.calls()).at(-1)).toBe('disconnect');
@@ -169,6 +172,9 @@ test.describe('the Running step', () => {
 
     await card(page).getByRole('button', { name: 'Flash again' }).click();
     await expect(output(page)).toBeHidden();
+    await expect(card(page).locator('[data-message]')).toHaveText(
+      'Plug the board in over USB. This replaces whatever is on the board.',
+    );
     await card(page).getByRole('button', { name: 'Connect board' }).click();
 
     await expect(output(page)).toHaveText('HIGH');
