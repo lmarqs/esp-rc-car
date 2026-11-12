@@ -4,8 +4,10 @@ import Example from '../../components/Example.astro';
 import FlashCard from '../../components/flash/FlashCard.astro';
 import Meta from '../../components/Meta.astro';
 import StateNotice from '../../components/StateNotice.astro';
+import Workbench from '../../components/workbench/Workbench.astro';
 import Base from '../../layouts/Base.astro';
 import { href } from '../../lib/href';
+import { workbenchFor } from '../../lib/workbench/projects';
 
 export async function getStaticPaths() {
   const projects = await getCollection('projects');
@@ -15,6 +17,7 @@ export async function getStaticPaths() {
 const { project } = Astro.props;
 const { Content } = await render(project);
 const topics = (await Promise.all(project.data.topics.map((id) => getEntry('topics', id)))).filter((t) => t !== undefined);
+const steps = workbenchFor(project.id) && project.data.steps;
 const repo = 'https://github.com/lmarqs/robomania/tree/main/';
 ---
 
@@ -24,7 +27,7 @@ const repo = 'https://github.com/lmarqs/robomania/tree/main/';
     <Meta level={project.data.level} state={project.data.state} />
     <h1>{project.data.title}</h1>
     <p class="lead">{project.data.summary}</p>
-    <Example name={project.data.example} />
+    {steps ? <Workbench project={project.id} steps={steps} /> : <Example name={project.data.example} />}
     {
       project.data.sketch && (
         <FlashCard
