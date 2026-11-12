@@ -107,15 +107,14 @@ describe('the board dock', () => {
 describe('the board dock for the board the visitor picked', () => {
   it('says to set an ESP-01S adapter to flash mode before plugging it in', () => {
     expect(dockView({ kind: 'idle' }, EMPTY_RECORD, names, flashable, boardModel('esp01s')).doing).toBe(
-      "is connected. Put the ESP-01S in its USB adapter and set the adapter's switch to PROG, the flash position, or " +
-        'put its jumper on. Then plug the adapter in.',
+      'is connected. Plug the ESP-01S in with its adapter set to PROG.',
     );
   });
 
   it('says the board is still in flash mode after the write, and offers to connect', () => {
     expect(dockView({ kind: 'flashMode', chip: 'ESP8266' }, EMPTY_RECORD, names, flashable)).toMatchObject({
       chip: 'ESP8266',
-      doing: "is still in flash mode. Set the adapter's switch to UART, then unplug the adapter and plug the adapter back in.",
+      doing: 'is still in flash mode. Set the adapter to UART and plug it in again.',
       connect: true,
     });
   });

@@ -194,6 +194,21 @@ test.describe('the board pick', () => {
     );
   });
 
+  test('keeps the bar on one row when the picked board needs its adapter set', async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 700 });
+    await page.goto('/robomania/learn/');
+    await pick(page).selectOption({ label: 'ESP-01S' });
+
+    await expect(dock(page)).toContainText('set to PROG');
+    await dock(page).screenshot({ path: test.info().outputPath('dock.png') });
+    const picker = await pick(page).boundingBox();
+    const connect = await dock(page).getByRole('button', { name: 'Connect board' }).boundingBox();
+    const serial = await dock(page).getByRole('button', { name: 'Serial' }).boundingBox();
+    for (const button of [connect, serial]) {
+      expect(button!.y).toBeLessThan(picker!.y + picker!.height);
+    }
+  });
+
   test('drops the note once the board that answered is disconnected', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ chip: 'ESP32', lines: ['sketch blink/input'] });
     await page.goto('/robomania/learn/');

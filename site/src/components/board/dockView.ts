@@ -91,7 +91,7 @@ export function dockView(
       shown: true,
       connected: false,
       chip: state.chip,
-      doing: "is still in flash mode. Set the adapter's switch to UART, then unplug the adapter and plug the adapter back in.",
+      doing: 'is still in flash mode. Set the adapter to UART and plug it in again.',
       ...NOTHING,
       connect: true,
     };
@@ -108,7 +108,10 @@ export function dockView(
     shown: true,
     connected: false,
     chip: 'No board',
-    doing: board?.flashSwitch ? `is connected. ${wording.plugIn(board)}` : 'is connected. Plug one in over USB.',
+    // One line, beside the buttons: the card the visitor flashes from gives the whole of it.
+    doing: board?.flashSwitch
+      ? `is connected. Plug the ${board.name} in with its adapter set to PROG.`
+      : 'is connected. Plug one in over USB.',
     ...NOTHING,
     connect: true,
   };
