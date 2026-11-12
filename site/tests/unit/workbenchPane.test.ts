@@ -67,7 +67,7 @@ describe('the board pane', () => {
     expect(pane).toMatchObject({ selected: INPUT, chosen: 'simulator', mode: 'simulator', following: 0 });
   });
 
-  it('keeps simulating, Connected, until the board names its sketch', () => {
+  it('keeps the simulator while a connected board has not named its sketch', () => {
     const pane = after(connected, line('HIGH'));
     expect(pane.mode).toBe('simulator');
     expect(paneStatus(blink, pane)).toEqual({ kind: 'connected' });
@@ -216,7 +216,7 @@ describe('the board pane', () => {
     });
   });
 
-  describe('the Board switch', () => {
+  describe("a press of the My board view's button or Flash again", () => {
     it('names the first step as flashed until the visitor flashes another', () => {
       expect(after().flashed).toBe('blink/simple');
       expect(after(connected, tab(COMMANDS), { kind: 'press', action: 'flash' }).flashed).toBe('blink/commands');

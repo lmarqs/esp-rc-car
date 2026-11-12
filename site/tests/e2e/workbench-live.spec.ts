@@ -39,7 +39,8 @@ const tracePath = (page: Page, part: 'sent' | 'applied' | 'level') =>
 /** Lets the page paint once while its time is frozen. */
 const nextFrame = (page: Page) => page.clock.runFor(20);
 /** The level the trace draws at its right edge. */
-const levelNow = async (page: Page) => Number([...(await tracePath(page, 'level')).matchAll(/(?:^M[\d.]+ |V)(\d+)/g)].at(-1)?.[1]);
+const levelNow = async (page: Page) =>
+  Number([...(await tracePath(page, 'level')).matchAll(/(?:^M[\d.]+ |V)(\d+)/g)].at(-1)?.[1]);
 
 /** Opens My board and connects the board from its view. */
 async function connect(page: Page) {

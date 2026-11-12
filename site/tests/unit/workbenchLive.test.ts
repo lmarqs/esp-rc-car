@@ -78,7 +78,12 @@ describe('receive', () => {
     expect(after(blinkInput, []).trace.since).toBeUndefined();
     const first = after(blinkInput, [['print', 'sketch blink/input', 100]]);
     expect(first.trace.since).toBe(100);
-    expect(after(blinkInput, [['print', 'sketch blink/input', 100], ['print', 'HIGH', 600], ['send', '500', 700]]).trace.since).toBe(100);
+    const later = after(blinkInput, [
+      ['print', 'sketch blink/input', 100],
+      ['print', 'HIGH', 600],
+      ['send', '500', 700],
+    ]);
+    expect(later.trace.since).toBe(100);
   });
 
   it('keeps every line in the output, in order, as the board printed it', () => {

@@ -120,14 +120,17 @@ describe('traceShape', () => {
     expect(shape.source).toBe('M400.0 0V64');
   });
 
-  it('draws no source line, and starts the level at the left edge, when the source took the pane before the window', () => {
-    const older = traceShape(emptyTrace(0, -1), 10_000, 1000);
-    expect(older.source).toBe('');
-    expect(older.level).toMatch(/^M0 /);
-    const unset = traceShape(emptyTrace(0), 10_000, 1000);
-    expect(unset.source).toBe('');
-    expect(unset.level).toMatch(/^M0 /);
-  });
+  it(
+    'draws no source line, and starts the level at the left edge, when the source took the pane before the window',
+    () => {
+      const older = traceShape(emptyTrace(0, -1), 10_000, 1000);
+      expect(older.source).toBe('');
+      expect(older.level).toMatch(/^M0 /);
+      const unset = traceShape(emptyTrace(0), 10_000, 1000);
+      expect(unset.source).toBe('');
+      expect(unset.level).toMatch(/^M0 /);
+    },
+  );
 
   it('keeps when the source took the pane as the window moves on', () => {
     let trace = led(emptyTrace(0, 4000), true, 5000);
