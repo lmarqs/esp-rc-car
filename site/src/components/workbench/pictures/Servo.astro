@@ -6,7 +6,7 @@
  */
 ---
 
-<svg class="servo" viewBox="0 0 140 150" role="img" aria-label="A servo on GPIO 13, its angle not known yet" data-picture>
+<svg class="servo" viewBox="0 12 140 112" role="img" aria-label="A servo on GPIO 13, its angle not known yet" data-picture>
   <path class="scale" d="M10 84 a60 60 0 0 1 120 0" />
   <path class="tick" d="M130 84 h6 M70 24 v-6 M10 84 h-6" />
   <text class="end" x="136" y="100" text-anchor="end">0°</text>
@@ -38,7 +38,7 @@
   .horn { transform: rotate(calc(var(--angle, 90) * -1deg)); }
   .horn path { fill: var(--card); }
   .aim { transform: rotate(calc(var(--target, 90) * -1deg)); visibility: hidden; }
-  .aim path { fill: none; stroke: var(--ink); stroke-width: 1.8; stroke-dasharray: 4 3; stroke-linejoin: round; }
+  .aim path { fill: none; stroke: var(--ink); stroke-width: 2.6; stroke-dasharray: 6 4; stroke-linejoin: round; }
   .servo.aiming .aim { visibility: visible; }
   .servo:not(.known) .horn { visibility: hidden; }
   .unknown { font-family: var(--mono); font-size: 20px; font-weight: 700; fill: var(--muted); visibility: hidden; }

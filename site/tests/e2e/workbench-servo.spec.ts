@@ -246,7 +246,14 @@ test.describe('the Servo workbench', () => {
     expect(estimate).toBeGreaterThan(90);
     expect(estimate).toBeLessThan(150);
     await expect(picture(page)).toHaveAttribute('aria-label', /^A servo on GPIO 13: estimated at \d+°, target 150°$/);
-    await expect(picture(page).locator('.aim path')).toHaveCSS('stroke-dasharray', '4px, 3px');
+    await expect(picture(page).locator('.aim path')).toHaveCSS('stroke-dasharray', '6px, 4px');
+    // Large enough to read: the end labels at 12 px or more as drawn, the horn's column wider than the LED's.
+    const labelPx = await picture(page)
+      .locator('.end')
+      .first()
+      .evaluate((label) => parseFloat(getComputedStyle(label).fontSize) * (label as SVGTextElement).getScreenCTM()!.a);
+    expect(labelPx).toBeGreaterThanOrEqual(12);
+    expect((await picture(page).boundingBox())!.width).toBe(132);
     await bench(page).screenshot({ path: `${SHOTS}servo-speed-moving.png` });
   });
 

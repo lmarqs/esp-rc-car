@@ -201,7 +201,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     </div>
     <div class="board">
       <div class="stage" data-stage>
-        <div class="led-row">
+        <div class:list={['led-row', { wide: workbench.picture === 'servo' }]}>
           <Picture />
           <dl class="watch" aria-label="Watch">
             {
@@ -436,8 +436,10 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
   .link .track { flex: 1; height: 14px; border: var(--stroke); border-radius: 999px; background: var(--tint-blue); overflow: hidden; }
   .link .fill { height: 100%; width: 0; background: var(--blue); transition: width .15s; }
   .link .readout { min-width: 4ch; text-align: right; font-family: var(--mono); }
-  .led-row { display: grid; grid-template-columns: 96px 1fr 1fr; gap: 12px; align-items: center; }
-  @media (max-width: 480px) { .led-row { grid-template-columns: 96px 1fr; } }
+  .led-row { --picture: 96px; display: grid; grid-template-columns: var(--picture) 1fr 1fr; gap: 12px; align-items: center; }
+  /* A horn and its scale need more room than an LED to read its angle and target. */
+  .led-row.wide { --picture: 132px; }
+  @media (max-width: 480px) { .led-row { grid-template-columns: var(--picture) 1fr; } }
   /* Across both columns, so a value such as 1000 ms (fixed) stays on one line. */
   .watch { grid-column: 2 / -1; margin: 0; border: 1px solid var(--line); border-radius: 10px; font-family: var(--mono); font-size: 13px; overflow: hidden; }
   .watch div { display: flex; justify-content: space-between; gap: 10px; padding: 3px 10px; }
