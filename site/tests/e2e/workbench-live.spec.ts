@@ -140,25 +140,38 @@ test.describe('live mode', () => {
     await expect(livePill(page)).toHaveText('500');
   });
 
-  test('shows the interval as unknown, in the watch and the code, until the board announces it', async ({
+  test(`takes the source's interval once the board restarts while the simulator has the pane`, async ({
     page,
     fakeFlasher,
   }) => {
     await connectTo(page, fakeFlasher, 'blink/input', '2 input', 'Live');
+    await fakeFlasher.print('delay 500');
+    await expect(watchValue(page, 'wait')).toHaveText('500 ms');
     await debuggerButton(page, 'Pause').click();
-    // The board restarts while the simulator has the pane: the page did not see what it did since.
+    // A restart wipes what was sent before, and lines sent meanwhile went to the simulator.
     await fakeFlasher.print('', 'sketch blink/input', 'HIGH');
     await boardButton(page).click();
 
-    await expect(watchValue(page, 'wait')).toHaveText('…');
-    await expect(livePill(page)).toHaveText('…');
-    // The arrow is placed, but how far along the wait is cannot be told.
-    await fakeFlasher.print('LOW');
-    await expect(runningRow(page)).toHaveCount(1);
-    await expect(bench(page).locator('[data-pie].waiting')).toHaveCount(0);
-    await fakeFlasher.print('delay 700');
-    await expect(watchValue(page, 'wait')).toHaveText('700 ms');
-    await expect(livePill(page)).toHaveText('700');
+    await expect(boardButton(page)).toHaveAccessibleName('Flash again');
+    await expect(watchValue(page, 'wait')).toHaveText('1000 ms');
+    await expect(livePill(page)).toHaveText('1000');
+  });
+
+  test('counts the answer the board printed while the simulator had the pane', async ({ page, fakeFlasher }) => {
+    await connectTo(page, fakeFlasher, 'blink/input', '2 input', 'Live');
+    await commandLine(page).fill('500');
+    await commandLine(page).press('Enter');
+    await expect.poll(() => fakeFlasher.calls()).toContain('send 500');
+
+    await debuggerButton(page, 'Pause').click();
+    await fakeFlasher.print('LOW', 'delay 500', 'HIGH');
+    await expect(serial(page)).not.toContainText('delay 500');
+    await expect(watchValue(page, 'wait')).toHaveText('1000 ms');
+    await boardButton(page).click();
+
+    await expect(boardButton(page)).toHaveAccessibleName('Flash again');
+    await expect(watchValue(page, 'wait')).toHaveText('500 ms');
+    await expect(livePill(page)).toHaveText('500');
   });
 
   test('shows the interval simple fixes in its source', async ({ page, fakeFlasher }) => {

@@ -1041,10 +1041,15 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
         heard = key;
         showLink();
       }
-      // Lines the board prints while the simulator has the pane are not shown, nor kept for later. A board that
-      // restarts meanwhile no longer holds what the page knew of it.
+      // Lines the board prints while the simulator has the pane are not shown, nor kept for later, but what they tell
+      // of the board still counts, such as the answer to a line sent before the visitor paused. A restart sets the
+      // source's values, since it wipes whatever was sent before.
       if (followed === undefined) {
-        if (key !== undefined) known = undefined;
+        if (key !== undefined) known = project!.board.initial();
+        else if (known !== undefined) {
+          const event = (project!.steps.find((step) => step.key === heard) ?? definition!).parse(text);
+          if (event !== undefined) known = project!.board.apply(known, event, at);
+        }
         return;
       }
       followed = receive(followed, followedStep(), project!.board, project!.tracedPin, text, at);
