@@ -907,8 +907,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     for (const done of ['pointerup', 'pointercancel']) window.addEventListener(done, () => (pressedSlider = undefined));
     function shortcutOf(control: HTMLElement) {
       const stepIndex = Number(control.closest<HTMLElement>('[data-for-step]')!.dataset.forStep);
-      const step = project!.steps.find((candidate) => candidate.key === steps[stepIndex].key);
-      return step?.shortcuts[Number(control.dataset.shortcut)];
+      return paneProject.steps[stepIndex]?.shortcuts[Number(control.dataset.shortcut)];
     }
 
     command.addEventListener('submit', (event) => {
