@@ -83,8 +83,9 @@ The site also puts the firmware on a board. Its parts:
   flashing and running. The rest of the site takes from the slice the card, the manifest and its reader, and a
   public module, `site/src/lib/flash/index.ts`, that gives the workbench the session, the flasher and the wording the
   card and the workbench share.
-- **Workbench slice**: `site/src/components/workbench/` holds the component and its pictures, and
-  `site/src/lib/workbench/` the logic. A project built as a ladder of step sketches, such as Blink and Servo, has a
+- **Workbench slice**: `site/src/components/workbench/` holds the component, one Astro component for each part of it
+  (`Rail`, `Editor`, `Board` with its `Stage`, `Scope` and `Terminal`) and its pictures, and `site/src/lib/workbench/`
+  the logic. A project built as a ladder of step sketches, such as Blink and Servo, has a
   workbench: step tabs and a Board switch, then the selected step's code in an editor with a debugger beside a board
   pane. Per project, the logic holds one definition per step, which has the step's simulated program, what each line
   the step prints means, and the controls that send a line; and a board model, which turns that meaning into the
@@ -94,7 +95,10 @@ The site also puts the firmware on a board. Its parts:
   line at a time on a simulated clock, with Pause, Step and Restart. A program names the lines of the step's `.ino`
   and does what each does to the board, and the editor shows the real source, read from `sketches/` at build time,
   with the arrow on the line about to run. A test fails when a program names a line its `.ino` lacks or leaves a
-  statement unnamed, so the simulator and the sketch change together.
+  statement unnamed, so the simulator and the sketch change together. The simulation, in `simulation.ts`, holds the
+  simulator's run, the simulated board, the trace and whether the visitor wants the sketch running; the pane, in
+  `pane.ts`, holds who has the board pane, and `paneView.ts` beside the component chooses what the pane shows from
+  whoever has it. The component's script only reads events and writes what those give it.
 - **Pages**: the `/flash/` page lists the projects that have an image and shows the card of the one picked, except a
   project with a workbench, whose entry shows the chips of all its steps and links to the `#workbench` anchor of its
   page; each project page with a sketch shows the same card above its text, except a page with a workbench, which

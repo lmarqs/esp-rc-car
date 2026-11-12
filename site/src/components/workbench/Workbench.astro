@@ -87,7 +87,6 @@ const flashable = Object.keys(manifest.sketches).length > 0;
   import { createSimulation } from '../../lib/workbench/simulation';
   import { tabAfterKey } from '../../lib/workbench/tabs';
   import type { PictureView, WatchRow } from '../../lib/workbench/board';
-  import { createTypist } from '../../lib/workbench/typist';
   import { createFlasher, createSession, type Manifest } from '../../lib/flash';
   import type { BoardAction } from '../../lib/workbench/link';
   import {
@@ -104,10 +103,9 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     boardMessage,
     boardStatusText,
     changedRows,
-    followedSliderValue,
-    followSlider,
     CLOCK_DASH,
   } from './view';
+  import { mountCommandLine } from './commandLine';
   import { paneMotion, paneView } from './paneView';
 
   /** How long a watch value stays highlighted after it changes. */
@@ -133,8 +131,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       [...root.querySelectorAll<HTMLElement>('[data-watch-row]')].map((row) => [row.dataset.watchRow!, row]),
     );
     const serialLines = [...root.querySelectorAll<HTMLElement>('[data-serial-line]')];
-    const command = root.querySelector<HTMLFormElement>('[data-command]')!;
-    const commandLine = root.querySelector<HTMLInputElement>('[data-command-line]')!;
+    const commandInput = root.querySelector<HTMLInputElement>('[data-command-line]')!;
     const say = root.querySelector<HTMLElement>('[data-say]')!;
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
     const pauseButton = root.querySelector<HTMLButtonElement>('[data-pause]')!;
@@ -199,7 +196,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       const before = pane;
       pane = reducePane(paneProject, pane, event);
       if (pane.selected !== before.selected) openStep(pane.selected);
-      if (pane.mode !== before.mode) dropTyping();
+      if (pane.mode !== before.mode) commandLine.dropTyping();
       if (pane.simulation !== before.simulation) {
         resetWatch();
         simulation.restart();
@@ -221,8 +218,8 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       });
       panel.setAttribute('aria-labelledby', tabs[index].id);
       for (const element of perStep) element.hidden = element.dataset.forStep !== String(index);
-      commandLine.placeholder = chosen.placeholder;
-      clearCommandLine();
+      commandInput.placeholder = chosen.placeholder;
+      commandLine.reset();
       resetWatch();
 
       simulation.open(chosen);
@@ -241,7 +238,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       if (run === undefined) return;
       const shown = paneView(paneProject, pane, run, steps[pane.selected].source);
       paintPicture(shown.picture);
-      followSliders(shown.board);
+      commandLine.follow(pane.selected, (name) => project.board.variable(shown.board, name));
       for (const [name, element] of watchRows) {
         const row = shown.rows.find((candidate) => candidate.name === name);
         element.hidden = row === undefined;
@@ -306,25 +303,6 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       }
     }
 
-    /**
-     * Moves each slider of the step that follows a board variable when the variable changes, so it reads the last
-     * value sent or reported. A value the visitor released stays until the board reports a change.
-     */
-    function followSliders(shownBoard: unknown) {
-      const typing = commandLine.hasAttribute('data-typing');
-      for (const slider of sliders) {
-        if (slider.closest<HTMLElement>('[data-for-step]')!.hidden) continue;
-        const shortcut = shortcutOf(slider);
-        if (shortcut?.kind !== 'slider' || shortcut.follows === undefined) continue;
-        const reported = followedSliderValue(shortcut, project.board.variable(shownBoard, shortcut.follows));
-        const next = followSlider(seenBySlider.get(slider), reported, typing || slider === pressedSlider);
-        seenBySlider.set(slider, next.remembered);
-        if (next.move === undefined || slider.value === String(next.move)) continue;
-        slider.value = String(next.move);
-        slider.nextElementSibling!.textContent = slider.value;
-      }
-    }
-
     /** Marks a watch value that just changed for a moment. */
     function highlight(name: string) {
       const value = watchRows.get(name)?.querySelector('dd');
@@ -365,100 +343,11 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       session.sendLine(text).catch(() => dispatch({ kind: 'refused', id, pane: following, text }));
     }
 
-    /** Shows `text` in the command line in yellow: typed by a shortcut, or about to be sent by the slider. */
-    function showTyped(text: string) {
-      commandLine.value = text;
-      commandLine.setAttribute('data-typing', '');
-    }
-
-    /**
-     * Drops the line a shortcut is typing, unsent, when the pane changes hands: it was meant for the board or the
-     * simulator the visitor saw, not for the one that takes over.
-     */
-    function dropTyping() {
-      typist.stop();
-      if (!commandLine.hasAttribute('data-typing')) return;
-      commandLine.value = '';
-      commandLine.removeAttribute('data-typing');
-    }
-
-    /** Empties the command line and drops the line a shortcut was typing, unsent; resets the sliders. */
-    function clearCommandLine() {
-      typist.stop();
-      commandLine.value = '';
-      commandLine.removeAttribute('data-typing');
-      for (const slider of sliders) {
-        const shortcut = shortcutOf(slider);
-        if (shortcut?.kind !== 'slider') continue;
-        slider.value = String(shortcut.initial);
-        slider.nextElementSibling!.textContent = slider.value;
-        seenBySlider.delete(slider);
-      }
-    }
-
-    const typist = createTypist({
-      show: showTyped,
-      send(text) {
-        commandLine.value = '';
-        commandLine.removeAttribute('data-typing');
-        sendToBoard(text);
-      },
+    const commandLine = mountCommandLine(root, {
+      steps: paneProject.steps,
+      send: sendToBoard,
       reduceMotion: () => reducedMotion.matches,
     });
-
-    // Whether the line the typist holds came from a slider, which a further move of a slider replaces.
-    let heldBySlider = false;
-    const sliders = [...root.querySelectorAll<HTMLInputElement>('input[type="range"][data-shortcut]')];
-    // The slider under the visitor's pointer, which no value from the board moves.
-    let pressedSlider: HTMLInputElement | undefined;
-    // The board's value each following slider last saw, which it moves away from only when the board changes it.
-    const seenBySlider = new Map<HTMLInputElement, number | undefined>();
-    for (const slider of sliders) slider.addEventListener('pointerdown', () => (pressedSlider = slider));
-    for (const done of ['pointerup', 'pointercancel']) window.addEventListener(done, () => (pressedSlider = undefined));
-    function shortcutOf(control: HTMLElement) {
-      const stepIndex = Number(control.closest<HTMLElement>('[data-for-step]')!.dataset.forStep);
-      return paneProject.steps[stepIndex]?.shortcuts[Number(control.dataset.shortcut)];
-    }
-
-    command.addEventListener('submit', (event) => {
-      event.preventDefault();
-      // A line a shortcut is typing goes out as it would after its pause.
-      if (typist.busy) return typist.finish();
-      const text = commandLine.value.trim();
-      commandLine.value = '';
-      commandLine.removeAttribute('data-typing');
-      if (text !== '') sendToBoard(text);
-    });
-    commandLine.addEventListener('input', () => {
-      typist.stop();
-      commandLine.removeAttribute('data-typing');
-    });
-    for (const chip of root.querySelectorAll<HTMLButtonElement>('button[data-shortcut]')) {
-      chip.addEventListener('click', () => {
-        const shortcut = shortcutOf(chip);
-        if (shortcut?.kind !== 'chip') return;
-        heldBySlider = false;
-        typist.type(shortcut.text);
-      });
-    }
-    for (const slider of sliders) {
-      const line = () => {
-        const shortcut = shortcutOf(slider);
-        return shortcut?.kind === 'slider' ? shortcut.command(Number(slider.value)) : '';
-      };
-      // Dragging only shows the line; releasing sends it, so the values passed on the way never reach the board.
-      slider.addEventListener('input', () => {
-        // A value the slider passed on the way, as each arrow key press is, gives way to the next one unsent.
-        if (heldBySlider) typist.stop();
-        else typist.finish();
-        slider.nextElementSibling!.textContent = slider.value;
-        showTyped(line());
-      });
-      slider.addEventListener('change', () => {
-        heldBySlider = true;
-        typist.type(line(), line().length);
-      });
-    }
 
     /**
      * Hands the pane from the board to a fresh simulator, running if `running`. The simulator starts as the pane changes
@@ -480,7 +369,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     restartButton.addEventListener('click', () => {
       if (pane.mode === 'live') return dispatch({ kind: 'detach' });
       resetWatch();
-      clearCommandLine();
+      commandLine.reset();
       simulation.restart();
     });
     slowButton.addEventListener('click', () => simulation.toggleSlow());
