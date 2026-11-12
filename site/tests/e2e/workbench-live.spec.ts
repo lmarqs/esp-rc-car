@@ -337,6 +337,39 @@ test.describe('a board that runs another step', () => {
     });
   }
 
+  test('Flash step puts the selected step on the board and follows it live, with the Send area back', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ lines: ['', 'sketch blink/simple'], announce: true });
+    await page.goto(BLINK);
+    await tab(page, '2 input').click();
+    await boardButton(page).click();
+    await expect(status(page)).toHaveText('Runs step 1');
+    await expect(notice(page)).toBeVisible();
+
+    await boardButton(page).click();
+
+    await expect(status(page)).toHaveText('Live');
+    await expect(boardButton(page)).toHaveAccessibleName('Flash again');
+    await expect(notice(page)).toBeHidden();
+    await expect(commandLine(page)).toBeEnabled();
+    await expect(serial(page)).toHaveText('sketch blink/input');
+    await fakeFlasher.print('HIGH');
+    await expect(serial(page)).toHaveText('sketch blink/input\nHIGH');
+    await commandLine(page).fill('500');
+    await commandLine(page).press('Enter');
+    await expect.poll(() => fakeFlasher.calls()).toEqual([
+      'connect',
+      'monitor 115200',
+      'connect reuse',
+      'load',
+      'write',
+      'monitor 115200',
+      'send 500',
+    ]);
+  });
+
   test('gives the Send area back and hides the notice once the visitor picks the step the board runs', async ({
     page,
     fakeFlasher,
