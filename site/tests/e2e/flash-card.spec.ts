@@ -5,7 +5,7 @@ const card = (page: import('@playwright/test').Page) => page.getByRole('region',
 test.describe('a flashable project', () => {
   test('shows the Connect step', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install();
-    await page.goto('/robomania/projects/blink/');
+    await page.goto('/robomania/projects/servo/');
 
     await expect(card(page).getByText('Plug the board in over USB. This replaces whatever is on the board.')).toBeVisible();
     await expect(card(page).getByRole('button', { name: 'Connect board' })).toBeVisible();
@@ -14,7 +14,7 @@ test.describe('a flashable project', () => {
 
   test('flashes the board and ends on the Running step', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ chip: 'ESP32', progress: [40], hold: true });
-    await page.goto('/robomania/projects/blink/');
+    await page.goto('/robomania/projects/servo/');
 
     await card(page).getByRole('button', { name: 'Connect board' }).click();
 
@@ -25,14 +25,14 @@ test.describe('a flashable project', () => {
 
     await fakeFlasher.release();
 
-    await expect(card(page).getByText('Your board is running Blink.')).toBeVisible();
+    await expect(card(page).getByText('Your board is running Servo.')).toBeVisible();
     await expect(card(page).locator('[aria-current="step"]')).toHaveText('Running');
     expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'write', 'reset', 'monitor 115200']);
   });
 
   test('offers no second flash while one is under way', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ progress: [40], hold: true });
-    await page.goto('/robomania/projects/blink/');
+    await page.goto('/robomania/projects/servo/');
 
     await card(page).getByRole('button', { name: 'Connect board' }).click();
 
@@ -40,13 +40,13 @@ test.describe('a flashable project', () => {
     await expect(card(page).getByRole('button')).toHaveCount(0);
 
     await fakeFlasher.release();
-    await expect(card(page).getByText('Your board is running Blink.')).toBeVisible();
+    await expect(card(page).getByText('Your board is running Servo.')).toBeVisible();
     expect((await fakeFlasher.calls()).filter((call) => call === 'connect')).toHaveLength(1);
   });
 
   test('announces "Found" once, however many percentages follow', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ progress: [20, 40, 60], hold: true });
-    await page.goto('/robomania/projects/blink/');
+    await page.goto('/robomania/projects/servo/');
     await page.evaluate(() => {
       const added: string[] = [];
       (window as unknown as { __messages: string[] }).__messages = added;
@@ -58,7 +58,7 @@ test.describe('a flashable project', () => {
     await card(page).getByRole('button', { name: 'Connect board' }).click();
     await expect(card(page).getByText('60%')).toBeVisible();
     await fakeFlasher.release();
-    await expect(card(page).getByText('Your board is running Blink.')).toBeVisible();
+    await expect(card(page).getByText('Your board is running Servo.')).toBeVisible();
 
     const messages = await page.evaluate(() => (window as unknown as { __messages: string[] }).__messages);
     expect(messages.filter((message) => message === 'Found ESP32')).toHaveLength(1);
@@ -66,7 +66,7 @@ test.describe('a flashable project', () => {
 
   test('moves the focus to the status when the focused button goes away', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ progress: [40], hold: true });
-    await page.goto('/robomania/projects/blink/');
+    await page.goto('/robomania/projects/servo/');
 
     await card(page).getByRole('button', { name: 'Connect board' }).focus();
     await page.keyboard.press('Enter');
@@ -78,16 +78,16 @@ test.describe('a flashable project', () => {
 })
 
 test.describe('the Running step', () => {
-  const NEXT = 'Watch the LED on GPIO 2: it turns on for one second, then off, and the board prints HIGH and LOW as it changes.';
+  const NEXT = "Connect the servo's signal wire to GPIO 13. It sweeps from 0° to 180° and back, about 2.7 seconds each way.";
   const output = (page: import('@playwright/test').Page) => card(page).getByLabel('Board output, 115200 baud');
 
   test('says it is done, gives the next step and prints the lines the board sends', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['HIGH', 'LOW', 'HIGH'] });
-    await page.goto('/robomania/projects/blink/');
+    await page.goto('/robomania/projects/servo/');
 
     await card(page).getByRole('button', { name: 'Connect board' }).click();
 
-    await expect(card(page).locator('[data-message]')).toHaveText(`Done. Your board is running Blink. ${NEXT}`);
+    await expect(card(page).locator('[data-message]')).toHaveText(`Done. Your board is running Servo. ${NEXT}`);
     await expect(output(page)).toHaveText('HIGH\nLOW\nHIGH');
     await expect(output(page)).toHaveJSProperty('tagName', 'PRE');
     await expect(card(page).getByRole('button')).toHaveText(['Flash again', 'Disconnect']);
@@ -96,7 +96,7 @@ test.describe('the Running step', () => {
 
   test('shows the last 6 lines', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['1', '2', '3', '4', '5', '6', '7', '8'] });
-    await page.goto('/robomania/projects/blink/');
+    await page.goto('/robomania/projects/servo/');
 
     await card(page).getByRole('button', { name: 'Connect board' }).click();
 
@@ -105,7 +105,7 @@ test.describe('the Running step', () => {
 
   test('keeps the output out of a live region and announces the status once', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['HIGH', 'LOW', 'HIGH'] });
-    await page.goto('/robomania/projects/blink/');
+    await page.goto('/robomania/projects/servo/');
     await page.evaluate(() => {
       const added: string[] = [];
       (window as unknown as { __messages: string[] }).__messages = added;
@@ -124,7 +124,7 @@ test.describe('the Running step', () => {
 
   test('Disconnect releases the port and returns to Connect', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['HIGH'] });
-    await page.goto('/robomania/projects/blink/');
+    await page.goto('/robomania/projects/servo/');
     await card(page).getByRole('button', { name: 'Connect board' }).click();
     await expect(output(page)).toHaveText('HIGH');
 
@@ -141,7 +141,7 @@ test.describe('the Running step', () => {
 
   test('Disconnect moves the focus to the status, since its button goes away', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['HIGH'] });
-    await page.goto('/robomania/projects/blink/');
+    await page.goto('/robomania/projects/servo/');
     await card(page).getByRole('button', { name: 'Connect board' }).click();
     await expect(output(page)).toHaveText('HIGH');
 
@@ -157,7 +157,7 @@ test.describe('the Running step', () => {
     fakeFlasher,
   }) => {
     await fakeFlasher.install({ lines: ['HIGH'], monitorEnds: true });
-    await page.goto('/robomania/projects/blink/');
+    await page.goto('/robomania/projects/servo/');
     await page.evaluate(() => {
       const added: string[] = [];
       (window as unknown as { __messages: string[] }).__messages = added;
@@ -178,7 +178,7 @@ test.describe('the Running step', () => {
 
     await card(page).getByRole('button', { name: 'Connect again' }).click();
 
-    await expect(card(page).locator('[data-message]')).toContainText('Done. Your board is running Blink.');
+    await expect(card(page).locator('[data-message]')).toContainText('Done. Your board is running Servo.');
     await expect(output(page)).toHaveText('HIGH');
     expect(await fakeFlasher.calls()).toEqual([
       'connect', 'load', 'write', 'reset', 'monitor 115200',
@@ -192,13 +192,13 @@ test.describe('the Running step', () => {
     fakeFlasher,
   }) => {
     await fakeFlasher.install({ lines: ['HIGH'] });
-    await page.goto('/robomania/projects/blink/');
+    await page.goto('/robomania/projects/servo/');
     await card(page).getByRole('button', { name: 'Connect board' }).click();
     await expect(output(page)).toHaveText('HIGH');
 
     await card(page).getByRole('button', { name: 'Flash again' }).click();
 
-    await expect(card(page).locator('[data-message]')).toContainText('Done. Your board is running Blink.');
+    await expect(card(page).locator('[data-message]')).toContainText('Done. Your board is running Servo.');
     await expect(output(page)).toHaveText('HIGH');
     expect(await fakeFlasher.calls()).toEqual([
       'connect', 'load', 'write', 'reset', 'monitor 115200',
@@ -243,12 +243,12 @@ test.describe('the Running step', () => {
 });
 
 test.describe('a failure', () => {
-  const RUNNING = 'Your board is running Blink.';
+  const RUNNING = 'Your board is running Servo.';
   const connectCalls = ['connect', 'disconnect', 'connect', 'load', 'write', 'reset', 'monitor 115200'];
 
   test('noPort: asks to plug the board in, and the button connects again', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ failFirst: { connect: 'NotFoundError' } });
-    await page.goto('/robomania/projects/blink/');
+    await page.goto('/robomania/projects/servo/');
 
     await card(page).getByRole('button', { name: 'Connect board' }).click();
 
@@ -260,7 +260,7 @@ test.describe('a failure', () => {
 
   test('portBusy: names the programs that hold the port, and the button connects again', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ failFirst: { connect: 'InvalidStateError' } });
-    await page.goto('/robomania/projects/blink/');
+    await page.goto('/robomania/projects/servo/');
 
     await card(page).getByRole('button', { name: 'Connect board' }).click();
 
@@ -274,7 +274,7 @@ test.describe('a failure', () => {
 
   test('noAnswer: tells how to reach the bootloader, and the button connects again', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ failFirst: { connect: 'Error' } });
-    await page.goto('/robomania/projects/blink/');
+    await page.goto('/robomania/projects/servo/');
 
     await card(page).getByRole('button', { name: 'Connect board' }).click();
 
@@ -291,11 +291,11 @@ test.describe('a failure', () => {
     fakeFlasher,
   }) => {
     await fakeFlasher.install({ chip: ['ESP8266', 'ESP32'] });
-    await page.goto('/robomania/projects/blink/');
+    await page.goto('/robomania/projects/servo/');
 
     await card(page).getByRole('button', { name: 'Connect board' }).click();
 
-    await expect(card(page).locator('.notice')).toHaveText('This board is an ESP8266. Blink has images for: ESP32.');
+    await expect(card(page).locator('.notice')).toHaveText('This board is an ESP8266. Servo has images for: ESP32.');
     await card(page).getByRole('button', { name: 'Connect another board' }).click();
     await expect(card(page).getByText(RUNNING)).toBeVisible();
     expect(await fakeFlasher.calls()).toEqual(['connect', 'disconnect', 'connect', 'load', 'write', 'reset', 'monitor 115200']);
@@ -303,7 +303,7 @@ test.describe('a failure', () => {
 
   test('noDownload: blames the connection, and the button connects again', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ failFirst: { load: 'DownloadError' } });
-    await page.goto('/robomania/projects/blink/');
+    await page.goto('/robomania/projects/servo/');
 
     await card(page).getByRole('button', { name: 'Connect board' }).click();
 
@@ -317,7 +317,7 @@ test.describe('a failure', () => {
 
   test('dropped: says how far the flashing got, and the button flashes again', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ progress: [40], failFirst: { write: 'NetworkError' } });
-    await page.goto('/robomania/projects/blink/');
+    await page.goto('/robomania/projects/servo/');
 
     await card(page).getByRole('button', { name: 'Connect board' }).click();
 
@@ -333,23 +333,23 @@ test.describe('a failure', () => {
     await page.addInitScript(() => {
       delete (Navigator.prototype as { serial?: unknown }).serial;
     });
-    await page.goto('/robomania/projects/blink/');
+    await page.goto('/robomania/projects/servo/');
 
     await expect(card(page).locator('.notice')).toHaveText(
       'This browser cannot reach a USB board. Open this page in Chrome or Edge on a computer.',
     );
     await expect(card(page).getByRole('button')).toHaveCount(0);
     await expect(card(page).getByRole('link')).toHaveText([
-      'esp32: simple.ino.bootloader.bin at 0x1000',
-      'esp32: simple.ino.bin at 0x10000',
+      'esp32: sweep.ino.bootloader.bin at 0x1000',
+      'esp32: sweep.ino.bin at 0x10000',
       'Run it on your board',
     ]);
     const hrefs = await card(page)
       .getByRole('link')
       .evaluateAll((links) => links.map((link) => link.getAttribute('href')));
     expect(hrefs).toEqual([
-      '/robomania/firmware/blink/simple/esp32/simple.ino.bootloader.bin',
-      '/robomania/firmware/blink/simple/esp32/simple.ino.bin',
+      '/robomania/firmware/servo/sweep/esp32/sweep.ino.bootloader.bin',
+      '/robomania/firmware/servo/sweep/esp32/sweep.ino.bin',
       '#run-it-on-your-board',
     ]);
   });
