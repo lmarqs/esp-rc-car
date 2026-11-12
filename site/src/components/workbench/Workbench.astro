@@ -92,21 +92,16 @@ const flashable = Object.keys(manifest.sketches).length > 0;
   import {
     initialPane,
     paneAction,
-    paneStatus,
-    showsRefusal,
     reducePane,
     type PaneEvent,
     type PaneProject,
     type PaneState,
   } from '../../lib/workbench/pane';
-  import {
-    boardMessage,
-    boardStatusText,
-    CLOCK_DASH,
-  } from './view';
+  import { CLOCK_DASH } from './view';
+  import { mountBoardLink } from './boardLink';
   import { mountCommandLine } from './commandLine';
-  import { paneMotion, paneView } from './paneView';
-import { mountWatchPanel } from './watchPanel';
+  import { linkView, paneMotion, paneView } from './paneView';
+  import { mountWatchPanel } from './watchPanel';
 
   interface StepData {
     sketch: string;
@@ -141,21 +136,6 @@ import { mountWatchPanel } from './watchPanel';
       sent: traceView.querySelector('[data-trace-sent]')!,
       applied: traceView.querySelector('[data-trace-applied]')!,
     };
-    const cell = root.querySelector<HTMLElement>('[data-board-cell]')!;
-    const statusText = root.querySelector<HTMLElement>('[data-board-status]')!;
-    let statusWord = root.querySelector<HTMLElement>('[data-board-word]')!;
-    let statusSentence = root.querySelector<HTMLElement>('[data-board-sentence]')!;
-    const actionButton = root.querySelector<HTMLButtonElement>('[data-board-action]');
-    const actionLabel = root.querySelector<HTMLElement>('[data-board-action-label]');
-    const needsBrowser = root.querySelector<HTMLElement>('[data-needs-browser]')!;
-    const simulatorButton = root.querySelector<HTMLButtonElement>('[data-pane-simulator]')!;
-    const flashAgain = root.querySelector<HTMLButtonElement>('[data-flash-again]')!;
-    const stage = root.querySelector<HTMLElement>('[data-stage]')!;
-    const message = root.querySelector<HTMLElement>('[data-board-message]')!;
-    const progress = root.querySelector<HTMLElement>('[data-board-progress]')!;
-    const progressBar = progress.querySelector<HTMLElement>('[role="progressbar"]')!;
-    const progressFill = root.querySelector<HTMLElement>('[data-board-fill]')!;
-    const progressText = root.querySelector<HTMLElement>('[data-board-percent]')!;
     let traceWidth = 0;
     // With no viewBox the trace is drawn in CSS pixels, so its marks keep their shape at any width.
     new ResizeObserver(([entry]) => {
@@ -348,71 +328,31 @@ import { mountWatchPanel } from './watchPanel';
       baud: root.dataset.baud ? Number(root.dataset.baud) : undefined,
     });
     let pane: PaneState<unknown> = initialPane(paneProject, session.state);
+    const boardLink = mountBoardLink(root, {
+      action() {
+        const action = paneAction(paneProject, pane);
+        if (action === undefined || action.disabled) return;
+        press(action.event);
+      },
+      flashAgain: () => press('flash'),
+      // The board keeps running its step; the simulator starts it again in the pane.
+      simulator() {
+        if (pane.mode !== 'live') return;
+        detach(true);
+      },
+    });
 
-    /** Paints the Board cell, its button and the board pane's message. */
+    /** Paints the Board cell, its button and the board pane's message, and marks the rail's step the board runs. */
     function showLink() {
-      const status = paneStatus(paneProject, pane);
-      const text = boardStatusText(status, pane.detached);
-      cell.dataset.status = status.kind;
-      const onBoard = status.kind === 'live' || status.kind === 'step' ? pane.heard : undefined;
+      const link = linkView(paneProject, pane);
+      boardLink.show(link);
       tabs.forEach((tab, at) => {
-        tab.querySelector<HTMLElement>('[data-onboard]')!.hidden = paneProject.steps[at].key !== onBoard;
+        tab.querySelector<HTMLElement>('[data-onboard]')!.hidden = paneProject.steps[at].key !== link.onBoard;
       });
-      // Set only on a change, and in one, since the status is a live region: two would be announced twice.
-      if (statusWord.textContent !== text.word || statusSentence.textContent !== `: ${text.title}`) {
-        const word = statusWord.cloneNode() as HTMLElement;
-        const sentence = statusSentence.cloneNode() as HTMLElement;
-        word.textContent = text.word;
-        sentence.textContent = `: ${text.title}`;
-        statusText.replaceChildren(word, sentence);
-        statusWord = word;
-        statusSentence = sentence;
-      }
-
-      const action = paneAction(paneProject, pane);
-      needsBrowser.hidden = action !== undefined;
-      simulatorButton.setAttribute('aria-pressed', String(pane.mode === 'simulator'));
-      // visibility, not hidden, so the row keeps its height.
-      flashAgain.style.visibility = pane.mode === 'live' && action?.disabled === false ? '' : 'hidden';
-      if (actionButton !== null && actionLabel !== null) {
-        actionButton.hidden = action === undefined;
-        actionButton.setAttribute('aria-pressed', String(pane.mode === 'live'));
-        if (action !== undefined) {
-          actionLabel.textContent = action.label;
-          actionButton.dataset.icon = action.icon;
-          // aria-disabled, not disabled, so a button pressed from the keyboard keeps the focus while the session works.
-          if (action.disabled) actionButton.setAttribute('aria-disabled', 'true');
-          else actionButton.removeAttribute('aria-disabled');
-        }
-      }
-
-      const shown = boardMessage(pane.session, pane.flashed, showsRefusal(pane));
-      stage.toggleAttribute('data-message', shown !== undefined);
-      const words = shown?.text ?? '';
-      // Only a change of text is announced: the progress bar carries the percentage.
-      if (message.textContent !== words) message.textContent = words;
-      message.classList.toggle('notice', shown?.notice ?? false);
-      progress.hidden = shown?.progress === undefined;
-      if (shown?.progress !== undefined) {
-        progressBar.setAttribute('aria-valuenow', String(shown.progress));
-        progressFill.style.width = `${shown.progress}%`;
-        progressText.textContent = `${shown.progress}%`;
-      }
     }
 
     session.subscribe((state) => dispatch({ kind: 'session', state }));
     session.subscribeLines(({ text, at }) => dispatch({ kind: 'line', text, at }));
-    actionButton?.addEventListener('click', () => {
-      const action = paneAction(paneProject, pane);
-      if (action === undefined || action.disabled) return;
-      press(action.event);
-    });
-    flashAgain.addEventListener('click', () => press('flash'));
-    // The board keeps running its step; the simulator starts it again in the pane.
-    simulatorButton.addEventListener('click', () => {
-      if (pane.mode !== 'live') return;
-      detach(true);
-    });
 
     /** Presses the board half of the Board switch, or Flash again, then asks the session for what the press starts. */
     function press(action: BoardAction['event']) {

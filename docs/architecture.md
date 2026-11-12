@@ -98,7 +98,9 @@ The site also puts the firmware on a board. Its parts:
   statement unnamed, so the simulator and the sketch change together. The simulation, in `simulation.ts`, holds the
   simulator's run, the simulated board, the trace and whether the visitor wants the sketch running; the pane, in
   `pane.ts`, holds who has the board pane, and `paneView.ts` beside the component chooses what the pane shows from
-  whoever has it. The component's script only reads events and writes what those give it.
+  whoever has it, and what the Board cell and its message say. `boardLink.ts`, `watchPanel.ts` and `commandLine.ts`
+  write the Board cell, the watch panel and the command line. The component's script only reads events and hands
+  them what to show.
 - **Pages**: the `/flash/` page lists the projects that have an image and shows the card of the one picked, except a
   project with a workbench, whose entry shows the chips of all its steps and links to the `#workbench` anchor of its
   page; each project page with a sketch shows the same card above its text, except a page with a workbench, which

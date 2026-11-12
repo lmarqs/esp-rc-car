@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { paneMotion, paneView } from '../../src/components/workbench/paneView';
+import { linkView, paneMotion, paneView } from '../../src/components/workbench/paneView';
 import type { SessionState } from '../../src/lib/flash/session';
 import type { BlinkBoard } from '../../src/lib/workbench/blinkBoard';
 import { initialPane, reducePane, type PaneEvent, type PaneProject, type PaneState } from '../../src/lib/workbench/pane';
@@ -95,5 +95,32 @@ describe('paneMotion', () => {
   it('fills the clock at once under reduced motion', () => {
     const { snapshot } = simulated(3000, SIMPLE);
     expect(paneMotion(blink, pane(), snapshot, 0, 300, true).clock).toEqual({ waiting: true, fill: 1 });
+  });
+});
+
+describe('linkView', () => {
+  it('shows the simulator with no board: a Connect button, no mark on the rail, no message', () => {
+    const shown = linkView(blink, pane());
+    expect(shown).toMatchObject({ kind: 'simulated', word: 'Simulated', live: false, flashAgain: false, onBoard: undefined });
+    expect(shown.action).toMatchObject({ event: 'connect', disabled: false });
+    expect(shown.message).toBeUndefined();
+  });
+
+  it('marks the step the board runs and offers Flash again once the pane follows the board', () => {
+    const shown = linkView(blink, pane(...live));
+    expect(shown).toMatchObject({ kind: 'live', word: 'Live', live: true, flashAgain: true, onBoard: blink.steps[INPUT].key });
+  });
+
+  it('says the pane shows the simulator while the board runs the step but the visitor detached it', () => {
+    const shown = linkView(blink, reducePane(blink, pane(...live), { kind: 'detach' }));
+    expect(shown).toMatchObject({ kind: 'live', live: false, flashAgain: false });
+    expect(shown.title).toContain('simulator');
+  });
+
+  it('shows the message and the percentage while the session flashes, and holds Flash again back', () => {
+    const flashing: SessionState = { kind: 'flashing', chip: 'ESP32', pct: 40 };
+    const shown = linkView(blink, pane({ kind: 'session', state: flashing }));
+    expect(shown.message).toMatchObject({ notice: false, progress: 40 });
+    expect(shown.action?.disabled).toBe(true);
   });
 });

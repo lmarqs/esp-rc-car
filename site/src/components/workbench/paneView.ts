@@ -1,10 +1,23 @@
 import type { PictureView, WatchRow } from '../../lib/workbench/board';
 import type { Followed } from '../../lib/workbench/live';
-import type { PaneProject, PaneState } from '../../lib/workbench/pane';
+import type { BoardAction, BoardStatus } from '../../lib/workbench/link';
+import { paneAction, paneStatus, showsRefusal, type PaneProject, type PaneState } from '../../lib/workbench/pane';
 import type { Snapshot } from '../../lib/workbench/simulation';
 import { lineNumber } from '../../lib/workbench/source';
 import { traceShape, traceTime, type TraceShape } from '../../lib/workbench/trace';
-import { clockFace, liveClockFace, notSent, serialRows, toolbar, type ClockFace, type SerialRow, type Toolbar } from './view';
+import {
+  boardMessage,
+  boardStatusText,
+  clockFace,
+  liveClockFace,
+  notSent,
+  serialRows,
+  toolbar,
+  type BoardMessage,
+  type ClockFace,
+  type SerialRow,
+  type Toolbar,
+} from './view';
 
 /**
  * What the board pane shows while the pane changes, from whoever has it: the real board's followed lines when the pane
@@ -94,5 +107,40 @@ export function paneMotion<B>(
     clock,
     trace: traceShape(run.trace, traceTime(view, progress, reduceMotion), width),
     moving: view.status === 'running' && (clock.waiting || view.cost > 0),
+  };
+}
+
+/** What the Board cell, its switch and the board pane's message show for the pane. */
+export interface LinkView {
+  /** What the Board cell's styles select on. */
+  readonly kind: BoardStatus['kind'];
+  /** The cell's short word, and the sentence that names the board's sketch in full. */
+  readonly word: string;
+  readonly title: string;
+  /** The key of the step the board runs, which the rail marks; absent when the board runs none of them. */
+  readonly onBoard: string | undefined;
+  /** The board half of the Board switch; absent in a browser that cannot reach a board. */
+  readonly action: BoardAction | undefined;
+  /** Whether the board has the pane, so the board half of the switch is pressed and the simulator half is not. */
+  readonly live: boolean;
+  /** Whether Flash again shows, so the visitor can flash the step onto the board that is already live. */
+  readonly flashAgain: boolean;
+  /** What the board pane shows in place of the picture; absent while it shows the picture. */
+  readonly message: BoardMessage | undefined;
+}
+
+/** What the page shows of the link between the pane and the visitor's board. */
+export function linkView<B>(project: PaneProject<B>, pane: PaneState<B>): LinkView {
+  const status = paneStatus(project, pane);
+  const action = paneAction(project, pane);
+  const live = pane.mode === 'live';
+  return {
+    kind: status.kind,
+    ...boardStatusText(status, pane.detached),
+    onBoard: status.kind === 'live' || status.kind === 'step' ? pane.heard : undefined,
+    action,
+    live,
+    flashAgain: live && action?.disabled === false,
+    message: boardMessage(pane.session, pane.flashed, showsRefusal(pane)),
   };
 }
