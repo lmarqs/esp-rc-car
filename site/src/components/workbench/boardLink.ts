@@ -17,6 +17,7 @@ const DOT_TITLES: Readonly<Record<LinkView['dot'], string>> = {
   busy: 'My board: connecting…',
   on: 'My board: connected',
 };
+const FLASHING_TITLE = 'My board: flashing…';
 
 /** The switch, the board pane's frame and the My board view in `root`: writes what `linkView` says. */
 export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
@@ -49,7 +50,8 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
       if (boardButton !== null && dot !== null) {
         boardButton.hidden = action === undefined;
         boardButton.setAttribute('aria-pressed', String(view.chosen === 'board'));
-        boardButton.title = DOT_TITLES[view.dot];
+        // The busy action's label says which it is.
+        boardButton.title = view.dot === 'busy' && action?.event === 'flash' ? FLASHING_TITLE : DOT_TITLES[view.dot];
         dot.dataset.link = view.dot;
       }
 
@@ -61,6 +63,8 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
         word.textContent = view.tag.word;
         title.textContent = view.tag.title;
         tag.replaceChildren(word, ' ', title);
+        // The sentence is cut where the frame is narrow, so the whole tag is in the title too.
+        tag.title = `${view.tag.word} ${view.tag.title}`;
         tagWord = word;
         tagTitle = title;
       }

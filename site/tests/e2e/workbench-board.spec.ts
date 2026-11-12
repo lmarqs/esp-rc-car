@@ -642,3 +642,213 @@ test.describe('the watch', () => {
     });
   }
 });
+
+test.describe('the finish of the switch and the frame', () => {
+  const HALF = 104;
+  const widthOf = async (locator: Locator) => (await locator.boundingBox())!.width;
+  const duration = (locator: Locator, property = 'transition-duration') =>
+    locator.evaluate((element, name) => getComputedStyle(element).getPropertyValue(name), property);
+
+  const states: { name: string; options: FakeFlasherOptions; reach: (page: Page) => Promise<void> }[] = [
+    { name: 'not connected', options: {}, reach: async (page) => myBoardButton(page).click() },
+    {
+      name: 'connecting',
+      options: { holdConnect: true },
+      reach: async (page) => {
+        await connect(page);
+        await expect(message(page)).toHaveText('Connecting to the board.');
+      },
+    },
+    {
+      name: 'connected',
+      options: { lines: ['HIGH'] },
+      reach: async (page) => {
+        await connect(page);
+        await expect(tag(page)).toHaveText('My board Waiting for it to name its sketch');
+      },
+    },
+    {
+      name: 'live',
+      options: { lines: ['sketch blink/simple'] },
+      reach: async (page) => {
+        await connect(page);
+        await expect(tagWord(page)).toHaveText('Live');
+      },
+    },
+  ];
+
+  for (const state of states) {
+    test(`gives each half of the switch ${HALF} px at 1100 px, and keeps it: ${state.name}`, async ({
+      page,
+      fakeFlasher,
+    }) => {
+      await fakeFlasher.install(state.options);
+      await page.setViewportSize({ width: 1100, height: 900 });
+      await page.goto(BLINK);
+      expect([await widthOf(simulatorButton(page)), await widthOf(myBoardButton(page))]).toEqual([HALF, HALF]);
+
+      await state.reach(page);
+
+      expect([await widthOf(simulatorButton(page)), await widthOf(myBoardButton(page))]).toEqual([HALF, HALF]);
+    });
+  }
+
+  test('has no horizontal scroll at 380 px with My board chosen and a message shown', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install();
+    await page.setViewportSize({ width: 380, height: 900 });
+    await page.goto(BLINK);
+
+    await myBoardButton(page).click();
+
+    await expect(message(page)).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(380);
+  });
+
+  test('slides the pill behind the pressed half, and gives the half the colour of the card', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install();
+    await page.setViewportSize({ width: 1100, height: 900 });
+    await page.goto(BLINK);
+    const pill = boardSwitch(page).locator('.pill');
+    const left = async () => (await pill.boundingBox())!.x;
+    const simulatorLeft = (await simulatorButton(page).boundingBox())!.x;
+    const boardLeft = (await myBoardButton(page).boundingBox())!.x;
+    expect(await left()).toBe(simulatorLeft);
+    expect(await widthOf(pill)).toBe(HALF);
+    const pressedColour = await simulatorButton(page).evaluate((half) => getComputedStyle(half).color);
+    const cardColour = await page.evaluate(() => {
+      const probe = document.body.appendChild(document.createElement('i'));
+      probe.style.color = 'var(--card)';
+      return getComputedStyle(probe).color;
+    });
+    expect(pressedColour).toBe(cardColour);
+
+    await myBoardButton(page).click();
+
+    await expect.poll(left).toBe(boardLeft);
+    expect(await widthOf(pill)).toBe(HALF);
+  });
+
+  test('moves the pill, the frame and the dot over time, and not at all when the visitor asks for less motion', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ holdConnect: true });
+    await page.goto(BLINK);
+    const pill = boardSwitch(page).locator('.pill');
+    const frame = bench(page).locator('[data-frame]');
+    const dot = bench(page).locator('[data-board-dot]');
+    expect(await duration(pill)).toBe('0.22s');
+    expect(await duration(frame)).toBe('0.25s');
+
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await connect(page);
+    await expect(dot).toHaveAttribute('data-link', 'busy');
+
+    expect(await duration(pill)).toBe('0s');
+    expect(await duration(frame)).toBe('0s');
+    expect(await duration(dot, 'animation-name')).toBe('none');
+    expect(await duration(myBoardButton(page))).toBe('0s');
+  });
+
+  test('pulses the dot while the session works, and fills it green once the board is connected', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/simple'], holdConnect: true });
+    await page.goto(BLINK);
+    const dot = bench(page).locator('[data-board-dot]');
+    const background = () => dot.evaluate((element) => getComputedStyle(element).backgroundColor);
+    expect(await background()).toBe('rgba(0, 0, 0, 0)');
+    expect(await duration(dot, 'animation-name')).toBe('none');
+
+    await connect(page);
+    await expect(dot).toHaveAttribute('data-link', 'busy');
+    expect(await duration(dot, 'animation-name')).not.toBe('none');
+
+    await fakeFlasher.release();
+    await expect(dot).toHaveAttribute('data-link', 'on');
+    expect(await duration(dot, 'animation-name')).toBe('none');
+    expect(await background()).not.toBe('rgba(0, 0, 0, 0)');
+  });
+
+  test('names the busy action on the dot: connecting, then flashing', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/commands'], progress: [40], hold: true });
+    await page.goto(BLINK);
+
+    await connect(page);
+    await expect(boardButton(page)).toHaveAccessibleName('Flash simple to board');
+    expect(await myBoardButton(page).getAttribute('title')).toBe('My board: connected');
+    await boardButton(page).click();
+
+    await expect(message(page)).toHaveText('Found ESP32');
+    await expect(myBoardButton(page)).toHaveAttribute('title', 'My board: flashing…');
+  });
+
+  for (const state of states.slice(0, 1)) {
+    test(`gives the tag the sentence it shows as its title, in every view: ${state.name}`, async ({
+      page,
+      fakeFlasher,
+    }) => {
+      await fakeFlasher.install({ lines: ['sketch blink/simple'] });
+      await page.goto(BLINK);
+      await expect(tag(page)).toHaveAttribute('title', 'Simulated Running in the browser');
+
+      await state.reach(page);
+      await expect(tag(page)).toHaveAttribute('title', 'My board Not connected');
+
+      await boardButton(page).click();
+      await expect(tagWord(page)).toHaveText('Live');
+      await expect(tag(page)).toHaveAttribute('title', 'Live Drawn from what your board prints');
+    });
+  }
+
+  test('shows the whole tag at 380 px until Flash again takes its room', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/simple'] });
+    await page.setViewportSize({ width: 380, height: 900 });
+    await page.goto(BLINK);
+    const cut = () => tag(page).evaluate((element) => element.scrollWidth > element.clientWidth);
+    expect(await cut()).toBe(false);
+
+    await connect(page);
+
+    await expect(flashAgain(page)).toBeVisible();
+    const box = await tag(page).boundingBox();
+    const mini = await flashAgain(page).boundingBox();
+    expect(box!.x + box!.width).toBeLessThanOrEqual(mini!.x);
+  });
+
+  test('keeps the stage as tall as its tallest step needs, in every view, with the message in the middle', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install();
+    await page.setViewportSize({ width: 1100, height: 900 });
+    await page.goto(BLINK);
+    const stage = bench(page).locator('.stage');
+    const height = async (locator: Locator) => (await locator.boundingBox())!.height;
+    // Commands has the most values to watch: the stage is no taller than its watch, and no step changes its height.
+    await tab(page, '4 commands').click();
+    const simulatedHeight = await height(stage);
+    expect(Math.abs(simulatedHeight - (await height(bench(page).locator('.watch'))))).toBeLessThanOrEqual(1);
+    for (const name of ['1 simple', '2 input', '3 timer']) {
+      await tab(page, name).click();
+      expect(await height(stage), name).toBe(simulatedHeight);
+    }
+    await tab(page, '4 commands').click();
+
+    await myBoardButton(page).click();
+
+    await expect(message(page)).toBeVisible();
+    expect(await height(stage)).toBe(simulatedHeight);
+    const stageBox = (await stage.boundingBox())!;
+    const link = (await bench(page).locator('[data-board-link]').boundingBox())!;
+    expect(Math.abs(link.y + link.height / 2 - (stageBox.y + stageBox.height / 2))).toBeLessThanOrEqual(1);
+    const words = (await message(page).boundingBox())!;
+    expect(Math.abs(words.y + words.height / 2 - (stageBox.y + stageBox.height / 2))).toBeLessThanOrEqual(1);
+    const button = (await boardButton(page).boundingBox())!;
+    expect(button.x).toBeGreaterThan(words.x + words.width);
+  });
+});
