@@ -20,7 +20,7 @@ void loop() {
     delay(15);
   }
 
-  for (int angle = 180; angle >= 0; angle -= 1) {
+  for (int angle = 179; angle >= 1; angle -= 1) {
     servo.write(angle);
     Serial.print("angle ");
     Serial.println(angle);
