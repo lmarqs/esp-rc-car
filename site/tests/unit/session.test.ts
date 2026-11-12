@@ -1328,6 +1328,59 @@ describe('the lines of the board and the workbench connection', () => {
     });
   });
 
+  describe('connect with reset and listen', () => {
+    it('reads the running board on a port opened without its bootloader, named by the chip it was given', async () => {
+      const flasher = fakeFlasher({ failAt: { connect: new Error('no bootloader') } });
+      const session = createSession({ flasher, manifest, sketch: 'servo', baud: 115200 });
+      const states = record(session);
+
+      await session.send({ type: 'connect', reset: true, listen: 'ESP8266' });
+
+      expect(flasher.calls).toEqual(['attach', 'monitor 115200']);
+      expect(states.map((state) => state.kind)).toEqual(['connecting', 'running']);
+      expect(session.state).toEqual({ kind: 'running', chip: 'ESP8266', output: [] });
+    });
+
+    it('shows what the running board prints', async () => {
+      const flasher = fakeFlasher();
+      const session = createSession({ flasher, manifest, sketch: 'servo', baud: 115200 });
+
+      await session.send({ type: 'connect', reset: true, listen: 'ESP8266' });
+      flasher.print('led on');
+
+      expect(session.state).toEqual({ kind: 'running', chip: 'ESP8266', output: ['led on'] });
+    });
+
+    it('reports a closed port picker as noPort', async () => {
+      const flasher = fakeFlasher({ failAt: { attach: domError('NotFoundError') } });
+      const session = createSession({ flasher, manifest, sketch: 'servo', baud: 115200 });
+
+      await session.send({ type: 'connect', reset: true, listen: 'ESP8266' });
+
+      expect(session.state).toEqual({ kind: 'noPort' });
+      expect(flasher.calls).toEqual(['attach', 'disconnect']);
+    });
+
+    it('flashes a key over the port it listened on, through the bootloader', async () => {
+      const flasher = fakeFlasher({ chip: 'ESP8266' });
+      const session = createSession({ flasher, manifest: workbenchManifest, sketch: 'servo', baud: 115200 });
+      await session.send({ type: 'connect', reset: true, listen: 'ESP8266' });
+
+      await session.send({ type: 'flash', key: 'web-relay' });
+
+      expect(flasher.calls.slice(0, 3)).toEqual(['attach', 'monitor 115200', 'connect reuse']);
+    });
+
+    it('is ignored without reset: a plain connect flashes, which needs the bootloader', async () => {
+      const flasher = fakeFlasher();
+      const session = createSession({ flasher, manifest, sketch: 'servo', baud: 115200 });
+
+      await session.send({ type: 'connect', listen: 'ESP8266' });
+
+      expect(flasher.calls[0]).toBe('connect');
+    });
+  });
+
   describe('flash with a manifest key', () => {
     it('flashes the key on the open port without asking for another, and keeps it open', async () => {
       const { flasher, session } = await attached();

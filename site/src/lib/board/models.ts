@@ -26,6 +26,14 @@ export function boardModel(id: string): BoardModel | undefined {
 }
 
 /**
+ * The connection that restarts `model` into its sketch to read it: a board on an adapter with a flash switch reaches
+ * its bootloader only in flash mode, so it is read as it runs, as the chip it is.
+ */
+export function restartConnection(model: BoardModel | undefined): { type: 'connect'; reset: true; listen?: string } {
+  return model?.flashSwitch ? { type: 'connect', reset: true, listen: model.chip } : { type: 'connect', reset: true };
+}
+
+/**
  * The board the site follows once `chip` answered: the pick when its chip is that one, or else the model of that chip.
  * A chip the list does not know leaves the pick as it is.
  */

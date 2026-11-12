@@ -75,9 +75,11 @@ export type SessionEvent =
    * it restarts the board into the sketch it holds, so the board prints its `sketch <key>` line, and goes to
    * `running`, reading at the session's baud. It is the connection of the workbench, which flashes with `flash`.
    * From `flashMode`, or a failure to connect after it, it asks for a port and reads the board as it runs, without its
-   * bootloader, and sends the settings the flash was asked with, if any.
+   * bootloader, and sends the settings the flash was asked with, if any. With `reset` and `listen`, the chip of a
+   * board that the port cannot restart, such as an ESP-01S on its adapter, it reads the board as it runs, without its
+   * bootloader, so the board needs no flash mode until a flash.
    */
-  | { type: 'connect'; reset?: true }
+  | { type: 'connect'; reset?: true; listen?: string }
   /**
    * From `running` on a board that is not lost: flashes the sketch that `key` names in the manifest onto the open
    * port, without asking for one, and goes back to `running` with the port open and the board's lines flowing to
@@ -416,6 +418,27 @@ export function createSession(options: SessionOptions): FlashSession {
     });
   }
 
+  /** Reads the board that runs a sketch, said to be a `chip`, through a port opened without its bootloader. */
+  async function listen(active: Flasher, chip: string) {
+    enter({ kind: 'connecting' });
+    try {
+      await active.attach();
+    } catch (error) {
+      console.error(error);
+      await active.disconnect();
+      enter({ kind: connectFailure(error) });
+      return;
+    }
+    output = [];
+    if (baud !== undefined) read(active, baud);
+    enter({ kind: 'running', chip, output });
+  }
+
+  /** Connects as `event` asks: to the bootloader, or to the running board when it is to listen. */
+  function open(active: Flasher, event: Extract<SessionEvent, { type: 'connect' }>) {
+    return event.reset && event.listen !== undefined ? listen(active, event.listen) : connect(active, event.reset);
+  }
+
   /** Reads a board that came out of flash mode, through a port opened without its bootloader. */
   async function reattach(active: Flasher, { chip, request }: NonNullable<typeof awaitingRun>) {
     enter({ kind: 'connecting' });
@@ -661,9 +684,9 @@ export function createSession(options: SessionOptions): FlashSession {
             // Ignores a second click while the old port is released.
             enter({ kind: 'connecting' });
             await flasher.disconnect();
-            await connect(flasher, event.reset);
+            await open(flasher, event);
           } else if (kind === 'idle' || FAILURE_KINDS.has(kind)) {
-            await connect(flasher, event.reset);
+            await open(flasher, event);
           }
           break;
         case 'flash':

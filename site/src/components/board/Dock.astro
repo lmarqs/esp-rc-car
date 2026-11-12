@@ -166,7 +166,7 @@ const manifest = readManifest();
 
 <script>
   import { theBoard } from '../../lib/board/board';
-  import { correctionNotice, modelAnswering } from '../../lib/board/models';
+  import { correctionNotice, modelAnswering, restartConnection } from '../../lib/board/models';
   import { thePick } from '../../lib/board/pick';
   import type { SketchName } from '../../lib/board/names';
   import type { Manifest } from '../../lib/flash';
@@ -234,7 +234,7 @@ const manifest = readManifest();
       pick.choose(answering.id);
     }
 
-    connect.addEventListener('click', () => void board.send({ type: 'connect', reset: true }));
+    connect.addEventListener('click', () => void board.send(restartConnection(pick.model)));
     disconnect.addEventListener('click', () => void board.send({ type: 'disconnect' }));
     again.addEventListener('click', () => {
       const key = runs(board.record);

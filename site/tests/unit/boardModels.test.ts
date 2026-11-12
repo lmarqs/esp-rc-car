@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { BOARD_MODELS, boardModel, boardsLine, correctionNotice, modelAnswering, modelsWithImages } from '../../src/lib/board/models';
+import {
+  BOARD_MODELS,
+  boardModel,
+  boardsLine,
+  correctionNotice,
+  modelAnswering,
+  modelsWithImages,
+  restartConnection,
+} from '../../src/lib/board/models';
 import { createPick, type PickStorage } from '../../src/lib/board/pick';
 
 function memoryStorage(start: Record<string, string> = {}): PickStorage & { values: Record<string, string> } {
@@ -118,5 +126,16 @@ describe('the boards a project card names', () => {
       text: 'Needs an ESP32 dev board or ESP32-C3',
       fits: false,
     });
+  });
+});
+
+describe('restartConnection', () => {
+  it('reads a board on a flash-switch adapter as it runs, as its chip, so it needs no flash mode to connect', () => {
+    expect(restartConnection(boardModel('esp01s'))).toEqual({ type: 'connect', reset: true, listen: 'ESP8266' });
+  });
+
+  it('restarts any other board, or an unpicked one, through its bootloader', () => {
+    expect(restartConnection(boardModel('esp32'))).toEqual({ type: 'connect', reset: true });
+    expect(restartConnection(undefined)).toEqual({ type: 'connect', reset: true });
   });
 });

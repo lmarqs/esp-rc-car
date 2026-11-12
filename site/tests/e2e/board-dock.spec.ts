@@ -225,14 +225,26 @@ test.describe('the board pick', () => {
   test('follows the chip that answers, and says so when it is not the picked one', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ chip: 'ESP32', lines: ['sketch blink/input'] });
     await page.goto('/robomania/learn/');
-    await pick(page).selectOption({ label: 'ESP-01S' });
+    await pick(page).selectOption({ label: 'ESP32-C3' });
 
     await dock(page).getByRole('button', { name: 'Connect board' }).click();
 
     await expect(pick(page)).toHaveValue('esp32');
     await expect(dock(page).getByRole('status')).toHaveText(
-      'You picked an ESP-01S, but the board that answered is an ESP32. The site now gives the steps for an ESP32 dev board.',
+      'You picked an ESP32-C3, but the board that answered is an ESP32. The site now gives the steps for an ESP32 dev board.',
     );
+  });
+
+  test('reads a picked ESP-01S as it runs, without asking for flash mode', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ chip: 'ESP32', lines: ['led on'] });
+    await page.goto('/robomania/learn/');
+    await pick(page).selectOption({ label: 'ESP-01S' });
+
+    await dock(page).getByRole('button', { name: 'Connect board' }).click();
+
+    await expect(dock(page).getByRole('button', { name: 'Disconnect' })).toBeVisible();
+    await expect(dock(page)).toContainText('ESP8266');
+    expect(await fakeFlasher.calls()).toEqual(['attach', 'monitor 115200']);
   });
 
   test('keeps the bar on one row when the picked board needs its adapter set', async ({ page }) => {
@@ -253,7 +265,7 @@ test.describe('the board pick', () => {
   test('drops the note once the board that answered is disconnected', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ chip: 'ESP32', lines: ['sketch blink/input'] });
     await page.goto('/robomania/learn/');
-    await pick(page).selectOption({ label: 'ESP-01S' });
+    await pick(page).selectOption({ label: 'ESP32-C3' });
     await dock(page).getByRole('button', { name: 'Connect board' }).click();
     await expect(dock(page).getByRole('status')).toBeVisible();
 
