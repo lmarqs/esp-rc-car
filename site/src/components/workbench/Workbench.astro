@@ -503,13 +503,19 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
   import { lineNumber } from '../../lib/workbench/source';
   import { tabAfterKey } from '../../lib/workbench/tabs';
   import type { PictureView, WatchRow } from '../../lib/workbench/board';
-  import type { StepDefinition } from '../../lib/workbench/step';
-  import type { BoardStatus } from '../../lib/workbench/link';
   import { createTypist } from '../../lib/workbench/typist';
   import { emptyTrace, recordEffects, recordLevel, traceShape, traceTime, type Trace } from '../../lib/workbench/trace';
   import { createFlasher, createSession, type Manifest } from '../../lib/flash';
-  import { boardAction, boardStatus, paneMode, sketchOf, type BoardAction, type PaneMode } from '../../lib/workbench/link';
-  import { follow, receive, send as sendFollowed, withdraw, type Followed } from '../../lib/workbench/live';
+  import { boardAction, type BoardAction } from '../../lib/workbench/link';
+  import type { Followed } from '../../lib/workbench/live';
+  import {
+    initialPane,
+    paneStatus,
+    reducePane,
+    type PaneEvent,
+    type PaneProject,
+    type PaneState,
+  } from '../../lib/workbench/pane';
   import {
     boardMessage,
     boardStatusText,
@@ -591,8 +597,11 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     // The clock and the trace move again, or come to rest, as soon as the visitor changes the setting.
     reducedMotion.addEventListener('change', () => draw());
 
-    let selected = 0;
-    let definition: StepDefinition<unknown, unknown> | undefined;
+    // The project's steps in rail order, as the pane numbers them.
+    const paneProject: PaneProject<unknown> = {
+      steps: steps.map((step) => project.steps.find((candidate) => candidate.key === step.key)!),
+      board: project.board,
+    };
     // The watch panel as last painted; undefined after a reset, so the values it starts with are not highlighted.
     let shownRows: readonly WatchRow[] | undefined;
     const highlightTimers = new Map<string, number>();
@@ -604,24 +613,29 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     let slow: boolean = OPENING.slow;
     // Whether the visitor wants the sketch running: Pause and Step stop it, Continue and a tab pick start it.
     let keepRunning: boolean = OPENING.running;
-    let mode: PaneMode = 'simulator';
-    // Set when the visitor paused, stepped or restarted while live: the simulator keeps the pane until Back to live.
-    let detached = false;
-    // The real board as its lines tell it, while the pane follows it.
-    let followed: Followed<unknown> | undefined;
-    // What the page last knew of the connected board, such as its interval, kept while the pane shows something else:
-    // only the board's own lines change it, and those sent meanwhile went to the simulator.
-    let known: unknown;
-    // What went wrong with the last line sent to the board, shown until the next one goes out or the pane changes.
-    let sendProblem: string | undefined;
-    // Counts the times the pane started following the board, so a late answer reaches only the pane it belongs to.
-    let following = 0;
 
-    function select(index: number) {
-      selected = index;
-      const step = steps[index];
-      const chosen = project!.steps.find((candidate) => candidate.key === step.key)!;
-      definition = chosen;
+    /** The selected step's definition. */
+    const definition = () => paneProject.steps[pane.selected];
+
+    /** Applies `event` to the pane, then does what its change asks of the page and paints it. */
+    function dispatch(event: PaneEvent) {
+      const before = pane;
+      pane = reducePane(paneProject, pane, event);
+      if (pane.selected !== before.selected) openStep(pane.selected);
+      if (pane.mode !== before.mode) dropTyping();
+      if (pane.simulation !== before.simulation) startSimulator();
+      // The simulator waits, paused, while the pane follows the board.
+      if (pane.following !== before.following) {
+        runner?.pause();
+        resetWatch();
+      }
+      showLink();
+      draw();
+    }
+
+    /** Shows step `index` with a fresh simulator, started as the page opens a step. */
+    function openStep(index: number) {
+      const chosen = paneProject.steps[index];
       tabs.forEach((tab, at) => {
         tab.setAttribute('aria-selected', String(at === index));
         tab.tabIndex = at === index ? 0 : -1;
@@ -637,15 +651,11 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       board = project!.board.initial();
       trace = emptyTrace(project!.board.level(board));
       keepRunning = OPENING.running;
-      mode = 'simulator';
-      detached = false;
-      if (followed !== undefined) known = followed.board;
-      followed = undefined;
       runner = openRunner(
         chosen,
         (next, effects) => {
           // While the pane follows the board, the simulator waits, paused, and its notices are not the pane's.
-          if (mode !== 'simulator') return;
+          if (pane.mode !== 'simulator') return;
           board = project!.board.simulate(board, next.state, effects, next.millis);
           // A line is sent between two lines of the program, part way through the one under way.
           const sentAt = traceTime(next, runner?.progress() ?? 0, reducedMotion.matches);
@@ -656,57 +666,15 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
         { slow },
       );
       view = runner.view();
-      // Picking the step the board runs follows the board at once.
-      showLink();
-      draw();
     }
 
-    /** Hands the pane to the board, from the next line it prints; the simulator waits, paused. */
-    function startFollowing() {
-      runner?.pause();
-      sendProblem = undefined;
-      following++;
-      followed = follow(project!.board, followedStep().key, known);
-      resetWatch();
-    }
-
-    /** Hands the pane to a fresh simulator at the sketch's first line, running if the visitor wants it running. */
+    /** Starts the simulator again at the sketch's first line, running if the visitor wants it running. */
     function startSimulator() {
-      if (followed !== undefined) known = followed.board;
-      followed = undefined;
       board = project!.board.initial();
       trace = emptyTrace(project!.board.level(board));
       resetWatch();
       runner?.restart();
       if (keepRunning) runner?.run();
-    }
-
-    /** Puts the pane where the board's status and the visitor's last choice say it goes. */
-    function syncMode(status: BoardStatus) {
-      if (status.kind !== 'live') detached = false;
-      const next = paneMode(status, detached);
-      if (next === mode) return;
-      const was = mode;
-      mode = next;
-      dropTyping();
-      if (next === 'simulator') startSimulator();
-      else if (was === 'simulator') startFollowing();
-      draw();
-    }
-
-    /** Pause, Step or Restart pressed while live: the simulator takes the pane, and the board keeps its port. */
-    function detach() {
-      detached = true;
-      mode = 'simulator';
-      dropTyping();
-      startSimulator();
-      showLink();
-    }
-
-    /** The step the followed board runs, whose lines the pane reads: the selected one unless the board runs another. */
-    function followedStep(): StepDefinition<unknown, unknown> {
-      if (mode === 'live') return definition!;
-      return project!.steps.find((step) => step.key === heard) ?? definition!;
     }
 
     function draw() {
@@ -716,8 +684,8 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     function paint() {
       frame = 0;
       if (view === undefined) return;
-      const step = steps[selected];
-      const shown = mode === 'simulator' ? undefined : followed;
+      const step = steps[pane.selected];
+      const shown = pane.mode === 'simulator' ? undefined : pane.followed;
       const shownBoard = shown?.board ?? board;
       paintPicture(project!.board.picture(step.key, shownBoard));
       followSliders(shownBoard);
@@ -735,7 +703,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
         element.textContent = serialText[at]?.text ?? '';
         element.toggleAttribute('data-sent', serialText[at]?.sent ?? false);
       });
-      const controls = toolbar(mode, view.status, view.error, view.slow);
+      const controls = toolbar(pane.mode, view.status, view.error, view.slow);
       pauseButton.classList.toggle('is-paused', controls.paused);
       pauseLabel.textContent = controls.label;
       pauseButton.disabled = !controls.canContinue;
@@ -743,17 +711,19 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       restartButton.disabled = !controls.canRestart;
       slowButton.disabled = !controls.canSlow;
       slowButton.setAttribute('aria-pressed', String(controls.slow));
-      const trouble = controls.problem ?? (shown === undefined ? undefined : sendProblem);
+      const refused = shown === undefined || pane.refused === undefined ? undefined : notSent(pane.refused);
+      const trouble = controls.problem ?? refused;
       problem.hidden = trouble === undefined;
       say.toggleAttribute('data-trouble', trouble !== undefined);
       problem.textContent = trouble ?? '';
       const at = shown === undefined ? { text: view.line, occurrence: view.occurrence } : arrowOf(shown);
       const running = at.text === undefined ? undefined : lineNumber(step.source, at.text, at.occurrence);
-      const code = root.querySelector<HTMLElement>(`[data-code][data-for-step="${selected}"]`)!;
+      const code = root.querySelector<HTMLElement>(`[data-code][data-for-step="${pane.selected}"]`)!;
       const live = code.querySelector('[data-live]');
-      if (live !== null && definition?.live !== undefined) {
+      const liveValue = definition().live;
+      if (live !== null && liveValue !== undefined) {
         const value =
-          shown === undefined ? definition.live.value(view.state) : project!.board.variable(shown.board, definition.live.name);
+          shown === undefined ? liveValue.value(view.state) : project!.board.variable(shown.board, liveValue.name);
         // A value the board has not told yet shows as unknown rather than as the number in the source.
         live.textContent = value ?? '…';
       }
@@ -769,7 +739,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
         shown === undefined
           ? clockFace(view, progress, reducedMotion.matches)
           : liveClockFace(
-              mode === 'live' ? shown.arrowAt : undefined,
+              pane.mode === 'live' ? shown.arrowAt : undefined,
               project!.board.wait(shown.board),
               Date.now(),
               reducedMotion.matches,
@@ -815,7 +785,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
 
     /** Where the arrow sits on the followed board: only live, and only on a step whose lines place it. */
     function arrowOf(shown: Followed<unknown>): { text: string | undefined; occurrence: number } {
-      const ref = mode === 'live' ? shown.arrow : undefined;
+      const ref = pane.mode === 'live' ? shown.arrow : undefined;
       if (ref === undefined || typeof ref === 'string') return { text: ref, occurrence: 1 };
       return { text: ref.text, occurrence: ref.occurrence };
     }
@@ -848,24 +818,16 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
      * board's while live. A board that runs another sketch takes none.
      */
     function sendToBoard(text: string) {
-      if (mode === 'simulator') {
+      if (pane.mode === 'simulator') {
         runner?.send(text);
         return;
       }
-      if (mode !== 'live' || followed === undefined) return;
-      const id = followed.nextId;
-      const pane = following;
-      followed = sendFollowed(followed, definition!, text, Date.now());
-      sendProblem = undefined;
-      draw();
+      if (pane.mode !== 'live' || pane.followed === undefined) return;
+      const id = pane.followed.nextId;
+      const following = pane.following;
+      dispatch({ kind: 'sent', text, at: Date.now() });
       // The line shows as sent at once; one the port refuses is taken back, so the page shows only what went out.
-      session.sendLine(text).catch(() => {
-        // A pane started since holds other lines under the same ids.
-        if (followed === undefined || pane !== following) return;
-        followed = withdraw(followed, id);
-        sendProblem = notSent(text);
-        draw();
-      });
+      session.sendLine(text).catch(() => dispatch({ kind: 'refused', id, pane: following, text }));
     }
 
     /** Shows `text` in the command line in yellow: typed by a shortcut, or about to be sent by the slider. */
@@ -965,9 +927,9 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     }
 
     pauseButton.addEventListener('click', () => {
-      if (mode === 'live') {
+      if (pane.mode === 'live') {
         keepRunning = false;
-        return detach();
+        return dispatch({ kind: 'detach' });
       }
       if (runner?.view().status === 'running') {
         keepRunning = false;
@@ -979,11 +941,11 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     });
     stepButton.addEventListener('click', () => {
       keepRunning = false;
-      if (mode === 'live') return detach();
+      if (pane.mode === 'live') return dispatch({ kind: 'detach' });
       runner?.step();
     });
     restartButton.addEventListener('click', () => {
-      if (mode === 'live') return detach();
+      if (pane.mode === 'live') return dispatch({ kind: 'detach' });
       if (runner === undefined) return;
       board = project!.board.initial();
       trace = emptyTrace(project!.board.level(board));
@@ -1004,20 +966,18 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       sketch: steps[0].key,
       baud: root.dataset.baud ? Number(root.dataset.baud) : undefined,
     });
-    const stepKeys = steps.map((step) => step.key);
-    // The sketch the connected board said it runs; unknown again from each connection or flash until it says.
-    let heard: string | undefined;
+    let pane: PaneState<unknown> = initialPane(session.state);
     let pressed: BoardAction | undefined;
     let flashedKey = steps[0].key;
     // The refusal the visitor moved on from by picking another step.
     let dismissedRefusal: unknown;
 
+    /** Paints the Board cell, its button, the board pane's message and what the pane's owner lets the visitor send. */
     function showLink() {
-      const state = session.state;
-      const key = steps[selected].key;
-      const status = boardStatus(state, heard, key, stepKeys);
-      syncMode(status);
-      const text = boardStatusText(status, detached);
+      const state = pane.session;
+      const key = steps[pane.selected].key;
+      const status = paneStatus(paneProject, pane);
+      const text = boardStatusText(status, pane.detached);
       cell.dataset.status = status.kind;
       // Set only on a change, and in one, since the status is a live region: two would be announced twice.
       if (statusWord.textContent !== text.word || statusSentence.textContent !== `: ${text.title}`) {
@@ -1031,7 +991,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       }
       statusText.title = text.title;
 
-      const action = boardAction(state, heard, key, pressed, detached);
+      const action = boardAction(state, pane.heard, key, pressed, pane.detached);
       needsBrowser.hidden = action !== undefined;
       if (actionButton !== null && actionLabel !== null) {
         actionButton.hidden = action === undefined;
@@ -1058,11 +1018,11 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       }
 
       // A board that runs another sketch takes no line from the page.
-      const usable = mode !== 'other';
+      const usable = pane.mode !== 'other';
       commandLine.disabled = !usable;
       sendButton.disabled = !usable;
       for (const control of shortcutControls) control.disabled = !usable;
-      commandLine.placeholder = usable ? definition!.placeholder : OTHER_STEP_PLACEHOLDER;
+      commandLine.placeholder = usable ? definition().placeholder : OTHER_STEP_PLACEHOLDER;
       const keys = otherStepKeys(status, key);
       say.toggleAttribute('data-elsewhere', keys !== undefined);
       if (keys !== undefined) {
@@ -1071,61 +1031,37 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       }
     }
 
-    session.subscribe((state) => {
-      if (state.kind === 'connecting') {
-        heard = undefined;
-        known = undefined;
-      }
-      showLink();
-    });
-    session.subscribeLines(({ text, at }) => {
-      const key = sketchOf(text);
-      if (key !== undefined && key !== heard) {
-        heard = key;
-        showLink();
-      }
-      // Lines the board prints while the simulator has the pane are not shown, nor kept for later, but what they tell
-      // of the board still counts, such as the answer to a line sent before the visitor paused. A restart sets the
-      // source's values, since it wipes whatever was sent before.
-      if (followed === undefined) {
-        if (key !== undefined) known = project!.board.initial();
-        else if (known !== undefined) {
-          const event = (project!.steps.find((step) => step.key === heard) ?? definition!).parse(text);
-          if (event !== undefined) known = project!.board.apply(known, event, at);
-        }
-        return;
-      }
-      followed = receive(followed, followedStep(), project!.board, text, at);
-      draw();
-    });
+    session.subscribe((state) => dispatch({ kind: 'session', state }));
+    session.subscribeLines(({ text, at }) => dispatch({ kind: 'line', text, at }));
     actionButton?.addEventListener('click', () => {
-      const action = boardAction(session.state, heard, steps[selected].key, pressed, detached);
+      const action = boardAction(pane.session, pane.heard, steps[pane.selected].key, pressed, pane.detached);
       if (action === undefined || action.disabled) return;
       pressed = action;
       if (action.event === 'live') {
-        detached = false;
-        showLink();
+        dispatch({ kind: 'live' });
       } else if (action.event === 'connect') {
         void session.send({ type: 'connect', reset: true });
       } else {
-        flashedKey = steps[selected].key;
+        flashedKey = steps[pane.selected].key;
         void session.send({ type: 'flash', key: flashedKey });
       }
     });
 
     tabs.forEach((tab, index) => {
       tab.addEventListener('click', () => {
-        if (index !== selected) select(index);
+        if (index !== pane.selected) dispatch({ kind: 'tab', index });
       });
       tab.addEventListener('keydown', (event) => {
         const next = tabAfterKey(event.key, index, tabs.length);
         if (next === undefined) return;
         event.preventDefault();
         tabs[next].focus();
-        if (next !== selected) select(next);
+        if (next !== pane.selected) dispatch({ kind: 'tab', index: next });
       });
     });
 
-    select(0);
+    openStep(0);
+    showLink();
+    draw();
   }
 </script>
