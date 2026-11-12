@@ -1,4 +1,5 @@
 import type { Flasher } from './flasher';
+import { keepLast } from './lines';
 import { imageFor, isMissing, type ChipFamily, type Manifest, type ManifestImage } from './manifest';
 
 export type SessionState =
@@ -7,7 +8,8 @@ export type SessionState =
   | { kind: 'connecting' }
   | { kind: 'settings'; chip: string }
   | { kind: 'flashing'; chip: string; pct: number }
-  | { kind: 'running'; chip: string }
+  /** `output` is the last lines the board printed, which stay empty when the session has no baud to read at. */
+  | { kind: 'running'; chip: string; output: readonly string[] }
   | { kind: 'noPort' }
   | { kind: 'portBusy' }
   | { kind: 'noAnswer' }
@@ -21,13 +23,17 @@ export type SessionEvent =
   /** From `settings`: downloads the image and flashes the board. */
   | { type: 'startFlash' }
   /** From a failure, `settings` or `running`: releases the port and returns to `idle`. */
-  | { type: 'retry' };
+  | { type: 'retry' }
+  /** From `running`: releases the port and returns to `idle`. */
+  | { type: 'disconnect' };
 
 export interface SessionOptions {
   /** The flasher to use, or `null` in a browser that cannot reach a USB board. */
   flasher: Flasher | null;
   manifest: Manifest;
   sketch: string;
+  /** The speed the sketch prints at. Absent when the sketch prints nothing, and then the session reads nothing. */
+  baud?: number;
 }
 
 export interface FlashSession {
@@ -70,12 +76,13 @@ function isDownloadError(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'name' in error && error.name === 'DownloadError';
 }
 
-export function createSession({ flasher, manifest, sketch }: SessionOptions): FlashSession {
+export function createSession({ flasher, manifest, sketch, baud }: SessionOptions): FlashSession {
   const listeners = new Set<(state: SessionState) => void>();
   let state: SessionState = flasher ? { kind: 'idle' } : { kind: 'unsupported' };
   let image: ManifestImage | undefined;
   let lastPct = 0;
   let downloading = false;
+  let reading = 0;
 
   function enter(next: SessionState) {
     state = next;
@@ -139,10 +146,26 @@ export function createSession({ flasher, manifest, sketch }: SessionOptions): Fl
       enter({ kind: 'dropped', pct: lastPct });
       return;
     }
-    enter({ kind: 'running', chip });
+    enter({ kind: 'running', chip, output: [] });
+    if (baud !== undefined) {
+      read(active, baud);
+    }
+  }
+
+  /** Shows what the board prints for as long as the card stays on `running`. */
+  function read(active: Flasher, speed: number) {
+    const reader = ++reading;
+    active
+      .monitor(speed, (lines) => {
+        if (reader === reading && state.kind === 'running') {
+          enter({ ...state, output: keepLast(state.output, lines) });
+        }
+      })
+      .catch((error) => console.error(error));
   }
 
   async function release(active: Flasher) {
+    reading++;
     await active.disconnect();
     enter({ kind: 'idle' });
   }
@@ -173,6 +196,11 @@ export function createSession({ flasher, manifest, sketch }: SessionOptions): Fl
           break;
         case 'retry':
           if (kind === 'settings' || kind === 'running' || FAILURE_KINDS.has(kind)) {
+            await release(flasher);
+          }
+          break;
+        case 'disconnect':
+          if (kind === 'running') {
             await release(flasher);
           }
           break;

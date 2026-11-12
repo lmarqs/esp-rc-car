@@ -23,6 +23,8 @@ const manifest: Manifest = {
 
 interface FakeFlasher extends Flasher {
   calls: string[];
+  /** Prints lines on the monitor that the session started; fails the test when there is none. */
+  print(...lines: string[]): void;
 }
 
 interface FakeFlasherOptions {
@@ -37,8 +39,17 @@ interface FakeFlasherOptions {
 function fakeFlasher(options: FakeFlasherOptions = {}): FakeFlasher {
   const { chip = 'ESP32', progress = [10, 50, 100], failAt = {}, writeGate } = options;
   const calls: string[] = [];
+  let onLines: ((lines: string[]) => void) | undefined;
   return {
     calls,
+    print(...lines) {
+      onLines!(lines);
+    },
+    async monitor(baud, listener) {
+      calls.push(`monitor ${baud}`);
+      onLines = listener;
+      await new Promise<void>(() => {});
+    },
     async connect() {
       calls.push('connect');
       if ('connect' in failAt) {
@@ -121,7 +132,7 @@ describe('a session for a sketch without settings', () => {
       { kind: 'flashing', chip: 'ESP32', pct: 10 },
       { kind: 'flashing', chip: 'ESP32', pct: 50 },
       { kind: 'flashing', chip: 'ESP32', pct: 100 },
-      { kind: 'running', chip: 'ESP32' },
+      { kind: 'running', chip: 'ESP32', output: [] },
     ]);
     expect(flasher.calls).toEqual(['connect', 'load', 'write 4096,65536', 'reset']);
   });
@@ -158,6 +169,27 @@ describe('a session for a sketch without settings', () => {
 
     expect(session.state).toEqual({ kind: 'idle' });
     expect(flasher.calls.at(-1)).toBe('disconnect');
+  });
+
+  it('releases the port and returns to idle on disconnect from running', async () => {
+    const flasher = fakeFlasher();
+    const session = createSession({ flasher, manifest, sketch: 'servo' });
+    await session.send({ type: 'connect' });
+
+    await session.send({ type: 'disconnect' });
+
+    expect(session.state).toEqual({ kind: 'idle' });
+    expect(flasher.calls.at(-1)).toBe('disconnect');
+  });
+
+  it('ignores disconnect outside running', async () => {
+    const flasher = fakeFlasher();
+    const session = createSession({ flasher, manifest, sketch: 'servo' });
+
+    await session.send({ type: 'disconnect' });
+
+    expect(session.state).toEqual({ kind: 'idle' });
+    expect(flasher.calls).toEqual([]);
   });
 
   it('ignores startFlash outside settings', async () => {
@@ -321,7 +353,7 @@ describe('failures', () => {
     finish();
     await flashing;
 
-    expect(session.state).toEqual({ kind: 'running', chip: 'ESP32' });
+    expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [] });
   });
 
   it('ignores retry while idle', async () => {
@@ -432,5 +464,84 @@ describe('failures', () => {
 
     expect(states[0]).toEqual({ kind: 'connecting' });
     expect(flasher.calls.filter((call) => call === 'connect')).toHaveLength(2);
+  });
+});
+
+describe('a session with a baud rate', () => {
+  async function running(baud = 9600) {
+    const flasher = fakeFlasher();
+    const session = createSession({ flasher, manifest, sketch: 'servo', baud });
+    const states = record(session);
+    await session.send({ type: 'connect' });
+    return { flasher, session, states };
+  }
+
+  it('reads the board at that baud rate once it is reset, and shows no output yet', async () => {
+    const { flasher, session } = await running(115200);
+
+    expect(flasher.calls).toEqual(['connect', 'load', 'write 4096,65536', 'reset', 'monitor 115200']);
+    expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [] });
+  });
+
+  it('puts the lines the board prints in the running state', async () => {
+    const { flasher, session } = await running();
+
+    flasher.print('HIGH');
+    flasher.print('LOW', 'HIGH');
+
+    expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: ['HIGH', 'LOW', 'HIGH'] });
+  });
+
+  it('keeps the last 6 lines', async () => {
+    const { flasher, session } = await running();
+
+    flasher.print('1', '2', '3', '4');
+    flasher.print('5', '6', '7', '8');
+
+    expect(session.state).toMatchObject({ output: ['3', '4', '5', '6', '7', '8'] });
+  });
+
+  it('stops showing lines once the session leaves running', async () => {
+    const { flasher, session, states } = await running();
+    await session.send({ type: 'disconnect' });
+    const entered = states.length;
+
+    flasher.print('late');
+
+    expect(session.state).toEqual({ kind: 'idle' });
+    expect(states).toHaveLength(entered);
+  });
+
+  it('starts with no lines when the board is flashed again', async () => {
+    const { flasher, session } = await running();
+    flasher.print('old');
+    await session.send({ type: 'disconnect' });
+
+    await session.send({ type: 'connect' });
+
+    expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [] });
+    expect(flasher.calls.filter((call) => call === 'monitor 9600')).toHaveLength(2);
+  });
+
+  it('logs a monitor that fails and stays running', async () => {
+    const failure = new Error('port lost');
+    const flasher = { ...fakeFlasher(), monitor: async () => Promise.reject(failure) };
+    const session = createSession({ flasher, manifest, sketch: 'servo', baud: 9600 });
+
+    await session.send({ type: 'connect' });
+
+    await vi.waitFor(() => expect(console.error).toHaveBeenCalledWith(failure));
+    expect(session.state.kind).toBe('running');
+  });
+});
+
+describe('a session without a baud rate', () => {
+  it('starts no monitor', async () => {
+    const flasher = fakeFlasher();
+    const session = createSession({ flasher, manifest, sketch: 'servo' });
+
+    await session.send({ type: 'connect' });
+
+    expect(flasher.calls).toEqual(['connect', 'load', 'write 4096,65536', 'reset']);
   });
 });
