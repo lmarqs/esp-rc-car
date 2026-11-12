@@ -8,6 +8,7 @@ import {
   blinkSimple,
   blinkSteps,
   blinkTimer,
+  LED_PIN,
   parseBlinkLine,
   type BlinkStep,
 } from '../../src/lib/workbench/steps/blink';
@@ -482,6 +483,46 @@ describe('the cost of a pass through loop()', () => {
     vi.advanceTimersByTime(0);
     runner.step();
     expect(runner.view().millis).toBe(250);
+    runner.dispose();
+  });
+});
+
+describe('the LED pin', () => {
+  /** Steps `step` until it has run `lines` lines, and gives each line that wrote the pin with what it wrote. */
+  function pinWrites(step: BlinkStep, lines: number): string[] {
+    const runner = createRunner(step.program);
+    const writes: string[] = [];
+    let ran = '';
+    runner.subscribe((_view, effects) => {
+      for (const effect of effects) if (effect.kind === 'write') writes.push(`${ran} ${effect.pin} ${effect.high}`);
+    });
+    for (let i = 0; i < lines; i++) {
+      ran = runner.view().line ?? '';
+      runner.step();
+    }
+    runner.dispose();
+    return writes;
+  }
+
+  // One pass: setup's four lines, then simple's six lines of loop() and input's seven.
+  it.each([
+    [blinkSimple, 10],
+    [blinkInput, 11],
+  ])('%#: changes at the led.write line, not at the print before it', (step, lines) => {
+    expect(pinWrites(step, lines)).toEqual([`led.write(HIGH); ${LED_PIN} true`, `led.write(LOW); ${LED_PIN} false`]);
+  });
+
+  it.each([blinkTimer, blinkCommands])('$key: changes at led.write(ledOn), after the print', (step) => {
+    const runner = createRunner(step.program);
+    const order: string[] = [];
+    runner.subscribe((view, effects) => {
+      for (const effect of effects) order.push(effect.kind === 'write' ? `write ${effect.high}` : effect.kind);
+    });
+    runner.run();
+    stepUntil(runner, 'led.write(ledOn);');
+    expect(order.slice(-1)).toEqual(['print']);
+    runner.step();
+    expect(order.slice(-2)).toEqual(['print', 'write true']);
     runner.dispose();
   });
 });

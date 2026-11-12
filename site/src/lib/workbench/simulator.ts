@@ -66,12 +66,14 @@ export interface OutputLine {
 
 /**
  * Something that happened on the board. `sent`: the visitor queued a line. `read`: the program took a queued line, at
- * the operation that reads serial input. `print`: the program printed a line.
+ * the operation that reads serial input. `print`: the program printed a line. `write`: the program set an output pin,
+ * at the line that writes it, such as `led.write(HIGH);`.
  */
 export type Effect =
   | { readonly kind: 'sent'; readonly line: SentLine }
   | { readonly kind: 'read'; readonly line: SentLine }
-  | { readonly kind: 'print'; readonly text: string };
+  | { readonly kind: 'print'; readonly text: string }
+  | { readonly kind: 'write'; readonly pin: number; readonly high: boolean };
 
 /** What a program sees of the board it runs on. */
 export interface Board<S> {
@@ -87,6 +89,8 @@ export interface Board<S> {
   read(): string | undefined;
   /** Prints `text` as one line of serial output. */
   print(text: string): void;
+  /** Sets output pin `pin` high or low, as `digitalWrite` does. */
+  write(pin: number, high: boolean): void;
 }
 
 /** A sketch the simulator runs: its state at the start of a run and its program. */
@@ -242,6 +246,9 @@ export function createRunner<S>(sketch: Sketch<S>, options: RunnerOptions = {}):
     print(text) {
       appendOutput({ text });
       effects.push({ kind: 'print', text });
+    },
+    write(pin, high) {
+      effects.push({ kind: 'write', pin, high });
     },
   };
 

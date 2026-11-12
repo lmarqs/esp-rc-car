@@ -22,6 +22,9 @@ export type BlinkEvent =
 
 export type BlinkStep = StepDefinition<BlinkState, BlinkEvent>;
 
+/** The GPIO the sketches' `DigitalOutPin led(2);` drives. */
+export const LED_PIN = 2;
+
 const DEFAULT_DELAY = 1000;
 const MIN_DELAY = 100;
 const MAX_DELAY = 2000;
@@ -68,10 +71,16 @@ const simple: Sketch<BlinkState> = {
     yield* setup(board, 'blink/simple');
     for (;;) {
       yield op('Serial.println("HIGH");', () => board.print('HIGH'));
-      yield op('led.write(HIGH);', () => (state.ledOn = true));
+      yield op('led.write(HIGH);', () => {
+        state.ledOn = true;
+        board.write(LED_PIN, true);
+      });
       yield waitOp('delay(1000);', DEFAULT_DELAY);
       yield op('Serial.println("LOW");', () => board.print('LOW'));
-      yield op('led.write(LOW);', () => (state.ledOn = false));
+      yield op('led.write(LOW);', () => {
+        state.ledOn = false;
+        board.write(LED_PIN, false);
+      });
       yield waitOp(nth('delay(1000);', 2), DEFAULT_DELAY);
     }
   },
@@ -98,10 +107,16 @@ const input: Sketch<BlinkState> = {
         }
       }
       yield op('Serial.println("HIGH");', () => board.print('HIGH'));
-      yield op('led.write(HIGH);', () => (state.ledOn = true));
+      yield op('led.write(HIGH);', () => {
+        state.ledOn = true;
+        board.write(LED_PIN, true);
+      });
       yield waitOp('delay(blinkDelay);', () => state.blinkDelay);
       yield op('Serial.println("LOW");', () => board.print('LOW'));
-      yield op('led.write(LOW);', () => (state.ledOn = false));
+      yield op('led.write(LOW);', () => {
+        state.ledOn = false;
+        board.write(LED_PIN, false);
+      });
       yield waitOp(nth('delay(blinkDelay);', 2), () => state.blinkDelay);
     }
   },
@@ -122,7 +137,7 @@ function* toggleWhenDue(
   yield op('lastToggle = millis();', () => (state.lastToggle = board.millis()));
   yield op('ledOn = !ledOn;', () => (state.ledOn = !state.ledOn));
   yield op('Serial.println(ledOn ? "HIGH" : "LOW");', () => board.print(state.ledOn ? 'HIGH' : 'LOW'));
-  yield op('led.write(ledOn);');
+  yield op('led.write(ledOn);', () => board.write(LED_PIN, state.ledOn));
 }
 
 const timer: Sketch<BlinkState> = {
