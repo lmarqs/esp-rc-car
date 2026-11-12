@@ -25,6 +25,13 @@ const manifest = readManifest();
 >
   <div class="monitor" id="board-monitor" data-dock-monitor hidden>
     <div class="wrap">
+      <div class="head">
+        <span class="title" aria-hidden="true">Board output</span>
+        <button type="button" data-dock-close>
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"></path></svg>
+          Close
+        </button>
+      </div>
       <pre class="lines" role="log" aria-label="Board output" tabindex="0" data-dock-lines></pre>
       <form class="cmd" data-dock-send>
         <span class="prompt" aria-hidden="true">›</span>
@@ -83,6 +90,7 @@ const manifest = readManifest();
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4.5 6 8l-3.5 3.5M8 12h5.5"></path></svg>
         <span aria-hidden="true">Serial</span>
         <span class="last" id="board-last" data-dock-last></span>
+        <span class="hide" aria-hidden="true">Hide output</span>
         <span class="caret" aria-hidden="true"></span>
       </button>
     </span>
@@ -105,18 +113,21 @@ const manifest = readManifest();
   .track i { display: block; height: 100%; width: 0; background: var(--yellow); transition: width .15s; }
   .pct { font-family: var(--mono); color: var(--yellow); min-width: 4ch; text-align: right; }
   .acts { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
-  .acts button { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-weight: 700; font-size: 12px; color: var(--on-ink); background: transparent; border: 1px solid var(--on-ink-edge); border-radius: 999px; padding: 3px 11px; cursor: pointer; white-space: nowrap; }
-  .acts button:hover { border-color: var(--yellow); color: var(--yellow); }
-  .acts button[aria-expanded="true"] { background: var(--yellow); border-color: var(--yellow); color: var(--ink); }
+  .acts button, .head button { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-weight: 700; font-size: 12px; color: var(--on-ink); background: transparent; border: 1px solid var(--on-ink-edge); border-radius: 999px; padding: 3px 11px; cursor: pointer; white-space: nowrap; }
+  .acts button:hover, .head button:hover { border-color: var(--yellow); color: var(--yellow); }
+  /* Raised like the monitor it opened, and no yellow, which means new or sent. */
+  .acts button[aria-expanded="true"] { background: var(--ink-raised); border-color: var(--on-ink); color: var(--card); }
   .acts button.primary { background: var(--yellow); border-color: var(--yellow); color: var(--ink); }
-  .acts svg { width: 12px; height: 12px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .acts svg, .head svg { width: 12px; height: 12px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .caret { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 5px solid currentColor; }
   [aria-expanded="true"] .caret { border-bottom: 0; border-top: 5px solid currentColor; }
   .dock button:focus-visible, .dock a:focus-visible, .lines:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
   .cmd:has(input:focus-visible) { box-shadow: inset 0 0 0 2px var(--blue); }
   /* The same width whatever the board last printed, so the bar never shifts as lines arrive. */
-  .acts .serial { width: 300px; border-radius: 6px; padding: 3px 10px; background: var(--ink-raised); }
-  .last { flex: 1 1 0; min-width: 0; padding-left: 8px; border-left: 1px solid var(--on-ink-line); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; font-family: var(--mono); font-size: 13px; font-weight: 400; }
+  .acts .serial { width: 300px; gap: 8px; padding: 3px 12px; }
+  .last, .hide { flex: 1 1 0; min-width: 0; padding-left: 8px; border-left: 1px solid var(--on-ink-line); text-align: left; font-size: 13px; font-weight: 400; }
+  .last { flex: 1 1 0; min-width: 0; padding-left: 8px; border-left: 1px solid var(--on-ink-line); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); }
+  .serial[aria-expanded="false"] .hide, .serial[aria-expanded="true"] .last { display: none; }
   .last:empty::before { content: "Nothing printed yet"; opacity: .7; }
   .serial .caret { flex: none; }
   @media (max-width: 560px) {
@@ -125,8 +136,10 @@ const manifest = readManifest();
   }
 
   .monitor { background: var(--ink-raised); border-bottom: 1px solid var(--on-ink-line); }
+  .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 8px; }
+  .title { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
   /* Eight lines of 1.5em; older lines scroll up. */
-  .lines { margin: 0; padding: 10px 0 6px; height: calc(8 * 1.5em + 16px); overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: none; color: inherit; border-radius: 0; font-family: var(--mono); font-size: 13px; line-height: 1.5; }
+  .lines { margin: 0; padding: 6px 0; height: calc(8 * 1.5em + 12px); overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: none; color: inherit; border-radius: 0; font-family: var(--mono); font-size: 13px; line-height: 1.5; }
   .lines :global([data-sent]) { color: var(--yellow); }
   .lines:empty::before { content: "Nothing printed yet."; color: var(--faint); }
   .cmd { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--on-ink-line); padding: 4px 4px 4px 0; font-family: var(--mono); }

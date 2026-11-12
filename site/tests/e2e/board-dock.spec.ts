@@ -66,6 +66,27 @@ test.describe('the board dock', () => {
     await expect(monitor(page)).toHaveText('sketch blink/input\nHIGH\nLOW\n› 500\nwait 500');
   });
 
+  test('says the open Serial button hides the output, and closes the monitor on Close with the focus back on Serial', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/input', 'HIGH'] });
+    await page.goto('/robomania/learn/');
+    await dock(page).getByRole('button', { name: 'Connect board' }).click();
+    const serial = dock(page).getByRole('button', { name: 'Serial' });
+    await expect(serial).toContainText('HIGH');
+
+    await serial.click();
+    await expect(serial).toContainText('Hide output');
+    await expect(serial.locator('[data-dock-last]')).toBeHidden();
+    await dock(page).getByRole('button', { name: 'Close' }).click();
+
+    await expect(monitor(page)).toBeHidden();
+    await expect(serial).toHaveAttribute('aria-expanded', 'false');
+    await expect(serial).toBeFocused();
+    await expect(serial).toContainText('HIGH');
+  });
+
   test('keeps the monitor open and its lines as the visitor moves to another page', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['sketch blink/input', 'HIGH'] });
     await page.goto('/robomania/learn/');

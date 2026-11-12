@@ -7,7 +7,7 @@ export interface DockMonitor {
   show(canSend: boolean): void;
 }
 
-/** The serial monitor in `dock` and the Serial button that opens it, which show and send `board`'s lines. */
+/** The serial monitor in `dock` and the Serial and Close buttons that open and close it, which show and send `board`'s lines. */
 export function mountDockMonitor(dock: HTMLElement, board: Board): DockMonitor {
   const find = <E extends Element>(name: string) => dock.querySelector<E>(`[data-dock-${name}]`)!;
   const monitor = find<HTMLElement>('monitor');
@@ -17,17 +17,21 @@ export function mountDockMonitor(dock: HTMLElement, board: Board): DockMonitor {
   const send = form.querySelector<HTMLButtonElement>('button')!;
   const problem = find<HTMLElement>('problem');
   const serial = find<HTMLButtonElement>('serial');
+  const close = find<HTMLButtonElement>('close');
   let shownLines: readonly KeptLine[] | undefined;
   let sendable = false;
 
-  serial.addEventListener('click', () => {
-    const open = monitor.hidden;
+  function setOpen(open: boolean) {
     monitor.hidden = !open;
     serial.setAttribute('aria-expanded', String(open));
     shownLines = undefined;
     show(sendable);
-    if (open) input.focus();
-  });
+    // The focus stays in the dock: on the line to send as the monitor opens, on its button as it closes.
+    (open ? input : serial).focus();
+  }
+
+  serial.addEventListener('click', () => setOpen(serial.getAttribute('aria-expanded') !== 'true'));
+  close.addEventListener('click', () => setOpen(false));
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
