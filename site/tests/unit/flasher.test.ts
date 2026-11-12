@@ -230,15 +230,19 @@ describe('EsptoolFlasher.monitor', () => {
   const encoder = new TextEncoder();
   let controller: ReadableStreamDefaultController<Uint8Array>;
   let order: string[];
+  let written: string[];
   let port: {
     open: ReturnType<typeof vi.fn>;
     close: ReturnType<typeof vi.fn>;
     setSignals: ReturnType<typeof vi.fn>;
     readable: ReadableStream<Uint8Array> | null;
+    writable: WritableStream<Uint8Array> | null;
   };
 
   beforeEach(() => {
     order = [];
+    written = [];
+    const decoder = new TextDecoder();
     port = {
       open: vi.fn(async () => {
         order.push('open');
@@ -252,6 +256,11 @@ describe('EsptoolFlasher.monitor', () => {
       readable: new ReadableStream<Uint8Array>({
         start(started) {
           controller = started;
+        },
+      }),
+      writable: new WritableStream<Uint8Array>({
+        write(chunk) {
+          written.push(decoder.decode(chunk));
         },
       }),
     };
@@ -432,6 +441,27 @@ describe('EsptoolFlasher.monitor', () => {
     const target = new EsptoolFlasher({ firmwareUrl: '/robomania/firmware/' });
 
     await expect(target.monitor(9600, () => {})).rejects.toThrow('Not connected');
+  });
+
+  it('sends a line with a line break on the port it reads, and lets go of the stream', async () => {
+    const target = await connected();
+    const monitoring = target.monitor(115200, () => {});
+    await vi.waitFor(() => expect(port.readable!.locked).toBe(true));
+
+    await target.send('cfg get');
+    await target.send('cfg set ap_ssid my net');
+
+    expect(written).toEqual(['cfg get\n', 'cfg set ap_ssid my net\n']);
+    expect(port.writable!.locked).toBe(false);
+    controller.close();
+    await monitoring;
+  });
+
+  it('refuses to send before it reads, when the port is still at the flashing speed', async () => {
+    const target = await connected();
+
+    await expect(target.send('cfg get')).rejects.toThrow('Not reading the board.');
+    expect(written).toEqual([]);
   });
 });
 

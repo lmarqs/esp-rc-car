@@ -23,6 +23,8 @@ export interface Flasher {
    * completes. Call it after `reset`. Resolves once `disconnect` has released the port or the port is lost.
    */
   monitor(baud: number, onLines: (lines: string[]) => void): Promise<void>;
+  /** Writes `line` and a line break to the sketch, at the baud `monitor` reads at. Rejects while `monitor` is not reading. */
+  send(line: string): Promise<void>;
   /** Releases the port. Never rejects. */
   disconnect(): Promise<void>;
 }
@@ -194,6 +196,19 @@ export class EsptoolFlasher implements Flasher {
       if (this.reader === reader) {
         this.reader = undefined;
       }
+    }
+  }
+
+  async send(line: string): Promise<void> {
+    const writable = this.port?.writable;
+    if (!this.reader || !writable) {
+      throw new Error('Not reading the board.');
+    }
+    const writer = writable.getWriter();
+    try {
+      await writer.write(new TextEncoder().encode(`${line}\n`));
+    } finally {
+      writer.releaseLock();
     }
   }
 
