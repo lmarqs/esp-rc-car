@@ -1,0 +1,45 @@
+---
+import { TRACE_HEIGHT, TRACE_WINDOW_MS } from '../../lib/workbench/trace';
+import type { WorkbenchProject } from '../../lib/workbench/projects';
+
+interface Props {
+  trace: WorkbenchProject<unknown, unknown, unknown>['trace'];
+}
+
+const { trace } = Astro.props;
+---
+
+<figure class="scope">
+  <figcaption>
+    <span>{trace.caption}, last {TRACE_WINDOW_MS / 1000} s</span>
+    <span class="legend">
+      <svg viewBox="0 0 10 10" aria-hidden="true"><path class="sent" d="M0 1h10l-5 8z" /></svg>you sent
+      <svg viewBox="0 0 10 10" aria-hidden="true"><circle class="applied" cx="5" cy="5" r="4" /></svg>board applied
+    </span>
+  </figcaption>
+  <svg
+    class="trace"
+    height={TRACE_HEIGHT}
+    role="img"
+    aria-label={`${trace.name} over the last ${TRACE_WINDOW_MS / 1000} seconds, with a mark for each line sent and applied`}
+    data-trace
+  >
+    <path class="grid" data-trace-grid />
+    <path class="level" data-trace-level />
+    <path class="sent" data-trace-sent />
+    <path class="applied" data-trace-applied />
+  </svg>
+</figure>
+
+<style>
+  .scope { margin: 0; padding: 6px 10px 4px; border: 1px solid var(--line); border-radius: 10px; background: var(--chrome-light); }
+  .scope figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .legend { display: inline-flex; align-items: center; gap: 4px; }
+  .legend svg { width: 9px; height: 9px; margin-left: 6px; }
+  /* A mark made just now sits on the right edge; its shape may reach into the padding rather than be cut. */
+  .trace { display: block; width: 100%; overflow: visible; }
+  .trace .grid { stroke: var(--line); stroke-width: 1; }
+  .trace .level { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
+  .sent { fill: var(--yellow-strong); }
+  .applied { fill: var(--green); }
+</style>

@@ -1,0 +1,144 @@
+---
+import { OPENING } from '../../lib/workbench/projects';
+import type { RailStep } from './rail';
+import { CLOCK_DASH } from './view';
+
+interface Props {
+  steps: readonly Pick<RailStep, 'file' | 'crumbs' | 'rows'>[];
+}
+
+const { steps } = Astro.props;
+---
+
+<div class="code">
+  <div class="edhead">
+    {
+      steps.map((step, index) => (
+        <span class="edtab" data-for-step={index} hidden={index !== 0}>
+          {step.file}
+        </span>
+      ))
+    }
+    <span class="dbg" role="toolbar" aria-label="Debugger">
+      <span class="seg">
+        <button type="button" class:list={['pause', { 'is-paused': !OPENING.running }]} data-pause>
+          <svg class="i-pause" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 3h3v10H4zM9 3h3v10H9z" /></svg>
+          <svg class="i-play" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5z" /></svg>
+          <span data-pause-label>{OPENING.running ? 'Pause' : 'Continue'}</span>
+        </button>
+        <button type="button" data-step title="Run one line">
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path class="stroke" d="M2.6 8.2a5.4 5.4 0 0 1 10-3" /><path d="M13.8 1.8v4.2H9.6z" /><circle cx="8" cy="12.2" r="1.9" />
+          </svg>
+          Step
+        </button>
+        <button type="button" data-restart title="Start the sketch again from the top">
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path class="stroke" d="M12.6 8a4.6 4.6 0 1 1-1.7-3.5" /><path d="M11.6 1.4v3.9H7.7z" />
+          </svg>
+          Restart
+        </button>
+      </span>
+      <button type="button" class="toggle" data-slow aria-pressed={String(OPENING.slow)} title="Rest half a second on each line">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <circle class="stroke" cx="8" cy="8" r="5.8" /><path class="stroke" d="M8 4.8V8l2.3 1.5" />
+        </svg>
+        Slow
+      </button>
+    </span>
+  </div>
+  {
+    steps.map((step, index) => (
+      <div class="crumbs" data-for-step={index} hidden={index !== 0}>
+        {step.crumbs.map((crumb, at) => (at === 0 ? crumb : [<span class="sep"> › </span>, crumb]))}
+      </div>
+    ))
+  }
+  <div class="edbody">
+    {
+      steps.map((step, index) => (
+        <div class="lines" data-for-step={index} data-code hidden={index !== 0}>
+          {step.rows.map((row) => (
+            <div class:list={['ln', { new: row.isNew }]} data-line={row.number}>
+              <b class="pc" aria-hidden="true" />
+              <i>{row.number}</i>
+              <span>
+                {row.tokens.map((token, at) =>
+                  at === row.live ? (
+                    <span class="live" data-live>
+                      {token.text}
+                    </span>
+                  ) : token.kind ? (
+                    <span class={token.kind}>{token.text}</span>
+                  ) : (
+                    token.text
+                  ),
+                )}
+                {row.waits && (
+                  <svg class="pie" viewBox="0 0 16 16" aria-hidden="true" data-pie>
+                    <circle class="rim" cx="8" cy="8" r="7" />
+                    <circle class="fill" cx="8" cy="8" r="3.5" pathLength={CLOCK_DASH} />
+                  </svg>
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+      ))
+    }
+  </div>
+</div>
+
+<style>
+  [hidden] { display: none !important; }
+  .code { display: flex; flex-direction: column; min-width: 0; border-right: 1px solid var(--line); font-family: var(--mono); font-size: 13.5px; line-height: 1.7; }
+  @media (max-width: 820px) { .code { border-right: 0; border-bottom: 1px solid var(--line); } }
+  .edhead { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; background: var(--chrome); }
+  .edtab { display: flex; align-items: center; gap: 8px; background: var(--card); border-right: 1px solid var(--line); box-shadow: inset 0 2px 0 var(--coral); padding: 8px 16px 7px; font-size: 13px; }
+  .edtab::before { content: "C"; font-weight: 800; font-size: 11px; color: var(--syntax-function); }
+  .dbg { margin-left: auto; display: flex; gap: 8px; align-items: center; padding: 4px 8px; font-family: var(--sans); }
+  .dbg button { font: inherit; font-size: 13px; font-weight: 600; line-height: 1.5; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 4px 10px; margin: 0; color: var(--ink); background: var(--card); border: 1px solid var(--edge); border-radius: 0; cursor: pointer; }
+  .dbg button:hover:not(:disabled) { background: var(--wash-yellow); }
+  .dbg button:disabled { opacity: .45; cursor: default; }
+  .dbg button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; position: relative; }
+  .dbg svg { width: 15px; height: 15px; flex: none; fill: currentColor; }
+  .dbg svg .stroke { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
+  .seg { display: inline-flex; }
+  .seg button + button { border-left: 0; }
+  .seg button:first-child { border-radius: 7px 0 0 7px; }
+  .seg button:last-child { border-radius: 0 7px 7px 0; }
+  /* As wide as Continue, so the button keeps its width when its word changes. */
+  .pause { width: 108px; }
+  .pause .i-play, .pause.is-paused .i-pause { display: none; }
+  .pause.is-paused .i-play { display: inline; color: var(--green); }
+  .dbg .toggle { border-radius: 7px; }
+  .dbg .toggle[aria-pressed="true"] { background: var(--ink); color: var(--card); border-color: var(--ink); }
+  @media (max-width: 480px) {
+    .dbg { flex-wrap: wrap; gap: 6px; padding: 4px; }
+    .dbg button { padding: 4px 7px; }
+  }
+  .crumbs { font-size: 12px; color: var(--muted); padding: 5px 14px 2px 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .crumbs .sep { color: var(--faint); white-space: pre; }
+  .edbody { flex: 1; padding: 4px 0 14px; overflow-x: auto; }
+  /* As wide as the longest line, so a tinted row reaches the editor's edge even when the code scrolls. */
+  .lines { min-width: 100%; width: max-content; }
+  .ln { display: grid; grid-template-columns: 22px 30px 1fr; white-space: pre; padding-right: 14px; border-left: 4px solid transparent; }
+  .ln.new { background: var(--wash-yellow); }
+  .ln .pc { color: var(--coral); font-size: 12px; text-align: center; }
+  .ln i { color: var(--faint); font-style: normal; text-align: right; padding-right: 10px; margin-right: 1px; user-select: none; }
+  .ln > span { padding-left: 8px; }
+  .ln[data-running] { background: var(--tint-coral); border-left-color: var(--coral); }
+  .ln[data-running] i { color: var(--ink); font-weight: 700; }
+  .ln[data-running] .pc::before { content: "▶"; }
+  .pie { width: 16px; height: 16px; vertical-align: -3px; margin-left: 10px; transform: rotate(-90deg); }
+  .pie .rim { fill: var(--card); stroke: var(--faint); stroke-width: 1.5; }
+  .pie .fill { fill: none; stroke: var(--coral); stroke-width: 7; stroke-dasharray: 0 100; }
+  .pie.waiting .rim { stroke: var(--coral); }
+  .keyword { color: var(--syntax-keyword); }
+  .string { color: var(--syntax-string); }
+  .function { color: var(--syntax-function); }
+  .number { color: var(--syntax-number); }
+  .comment { color: var(--muted); }
+  /* Room for four bold digits, the most the interval has, so the line keeps its width as the value changes. */
+  .live { display: inline-block; min-width: calc(4.5ch + 10px); padding: 0 5px; text-align: center; background: var(--yellow); border-radius: 6px; font-weight: 700; }
+</style>

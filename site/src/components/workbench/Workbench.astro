@@ -1,15 +1,15 @@
 ---
-import { OPENING, railOf, workbenchFor } from '../../lib/workbench/projects';
-import { TRACE_HEIGHT, TRACE_WINDOW_MS } from '../../lib/workbench/trace';
+import { railOf, workbenchFor } from '../../lib/workbench/projects';
 // Read here, at build time, only: a browser script that imported it would carry every sketch's source.
 import { readStepSource } from '../../lib/workbench/readSource';
 import { newLines } from '../../lib/workbench/source';
 import { sketchKey } from '../../lib/flash/manifest';
 import { readManifest } from '../../lib/flash/readManifest';
-import { wording } from '../../lib/flash';
-import { boardStatusText, CLOCK_DASH, codeRows, crumbs, fileName, SERIAL_LINES } from './view';
-import Led from './pictures/Led.astro';
-import Servo from './pictures/Servo.astro';
+import Board from './Board.astro';
+import Editor from './Editor.astro';
+import Rail from './Rail.astro';
+import { elementId, type RailStep } from './rail';
+import { codeRows, crumbs, fileName } from './view';
 
 interface Props {
   /** The project's page id, such as `blink`; the project must have step definitions. */
@@ -26,7 +26,7 @@ if (workbench === undefined) throw new Error(`The project ${project} has no step
 
 const sources = steps.map((step) => readStepSource(step.sketch));
 const definitions = railOf(workbench, steps.map((step) => step.sketch));
-const rail = steps.map((step, index) => {
+const rail: RailStep[] = steps.map((step, index) => {
   const definition = definitions[index];
   return {
     ...step,
@@ -41,10 +41,8 @@ const rail = steps.map((step, index) => {
   };
 });
 const first = rail[0];
-const openingRows = workbench.board.watch(first.key, workbench.board.initial(), 0);
-const valueOf = (name: string) => openingRows.find((row) => row.name === name)?.value;
 const stepData = JSON.stringify(rail.map((step, index) => ({ sketch: step.sketch, source: sources[index] })));
-const id = (part: string) => `workbench-${project}-${part}`;
+const id = (part: string) => elementId(project, part);
 const firmware = readManifest().sketches;
 // Only the steps' images, so the page does not carry the whole manifest. The manifest names a sketch by its path, and
 // the session flashes a step by the key it prints.
@@ -57,8 +55,6 @@ const manifest = {
   ),
 };
 const flashable = Object.keys(manifest.sketches).length > 0;
-const simulated = boardStatusText({ kind: 'simulated' });
-const Picture = { led: Led, servo: Servo }[workbench.picture];
 ---
 
 <section
@@ -71,421 +67,19 @@ const Picture = { led: Led, servo: Servo }[workbench.picture];
   data-manifest={JSON.stringify(manifest)}
   data-baud={baud}
 >
-  <div class="rail">
-    <div class="tabs" role="tablist" aria-label="Steps">
-      {
-        rail.map((step, index) => (
-          <button
-            class="tab"
-            type="button"
-            role="tab"
-            id={id(`tab-${step.id}`)}
-            aria-selected={index === 0 ? 'true' : 'false'}
-            aria-controls={id('panel')}
-            tabindex={index === 0 ? 0 : -1}
-            data-tab={index}
-          >
-            <span class="n">
-              {step.number} {step.id}
-            </span>
-            <small>{step.idea}</small>
-            <span class="onboard" data-onboard hidden>
-              <span aria-hidden="true">●</span> board
-            </span>
-          </button>
-        ))
-      }
-    </div>
-    <div class="railend">
-      {/* Read out on a change; the switch shows the same state to the eye. */}
-      <span class="sr" data-board-cell data-status="simulated">
-        <span aria-live="polite" data-board-status>
-          <span data-board-word>{simulated.word}</span><span data-board-sentence>: {simulated.title}</span>
-        </span>
-      </span>
-      <div class="switch" role="group" aria-label="What drives the board pane">
-        <button class="half" type="button" aria-pressed="true" data-pane-simulator>Simulator</button>
-        {
-          flashable && (
-            <button class="half board-half" type="button" aria-pressed="false" data-icon="plug" data-board-action>
-              <svg class="i-plug" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M6 1.6v3M10 1.6v3M4 4.6h8v2.6a4 4 0 0 1-8 0zM8 11.2v3.2" />
-              </svg>
-              <svg class="i-bolt" viewBox="0 0 16 16" aria-hidden="true"><path d="M9.4 1 3.4 9.2h3.9L6.4 15l6.2-8.4H8.6z" /></svg>
-              <svg class="i-dot" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="4" /></svg>
-              <span data-board-action-label>Connect my board</span>
-            </button>
-          )
-        }
-        {/* What to do fits the board half's slot; why is in the tooltip and read by a screen reader. */}
-        <p class="needs" title={wording.NO_WEB_SERIAL} data-needs-browser hidden>
-          <span class="sr">{wording.NO_WEB_SERIAL} </span>{wording.USE_CHROME_OR_EDGE}
-        </p>
-      </div>
-    </div>
-  </div>
+  <Rail project={project} steps={rail} flashable={flashable} />
   <div class="panes" role="tabpanel" id={id('panel')} aria-labelledby={id(`tab-${first.id}`)}>
-    <div class="code">
-      <div class="edhead">
-        {
-          rail.map((step, index) => (
-            <span class="edtab" data-for-step={index} hidden={index !== 0}>
-              {step.file}
-            </span>
-          ))
-        }
-        <span class="dbg" role="toolbar" aria-label="Debugger">
-          <span class="seg">
-            <button type="button" class:list={['pause', { 'is-paused': !OPENING.running }]} data-pause>
-              <svg class="i-pause" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 3h3v10H4zM9 3h3v10H9z" /></svg>
-              <svg class="i-play" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5z" /></svg>
-              <span data-pause-label>{OPENING.running ? 'Pause' : 'Continue'}</span>
-            </button>
-            <button type="button" data-step title="Run one line">
-              <svg viewBox="0 0 16 16" aria-hidden="true">
-                <path class="stroke" d="M2.6 8.2a5.4 5.4 0 0 1 10-3" /><path d="M13.8 1.8v4.2H9.6z" /><circle cx="8" cy="12.2" r="1.9" />
-              </svg>
-              Step
-            </button>
-            <button type="button" data-restart title="Start the sketch again from the top">
-              <svg viewBox="0 0 16 16" aria-hidden="true">
-                <path class="stroke" d="M12.6 8a4.6 4.6 0 1 1-1.7-3.5" /><path d="M11.6 1.4v3.9H7.7z" />
-              </svg>
-              Restart
-            </button>
-          </span>
-          <button type="button" class="toggle" data-slow aria-pressed={String(OPENING.slow)} title="Rest half a second on each line">
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-              <circle class="stroke" cx="8" cy="8" r="5.8" /><path class="stroke" d="M8 4.8V8l2.3 1.5" />
-            </svg>
-            Slow
-          </button>
-        </span>
-      </div>
-      {
-        rail.map((step, index) => (
-          <div class="crumbs" data-for-step={index} hidden={index !== 0}>
-            {step.crumbs.map((crumb, at) => (at === 0 ? crumb : [<span class="sep"> › </span>, crumb]))}
-          </div>
-        ))
-      }
-      <div class="edbody">
-        {
-          rail.map((step, index) => (
-            <div class="lines" data-for-step={index} data-code hidden={index !== 0}>
-              {step.rows.map((row) => (
-                <div class:list={['ln', { new: row.isNew }]} data-line={row.number}>
-                  <b class="pc" aria-hidden="true" />
-                  <i>{row.number}</i>
-                  <span>
-                    {row.tokens.map((token, at) =>
-                      at === row.live ? (
-                        <span class="live" data-live>
-                          {token.text}
-                        </span>
-                      ) : token.kind ? (
-                        <span class={token.kind}>{token.text}</span>
-                      ) : (
-                        token.text
-                      ),
-                    )}
-                    {row.waits && (
-                      <svg class="pie" viewBox="0 0 16 16" aria-hidden="true" data-pie>
-                        <circle class="rim" cx="8" cy="8" r="7" />
-                        <circle class="fill" cx="8" cy="8" r="3.5" pathLength={CLOCK_DASH} />
-                      </svg>
-                    )}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ))
-        }
-      </div>
-    </div>
-    <div class="board">
-      {/* Kept in the layout while hidden, so the picture does not move when it shows. */}
-      <p class="again-row"><button class="again" type="button" data-flash-again>Flash again</button></p>
-      <div class="stage" data-stage>
-        <div class:list={['led-row', { wide: workbench.picture === 'servo' }]}>
-          <Picture />
-          <dl class="watch" aria-label="Watch">
-            {
-              workbench.board.fields.map((name) => (
-                <div data-watch-row={name} hidden={valueOf(name) === undefined}>
-                  <dt>{name}</dt>
-                  <dd>{valueOf(name)}</dd>
-                </div>
-              ))
-            }
-          </dl>
-        </div>
-        <div class="link" data-board-link>
-          <p aria-live="polite" data-board-message></p>
-          <div class="progress" data-board-progress hidden>
-            <div class="track" role="progressbar" aria-label="Flashing" aria-valuemin="0" aria-valuemax="100">
-              <div class="fill" data-board-fill></div>
-            </div>
-            <span class="readout" data-board-percent></span>
-          </div>
-        </div>
-      </div>
-      <figure class="scope">
-        <figcaption>
-          <span>{workbench.trace.caption}, last {TRACE_WINDOW_MS / 1000} s</span>
-          <span class="legend">
-            <svg viewBox="0 0 10 10" aria-hidden="true"><path class="sent" d="M0 1h10l-5 8z" /></svg>you sent
-            <svg viewBox="0 0 10 10" aria-hidden="true"><circle class="applied" cx="5" cy="5" r="4" /></svg>board applied
-          </span>
-        </figcaption>
-        <svg
-          class="trace"
-          height={TRACE_HEIGHT}
-          role="img"
-          aria-label={`${workbench.trace.name} over the last ${TRACE_WINDOW_MS / 1000} seconds, with a mark for each line sent and applied`}
-          data-trace
-        >
-          <path class="grid" data-trace-grid />
-          <path class="level" data-trace-level />
-          <path class="sent" data-trace-sent />
-          <path class="applied" data-trace-applied />
-        </svg>
-      </figure>
-      <div class="term">
-        <pre class="serial" role="log" aria-live="off" aria-label="Serial output" data-serial><span class="out">{
-          Array.from({ length: SERIAL_LINES }, () => <span data-serial-line />)
-        }</span></pre>
-        <form class="cmd" data-command>
-          <span class="prompt" aria-hidden="true">›</span>
-          <input
-            type="text"
-            autocomplete="off"
-            spellcheck="false"
-            aria-label="Line to send to the board"
-            placeholder={first.placeholder}
-            data-command-line
-          />
-          <button class="send" type="submit">
-            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 2.2 14.5 8 2 13.8l1.6-5.1L9.5 8 3.6 7.3z" /></svg>
-            Send
-          </button>
-        </form>
-        {
-          rail.map(
-            (step, index) =>
-              step.shortcuts.length > 0 && (
-                <div class="shortcuts" role="group" aria-label="Shortcuts" data-for-step={index} data-shortcuts hidden={index !== 0}>
-                  {step.shortcuts.some((shortcut) => shortcut.kind === 'chip') && (
-                    <span class="chips">
-                      {step.shortcuts.map(
-                        (shortcut, at) =>
-                          shortcut.kind === 'chip' && (
-                            <button type="button" class="chip" data-shortcut={at}>
-                              {shortcut.text}
-                            </button>
-                          ),
-                      )}
-                    </span>
-                  )}
-                  {step.shortcuts.map(
-                    (shortcut, at) =>
-                      shortcut.kind === 'slider' && (
-                        <label class="slider">
-                          {shortcut.label}
-                          <input
-                            type="range"
-                            min={shortcut.min}
-                            max={shortcut.max}
-                            step={shortcut.step}
-                            value={shortcut.initial}
-                            aria-label={`${shortcut.label} in ${shortcut.unit}`}
-                            data-shortcut={at}
-                          />
-                          <output>{shortcut.initial}</output>
-                        </label>
-                      ),
-                  )}
-                </div>
-              ),
-          )
-        }
-      </div>
-      <div class="say" data-say>
-        {
-          rail.map((step, index) => (
-            <p class="hint" data-for-step={index} data-hint hidden={index !== 0}>
-              {step.hint}
-            </p>
-          ))
-        }
-        <p class="problem" role="alert" data-problem hidden></p>
-      </div>
-    </div>
+    <Editor steps={rail} />
+    <Board project={workbench} steps={rail} />
   </div>
 </section>
 
 <style>
   /* Clip, not hidden: hidden would make the bench a scroll container and hold the sticky board pane in place. */
   .bench { background: var(--card); border: var(--stroke); border-radius: var(--radius); margin: 12px 0 24px; overflow: clip; }
-  .bench [hidden] { display: none !important; }
-
-  .rail { display: flex; flex-wrap: wrap; border-bottom: var(--stroke); background: var(--chrome-light); }
-  /* As wide as four tabs of 150 px, so the Board cell wraps below the tabs before they wrap among themselves. */
-  .tabs { display: flex; flex-wrap: wrap; flex: 1 1 600px; min-width: 0; }
-  .tab { font: inherit; font-size: 16px; line-height: 1.5; color: var(--ink); border: 0; border-right: 1px solid var(--line); background: transparent; padding: 10px 16px; cursor: pointer; text-align: left; flex: 1 1 150px; }
-  .tab .n { font-family: var(--mono); font-weight: 700; display: block; }
-  .tab small { color: var(--muted); font-size: 12px; }
-  .tab[aria-selected="true"] { background: var(--yellow); }
-  /* Out of the flow, so the mark appears without moving the tab's text. */
-  .tab { position: relative; }
-  .onboard { position: absolute; top: 6px; right: 10px; font-family: var(--mono); font-size: 11px; font-weight: 700; line-height: 1; color: var(--green-text); }
-  /* Inset, since the bench clips what falls outside it. */
-  .tab:focus-visible { outline: 3px solid var(--blue); outline-offset: -3px; }
-
-  /* A fixed width, so no label moves the tabs or the switch. */
-  .railend { flex: 0 0 310px; display: flex; align-items: center; justify-content: flex-end; padding: 10px; min-width: 0; }
-  .switch { display: flex; height: 38px; border: 2px solid var(--ink); border-radius: 999px; overflow: hidden; background: var(--card); box-shadow: 0 3px 0 var(--ink); }
-  .half { overflow: hidden; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font: inherit; font-size: 13px; font-weight: 700; line-height: 1.5; white-space: nowrap; color: var(--ink); background: transparent; border: 0; padding: 0 10px; cursor: pointer; }
-  .half:first-child { width: 88px; }
-  /* As wide as its longest label, Flash step 4 to board, so the switch keeps its width. */
-  .board-half, .needs { width: 198px; border-left: 2px solid var(--ink); }
-  .half[aria-pressed="true"] { color: var(--card); background: var(--ink); cursor: default; }
-  .half:hover:not([aria-pressed="true"], [aria-disabled="true"]) { background: var(--wash-yellow); }
-  .half[aria-disabled="true"] { opacity: .6; cursor: default; }
-  /* Inset, since the switch clips what falls outside it. */
-  .half:focus-visible { outline: 3px solid var(--blue); outline-offset: -3px; }
-  .half svg { width: 14px; height: 14px; flex: none; }
-  .half .i-plug path { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-  .half .i-bolt path { fill: currentColor; }
-  .half .i-dot circle { fill: var(--green); }
-  .half:not([data-icon="plug"]) .i-plug, .half:not([data-icon="bolt"]) .i-bolt, .half:not([data-icon="dot"]) .i-dot { display: none; }
-  .needs { position: relative; margin: 0; padding: 0 10px; align-self: center; font-size: 11px; line-height: 1.2; color: var(--muted); }
 
   .panes { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
   @media (max-width: 820px) { .panes { grid-template-columns: minmax(0, 1fr); } }
-
-  .code { display: flex; flex-direction: column; min-width: 0; border-right: 1px solid var(--line); font-family: var(--mono); font-size: 13.5px; line-height: 1.7; }
-  @media (max-width: 820px) { .code { border-right: 0; border-bottom: 1px solid var(--line); } }
-  .edhead { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; background: var(--chrome); }
-  .edtab { display: flex; align-items: center; gap: 8px; background: var(--card); border-right: 1px solid var(--line); box-shadow: inset 0 2px 0 var(--coral); padding: 8px 16px 7px; font-size: 13px; }
-  .edtab::before { content: "C"; font-weight: 800; font-size: 11px; color: var(--syntax-function); }
-  .dbg { margin-left: auto; display: flex; gap: 8px; align-items: center; padding: 4px 8px; font-family: var(--sans); }
-  .dbg button { font: inherit; font-size: 13px; font-weight: 600; line-height: 1.5; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 4px 10px; margin: 0; color: var(--ink); background: var(--card); border: 1px solid var(--edge); border-radius: 0; cursor: pointer; }
-  .dbg button:hover:not(:disabled) { background: var(--wash-yellow); }
-  .dbg button:disabled { opacity: .45; cursor: default; }
-  .dbg button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; position: relative; }
-  .dbg svg { width: 15px; height: 15px; flex: none; fill: currentColor; }
-  .dbg svg .stroke { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
-  .seg { display: inline-flex; }
-  .seg button + button { border-left: 0; }
-  .seg button:first-child { border-radius: 7px 0 0 7px; }
-  .seg button:last-child { border-radius: 0 7px 7px 0; }
-  /* As wide as Continue, so the button keeps its width when its word changes. */
-  .pause { width: 108px; }
-  .pause .i-play, .pause.is-paused .i-pause { display: none; }
-  .pause.is-paused .i-play { display: inline; color: var(--green); }
-  .dbg .toggle { border-radius: 7px; }
-  .dbg .toggle[aria-pressed="true"] { background: var(--ink); color: var(--card); border-color: var(--ink); }
-  @media (max-width: 480px) {
-    .dbg { flex-wrap: wrap; gap: 6px; padding: 4px; }
-    .dbg button { padding: 4px 7px; }
-  }
-  .crumbs { font-size: 12px; color: var(--muted); padding: 5px 14px 2px 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .crumbs .sep { color: var(--faint); white-space: pre; }
-  .edbody { flex: 1; padding: 4px 0 14px; overflow-x: auto; }
-  /* As wide as the longest line, so a tinted row reaches the editor's edge even when the code scrolls. */
-  .lines { min-width: 100%; width: max-content; }
-  .ln { display: grid; grid-template-columns: 22px 30px 1fr; white-space: pre; padding-right: 14px; border-left: 4px solid transparent; }
-  .ln.new { background: var(--wash-yellow); }
-  .ln .pc { color: var(--coral); font-size: 12px; text-align: center; }
-  .ln i { color: var(--faint); font-style: normal; text-align: right; padding-right: 10px; margin-right: 1px; user-select: none; }
-  .ln > span { padding-left: 8px; }
-  .ln[data-running] { background: var(--tint-coral); border-left-color: var(--coral); }
-  .ln[data-running] i { color: var(--ink); font-weight: 700; }
-  .ln[data-running] .pc::before { content: "▶"; }
-  .pie { width: 16px; height: 16px; vertical-align: -3px; margin-left: 10px; transform: rotate(-90deg); }
-  .pie .rim { fill: var(--card); stroke: var(--faint); stroke-width: 1.5; }
-  .pie .fill { fill: none; stroke: var(--coral); stroke-width: 7; stroke-dasharray: 0 100; }
-  .pie.waiting .rim { stroke: var(--coral); }
-  .keyword { color: var(--syntax-keyword); }
-  .string { color: var(--syntax-string); }
-  .function { color: var(--syntax-function); }
-  .number { color: var(--syntax-number); }
-  .comment { color: var(--muted); }
-  /* Room for four bold digits, the most the interval has, so the line keeps its width as the value changes. */
-  .live { display: inline-block; min-width: calc(4.5ch + 10px); padding: 0 5px; text-align: center; background: var(--yellow); border-radius: 6px; font-weight: 700; }
-
-  .board { padding: 14px; display: grid; gap: 10px; align-content: start; min-width: 0; }
-  /* Side by side, the board stays in view while the visitor reads down a long sketch; in a short window it would
-     cover the window, so it scrolls with the page. */
-  @media (min-width: 821px) and (min-height: 600px) { .board { position: sticky; top: 0; align-self: start; } }
-  /* The message takes the picture's place and its height, so the reports below do not move. */
-  .stage { display: grid; }
-  .again-row { margin: 0; display: flex; justify-content: flex-end; line-height: 1; }
-  .again { font: inherit; font-size: 12px; line-height: 1.4; color: var(--muted); background: none; border: 0; padding: 0 2px; text-decoration: underline; cursor: pointer; }
-  .again:hover { color: var(--ink); }
-  .again:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-  .stage > * { grid-area: 1 / 1; }
-  .link { visibility: hidden; align-self: center; display: grid; gap: 8px; font-size: 14px; }
-  .stage[data-message] .led-row { visibility: hidden; }
-  .stage[data-message] .link { visibility: visible; }
-  .link p { margin: 0; }
-  .link .progress { display: flex; align-items: center; gap: 12px; }
-  .link .track { flex: 1; height: 14px; border: var(--stroke); border-radius: 999px; background: var(--tint-blue); overflow: hidden; }
-  .link .fill { height: 100%; width: 0; background: var(--blue); transition: width .15s; }
-  .link .readout { min-width: 4ch; text-align: right; font-family: var(--mono); }
-  .led-row { --picture: 96px; display: grid; grid-template-columns: var(--picture) 1fr 1fr; gap: 12px; align-items: center; }
-  /* A horn and its scale need more room than an LED to read its angle and target. */
-  .led-row.wide { --picture: 132px; }
-  @media (max-width: 480px) { .led-row { grid-template-columns: var(--picture) 1fr; } }
-  /* Across both columns, so a value such as 1000 ms (fixed) stays on one line. */
-  .watch { grid-column: 2 / -1; margin: 0; border: 1px solid var(--line); border-radius: 10px; font-family: var(--mono); font-size: 13px; overflow: hidden; }
-  .watch div { display: flex; justify-content: space-between; gap: 10px; padding: 3px 10px; }
-  .watch div + div { border-top: 1px solid var(--line); }
-  .watch dt { color: var(--muted); }
-  .watch dd { margin: 0; padding: 0 4px; border-radius: 4px; font-weight: 700; white-space: nowrap; }
-  .watch dd[data-changed] { background: var(--yellow); }
-
-  .scope { margin: 0; padding: 6px 10px 4px; border: 1px solid var(--line); border-radius: 10px; background: var(--chrome-light); }
-  .scope figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-family: var(--mono); font-size: 11px; color: var(--muted); }
-  .legend { display: inline-flex; align-items: center; gap: 4px; }
-  .legend svg { width: 9px; height: 9px; margin-left: 6px; }
-  /* A mark made just now sits on the right edge; its shape may reach into the padding rather than be cut. */
-  .trace { display: block; width: 100%; overflow: visible; }
-  .trace .grid { stroke: var(--line); stroke-width: 1; }
-  .trace .level { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
-  .sent { fill: var(--yellow-strong); }
-  .applied { fill: var(--green); }
-  .term { background: var(--ink); color: var(--on-ink); border-radius: 12px; font-family: var(--mono); font-size: 13px; overflow: hidden; }
-  /* Six lines of 1.5em, as many as serialRows keeps, plus the padding. */
-  .serial { margin: 0; padding: 10px 14px 6px; height: calc(6 * 1.5em + 16px); overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; white-space: pre; background: none; color: inherit; border-radius: 0; font-size: 13px; line-height: 1.5; }
-  .serial [data-sent] { color: var(--yellow); }
-  .cmd { display: flex; align-items: center; gap: 8px; padding: 0 12px 0 14px; border-top: 1px solid var(--on-ink-line); }
-  .prompt { color: var(--yellow); }
-  .cmd input { flex: 1; min-width: 0; padding: 8px 0; border: 0; background: transparent; color: var(--card); font: inherit; outline: none; }
-  .cmd input::placeholder { color: var(--faint); }
-  .cmd input[data-typing] { color: var(--yellow); }
-  .cmd:has(input:focus-visible) { box-shadow: inset 0 0 0 2px var(--blue); }
-  .send { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-family: var(--sans); font-size: 13px; font-weight: 700; line-height: 1.5; color: var(--ink); background: var(--yellow); border: 0; border-radius: 6px; padding: 4px 12px; cursor: pointer; }
-  .send svg { width: 13px; height: 13px; fill: currentColor; }
-  .send:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-  /* Room for the longest placeholder at phone width. */
-  @media (max-width: 480px) { .send { padding: 4px 8px; } }
-  .shortcuts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 8px 12px 8px 14px; border-top: 1px solid var(--on-ink-line); background: var(--ink-raised); color: var(--on-ink); }
-  .chips { display: flex; gap: 6px; }
-  .chip { font: inherit; font-size: 13px; line-height: 1.5; color: var(--on-ink); background: transparent; border: 1px solid var(--on-ink-edge); border-radius: 6px; padding: 2px 10px; cursor: pointer; }
-  .chip:hover { border-color: var(--yellow); color: var(--yellow); }
-  .chip:focus-visible, .slider input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-  .slider { display: flex; flex: 1 1 220px; align-items: center; gap: 8px; min-width: 0; }
-  .slider input { flex: 1; min-width: 80px; margin: 0; accent-color: var(--yellow); }
-  /* Four digits, the most the value has, so the slider keeps its length as the value changes. */
-  .slider output { min-width: 4ch; text-align: right; color: var(--card); }
-  .hint { font-size: 13px; color: var(--muted); margin: 0; }
-  /* A problem takes the hint's place, which says how to send and does not apply then, so nothing moves. */
-  .say { display: grid; }
-  .say > * { grid-area: 1 / 1; }
-  .say[data-trouble] .hint { visibility: hidden; }
-  .problem { margin: 0; padding: 8px 12px; border: 1.5px solid var(--ink); border-radius: 10px; font-size: 14px; font-weight: 600; }
 </style>
 
 <script>

@@ -1,0 +1,50 @@
+---
+import type { WorkbenchProject } from '../../lib/workbench/projects';
+import type { RailStep } from './rail';
+import Scope from './Scope.astro';
+import Stage from './Stage.astro';
+import Terminal from './Terminal.astro';
+
+interface Props {
+  project: WorkbenchProject<unknown, unknown, unknown>;
+  steps: readonly Pick<RailStep, 'key' | 'hint' | 'placeholder' | 'shortcuts'>[];
+}
+
+const { project, steps } = Astro.props;
+---
+
+<div class="board">
+  {/* Kept in the layout while hidden, so the picture does not move when it shows. */}
+  <p class="again-row"><button class="again" type="button" data-flash-again>Flash again</button></p>
+  <Stage project={project} firstKey={steps[0].key} />
+  <Scope trace={project.trace} />
+  <Terminal steps={steps} placeholder={steps[0].placeholder} />
+  <div class="say" data-say>
+    {
+      steps.map((step, index) => (
+        <p class="hint" data-for-step={index} data-hint hidden={index !== 0}>
+          {step.hint}
+        </p>
+      ))
+    }
+    <p class="problem" role="alert" data-problem hidden></p>
+  </div>
+</div>
+
+<style>
+  [hidden] { display: none !important; }
+  .board { padding: 14px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+  /* Side by side, the board stays in view while the visitor reads down a long sketch; in a short window it would
+     cover the window, so it scrolls with the page. */
+  @media (min-width: 821px) and (min-height: 600px) { .board { position: sticky; top: 0; align-self: start; } }
+  .again-row { margin: 0; display: flex; justify-content: flex-end; line-height: 1; }
+  .again { font: inherit; font-size: 12px; line-height: 1.4; color: var(--muted); background: none; border: 0; padding: 0 2px; text-decoration: underline; cursor: pointer; }
+  .again:hover { color: var(--ink); }
+  .again:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .hint { font-size: 13px; color: var(--muted); margin: 0; }
+  /* A problem takes the hint's place, which says how to send and does not apply then, so nothing moves. */
+  .say { display: grid; }
+  .say > * { grid-area: 1 / 1; }
+  .say[data-trouble] .hint { visibility: hidden; }
+  .problem { margin: 0; padding: 8px 12px; border: 1.5px solid var(--ink); border-radius: 10px; font-size: 14px; font-weight: 600; }
+</style>

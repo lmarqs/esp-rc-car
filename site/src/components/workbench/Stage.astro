@@ -1,0 +1,68 @@
+---
+import type { WorkbenchProject } from '../../lib/workbench/projects';
+import Led from './pictures/Led.astro';
+import Servo from './pictures/Servo.astro';
+
+interface Props {
+  project: Pick<WorkbenchProject<unknown, unknown, unknown>, 'board' | 'picture'>;
+  /** The key of the first step, whose watch values the stage opens with. */
+  firstKey: string;
+}
+
+const { project, firstKey } = Astro.props;
+const { board, picture } = project;
+const openingRows = board.watch(firstKey, board.initial(), 0);
+const valueOf = (name: string) => openingRows.find((row) => row.name === name)?.value;
+const Picture = { led: Led, servo: Servo }[picture];
+---
+
+<div class="stage" data-stage>
+  <div class:list={['led-row', { wide: picture === 'servo' }]}>
+    <Picture />
+    <dl class="watch" aria-label="Watch">
+      {
+        board.fields.map((name) => (
+          <div data-watch-row={name} hidden={valueOf(name) === undefined}>
+            <dt>{name}</dt>
+            <dd>{valueOf(name)}</dd>
+          </div>
+        ))
+      }
+    </dl>
+  </div>
+  <div class="link" data-board-link>
+    <p aria-live="polite" data-board-message></p>
+    <div class="progress" data-board-progress hidden>
+      <div class="track" role="progressbar" aria-label="Flashing" aria-valuemin="0" aria-valuemax="100">
+        <div class="fill" data-board-fill></div>
+      </div>
+      <span class="readout" data-board-percent></span>
+    </div>
+  </div>
+</div>
+
+<style>
+  [hidden] { display: none !important; }
+  /* The message takes the picture's place and its height, so the reports below do not move. */
+  .stage { display: grid; }
+  .stage > * { grid-area: 1 / 1; }
+  .link { visibility: hidden; align-self: center; display: grid; gap: 8px; font-size: 14px; }
+  .stage[data-message] .led-row { visibility: hidden; }
+  .stage[data-message] .link { visibility: visible; }
+  .link p { margin: 0; }
+  .link .progress { display: flex; align-items: center; gap: 12px; }
+  .link .track { flex: 1; height: 14px; border: var(--stroke); border-radius: 999px; background: var(--tint-blue); overflow: hidden; }
+  .link .fill { height: 100%; width: 0; background: var(--blue); transition: width .15s; }
+  .link .readout { min-width: 4ch; text-align: right; font-family: var(--mono); }
+  .led-row { --picture: 96px; display: grid; grid-template-columns: var(--picture) 1fr 1fr; gap: 12px; align-items: center; }
+  /* A horn and its scale need more room than an LED to read its angle and target. */
+  .led-row.wide { --picture: 132px; }
+  @media (max-width: 480px) { .led-row { grid-template-columns: var(--picture) 1fr; } }
+  /* Across both columns, so a value such as 1000 ms (fixed) stays on one line. */
+  .watch { grid-column: 2 / -1; margin: 0; border: 1px solid var(--line); border-radius: 10px; font-family: var(--mono); font-size: 13px; overflow: hidden; }
+  .watch div { display: flex; justify-content: space-between; gap: 10px; padding: 3px 10px; }
+  .watch div + div { border-top: 1px solid var(--line); }
+  .watch dt { color: var(--muted); }
+  .watch dd { margin: 0; padding: 0 4px; border-radius: 4px; font-weight: 700; white-space: nowrap; }
+  .watch dd[data-changed] { background: var(--yellow); }
+</style>
