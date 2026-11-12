@@ -44,6 +44,7 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
           <span class="readout" data-percent />
         </div>
         <button class="btn" type="button" data-action hidden />
+        <ul class="links" data-links hidden />
         <noscript><p class="notice">Flashing from the browser needs JavaScript.</p></noscript>
       </div>
     ) : (
@@ -64,6 +65,7 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
   .steps li[aria-current="step"] { background: var(--tint-yellow); border-color: var(--ink); color: var(--ink); }
   [data-message] { margin: 0 0 12px; }
   [data-message].notice { margin: 0 0 12px; }
+  .links { margin: 0; padding-left: 20px; }
   .progress { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; }
   .track { flex: 1; height: 14px; border: var(--stroke); border-radius: 999px; background: var(--tint-blue); overflow: hidden; }
   .fill { height: 100%; width: 0; background: var(--blue); transition: width .15s; }
@@ -72,18 +74,25 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
 
 <script>
   import { createFlasher } from '../../lib/flash/createFlasher';
+  import { href } from '../../lib/href';
   import type { Manifest } from '../../lib/flash/manifest';
   import { createSession } from '../../lib/flash/session';
   import { STEPS, viewFor } from './view';
 
   for (const card of document.querySelectorAll<HTMLElement>('[data-flash-card]')) {
-    const { sketch, title, next, baud, manifest } = card.dataset;
+    const { sketch, title, next, baud } = card.dataset;
+    const manifest = JSON.parse(card.dataset.manifest!) as Manifest;
     const session = createSession({
       flasher: createFlasher({ baudRate: baud ? Number(baud) : undefined }),
-      manifest: JSON.parse(manifest!) as Manifest,
+      manifest,
       sketch: sketch!,
     });
-    const context = { title: title!, next };
+    const context = {
+      title: title!,
+      next,
+      images: manifest.sketches[sketch!]!.images,
+      firmwareUrl: href('/firmware/'),
+    };
 
     const message = card.querySelector<HTMLElement>('[data-message]')!;
     const progress = card.querySelector<HTMLElement>('[data-progress]')!;
@@ -91,6 +100,7 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
     const fill = progress.querySelector<HTMLElement>('[data-fill]')!;
     const percent = progress.querySelector<HTMLElement>('[data-percent]')!;
     const action = card.querySelector<HTMLButtonElement>('[data-action]')!;
+    const links = card.querySelector<HTMLElement>('[data-links]')!;
     const steps = [...card.querySelectorAll<HTMLElement>('[data-step]')];
 
     action.addEventListener('click', () => {
@@ -127,6 +137,18 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
         action.textContent = view.action.label;
         action.dataset.event = view.action.event;
       }
+
+      links.hidden = !view.links;
+      links.replaceChildren(
+        ...(view.links ?? []).map((link) => {
+          const item = document.createElement('li');
+          const anchor = document.createElement('a');
+          anchor.textContent = link.label;
+          anchor.href = link.href;
+          item.append(anchor);
+          return item;
+        }),
+      );
     }
 
     session.subscribe((state) => {

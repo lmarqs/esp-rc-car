@@ -75,16 +75,118 @@ test.describe('a flashable project', () => {
     await expect(card(page).locator('[data-message]')).toBeFocused();
     await fakeFlasher.release();
   });
+})
 
-  test('a board with no image for its chip shows the failure fallback', async ({ page, fakeFlasher }) => {
-    await fakeFlasher.install({ chip: 'ESP8266' });
+test.describe('a failure', () => {
+  const RUNNING = 'Your board is running Blink.';
+  const connectCalls = ['connect', 'disconnect', 'connect', 'load', 'write', 'reset'];
+
+  test('noPort: asks to plug the board in, and the button connects again', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ failFirst: { connect: 'NotFoundError' } });
     await page.goto('/robomania/projects/blink/');
 
     await card(page).getByRole('button', { name: 'Connect board' }).click();
 
-    await expect(card(page).locator('.notice')).toHaveText('noImage');
-    await card(page).getByRole('button', { name: 'Try again' }).click();
-    await expect(card(page).getByRole('button', { name: 'Connect board' })).toBeVisible();
+    await expect(card(page).locator('.notice')).toHaveText('No board was chosen. Plug it in and try again.');
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+    await expect(card(page).getByText(RUNNING)).toBeVisible();
+    expect(await fakeFlasher.calls()).toEqual(connectCalls);
+  });
+
+  test('portBusy: names the programs that hold the port, and the button connects again', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ failFirst: { connect: 'InvalidStateError' } });
+    await page.goto('/robomania/projects/blink/');
+
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+
+    await expect(card(page).locator('.notice')).toHaveText(
+      'Another program is using the board. Close the serial monitor or the Arduino IDE, then connect again.',
+    );
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+    await expect(card(page).getByText(RUNNING)).toBeVisible();
+    expect(await fakeFlasher.calls()).toEqual(connectCalls);
+  });
+
+  test('noAnswer: tells how to reach the bootloader, and the button connects again', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ failFirst: { connect: 'Error' } });
+    await page.goto('/robomania/projects/blink/');
+
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+
+    await expect(card(page).locator('.notice')).toHaveText(
+      'The board did not answer. Hold its BOOT button and connect again. On an ESP-01S, set the USB adapter to flash mode first.',
+    );
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+    await expect(card(page).getByText(RUNNING)).toBeVisible();
+    expect(await fakeFlasher.calls()).toEqual(connectCalls);
+  });
+
+  test('noImage: names the chip and the chips the project has, and the button connects another board', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ chip: ['ESP8266', 'ESP32'] });
+    await page.goto('/robomania/projects/blink/');
+
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+
+    await expect(card(page).locator('.notice')).toHaveText('This board is an ESP8266. Blink has images for: ESP32.');
+    await card(page).getByRole('button', { name: 'Connect another board' }).click();
+    await expect(card(page).getByText(RUNNING)).toBeVisible();
+    expect(await fakeFlasher.calls()).toEqual(['connect', 'disconnect', 'connect', 'load', 'write', 'reset']);
+  });
+
+  test('noDownload: blames the connection, and the button connects again', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ failFirst: { load: 'DownloadError' } });
+    await page.goto('/robomania/projects/blink/');
+
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+
+    await expect(card(page).locator('.notice')).toHaveText(
+      'The image did not download. Check your internet connection and try again.',
+    );
+    await card(page).getByRole('button', { name: 'Flash again' }).click();
+    await expect(card(page).getByText(RUNNING)).toBeVisible();
+    expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'disconnect', 'connect', 'load', 'write', 'reset']);
+  });
+
+  test('dropped: says how far the flashing got, and the button flashes again', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ progress: [40], failFirst: { write: 'NetworkError' } });
+    await page.goto('/robomania/projects/blink/');
+
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+
+    await expect(card(page).locator('.notice')).toHaveText(
+      'The connection dropped at 40%. Nothing is broken. Plug the board back in and flash again.',
+    );
+    await card(page).getByRole('button', { name: 'Flash again' }).click();
+    await expect(card(page).getByText(RUNNING)).toBeVisible();
+    expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'write', 'disconnect', 'connect', 'load', 'write', 'reset']);
+  });
+
+  test('unsupported: shows at page load with links to the images and to the build-it-yourself section', async ({ page }) => {
+    await page.addInitScript(() => {
+      delete (Navigator.prototype as { serial?: unknown }).serial;
+    });
+    await page.goto('/robomania/projects/blink/');
+
+    await expect(card(page).locator('.notice')).toHaveText(
+      'This browser cannot reach a USB board. Open this page in Chrome or Edge on a computer.',
+    );
+    await expect(card(page).getByRole('button')).toHaveCount(0);
+    await expect(card(page).getByRole('link')).toHaveText([
+      'esp32: blink.ino.bootloader.bin',
+      'esp32: blink.ino.bin',
+      'Run it on your board',
+    ]);
+    const hrefs = await card(page)
+      .getByRole('link')
+      .evaluateAll((links) => links.map((link) => link.getAttribute('href')));
+    expect(hrefs).toEqual([
+      '/robomania/firmware/blink/esp32/blink.ino.bootloader.bin',
+      '/robomania/firmware/blink/esp32/blink.ino.bin',
+      '#run-it-on-your-board',
+    ]);
   });
 });
 
