@@ -502,12 +502,20 @@ test.describe('the Blink workbench', () => {
     }
   });
 
-  test('leaves the LED alone when the visitor types HIGH: only the sketch drives it', async ({ page }) => {
-    await button(page, 'Pause').click();
+  test('leaves the LED alone when the visitor types HIGH: the sketch reads it and only the sketch drives the LED', async ({
+    page,
+  }) => {
+    await freeze(page);
+    await tab(page, '4 commands').click();
     await commandLine(page).fill('HIGH');
     await commandLine(page).press('Enter');
-    await expect(serial(page)).toHaveText(/› HIGH$/);
-    await expect(watchValue(page, 'LED')).toHaveText('LOW');
+    await nextFrame(page);
+    await expect(sentLines(page)).toHaveText(['› HIGH']);
+    const watch = { LED: 'LOW', wait: '1000 ms', measured: '…', paused: 'false' };
+    for (let i = 0; i < 200 && !(await serial(page).textContent())!.includes('? HIGH'); i++) await page.clock.runFor(50);
+    // Sent before setup() ran, the line is read on the first pass of loop(), which answers it.
+    await expect.poll(() => serial(page).textContent()).toBe('› HIGH\n\nsketch blink/commands\n? HIGH');
+    for (const [name, value] of Object.entries(watch)) await expect(watchValue(page, name)).toHaveText(value);
     await expect(bench(page).locator('[data-picture]')).not.toHaveClass(/\bon\b/);
   });
 
