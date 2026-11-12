@@ -587,6 +587,8 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       traceWidth = entry.contentRect.width;
       draw();
     }).observe(traceView);
+    // The clock and the trace move again, or come to rest, as soon as the visitor changes the setting.
+    reducedMotion.addEventListener('change', () => draw());
 
     let selected = 0;
     let definition: StepDefinition<unknown, unknown> | undefined;

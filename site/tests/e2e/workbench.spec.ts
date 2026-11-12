@@ -253,6 +253,24 @@ test.describe('the Blink workbench', () => {
     expect(first).toBe(100);
   });
 
+  test('starts filling the clock as soon as the visitor turns reduced motion off', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const [delay] = linesOf('sketches/blink/simple', 'delay(1000);');
+    await freezeUntilRunning(page, delay);
+    expect(await clockFill(runningRow(page))).toBe(100);
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    // The browser reports the change at its next rendering step, which the frozen page time does not hold back.
+    await expect
+      .poll(async () => {
+        await page.clock.runFor(20);
+        return clockFill(runningRow(page));
+      })
+      .toBeLessThan(100);
+    const early = await clockFill(runningRow(page));
+    await page.clock.runFor(300);
+    expect(await clockFill(runningRow(page))).toBeGreaterThan(early);
+  });
+
   test('has a joined Pause, Step and Restart group and a separate Slow toggle in the editor tab row', async ({
     page,
   }) => {
