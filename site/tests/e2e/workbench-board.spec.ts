@@ -839,7 +839,8 @@ test.describe('the finish of the switch and the frame', () => {
     await fakeFlasher.release();
     await expect(dot).toHaveAttribute('data-link', 'on');
     expect(await duration(dot, 'animation-name')).toBe('none');
-    expect(await background()).not.toBe('rgba(0, 0, 0, 0)');
+    // The fill fades in, so its first frame may still be clear.
+    await expect.poll(background).not.toBe('rgba(0, 0, 0, 0)');
   });
 
   test('names the busy action on the dot: connecting, then flashing', async ({ page, fakeFlasher }) => {
