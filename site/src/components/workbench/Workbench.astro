@@ -83,13 +83,13 @@ const flashable = Object.keys(manifest.sketches).length > 0;
 </style>
 
 <script>
-  import { OPENING, openRunner, railOf, workbenchFor, type WorkbenchProject } from '../../lib/workbench/projects';
-  import type { Runner, RunnerView } from '../../lib/workbench/simulator';
+  import { railOf, workbenchFor, type WorkbenchProject } from '../../lib/workbench/projects';
+  import { createSimulation } from '../../lib/workbench/simulation';
   import { lineNumber } from '../../lib/workbench/source';
   import { tabAfterKey } from '../../lib/workbench/tabs';
   import type { PictureView, WatchRow } from '../../lib/workbench/board';
   import { createTypist } from '../../lib/workbench/typist';
-  import { emptyTrace, recordEffects, recordLevel, traceShape, traceTime, type Trace } from '../../lib/workbench/trace';
+  import { traceShape, traceTime } from '../../lib/workbench/trace';
   import { createFlasher, createSession, type Manifest } from '../../lib/flash';
   import type { BoardAction } from '../../lib/workbench/link';
   import type { Followed } from '../../lib/workbench/live';
@@ -189,15 +189,14 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     // The watch panel as last painted; undefined after a reset, so the values it starts with are not highlighted.
     let shownRows: readonly WatchRow[] | undefined;
     const highlightTimers = new Map<string, number>();
-    let runner: Runner<unknown> | undefined;
-    let view: RunnerView<unknown> | undefined;
-    let board: unknown;
-    let trace: Trace = emptyTrace(undefined);
+    // While the pane follows the board, the simulator waits, paused, and its notices are not the pane's.
+    const simulation = createSimulation(project.board, {
+      has: () => pane.mode === 'simulator',
+      reduceMotion: () => reducedMotion.matches,
+      changed: draw,
+    });
     let frame = 0;
     let motionFrame = 0;
-    let slow: boolean = OPENING.slow;
-    // Whether the visitor wants the sketch running: Pause and Step stop it, Continue and a tab pick start it.
-    let keepRunning: boolean = OPENING.running;
 
     /** The selected step's definition. */
     const definition = () => paneProject.steps[pane.selected];
@@ -208,10 +207,12 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       pane = reducePane(paneProject, pane, event);
       if (pane.selected !== before.selected) openStep(pane.selected);
       if (pane.mode !== before.mode) dropTyping();
-      if (pane.simulation !== before.simulation) startSimulator();
-      // The simulator waits, paused, while the pane follows the board.
+      if (pane.simulation !== before.simulation) {
+        resetWatch();
+        simulation.restart();
+      }
       if (pane.following !== before.following) {
-        runner?.pause();
+        simulation.hold();
         resetWatch();
       }
       showLink();
@@ -231,34 +232,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       clearCommandLine();
       resetWatch();
 
-      runner?.dispose();
-      board = project.board.initial();
-      trace = emptyTrace(project.board.level(board));
-      keepRunning = OPENING.running;
-      runner = openRunner(
-        chosen,
-        (next, effects) => {
-          // While the pane follows the board, the simulator waits, paused, and its notices are not the pane's.
-          if (pane.mode !== 'simulator') return;
-          board = project.board.simulate(board, next.state, effects, next.millis);
-          // A line is sent between two lines of the program, part way through the one under way.
-          const sentAt = traceTime(next, runner?.progress() ?? 0, reducedMotion.matches);
-          trace = recordLevel(recordEffects(trace, effects, next.millis, sentAt), project.board.level(board), next.millis);
-          view = next;
-          draw();
-        },
-        { slow },
-      );
-      view = runner.view();
-    }
-
-    /** Starts the simulator again at the sketch's first line, running if the visitor wants it running. */
-    function startSimulator() {
-      board = project.board.initial();
-      trace = emptyTrace(project.board.level(board));
-      resetWatch();
-      runner?.restart();
-      if (keepRunning) runner?.run();
+      simulation.open(chosen);
     }
 
     /** Paints the whole pane at the next frame, after something in it changed. */
@@ -270,10 +244,11 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       frame = 0;
       cancelAnimationFrame(motionFrame);
       motionFrame = 0;
+      const view = simulation.view;
       if (view === undefined) return;
       const step = steps[pane.selected];
       const shown = pane.mode === 'simulator' ? undefined : pane.followed;
-      const shownBoard = shown?.board ?? board;
+      const shownBoard = shown?.board ?? simulation.board;
       paintPicture(project.board.picture(definition().key, shownBoard));
       followSliders(shownBoard);
       // A real board's clock is unknown: it prints no time.
@@ -331,10 +306,11 @@ const flashable = Object.keys(manifest.sketches).length > 0;
      */
     function paintMotion() {
       motionFrame = 0;
+      const view = simulation.view;
       if (view === undefined) return;
       const shown = pane.mode === 'simulator' ? undefined : pane.followed;
       const row = root.querySelector(`[data-code][data-for-step="${pane.selected}"] [data-running]`);
-      const progress = runner?.progress() ?? 0;
+      const progress = simulation.progress();
       const face =
         shown === undefined
           ? clockFace(view, progress, reducedMotion.matches)
@@ -347,7 +323,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       showClock(row?.querySelector('[data-pie]') ?? null, face);
       const shape =
         shown === undefined
-          ? traceShape(trace, traceTime(view, progress, reducedMotion.matches), traceWidth)
+          ? traceShape(simulation.trace, traceTime(view, progress, reducedMotion.matches), traceWidth)
           : traceShape(shown.trace, Date.now(), traceWidth);
       for (const [part, path] of Object.entries(tracePaths)) {
         const d = shape[part as keyof typeof shape];
@@ -422,7 +398,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
      */
     function sendToBoard(text: string) {
       if (pane.mode === 'simulator') {
-        runner?.send(text);
+        simulation.send(text);
         return;
       }
       if (pane.followed === undefined) return;
@@ -528,39 +504,30 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       });
     }
 
+    /**
+     * Hands the pane from the board to a fresh simulator, running if `running`. The simulator starts as the pane changes
+     * hands, so the visitor's wish is set first.
+     */
+    function detach(running: boolean) {
+      simulation.want(running);
+      dispatch({ kind: 'detach' });
+    }
+
     pauseButton.addEventListener('click', () => {
-      if (pane.mode === 'live') {
-        keepRunning = false;
-        return dispatch({ kind: 'detach' });
-      }
-      if (runner?.view().status === 'running') {
-        keepRunning = false;
-        runner.pause();
-      } else {
-        keepRunning = true;
-        runner?.run();
-      }
+      if (pane.mode === 'live') return detach(false);
+      simulation.toggle();
     });
     stepButton.addEventListener('click', () => {
-      keepRunning = false;
-      if (pane.mode === 'live') return dispatch({ kind: 'detach' });
-      runner?.step();
+      if (pane.mode === 'live') return detach(false);
+      simulation.step();
     });
     restartButton.addEventListener('click', () => {
       if (pane.mode === 'live') return dispatch({ kind: 'detach' });
-      if (runner === undefined) return;
-      board = project.board.initial();
-      trace = emptyTrace(project.board.level(board));
       resetWatch();
       clearCommandLine();
-      runner.restart();
-      // The runner keeps running or paused, and comes back paused from an end or an error.
-      if (keepRunning) runner.run();
+      simulation.restart();
     });
-    slowButton.addEventListener('click', () => {
-      slow = !slow;
-      runner?.setSlow(slow);
-    });
+    slowButton.addEventListener('click', () => simulation.toggleSlow());
 
     const session = createSession({
       flasher: createFlasher(),
@@ -632,8 +599,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     // The board keeps running its step; the simulator starts it again in the pane.
     simulatorButton.addEventListener('click', () => {
       if (pane.mode !== 'live') return;
-      keepRunning = true;
-      dispatch({ kind: 'detach' });
+      detach(true);
     });
 
     /** Presses the board half of the Board switch, or Flash again, then asks the session for what the press starts. */

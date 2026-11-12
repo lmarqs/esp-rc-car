@@ -1,6 +1,5 @@
 import { blinkBoard, type BlinkBoard } from './blinkBoard';
 import type { BoardModel } from './board';
-import { createRunner, type Effect, type RealClock, type Runner, type RunnerView } from './simulator';
 import type { StepDefinition } from './step';
 import { servoBoard, type ServoBoard } from './servoBoard';
 import { blinkSteps, LED_PIN, type BlinkEvent, type BlinkState } from './steps/blink';
@@ -54,29 +53,4 @@ export function railOf<S, E, B>(project: WorkbenchProject<S, E, B>, sketches: re
     if (step === undefined) throw new Error(`No step definition of the workbench runs ${sketch}.`);
     return step;
   });
-}
-
-/** How a step's simulator starts when the page opens it or the visitor picks its tab. */
-export const OPENING = { slow: true, running: true } as const;
-
-export interface OpenOptions {
-  /** Default: the browser's clock. */
-  clock?: RealClock;
-  /** Run slowly, as the visitor last chose; default {@link OPENING}'s choice. */
-  slow?: boolean;
-}
-
-/**
- * A runner for `step` that calls `listener` after every change, started as {@link OPENING} says. The listener is in
- * place before the first line runs, so it hears every effect.
- */
-export function openRunner<S, E>(
-  step: StepDefinition<S, E>,
-  listener: (view: RunnerView<S>, effects: readonly Effect[]) => void,
-  { clock, slow = OPENING.slow }: OpenOptions = {},
-): Runner<S> {
-  const runner = createRunner(step.program, { slow, clock });
-  runner.subscribe(listener);
-  if (OPENING.running) runner.run();
-  return runner;
 }
