@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { codeRows, crumbs, fileName, serialText, shortcutNames, SERIAL_LINES } from '../../src/components/workbench/view';
+import { clockFace, codeRows, crumbs, fileName, serialText, shortcutNames, SERIAL_LINES } from '../../src/components/workbench/view';
 import { blinkCommands, blinkSimple } from '../../src/lib/workbench/steps/blink';
 
 describe('codeRows', () => {
@@ -12,6 +12,29 @@ describe('codeRows', () => {
     ]);
     expect(rows[0].tokens[0]).toEqual({ text: 'int', kind: 'keyword' });
     expect(rows[1].tokens).toEqual([]);
+  });
+
+  it('marks the lines that call delay(), not a print or a comment that names it', () => {
+    const rows = codeRows('  delay(blinkDelay);\n  Serial.print("delay ");\n// Blink with delay()\nint blinkDelay = 1;\n', []);
+    expect(rows.map((row) => row.waits)).toEqual([true, false, false, false]);
+  });
+});
+
+describe('clockFace', () => {
+  it('is empty and idle on a line that does not wait', () => {
+    expect(clockFace({ status: 'running', wait: false }, 0, false)).toEqual({ waiting: false, fill: 0 });
+  });
+
+  it('fills with the share of the wait spent while running', () => {
+    expect(clockFace({ status: 'running', wait: true }, 0.4, false)).toEqual({ waiting: true, fill: 0.4 });
+  });
+
+  it('shows full, without moving, while waiting under reduced motion', () => {
+    expect(clockFace({ status: 'running', wait: true }, 0.4, true)).toEqual({ waiting: true, fill: 1 });
+  });
+
+  it('keeps the share spent when paused on a waiting line', () => {
+    expect(clockFace({ status: 'paused', wait: true }, 0.4, true)).toEqual({ waiting: false, fill: 0.4 });
   });
 });
 

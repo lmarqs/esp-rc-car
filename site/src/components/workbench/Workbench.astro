@@ -3,7 +3,7 @@ import { workbenchFor } from '../../lib/workbench/projects';
 // Read here, at build time, only: a browser script that imported it would carry every sketch's source.
 import { readStepSource } from '../../lib/workbench/readSource';
 import { newLines } from '../../lib/workbench/source';
-import { codeRows, crumbs, fileName, shortcutNames } from './view';
+import { CLOCK_DASH, codeRows, crumbs, fileName, shortcutNames } from './view';
 
 interface Props {
   /** The project's page id, such as `blink`; the project must have step definitions. */
@@ -86,7 +86,15 @@ const id = (part: string) => `workbench-${project}-${part}`;
                 <div class:list={['ln', { new: row.isNew }]} data-line={row.number}>
                   <b class="pc" aria-hidden="true" />
                   <i>{row.number}</i>
-                  <span>{row.tokens.map((token) => (token.kind ? <span class={token.kind}>{token.text}</span> : token.text))}</span>
+                  <span>
+                    {row.tokens.map((token) => (token.kind ? <span class={token.kind}>{token.text}</span> : token.text))}
+                    {row.waits && (
+                      <svg class="pie" viewBox="0 0 16 16" aria-hidden="true" data-pie>
+                        <circle class="rim" cx="8" cy="8" r="7" />
+                        <circle class="fill" cx="8" cy="8" r="3.5" pathLength={CLOCK_DASH} />
+                      </svg>
+                    )}
+                  </span>
                 </div>
               ))}
             </div>
@@ -159,6 +167,13 @@ const id = (part: string) => `workbench-${project}-${part}`;
   .ln .pc { color: var(--coral); font-size: 12px; text-align: center; }
   .ln i { color: var(--faint); font-style: normal; text-align: right; padding-right: 10px; margin-right: 1px; user-select: none; }
   .ln > span { padding-left: 8px; }
+  .ln[data-running] { background: var(--tint-coral); border-left-color: var(--coral); }
+  .ln[data-running] i { color: var(--ink); font-weight: 700; }
+  .ln[data-running] .pc::before { content: "▶"; }
+  .pie { width: 16px; height: 16px; vertical-align: -3px; margin-left: 10px; transform: rotate(-90deg); }
+  .pie .rim { fill: var(--card); stroke: var(--faint); stroke-width: 1.5; }
+  .pie .fill { fill: none; stroke: var(--coral); stroke-width: 7; stroke-dasharray: 0 100; }
+  .pie.waiting .rim { stroke: var(--coral); }
   .keyword { color: var(--syntax-keyword); }
   .string { color: var(--syntax-string); }
   .function { color: var(--syntax-function); }
@@ -191,7 +206,7 @@ const id = (part: string) => `workbench-${project}-${part}`;
   import type { Runner, RunnerView } from '../../lib/workbench/simulator';
   import { lineNumber } from '../../lib/workbench/source';
   import { tabAfterKey } from '../../lib/workbench/tabs';
-  import { serialText, shortcutNames } from './view';
+  import { CLOCK_DASH, clockFace, serialText, shortcutNames } from './view';
 
   interface StepData {
     key: string;
@@ -213,6 +228,7 @@ const id = (part: string) => `workbench-${project}-${part}`;
     );
     const serial = root.querySelector<HTMLElement>('[data-serial]')!;
     const shortcuts = root.querySelector<HTMLElement>('[data-shortcuts]')!;
+    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
     let selected = 0;
     let runner: Runner<unknown> | undefined;
@@ -261,8 +277,24 @@ const id = (part: string) => `workbench-${project}-${part}`;
       serial.textContent = serialText(view.output);
       const running = view.line === undefined ? undefined : lineNumber(step.source, view.line, view.occurrence);
       const code = root.querySelector<HTMLElement>(`[data-code][data-for-step="${selected}"]`)!;
-      code.querySelector('[data-running]')?.removeAttribute('data-running');
-      if (running !== undefined) code.querySelector(`[data-line="${running}"]`)?.setAttribute('data-running', '');
+      const before = code.querySelector('[data-running]');
+      const row = running === undefined ? null : code.querySelector(`[data-line="${running}"]`);
+      if (before !== row) {
+        before?.removeAttribute('data-running');
+        row?.setAttribute('data-running', '');
+        if (before !== null) showClock(before.querySelector('[data-pie]'), { waiting: false, fill: 0 });
+      }
+      const face = clockFace(view, runner?.progress() ?? 0, reducedMotion.matches);
+      showClock(row?.querySelector('[data-pie]') ?? null, face);
+      // The clock fills between the runner's notifications, so it is painted on every frame while it waits.
+      if (face.waiting && !reducedMotion.matches) draw();
+    }
+
+    function showClock(pie: Element | null, face: { waiting: boolean; fill: number }) {
+      if (pie === null) return;
+      pie.classList.toggle('waiting', face.waiting);
+      const fill = pie.querySelector<SVGElement>('.fill')!;
+      fill.style.strokeDasharray = `${face.fill * CLOCK_DASH} ${CLOCK_DASH}`;
     }
 
     tabs.forEach((tab, index) => {

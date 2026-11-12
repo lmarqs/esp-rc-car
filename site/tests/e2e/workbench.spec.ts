@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { lineNumber, newLines } from '../../src/lib/workbench/source';
 import { blinkSteps } from '../../src/lib/workbench/steps/blink';
 
@@ -12,6 +12,15 @@ const visibleCode = (page: Page) => bench(page).locator('[data-code]:visible');
 const watchNames = (page: Page) => bench(page).locator('.watch div:visible dt');
 const watchValue = (page: Page, name: string) => bench(page).locator(`[data-watch-row="${name}"] dd`);
 const serial = (page: Page) => bench(page).getByRole('log', { name: 'Serial output' });
+const runningRow = (page: Page) => visibleCode(page).locator('[data-running]');
+const clockFill = (row: Locator) =>
+  row.locator('[data-pie] .fill').evaluate((fill) => parseFloat(getComputedStyle(fill).strokeDasharray));
+
+/** The line numbers of `sketch`'s lines whose text is `text`, in order. */
+const linesOf = (sketch: string, text: string) =>
+  source(sketch)
+    .split('\n')
+    .flatMap((line, index) => (line.trim() === text ? [index + 1] : []));
 
 test.describe('the Blink workbench', () => {
   test.beforeEach(async ({ page }) => {
@@ -128,6 +137,56 @@ test.describe('the Blink workbench', () => {
     await expect(watchValue(page, 'millis()')).toHaveText('0');
     await page.clock.runFor(1600);
     await expect(serial(page)).toContainText('sketch blink/timer');
+    await expect(serial(page)).not.toContainText('sketch blink/simple');
+  });
+
+  test('marks the running line with a coral tint, a coral bar and an arrow', async ({ page }) => {
+    const row = runningRow(page);
+    await expect(row).toHaveCount(1);
+    await expect(row).toHaveCSS('background-color', 'rgb(251, 224, 214)');
+    await expect(row).toHaveCSS('border-left-color', 'rgb(226, 96, 58)');
+    const arrows = await visibleCode(page)
+      .locator('.ln .pc')
+      .evaluateAll((cells) => cells.map((cell) => getComputedStyle(cell, '::before').content));
+    expect(arrows.filter((content) => content === '"▶"')).toHaveLength(1);
+    expect(await row.locator('.pc').evaluate((cell) => getComputedStyle(cell, '::before').content)).toBe('"▶"');
+  });
+
+  test('ends each delay( line with a clock that is empty when idle and fills while it waits', async ({ page }) => {
+    const delays = linesOf('sketches/blink/simple', 'delay(1000);');
+    const pies = visibleCode(page).locator('.ln:has([data-pie])');
+    await expect(pies).toHaveCount(delays.length);
+    expect(await pies.evaluateAll((rows) => rows.map((row) => Number((row as HTMLElement).dataset.line)))).toEqual(delays);
+    for (const at of delays) expect(await clockFill(visibleCode(page).locator(`[data-line="${at}"]`))).toBe(0);
+
+    // Six lines of 500 ms in slow mode come before the first delay, which lasts 1000 ms.
+    await page.clock.runFor(3250);
+    await expect(runningRow(page)).toHaveAttribute('data-line', String(delays[0]));
+    const waiting = visibleCode(page).locator(`[data-line="${delays[0]}"] [data-pie]`);
+    await expect(waiting).toHaveClass(/\bwaiting\b/);
+    const early = await clockFill(runningRow(page));
+    await page.clock.runFor(500);
+    const later = await clockFill(runningRow(page));
+    expect(early).toBeGreaterThan(10);
+    expect(later).toBeGreaterThan(early + 30);
+    expect(await clockFill(visibleCode(page).locator(`[data-line="${delays[1]}"]`))).toBe(0);
+
+    await page.clock.runFor(500);
+    await expect(runningRow(page)).not.toHaveAttribute('data-line', String(delays[0]));
+    await expect(waiting).not.toHaveClass(/\bwaiting\b/);
+    expect(await clockFill(visibleCode(page).locator(`[data-line="${delays[0]}"]`))).toBe(0);
+  });
+
+  test('shows the clock of a waiting line full and still under reduced motion', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const [delay] = linesOf('sketches/blink/simple', 'delay(1000);');
+    await page.clock.runFor(3250);
+    await expect(runningRow(page)).toHaveAttribute('data-line', String(delay));
+    await expect(runningRow(page).locator('[data-pie]')).toHaveClass(/\bwaiting\b/);
+    const first = await clockFill(runningRow(page));
+    await page.clock.runFor(500);
+    expect(await clockFill(runningRow(page))).toBe(first);
+    expect(first).toBe(100);
   });
 
   test('moves between tabs with the arrow keys and shows the focus', async ({ page }) => {
