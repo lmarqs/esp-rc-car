@@ -22,12 +22,15 @@ mise run '*:setup'
 mise run arduino:compile sketches/blink
 ```
 
-`mise install` fetches the tools. `mise run '*:setup'` installs what they need, such as the Python package the
-ESP32 upload tool depends on. The first compile also downloads the ESP32 core. `mise tasks` lists every task.
+`mise install` fetches the tools. `mise run '*:setup'` installs what they need: the Python package the ESP32
+upload tool depends on, and, for this website, its Node packages and the browser its tests use. The first compile
+also downloads the ESP32 core. `mise tasks` lists every task.
 
 ## Flash it
 
-Connect the board over USB and pass its serial port:
+The [Flash page](../../flash/) puts a project on an ESP32, ESP32-C3 or ESP8266 board from Chrome or Edge on a
+computer, with none of these tools. To flash from your own machine, connect the board over USB and pass its serial
+port:
 
 ```sh
 mise run arduino:run sketches/blink --port /dev/ttyUSB0 --monitor
@@ -35,6 +38,12 @@ mise run arduino:run sketches/blink --port /dev/ttyUSB0 --monitor
 
 The task compiles and uploads; `--monitor` then opens the serial monitor at 9600 baud. Your user needs read and
 write access to the port: on Debian and Ubuntu, membership in the `dialout` group.
+
+## Build this website
+
+The Flash page flashes images that `mise run arduino:firmware` builds from the sketches into `site/public/firmware/`.
+Run it before `mise run site:build`, which builds the site, or `mise run site:dev`, which serves it as you edit;
+`mise run site:test` runs its tests.
 
 ## Edit in VS Code
 
