@@ -68,13 +68,13 @@ The website's Flash page puts a sketch on an ESP32, ESP32-C3 or ESP8266 board ov
 tools installed. With the tools, connect the board over USB and pass its serial port, such as `/dev/ttyUSB0`:
 
 ```sh
-mise run arduino:run sketches/blink/simple --port /dev/ttyUSB0 --monitor --baudrate 115200
+mise run arduino:run sketches/blink/simple --port /dev/ttyUSB0 --monitor
 ```
 
-The task compiles and uploads; `--monitor` then opens the serial monitor at the `--baudrate` you give, 9600 by
-default. Your user needs read and write access to the port: on Debian and Ubuntu, membership in the `dialout` group. A
-board that uploads through its own USB bootloader, such as the Digispark, takes no `--port`. Flashing has not been
-tried on a board yet; report what fails.
+The task compiles and uploads; `--monitor` then opens the serial monitor at 115200 baud, the speed every sketch with
+serial output uses. Your user needs read and write access to the port: on Debian and Ubuntu, membership in the
+`dialout` group. A board that uploads through its own USB bootloader, such as the Digispark, takes no `--port`.
+Flashing has not been tried on a board yet; report what fails.
 
 ## Code layout
 

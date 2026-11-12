@@ -43,7 +43,7 @@ step yourself, install the tools (the [tooling page](../../learn/tooling/) says 
 run, from the repository's root:
 
 ```sh
-mise run arduino:run sketches/blink/simple --port /dev/ttyUSB0 --monitor --baudrate 115200
+mise run arduino:run sketches/blink/simple --port /dev/ttyUSB0 --monitor
 ```
 
 Use your board's port in place of `/dev/ttyUSB0`, and a step's folder, such as `sketches/blink/timer`, in place of

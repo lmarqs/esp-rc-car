@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #MISE description="Open the serial monitor"
 #USAGE flag "-p --port <port>" env="PORT" help="Serial port of the board"
-#USAGE flag "--baudrate <baudrate>" default="9600"
+#USAGE flag "--baudrate <baudrate>" default="115200"
 #USAGE flag "--describe" help="List the port settings instead of opening it"
 set -euo pipefail
 

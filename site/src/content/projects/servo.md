@@ -43,7 +43,7 @@ the step you picked. Once the board prints its `sketch <key>` line, the workbenc
 send goes to it. To build and flash a step yourself, run from the repository's root:
 
 ```sh
-mise run arduino:run sketches/servo/sweep --port /dev/ttyUSB0 --monitor --baudrate 115200
+mise run arduino:run sketches/servo/sweep --port /dev/ttyUSB0 --monitor
 ```
 
 Use a step's folder, such as `sketches/servo/speed`, in place of `sketches/servo/sweep`. The sketches compile;
