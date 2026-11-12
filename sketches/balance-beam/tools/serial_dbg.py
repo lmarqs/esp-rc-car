@@ -1,25 +1,16 @@
 #!/usr/bin/env python3
-"""Non-interactive serial debugging for the Libra firmware (ESP32-C3).
+"""Talks to the balance-beam firmware over serial without a live terminal.
 
-The firmware prints a boot banner once and otherwise only replies to commands,
-and the C3's native USB-CDC does not reset the chip when a monitor attaches — so
-`pio device monitor` usually shows a blank screen. These subcommands talk to the
-board non-interactively instead, which is scriptable and friendly to CI, an agent,
-or a quick `mise run probe`.
+The firmware prints at boot and otherwise only answers commands, so a monitor opened later shows nothing.
 
 Subcommands:
   probe    send one command (default '?') and print the reply
-  banner   reset the board and capture its boot banner
-  stream   capture serial output for N seconds (e.g. the debug IMU stream)
+  banner   reset the board and capture what it prints at boot
+  stream   capture serial output for N seconds, such as the debug build's sensor readings
 
-Run through mise so the PlatformIO venv's pyserial is used:
-  mise run probe
-  mise run banner
-  mise run stream
-  mise x -- python sketches/balance-beam/tools/serial_dbg.py probe --cmd "kp 0.02"
-  mise x -- python sketches/balance-beam/tools/serial_dbg.py stream --seconds 20 --grep "gx="
-
-See docs/testing.md for the full workflow.
+From the repository's root:
+  mise exec -- python sketches/balance-beam/tools/serial_dbg.py probe --cmd "kp 0.02"
+  mise exec -- python sketches/balance-beam/tools/serial_dbg.py stream --seconds 20 --grep "gx="
 """
 import argparse
 import sys

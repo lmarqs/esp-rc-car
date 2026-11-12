@@ -18,16 +18,22 @@ the version first. The website has its own marker, `#site-release`, so each rele
 
 ## Firmware
 
-The firmware has four parts:
+The firmware has five parts:
 
 - **Sketches**, in `sketches/<name>/`: each is one firmware image, for one robot or for trying one driver on a board.
   A sketch says which device sits on which pin, and holds its robot's control logic.
 - **Pin interfaces**, in `lib/`: the kinds of pin output a driver can ask for, such as a level or a PWM signal, each
   with a class per way the ESP32 produces it.
-- **Drivers**, in `lib/`: one library that every sketch builds with. Each driver runs one sort of device, such as a
-  motor, a servo or a camera, or serves one protocol. The [README](../README.md#code-layout) lists them.
-- **Core**: the Bluepad32 ESP32 Arduino core that each sketch's `sketch.yaml` pins. It gives the Arduino API,
-  ESP-IDF and the Bluetooth gamepad stack.
+- **Drivers**, in `lib/`: one library that the ESP32 sketches build with. Each driver runs one sort of device, such
+  as a motor, a servo or a camera, serves one protocol, or does one control calculation, such as a PID controller.
+  The [README](../README.md#code-layout) lists them.
+- **Tests**, in `test/`: programs that run the drivers on the developer's machine, with no board. Automated tests
+  cover only `lib/`, and of it the drivers that compute without touching hardware. A sketch is checked by compiling
+  it and by running it on its board.
+- **Core**: the Arduino core that each sketch's `sketch.yaml` pins for its board. The ESP32 sketches pin the
+  Bluepad32 ESP32 core, which gives the Arduino API, ESP-IDF and the Bluetooth gamepad stack. `sketches/web-relay`
+  pins the ESP8266 core for the ESP-01S, and `sketches/usb-key` the Digistump AVR core for the Digispark; these two
+  build without `lib/`.
 
 ```mermaid
 flowchart TD
@@ -36,12 +42,17 @@ flowchart TD
   drivers --> pins
   sketches --> core[Core]
   drivers --> core
+  tests[Tests] --> drivers
 ```
 
 Dependencies point one way: sketches depend on drivers, pin interfaces and the core, and drivers on pin interfaces
-and the core; nothing in `lib/` depends on a sketch. Drivers reach the hardware only through the pin interfaces, so a
+and the core; nothing in `lib/` depends on a sketch or on a test. Drivers reach the hardware only through the pin interfaces, so a
 driver runs on any pin that gives the output it needs. A few drivers call ESP-IDF directly and build only for ESP32;
-the rest use only the Arduino API.
+the rest use only the Arduino API, and the ones under test use neither.
+
+A sketch takes the values that differ from one build of its robot to the next, such as a password or a throttle
+range, from a `local.h` in its folder. Git ignores the file, so a secret stays out of the history, and a sketch
+without one builds with the defaults in its code.
 
 ## Website
 

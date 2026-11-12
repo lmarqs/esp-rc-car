@@ -4,6 +4,8 @@ Firmware for a 1:10 RC car run by an ESP32, built with arduino-cli on the
 [Bluepad32](https://github.com/ricardoquesada/bluepad32) ESP32 core. The repository holds a library of drivers in
 `lib/` and the sketches that use it in `sketches/`. The car's own sketch is not written yet;
 [docs/sketches](docs/sketches/README.md) says what each sketch does, and `sketches/blink` proves the toolchain works.
+Two sketches run on other boards, each on the core its `sketch.yaml` pins: `sketches/web-relay` on an ESP-01S and
+`sketches/usb-key` on a Digispark ATtiny85.
 
 This README is for someone who knows Arduino basics and wants to build and flash a sketch. It covers the toolchain
 and the code layout; the chassis and its printed parts are in [Hardware](#hardware).
@@ -20,7 +22,22 @@ mise run arduino:compile sketches/blink
 ```
 
 `mise run '*:setup'` installs pyserial into `.venv`: every compile runs the core's esptool, which fails without it. The
-first compile also downloads the ESP32 core into `.arduino/`. `mise tasks` lists every task.
+first compile of a sketch also downloads its core into `.arduino/`. `mise tasks` lists every task.
+
+A sketch with more than one board has a profile for each in its `sketch.yaml`, and the task builds the default one.
+Build another with `mise exec -- arduino-cli compile <sketch> --profile <profile>`.
+
+A sketch reads its passwords and the values of one build of its robot from `<sketch>/local.h`, which Git ignores;
+the sketch's page in [docs/sketches](docs/sketches/README.md) lists the names it reads.
+
+## Test the drivers
+
+```sh
+mise run lib:test
+```
+
+The task builds each program in `test/` with the machine's `g++` and runs it. The tests cover the drivers in `lib/`
+that compute without hardware; `test/host_test.h` gives them their assertions.
 
 ## Edit in VS Code
 
@@ -37,7 +54,8 @@ mise run arduino:run sketches/blink --port /dev/ttyUSB0 --monitor
 ```
 
 The task compiles and uploads; `--monitor` then opens the serial monitor at 9600 baud. Your user needs read and
-write access to the port: on Debian and Ubuntu, membership in the `dialout` group. Flashing has not been tried
+write access to the port: on Debian and Ubuntu, membership in the `dialout` group. A board that uploads through
+its own USB bootloader, such as the Digispark, takes no `--port`. Flashing has not been tried
 on a board yet; report what fails.
 
 ## Code layout
@@ -54,6 +72,10 @@ The drivers in `lib/`:
 | `ledc_pin.*` | A PWM pin through the ESP32 LEDC peripheral, on a channel it allocates |
 | `h_bridge.*` | A motor through a full or half H-bridge |
 | `servo.*` | A positional (180°) or continuous-rotation (360°) hobby servo on a PWM pin |
+| `esc.*` | A brushless motor through its electronic speed controller, on a PWM pin |
+| `imu.*` | An MPU6050 accelerometer and gyroscope on I2C |
+| `complementary_filter.*` | One steady angle out of an accelerometer's and a gyroscope's readings |
+| `pid_controller.*` | A PID controller |
 | `camera*` | The camera of an AI Thinker ESP32-CAM |
 | `web_server.*` | An HTTP and WebSocket server on the ESP-IDF `httpd` |
 

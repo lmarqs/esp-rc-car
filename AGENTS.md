@@ -3,7 +3,8 @@
 Firmware for an ESP32 RC car: drivers in `lib/` and sketches in `sketches/`, and Robomania, the project's website,
 in `site/`. The [README](README.md) says what is built so far and how to build and flash it.
 
-Stack: C++ on the Arduino `esp32-bluepad32:esp32` 4 core, pinned in each sketch's `sketch.yaml`; arduino-cli 1,
+Stack: C++ on the Arduino cores `esp32-bluepad32:esp32` 4, `esp8266:esp8266` 3 and `digistump:avr` 1, pinned in
+each sketch's `sketch.yaml`; arduino-cli 1,
 Python 3.12, uv, clang-format and the-cook, pinned in `mise.toml`; pyserial 3, pinned in `pyproject.toml`. The
 website: Astro 7 on Node 24 and pnpm 12, pinned in `mise.toml` and `package.json`.
 
@@ -17,18 +18,18 @@ website: Astro 7 on Node 24 and pnpm 12, pinned in `mise.toml` and `package.json
   `mise exec -- arduino-cli board list`
 - Build: `mise run arduino:compile <sketch>`, such as `sketches/blink`; the website: `mise run site:build`, and
   `mise run site:dev` to serve it locally
-- Test one file: none
+- Test: `mise run lib:test`
 - Lint or format one file: `mise exec -- clang-format -i <file>`
 - Generate code: `mise run arduino:hexdump <sketch>`, which turns each file in `<sketch>/data` into a C header;
   the Build command also writes `.build/compile_commands.json` for VS Code IntelliSense
 - Local services: none
 - Worktrees: `git worktree add .worktrees/<branch> -b <branch> && (cd .worktrees/<branch> && .worktrees/setup)`;
   remove with `(cd .worktrees/<branch> && .worktrees/teardown) && git worktree remove .worktrees/<branch>`
-- Quick check, seconds on what changed: `mise exec -- clang-format --dry-run --Werror <file>` on each changed file,
+- Quick check, on what changed: `mise exec -- clang-format --dry-run --Werror <file>` on each changed file,
   then the Build command for the sketch the change touches, or `mise run site:build` for a change to `site/`
 - Done check, all that must pass before a change is done:
-  `mise exec -- clang-format --dry-run --Werror lib/* sketches/*/*.ino`, then the Build command for every sketch in
-  `sketches/`, then `mise run site:build`; under 10 seconds for one sketch once the core is installed; no services
+  `mise exec -- clang-format --dry-run --Werror lib/* test/* sketches/*/*.ino`, then `mise run lib:test`, the Build
+  command for every sketch in `sketches/`, and `mise run site:build`
 
 ## Boundaries
 
@@ -56,9 +57,9 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 - New code: drivers in `lib/`, sketches in `sketches/`, laid out as [Code layout](README.md#code-layout) says; no
   design document; website pages in `site/src/content/projects/` and `site/src/content/topics/`, one Markdown file
   each, and its playable examples in `site/src/components/examples/`
-- Tests: none
-- Settings: `.env` (gitignored, loaded by mise), arduino-cli in `arduino-cli.yaml`, board profile in `sketch.yaml`;
-  no secrets yet
+- Tests: `test/test_<header>.cpp`, only for `lib/` drivers needing no hardware
+- Settings: `.env` (gitignored, loaded by mise), arduino-cli in `arduino-cli.yaml`, board profiles in `sketch.yaml`;
+  a sketch's secrets in its gitignored `local.h`
 - How the parts fit and coding standards: `docs/`, by the map in `docs/README.md`; write and review pages with the
   `docs-layout` skill
 - A mise task: an executable file at `.mise/tasks/<namespace>/<task>`, run as `mise run <namespace>:<task>`.
@@ -67,8 +68,7 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 
 ## Rules
 
-- The repository has no tests yet: report how a behavior change was checked, by the Done check or a run on the
-  board.
+- Sketches have no tests: report how a behavior change was checked, by the Done check or a run on the board.
 - Write C++ by [the C++ standards](docs/standards/cpp-sources.md).
 - Change only what the task needs, matching the surrounding code.
 - Format with `.clang-format`.
