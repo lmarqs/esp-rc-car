@@ -131,4 +131,10 @@ describe('viewFor', () => {
       { label: 'Run it on your board', href: '#run-it-on-your-board' },
     ]);
   });
+
+  it('points a browser that cannot flash to the project page when the card is on another page', () => {
+    const view = viewFor({ kind: 'unsupported' }, { ...context, detailsHref: '/robomania/projects/blink/' });
+
+    expect(view.links).toEqual([{ label: 'Run it on your board', href: '/robomania/projects/blink/#run-it-on-your-board' }]);
+  });
 });

@@ -50,9 +50,11 @@ export interface ViewContext {
   images?: readonly ManifestImage[];
   /** Where the images' part paths are served from, ending in a slash. */
   firmwareUrl?: string;
+  /** The page that has the section `Run it on your board`, when it is not the page the card is on. */
+  detailsHref?: string;
 }
 
-const BUILD_IT_YOURSELF = { label: 'Run it on your board', href: '#run-it-on-your-board' };
+const BUILD_IT_YOURSELF = '#run-it-on-your-board';
 
 function imageLinks(images: readonly ManifestImage[], firmwareUrl: string): ViewLink[] {
   return images.flatMap((image) =>
@@ -64,7 +66,7 @@ function imageLinks(images: readonly ManifestImage[], firmwareUrl: string): View
 }
 
 /** Maps what the session is doing to what the card shows. */
-export function viewFor(state: SessionState, { title, next, baud, images, firmwareUrl }: ViewContext): View {
+export function viewFor(state: SessionState, { title, next, baud, images, firmwareUrl, detailsHref = '' }: ViewContext): View {
   switch (state.kind) {
     case 'idle':
       return {
@@ -107,7 +109,7 @@ export function viewFor(state: SessionState, { title, next, baud, images, firmwa
         step: 'connect',
         message: 'This browser cannot reach a USB board. Open this page in Chrome or Edge on a computer.',
         notice: true,
-        links: [...imageLinks(images ?? [], firmwareUrl ?? '/firmware/'), BUILD_IT_YOURSELF],
+        links: [...imageLinks(images ?? [], firmwareUrl ?? '/firmware/'), { label: 'Run it on your board', href: detailsHref + BUILD_IT_YOURSELF }],
       };
     case 'noPort':
       return failure('No board was chosen. Plug it in and try again.', 'Connect board');

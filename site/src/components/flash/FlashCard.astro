@@ -10,9 +10,11 @@ interface Props {
   baud?: number;
   /** What to do once the board runs. */
   next?: string;
+  /** The project's page, when the card is not on it: the link to the section `Run it on your board` goes there. */
+  detailsHref?: string;
 }
 
-const { sketch, title, baud, next } = Astro.props;
+const { sketch, title, baud, next, detailsHref } = Astro.props;
 const name = sketch.split('/').pop()!;
 const entry = readManifest().sketches[name];
 const manifest = entry && { sketches: { [name]: entry } };
@@ -29,6 +31,7 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
         data-title={title}
         data-next={next}
         data-baud={baud}
+        data-details-href={detailsHref}
         data-manifest={JSON.stringify(manifest)}
       >
         <ol class="steps">
@@ -92,7 +95,7 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
   import { STEPS, viewFor } from './view';
 
   for (const card of document.querySelectorAll<HTMLElement>('[data-flash-card]')) {
-    const { sketch, title, next, baud: baudText } = card.dataset;
+    const { sketch, title, next, baud: baudText, detailsHref } = card.dataset;
     const baud = baudText ? Number(baudText) : undefined;
     const manifest = JSON.parse(card.dataset.manifest!) as Manifest;
     const session = createSession({
@@ -107,6 +110,7 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
       baud,
       images: manifest.sketches[sketch!]!.images,
       firmwareUrl: href('/firmware/'),
+      detailsHref,
     };
 
     const message = card.querySelector<HTMLElement>('[data-message]')!;
@@ -131,6 +135,8 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
     }
 
     function render() {
+      // The page that lists several cards reads this to keep a visitor from leaving a write half-done.
+      card.toggleAttribute('data-busy', ['connecting', 'settings', 'flashing'].includes(session.state.kind));
       const view = viewFor(session.state, context);
       // Only a change of text is announced: the progress bar carries the percentage.
       if (message.textContent !== view.message) message.textContent = view.message;
@@ -183,6 +189,9 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
         }),
       );
     }
+
+    // The page asks a card it hides to let go of the board, which a card that is idle or busy ignores.
+    card.addEventListener('flash-release', () => void session.send({ type: 'retry' }));
 
     session.subscribe((state) => {
       render();
