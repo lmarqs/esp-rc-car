@@ -16,6 +16,8 @@ export interface FakeFlasherOptions {
   failFirst?: { connect?: string; load?: string; write?: string };
   /** The lines `monitor` prints right away, one call each; it then waits until `disconnect`. Default: none. */
   lines?: string[];
+  /** The first `monitor` returns after it printed `lines`, as when the port is lost, instead of waiting for `disconnect`. */
+  monitorEnds?: boolean;
 }
 
 /** Controls the fake flasher of one page. */
@@ -82,6 +84,9 @@ function installFakeFlasher(options: FakeFlasherOptions) {
       calls.push(`monitor ${baud}`);
       for (const line of options.lines ?? []) {
         onLines([line]);
+      }
+      if (options.monitorEnds && calls.filter((name) => name.startsWith('monitor')).length === 1) {
+        return;
       }
       await new Promise<void>((resolve) => {
         stopMonitor = resolve;

@@ -164,6 +164,41 @@ test.describe('the Running step', () => {
     await expect(card(page).getByRole('button', { name: 'Connect board' })).toBeFocused();
   });
 
+  test('says the board stopped talking when the port is lost, and Connect again flashes once more', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ lines: ['HIGH'], monitorEnds: true });
+    await page.goto('/robomania/projects/blink/');
+    await page.evaluate(() => {
+      const added: string[] = [];
+      (window as unknown as { __messages: string[] }).__messages = added;
+      new MutationObserver((records) => {
+        for (const record of records) record.addedNodes.forEach((node) => added.push(node.textContent ?? ''));
+      }).observe(document.querySelector('[data-message]')!, { childList: true });
+    });
+
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+
+    await expect(card(page).locator('.notice')).toHaveText(
+      'The board stopped talking to the page. Plug it back in and connect again.',
+    );
+    await expect(output(page)).toHaveText('HIGH');
+    await expect(card(page).getByRole('button')).toHaveText(['Connect again']);
+    const messages = await page.evaluate(() => (window as unknown as { __messages: string[] }).__messages);
+    expect(messages.filter((message) => message.startsWith('The board stopped'))).toHaveLength(1);
+
+    await card(page).getByRole('button', { name: 'Connect again' }).click();
+
+    await expect(card(page).locator('[data-message]')).toContainText('Done. Your board is running Blink.');
+    await expect(output(page)).toHaveText('HIGH');
+    expect(await fakeFlasher.calls()).toEqual([
+      'connect', 'load', 'write', 'reset', 'monitor 9600',
+      'disconnect',
+      'connect', 'load', 'write', 'reset', 'monitor 9600',
+    ]);
+  });
+
   test('Flash again returns to Connect, and the next flash prints its own lines', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['HIGH'] });
     await page.goto('/robomania/projects/blink/');

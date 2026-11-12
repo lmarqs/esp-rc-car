@@ -84,6 +84,15 @@ export function viewFor(state: SessionState, { title, next, baud, images, firmwa
         progress: state.kind === 'flashing' ? state.pct : 0,
       };
     case 'running':
+      if (state.lost) {
+        return {
+          step: 'running',
+          message: 'The board stopped talking to the page. Plug it back in and connect again.',
+          notice: true,
+          output: baud === undefined ? undefined : { label: `Board output, ${baud} baud`, lines: state.output },
+          actions: [{ label: 'Connect again', event: 'connect' }],
+        };
+      }
       return {
         step: 'running',
         message: ['Done.', `Your board is running ${title}.`, next].filter(Boolean).join(' '),

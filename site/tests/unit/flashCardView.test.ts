@@ -57,6 +57,18 @@ describe('viewFor', () => {
       expect(view.output).toEqual({ label: 'Board output, 9600 baud', lines: ['HIGH', 'LOW'] });
     });
 
+    it('says the board stopped talking, keeping the lines, and offers Connect again', () => {
+      const view = viewFor({ ...running, output: ['HIGH'], lost: true }, { ...context, baud: 9600 });
+
+      expect(view).toEqual({
+        step: 'running',
+        message: 'The board stopped talking to the page. Plug it back in and connect again.',
+        notice: true,
+        output: { label: 'Board output, 9600 baud', lines: ['HIGH'] },
+        actions: [{ label: 'Connect again', event: 'connect' }],
+      });
+    });
+
     it('shows no output for a project with no baud rate', () => {
       expect(viewFor(running, context).output).toBeUndefined();
     });

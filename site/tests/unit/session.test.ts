@@ -25,6 +25,8 @@ interface FakeFlasher extends Flasher {
   calls: string[];
   /** Prints lines on the monitor that the session started; fails the test when there is none. */
   print(...lines: string[]): void;
+  /** Ends the monitor the way a lost port does, or fails it with `error`. */
+  endMonitor(error?: unknown): void;
 }
 
 interface FakeFlasherOptions {
@@ -40,15 +42,19 @@ function fakeFlasher(options: FakeFlasherOptions = {}): FakeFlasher {
   const { chip = 'ESP32', progress = [10, 50, 100], failAt = {}, writeGate } = options;
   const calls: string[] = [];
   let onLines: ((lines: string[]) => void) | undefined;
+  let endMonitor = (_error?: unknown) => {};
   return {
     calls,
     print(...lines) {
       onLines!(lines);
     },
+    endMonitor: (error) => endMonitor(error),
     async monitor(baud, listener) {
       calls.push(`monitor ${baud}`);
       onLines = listener;
-      await new Promise<void>(() => {});
+      await new Promise<void>((resolve, reject) => {
+        endMonitor = (error) => (error === undefined ? resolve() : reject(error));
+      });
     },
     async connect() {
       calls.push('connect');
@@ -523,15 +529,67 @@ describe('a session with a baud rate', () => {
     expect(flasher.calls.filter((call) => call === 'monitor 9600')).toHaveLength(2);
   });
 
-  it('logs a monitor that fails and stays running', async () => {
+  it('marks the board lost, keeping its lines, when the monitor ends', async () => {
+    const { flasher, session } = await running();
+    flasher.print('HIGH');
+
+    flasher.endMonitor();
+
+    await vi.waitFor(() => expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: ['HIGH'], lost: true }));
+  });
+
+  it('logs a monitor that fails, and marks the board lost', async () => {
+    const { flasher, session } = await running();
     const failure = new Error('port lost');
-    const flasher = { ...fakeFlasher(), monitor: async () => Promise.reject(failure) };
-    const session = createSession({ flasher, manifest, sketch: 'servo', baud: 9600 });
+
+    flasher.endMonitor(failure);
+
+    await vi.waitFor(() => expect(session.state).toMatchObject({ kind: 'running', lost: true }));
+    expect(console.error).toHaveBeenCalledWith(failure);
+  });
+
+  it('does not mark the board lost when the visitor disconnected it', async () => {
+    const { flasher, session, states } = await running();
+    await session.send({ type: 'disconnect' });
+    const entered = states.length;
+
+    flasher.endMonitor();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(session.state).toEqual({ kind: 'idle', released: true });
+    expect(states).toHaveLength(entered);
+  });
+
+  it('connects again from a lost board: releases the port, then flashes with no old lines', async () => {
+    const { flasher, session } = await running();
+    flasher.print('old');
+    flasher.endMonitor();
+    await vi.waitFor(() => expect(session.state).toMatchObject({ lost: true }));
 
     await session.send({ type: 'connect' });
 
-    await vi.waitFor(() => expect(console.error).toHaveBeenCalledWith(failure));
-    expect(session.state.kind).toBe('running');
+    expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [] });
+    expect(flasher.calls.slice(-7)).toEqual([
+      'monitor 9600',
+      'disconnect',
+      'connect',
+      'load',
+      'write 4096,65536',
+      'reset',
+      'monitor 9600',
+    ]);
+  });
+
+  it('ignores the end of an old monitor once the board is flashed again', async () => {
+    const { flasher, session } = await running();
+    flasher.endMonitor();
+    await vi.waitFor(() => expect(session.state).toMatchObject({ lost: true }));
+    await session.send({ type: 'connect' });
+
+    flasher.print('new');
+
+    expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: ['new'] });
   });
 });
 

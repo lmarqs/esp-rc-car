@@ -9,8 +9,11 @@ export type SessionState =
   | { kind: 'connecting' }
   | { kind: 'settings'; chip: string }
   | { kind: 'flashing'; chip: string; pct: number }
-  /** `output` is the last lines the board printed, which stay empty when the session has no baud to read at. */
-  | { kind: 'running'; chip: string; output: readonly string[] }
+  /**
+   * `output` is the last lines the board printed, which stay empty when the session has no baud to read at. `lost`
+   * is set when the port stopped answering without the visitor disconnecting it.
+   */
+  | { kind: 'running'; chip: string; output: readonly string[]; lost?: true }
   | { kind: 'noPort' }
   | { kind: 'portBusy' }
   | { kind: 'noAnswer' }
@@ -19,7 +22,7 @@ export type SessionState =
   | { kind: 'dropped'; pct: number };
 
 export type SessionEvent =
-  /** From `idle` or a failure: asks for a port and connects to the board. */
+  /** From `idle`, a failure or a lost `running`: asks for a port and connects to the board. */
   | { type: 'connect' }
   /** From `settings`: downloads the image and flashes the board. */
   | { type: 'startFlash' }
@@ -156,13 +159,21 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
   /** Shows what the board prints for as long as the card stays on `running`. */
   function read(active: Flasher, speed: number) {
     const reader = ++reading;
+    const markLost = () => {
+      if (reader === reading && state.kind === 'running') {
+        enter({ ...state, lost: true });
+      }
+    };
     active
       .monitor(speed, (lines) => {
         if (reader === reading && state.kind === 'running') {
           enter({ ...state, output: keepLast(state.output, lines) });
         }
       })
-      .catch((error) => console.error(error));
+      .then(markLost, (error) => {
+        console.error(error);
+        markLost();
+      });
   }
 
   async function release(active: Flasher, released?: true) {
@@ -186,7 +197,11 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
       const { kind } = state;
       switch (event.type) {
         case 'connect':
-          if (kind === 'idle' || FAILURE_KINDS.has(kind)) {
+          if (state.kind === 'running' && state.lost) {
+            reading++;
+            await flasher.disconnect();
+            await connect(flasher);
+          } else if (kind === 'idle' || FAILURE_KINDS.has(kind)) {
             await connect(flasher);
           }
           break;
