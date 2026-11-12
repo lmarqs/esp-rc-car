@@ -184,9 +184,10 @@ to a step:
 - Flash again is a small button on the Live frame, which flashes the step the board runs; a flash the session
   refuses shows its notice over the live board.
 - The frame names its source with a tag, Simulated, Live or My board, and a sentence; its border is dashed for
-  simulated and waiting and solid green for live. The switch's dark pill slides between its halves, which are 104 px
-  wide each, and the My board half has a dot: hollow with no board, pulsing while the session works, green once a
-  board is connected. A browser without Web Serial has a note in the My board half's place.
+  simulated and waiting and solid green for live. The switch's dark pill slides between its halves. Wider than
+  480 px, each half is 104 px wide; at phone width, 480 px and narrower, each takes half the switch. The My board half
+  has a dot: hollow with no board, pulsing while the session works, green once a board is connected. A browser
+  without Web Serial has a note in the My board half's place.
 - The trace draws a dashed line where its source, the simulator or the board, took the pane.
 - A workbench opens on the step its address names, such as `#input`, else the first. On a board that the site kept
   connected from another page, it opens on My board, live, when the board runs that step.
