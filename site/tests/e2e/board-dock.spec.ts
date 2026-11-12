@@ -56,6 +56,40 @@ test.describe('the board dock', () => {
     await expect(page.getByRole('tab', { name: '2 input' })).toHaveAttribute('aria-selected', 'true');
   });
 
+  test('links to the step the board runs, which opens on My board, Live', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/input'] });
+    await page.goto('/robomania/learn/');
+    await dock(page).getByRole('button', { name: 'Connect board' }).click();
+
+    await dock(page).getByRole('link', { name: 'Blink · 2 input' }).click();
+
+    await expect(page.getByRole('tab', { name: '2 input' })).toHaveAttribute('aria-selected', 'true');
+    await expect(bench(page).locator('[data-pane-board]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(tagWord(page)).toHaveText('Live');
+    expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
+  });
+
+  test('opens on My board, Live, at an address that names the step the board runs', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/input'] });
+    await page.goto('/robomania/learn/');
+    await dock(page).getByRole('button', { name: 'Connect board' }).click();
+    await expect(dock(page)).toContainText('Blink · 2 input');
+
+    // A link anywhere on the site, which the router follows as the dock's.
+    await page.evaluate(() => {
+      const link = document.createElement('a');
+      link.href = '/robomania/projects/blink/#input';
+      link.textContent = 'Blink, input';
+      document.querySelector('main')!.append(link);
+    });
+    await page.getByRole('link', { name: 'Blink, input' }).click();
+
+    await expect(page).toHaveURL('/robomania/projects/blink/#input');
+    await expect(page.getByRole('tab', { name: '2 input' })).toHaveAttribute('aria-selected', 'true');
+    await expect(bench(page).locator('[data-pane-board]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(tagWord(page)).toHaveText('Live');
+  });
+
   test('opens a serial monitor with what the board printed, and sends it a line', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['sketch blink/input', 'HIGH', 'LOW'] });
     await page.goto('/robomania/learn/');

@@ -350,7 +350,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       sketch: paneProject.steps[0].key,
       baud: root.dataset.baud ? Number(root.dataset.baud) : DEFAULT_BAUD,
     });
-    let pane: PaneState<unknown> = initialPane(paneProject, session.state, board.record.heard);
+    let pane: PaneState<unknown> = initialPane(paneProject, session.state, board.record.heard, openingStep());
     const boardLink = mountBoardLink(root, {
       // The board keeps running its step; the simulator starts it again in the pane.
       simulator() {
@@ -406,9 +406,19 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       history.replaceState(history.state, '', `#${paneProject.ids[index]}`);
     }
 
-    /** Opens the step the address names, such as `#input`; an address that names no step leaves the step on screen. */
+    /** The index of the step the address names, such as `#input`, or `-1` when it names none. */
+    function addressedStep() {
+      return paneProject.ids.indexOf(decodeURIComponent(location.hash.slice(1)));
+    }
+
+    /** The step the page opens on: the one the address names, else the first. */
+    function openingStep() {
+      return Math.max(addressedStep(), 0);
+    }
+
+    /** Opens the step the address names; an address that names no step leaves the step on screen. */
     function followAddress() {
-      const index = paneProject.ids.indexOf(decodeURIComponent(location.hash.slice(1)));
+      const index = addressedStep();
       if (index >= 0 && index !== pane.selected) dispatch({ kind: 'tab', index });
     }
 
@@ -426,9 +436,8 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     // The router follows a link to a step of this page with pushState, which fires no hashchange.
     window.navigation?.addEventListener('currententrychange', followAddress, { signal });
 
-    openStep(0);
+    openStep(pane.selected);
     showLink();
     draw();
-    followAddress();
   }
 </script>

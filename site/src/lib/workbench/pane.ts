@@ -80,13 +80,18 @@ export type PaneEvent =
   | { readonly kind: 'refused'; readonly id: number; readonly pane: number; readonly text: string };
 
 /**
- * The pane as the page opens: the first step, simulated, unless the board, which the site keeps connected from page to
- * page, already said it runs it, as `heard`: then My board, following it.
+ * The pane as the page opens on the step at `selected` in rail order: simulated, unless the board, which the site keeps
+ * connected from page to page, already said it runs the step, as `heard`: then My board, following it.
  */
-export function initialPane<B>(project: PaneProject<B>, session: SessionState, heard?: string): PaneState<B> {
+export function initialPane<B>(
+  project: PaneProject<B>,
+  session: SessionState,
+  heard?: string,
+  selected = 0,
+): PaneState<B> {
   const flashed = project.steps[0].key;
-  const chosen = heard === flashed ? 'board' : 'simulator';
-  const opening = { session, selected: 0, chosen, mode: 'simulator', following: 0, simulation: 0 } as const;
+  const chosen = heard === project.steps[selected].key ? 'board' : 'simulator';
+  const opening = { session, selected, chosen, mode: 'simulator', following: 0, simulation: 0 } as const;
   return sync(project, { ...opening, flashed, heard });
 }
 

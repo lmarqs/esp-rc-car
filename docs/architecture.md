@@ -188,8 +188,8 @@ to a step:
   wide each, and the My board half has a dot: hollow with no board, pulsing while the session works, green once a
   board is connected. A browser without Web Serial has a note in the My board half's place.
 - The trace draws a dashed line where its source, the simulator or the board, took the pane.
-- A workbench opened on a board that the site kept connected from another page opens on My board, live, when the board
-  runs the first step.
+- A workbench opens on the step its address names, such as `#input`, else the first. On a board that the site kept
+  connected from another page, it opens on My board, live, when the board runs that step.
 
 The tests, in `site/tests`, run the card, the workbench and the dock in a browser against a fake serial port.
 
