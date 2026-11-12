@@ -83,4 +83,15 @@ describe('the record of a board left in flash mode', () => {
 
     expect(runs(record)).toBe('blink/simple');
   });
+
+  it('still holds it after a reconnect that failed, such as a closed port picker', () => {
+    let record = recordBoard(EMPTY_RECORD, { kind: 'flash', key: 'blink/simple' });
+    record = recordBoard(record, state(flashing, flashMode));
+    record = recordBoard(record, state(flashMode, { kind: 'connecting' }));
+    record = recordBoard(record, state({ kind: 'connecting' }, { kind: 'noPort', awaitingRun: true }));
+    record = recordBoard(record, state({ kind: 'noPort', awaitingRun: true }, { kind: 'connecting' }));
+    record = recordBoard(record, state({ kind: 'connecting' }, { kind: 'running', chip: 'ESP8266', output: [] }));
+
+    expect(runs(record)).toBe('blink/simple');
+  });
 });

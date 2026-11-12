@@ -1,4 +1,4 @@
-import { isBusy, type BoardLine, type SessionState } from '../flash';
+import { awaitsRun, isBusy, type BoardLine, type SessionState } from '../flash';
 import { sketchOf } from '../flash/lines';
 
 export { sketchOf };
@@ -71,7 +71,7 @@ function recordState(record: BoardRecord, from: SessionState, to: SessionState):
   if (to.kind === 'connecting') {
     // A new connection: the board restarts, and only what it says from now on counts. A board that came out of flash
     // mode runs what was flashed.
-    const flashed = from.kind === 'flashMode' ? { flashed: record.flashed } : {};
+    const flashed = awaitsRun(from) ? { flashed: record.flashed } : {};
     return { ...flashed, pending: record.pending, lines: [] };
   }
   if (to.kind === 'running') {
@@ -85,6 +85,8 @@ function recordState(record: BoardRecord, from: SessionState, to: SessionState):
     };
   }
   if (isBusy(to)) return record;
+  // A failed reconnect from flash mode: the board still runs what was flashed.
+  if (awaitsRun(to)) return { flashed: record.flashed, lines: [] };
   // Idle or a failure: no board, or none the site can say anything of.
   return EMPTY_RECORD;
 }

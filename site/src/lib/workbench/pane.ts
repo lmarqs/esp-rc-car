@@ -1,4 +1,4 @@
-import type { SessionState } from '../flash';
+import { awaitsRun, type SessionState } from '../flash';
 import type { BoardModel } from './board';
 import { sketchOf } from '../board/record';
 import { boardAction, boardStatus, paneMode, type BoardAction, type BoardStatus, type PaneMode } from './link';
@@ -115,7 +115,7 @@ export function reducePane<B>(project: PaneProject<B>, state: PaneState<B>, even
         // it say so.
         return sync(project, { ...state, session: event.state, heard: state.flashed, known: project.board.initial() });
       }
-      const connecting = event.state.kind === 'connecting' && state.session.kind !== 'flashMode';
+      const connecting = event.state.kind === 'connecting' && !awaitsRun(state.session);
       return sync(project, {
         ...state,
         session: event.state,

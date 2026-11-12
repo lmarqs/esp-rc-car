@@ -60,9 +60,10 @@ export type SessionState =
   | { kind: 'reading'; chip: string }
   /** Sending the settings to the board that runs the sketch, one `cfg` line at a time. */
   | { kind: 'applying'; chip: string }
-  | { kind: 'noPort' }
-  | { kind: 'portBusy' }
-  | { kind: 'noAnswer' }
+  /** `awaitingRun` is set when the visitor was reconnecting to a board that came out of flash mode. */
+  | { kind: 'noPort'; awaitingRun?: true }
+  | { kind: 'portBusy'; awaitingRun?: true }
+  | { kind: 'noAnswer'; awaitingRun?: true }
   | { kind: 'noImage'; chip: string; available: ChipFamily[] }
   | { kind: 'noDownload' }
   | { kind: 'dropped'; pct: number };
@@ -202,6 +203,14 @@ const SKETCH_START_MS = 3000;
 const RESETLESS_CHIP = 'ESP8266';
 
 /** Whether the session is talking to the board, so that leaving it would leave a write half-done. */
+/**
+ * Whether the board was written and has yet to be read: in flash mode, or after a failed reconnect from it. It runs what
+ * the site flashed, and said so before the port opened.
+ */
+export function awaitsRun(state: SessionState): boolean {
+  return state.kind === 'flashMode' || ('awaitingRun' in state && state.awaitingRun === true);
+}
+
 export function isBusy(state: SessionState): boolean {
   return BUSY_KINDS.has(state.kind);
 }
@@ -415,7 +424,7 @@ export function createSession(options: SessionOptions): FlashSession {
     } catch (error) {
       console.error(error);
       await active.disconnect();
-      enter({ kind: connectFailure(error) });
+      enter({ kind: connectFailure(error), awaitingRun: true });
       return;
     }
     awaitingRun = undefined;

@@ -1571,7 +1571,7 @@ describe('an ESP8266 after a write', () => {
       await vi.advanceTimersByTimeAsync(3000);
       await done;
       await session.send({ type: 'connect' });
-      expect(session.state).toEqual({ kind: 'noPort' });
+      expect(session.state).toEqual({ kind: 'noPort', awaitingRun: true });
 
       await session.send({ type: 'connect' });
 

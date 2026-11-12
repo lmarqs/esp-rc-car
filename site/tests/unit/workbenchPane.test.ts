@@ -214,6 +214,22 @@ describe('a board left in flash mode after a flash', () => {
     expect(paneStatus(blink, state)).toEqual({ kind: 'live' });
   });
 
+  it('is live on the written step after a reconnect that failed first', () => {
+    const noPort: PaneEvent = { kind: 'session', state: { kind: 'noPort', awaitingRun: true } };
+    const state = after(
+      { kind: 'session', state: esp8266 },
+      tab(INPUT),
+      { kind: 'press', action: 'flash' },
+      flashMode,
+      connecting,
+      noPort,
+      connecting,
+      { kind: 'session', state: esp8266 },
+    );
+
+    expect(paneStatus(blink, state)).toEqual({ kind: 'live' });
+  });
+
   it('offers to connect while the board waits in flash mode', () => {
     const state = after({ kind: 'session', state: esp8266 }, { kind: 'press', action: 'flash' }, flashMode);
 
