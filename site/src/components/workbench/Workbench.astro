@@ -424,8 +424,9 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
   .live { display: inline-block; min-width: calc(4.5ch + 10px); padding: 0 5px; text-align: center; background: var(--yellow); border-radius: 6px; font-weight: 700; }
 
   .board { padding: 14px; display: grid; gap: 10px; align-content: start; min-width: 0; }
-  /* Side by side, the board stays in view while the visitor reads down a long sketch. */
-  @media (min-width: 821px) { .board { position: sticky; top: 0; align-self: start; } }
+  /* Side by side, the board stays in view while the visitor reads down a long sketch; in a short window it would
+     cover the window, so it scrolls with the page. */
+  @media (min-width: 821px) and (min-height: 600px) { .board { position: sticky; top: 0; align-self: start; } }
   /* The message takes the picture's place and its height, so the reports below do not move. */
   .stage { display: grid; }
   .stage > * { grid-area: 1 / 1; }

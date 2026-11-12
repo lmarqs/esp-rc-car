@@ -741,6 +741,13 @@ test.describe('the Blink workbench', () => {
     expect((await bench(page).locator('.panes').boundingBox())!.y).toBeLessThan(-100);
   });
 
+  test('lets the board scroll with the page in a wide window too short to hold it', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 560 });
+    await expect(bench(page).locator('.board')).toHaveCSS('position', 'static');
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await expect(bench(page).locator('.board')).toHaveCSS('position', 'sticky');
+  });
+
   test('stacks the panes code first at phone width with no sideways scroll', async ({ page }) => {
     await page.setViewportSize({ width: 400, height: 800 });
     await tab(page, '4 commands').click();
