@@ -1,0 +1,29 @@
+[
+  {
+    "key": "ap_ssid",
+    "label": "Hotspot name",
+    "type": "text",
+    "default": "web-relay",
+    "help": "The name of the WiFi network the board opens.",
+    "minLength": 1,
+    "maxLength": 32
+  },
+  {
+    "key": "ap_password",
+    "label": "Hotspot password",
+    "type": "password",
+    "default": "web-relay-1234",
+    "help": "Whoever joins the hotspot can switch the lamp.",
+    "minLength": 8,
+    "maxLength": 63
+  },
+  {
+    "key": "ota_password",
+    "label": "Update password",
+    "type": "password",
+    "default": "web-relay-1234",
+    "help": "Asked for when a new sketch is uploaded over the hotspot.",
+    "minLength": 8,
+    "maxLength": 63
+  }
+]

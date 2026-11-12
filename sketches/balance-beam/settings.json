@@ -1,0 +1,73 @@
+[
+  {
+    "key": "ap_ssid",
+    "label": "Hotspot name",
+    "type": "text",
+    "default": "balance-beam",
+    "help": "The name of the WiFi network the board opens.",
+    "minLength": 1,
+    "maxLength": 32
+  },
+  {
+    "key": "ap_password",
+    "label": "Hotspot password",
+    "type": "password",
+    "default": "thebalancebot",
+    "help": "Whoever joins the hotspot can arm the motors.",
+    "minLength": 8,
+    "maxLength": 63
+  },
+  {
+    "key": "angle_offset_deg",
+    "label": "Angle offset (degrees)",
+    "type": "number",
+    "default": 0,
+    "help": "What the sensor reads when the beam is level, which depends on how it is mounted.",
+    "min": -30,
+    "max": 30,
+    "step": 0.1
+  },
+  {
+    "key": "throttle_min",
+    "label": "Throttle min",
+    "type": "number",
+    "default": 0,
+    "help": "The lowest throttle, as a fraction of the ESC's range, where the motors just keep spinning.",
+    "min": 0,
+    "max": 1,
+    "step": 0.001,
+    "group": "throttle"
+  },
+  {
+    "key": "throttle_mid",
+    "label": "Throttle mid",
+    "type": "number",
+    "default": 0,
+    "help": "Where both motors rest while the beam is level. At least the min.",
+    "min": 0,
+    "max": 1,
+    "step": 0.001,
+    "group": "throttle"
+  },
+  {
+    "key": "throttle_max",
+    "label": "Throttle max",
+    "type": "number",
+    "default": 0,
+    "help": "The highest throttle a motor gets. At least the mid. With all three at 0 no motor spins.",
+    "min": 0,
+    "max": 1,
+    "step": 0.001,
+    "group": "throttle"
+  },
+  {
+    "key": "tilt_limit_deg",
+    "label": "Tilt limit (degrees)",
+    "type": "number",
+    "default": 45,
+    "help": "Past this tilt, either way, the motors stop and the board disarms.",
+    "min": 1,
+    "max": 90,
+    "step": 1
+  }
+]
