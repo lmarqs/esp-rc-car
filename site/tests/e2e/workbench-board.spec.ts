@@ -5,7 +5,10 @@ const BLINK = '/robomania/projects/blink/';
 const bench = (page: Page) => page.getByRole('region', { name: 'Workbench' });
 const tab = (page: Page, name: string) => bench(page).getByRole('tab', { name });
 const cell = (page: Page) => bench(page).locator('[data-board-cell]');
-const status = (page: Page) => bench(page).locator('[data-board-status]');
+/** The word the Board cell shows. */
+const status = (page: Page) => bench(page).locator('[data-board-word]');
+/** The status line: the dot, the word and, for a screen reader only, the sentence that names the board's sketch. */
+const statusLine = (page: Page) => bench(page).locator('[data-board-status]');
 const boardButton = (page: Page) => bench(page).locator('[data-board-action]');
 const message = (page: Page) => bench(page).locator('[data-board-message]');
 const picture = (page: Page) => bench(page).locator('[data-picture]');
@@ -20,7 +23,7 @@ const CORAL = 'rgb(226, 96, 58)';
 /** Waits for the status dot and the chip's centre to show `colour`; the centre fades to it. */
 async function expectColour(page: Page, colour: { dot: string; core: string }) {
   await expect(cell(page).locator('.core')).toHaveCSS('fill', colour.core);
-  expect(await status(page).evaluate((element) => getComputedStyle(element, '::before').backgroundColor)).toBe(colour.dot);
+  expect(await statusLine(page).evaluate((element) => getComputedStyle(element, '::before').backgroundColor)).toBe(colour.dot);
 }
 
 /** The icon the button shows: `plug` or `bolt`. */
@@ -41,7 +44,7 @@ test.describe('the Board cell', () => {
 
     await expect(cell(page)).toContainText('Board');
     await expect(status(page)).toHaveText('Simulated');
-    await expect(status(page)).toHaveAttribute('title', 'Running in the browser');
+    await expect(statusLine(page)).toHaveAttribute('title', 'Running in the browser');
     await expectColour(page, { dot: GREY, core: GREY_CORE });
     await expect(boardButton(page)).toHaveAccessibleName('Connect');
     expect(await icon(page)).toBe('plug');
@@ -56,7 +59,7 @@ test.describe('the Board cell', () => {
 
     await expect(status(page)).toHaveText('Live');
     await expectColour(page, { dot: GREEN, core: GREEN });
-    await expect(status(page)).toHaveCSS('color', 'rgb(31, 122, 81)');
+    await expect(statusLine(page)).toHaveCSS('color', 'rgb(31, 122, 81)');
     await expect(boardButton(page)).toHaveAccessibleName('Flash again');
     expect(await icon(page)).toBe('bolt');
     // The workbench connects by restarting the board into what it holds: nothing is downloaded or written.
@@ -72,12 +75,29 @@ test.describe('the Board cell', () => {
 
     await connect(page);
 
-    await expect(status(page)).toHaveText('Runs blink/commands');
-    await expect(status(page)).toHaveAttribute('title', 'Your board runs blink/commands');
+    await expect(status(page)).toHaveText('Runs step 4');
+    await expect(statusLine(page)).toHaveAttribute('title', 'Your board runs blink/commands');
+    await expect(statusLine(page)).toHaveText('Runs step 4: Your board runs blink/commands');
     await expectColour(page, { dot: CORAL, core: CORAL });
-    await expect(status(page)).toHaveCSS('color', 'rgb(184, 67, 31)');
+    await expect(statusLine(page)).toHaveCSS('color', 'rgb(184, 67, 31)');
     await expect(boardButton(page)).toHaveAccessibleName('Flash step');
     expect(await icon(page)).toBe('bolt');
+  });
+
+  test('reads Other sketch in coral, with the key for a screen reader, when the board runs a sketch from outside the project', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ lines: ['sketch servo/sweep'] });
+    await page.goto(BLINK);
+
+    await connect(page);
+
+    await expect(status(page)).toHaveText('Other sketch');
+    await expect(statusLine(page)).toHaveAttribute('title', 'Your board runs servo/sweep');
+    await expect(statusLine(page)).toHaveText('Other sketch: Your board runs servo/sweep');
+    await expectColour(page, { dot: CORAL, core: CORAL });
+    await expect(boardButton(page)).toHaveAccessibleName('Flash step');
   });
 
   test('stays Simulated and offers Flash step on a board that has not named its sketch', async ({ page, fakeFlasher }) => {
@@ -113,7 +133,7 @@ test.describe('flashing from the workbench', () => {
     await expect(status(page)).toHaveText('Live');
 
     await tab(page, '2 input').click();
-    await expect(status(page)).toHaveText('Runs blink/simple');
+    await expect(status(page)).toHaveText('Runs step 1');
     await boardButton(page).click();
 
     await expect(status(page)).toHaveText('Live');
@@ -168,7 +188,7 @@ test.describe('flashing from the workbench', () => {
     await fakeFlasher.install({ lines: ['sketch blink/timer'] });
     await page.goto(BLINK);
     await connect(page);
-    await expect(status(page)).toHaveText('Runs blink/timer');
+    await expect(status(page)).toHaveText('Runs step 3');
 
     const seen: [string, string][] = [];
     for (const name of ['2 input', '3 timer', '4 commands', '1 simple', '3 timer']) {
@@ -177,10 +197,10 @@ test.describe('flashing from the workbench', () => {
     }
 
     expect(seen).toEqual([
-      ['Runs blink/timer', 'Flash step'],
+      ['Runs step 3', 'Flash step'],
       ['Live', 'Flash again'],
-      ['Runs blink/timer', 'Flash step'],
-      ['Runs blink/timer', 'Flash step'],
+      ['Runs step 3', 'Flash step'],
+      ['Runs step 3', 'Flash step'],
       ['Live', 'Flash again'],
     ]);
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
@@ -233,7 +253,7 @@ test.describe('flashing from the workbench', () => {
 
     await expect(message(page)).toHaveText('This board is an ESP32-C3. blink/input has images for: ESP32.');
     await expect(picture(page)).toBeHidden();
-    await expect(status(page)).toHaveText('Runs blink/simple');
+    await expect(status(page)).toHaveText('Runs step 1');
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
 
     await tab(page, '3 timer').click();
@@ -286,6 +306,8 @@ test.describe('the rail', () => {
   type Box = { x: number; y: number; width: number; height: number };
   const box = async (locator: Locator): Promise<Box> => (await locator.boundingBox())!;
   const middle = (b: Box) => b.y + b.height / 2;
+  /** Whether the element shows its whole text, with no ellipsis. */
+  const fits = (locator: Locator) => locator.evaluate((element) => element.scrollWidth <= element.clientWidth);
 
   async function railBoxes(page: Page) {
     return {
@@ -313,11 +335,19 @@ test.describe('the rail', () => {
       },
     },
     {
-      name: 'Runs, with the longest key',
+      name: 'Runs step 4',
       options: { lines: ['sketch blink/commands'] },
       reach: async (page) => {
         await connect(page);
-        await expect(status(page)).toHaveText('Runs blink/commands');
+        await expect(status(page)).toHaveText('Runs step 4');
+      },
+    },
+    {
+      name: 'Other sketch',
+      options: { lines: ['sketch servo/sweep'] },
+      reach: async (page) => {
+        await connect(page);
+        await expect(status(page)).toHaveText('Other sketch');
       },
     },
     {
@@ -341,10 +371,12 @@ test.describe('the rail', () => {
       await page.goto(BLINK);
       await expect(status(page)).toHaveText('Simulated');
       const simulated = await railBoxes(page);
+      expect(await fits(statusLine(page))).toBe(true);
 
       await state.reach(page);
 
       expect(await railBoxes(page)).toEqual(simulated);
+      expect(await fits(statusLine(page))).toBe(true);
     });
   }
 

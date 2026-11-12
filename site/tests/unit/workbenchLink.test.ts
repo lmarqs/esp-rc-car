@@ -29,26 +29,37 @@ describe('isConnected', () => {
   });
 });
 
+const STEPS = ['blink/simple', 'blink/input', 'blink/timer', 'blink/commands'];
+
 describe('boardStatus', () => {
   it('is Simulated before a board is connected, whatever was heard', () => {
-    expect(boardStatus({ kind: 'idle' }, 'blink/simple', 'blink/simple')).toEqual({ kind: 'simulated' });
-    expect(boardStatus({ kind: 'unsupported' }, undefined, 'blink/simple')).toEqual({ kind: 'simulated' });
+    expect(boardStatus({ kind: 'idle' }, 'blink/simple', 'blink/simple', STEPS)).toEqual({ kind: 'simulated' });
+    expect(boardStatus({ kind: 'unsupported' }, undefined, 'blink/simple', STEPS)).toEqual({ kind: 'simulated' });
   });
 
   it('is Simulated on a connected board that has not named its sketch yet', () => {
-    expect(boardStatus(running, undefined, 'blink/simple')).toEqual({ kind: 'simulated' });
+    expect(boardStatus(running, undefined, 'blink/simple', STEPS)).toEqual({ kind: 'simulated' });
   });
 
   it('is Live when the board runs the selected step', () => {
-    expect(boardStatus(running, 'blink/input', 'blink/input')).toEqual({ kind: 'live' });
+    expect(boardStatus(running, 'blink/input', 'blink/input', STEPS)).toEqual({ kind: 'live' });
   });
 
-  it('names the key when the board runs another sketch', () => {
-    expect(boardStatus(running, 'blink/simple', 'blink/input')).toEqual({ kind: 'other', key: 'blink/simple' });
+  it('numbers the step as the rail does when the board runs another step of the project', () => {
+    expect(boardStatus(running, 'blink/commands', 'blink/input', STEPS)).toEqual({
+      kind: 'step',
+      key: 'blink/commands',
+      number: 4,
+    });
+    expect(boardStatus(running, 'blink/simple', 'blink/input', STEPS)).toEqual({ kind: 'step', key: 'blink/simple', number: 1 });
+  });
+
+  it('keeps the key of a sketch from outside the project', () => {
+    expect(boardStatus(running, 'servo/sweep', 'blink/input', STEPS)).toEqual({ kind: 'sketch', key: 'servo/sweep' });
   });
 
   it('is Simulated again once the board is lost', () => {
-    expect(boardStatus(lost, 'blink/input', 'blink/input')).toEqual({ kind: 'simulated' });
+    expect(boardStatus(lost, 'blink/input', 'blink/input', STEPS)).toEqual({ kind: 'simulated' });
   });
 });
 

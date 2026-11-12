@@ -94,7 +94,9 @@ const needsBrowser = wording.UNSUPPORTED;
           <rect class="core" x="9" y="9" width="6" height="6" rx="1" />
         </svg>
         <span class="name">Board</span>
-        <small class="status" aria-live="polite" title={simulated.title} data-board-status>{simulated.word}</small>
+        <small class="status" aria-live="polite" title={simulated.title} data-board-status>
+          <span data-board-word>{simulated.word}</span><span class="sr" data-board-sentence>: {simulated.title}</span>
+        </small>
       </span>
       {
         flashable && (
@@ -329,20 +331,23 @@ const needsBrowser = wording.UNSUPPORTED;
 
   /* A fixed width, so no status or button label moves the tabs or the button. */
   .railend { flex: 0 0 310px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; min-width: 0; }
-  .cell { display: grid; grid-template-columns: 30px minmax(0, 1fr); column-gap: 10px; row-gap: 1px; align-items: center; min-width: 0; flex: 1 1 0; overflow: hidden; }
+  /* Gaps trimmed from the mockup's so the longest status, Other sketch, fits without an ellipsis. */
+  .cell { display: grid; grid-template-columns: 30px minmax(0, 1fr); column-gap: 6px; row-gap: 1px; align-items: center; min-width: 0; flex: 1 1 0; overflow: hidden; }
   .cpu { grid-row: 1 / span 2; width: 30px; height: 30px; }
   .cpu .pins { fill: none; stroke: var(--ink); stroke-width: 1.6; stroke-linecap: round; }
   .cpu .body { fill: var(--card); stroke: var(--ink); stroke-width: 1.8; }
   .cpu .core { fill: var(--quiet-light); transition: fill .2s; }
   .cell[data-status="live"] .core { fill: var(--green); }
-  .cell[data-status="other"] .core { fill: var(--coral); }
+  .cell:is([data-status="step"], [data-status="sketch"]) .core { fill: var(--coral); }
   .name { display: block; font-family: var(--mono); font-weight: 700; font-size: 15px; line-height: 1.2; }
-  .status { display: block; padding-left: 3px; font-size: 12px; line-height: 1.3; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .status::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: var(--quiet); }
+  .status { position: relative; display: block; padding-left: 2px; font-size: 12px; line-height: 1.3; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .status::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 4px; border-radius: 50%; background: var(--quiet); }
   .cell[data-status="live"] .status { color: var(--green-text); }
   .cell[data-status="live"] .status::before { background: var(--green); box-shadow: 0 0 0 3px var(--green-halo); }
-  .cell[data-status="other"] .status { color: var(--coral-text); }
-  .cell[data-status="other"] .status::before { background: var(--coral); }
+  .cell:is([data-status="step"], [data-status="sketch"]) .status { color: var(--coral-text); }
+  .cell:is([data-status="step"], [data-status="sketch"]) .status::before { background: var(--coral); }
+  /* Read by a screen reader, not shown: the cell's width has room for the short word only. */
+  .sr { position: absolute; top: 0; left: 0; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   /* As wide as Flash again, its longest word, so the button keeps its width. */
   .connbtn { flex: none; width: 138px; height: 38px; margin: 0 0 2px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; font: inherit; font-size: 14px; font-weight: 700; line-height: 1.5; white-space: nowrap; color: var(--card); background: var(--coral); border: 2px solid var(--ink); border-radius: 999px; box-shadow: 0 3px 0 var(--ink); cursor: pointer; transition: transform .06s, box-shadow .06s; }
   .connbtn:hover:not([aria-disabled="true"]) { background: var(--coral-hover); }
@@ -535,6 +540,8 @@ const needsBrowser = wording.UNSUPPORTED;
     };
     const cell = root.querySelector<HTMLElement>('[data-board-cell]')!;
     const statusText = root.querySelector<HTMLElement>('[data-board-status]')!;
+    const statusWord = root.querySelector<HTMLElement>('[data-board-word]')!;
+    const statusSentence = root.querySelector<HTMLElement>('[data-board-sentence]')!;
     const actionButton = root.querySelector<HTMLButtonElement>('[data-board-action]');
     const actionLabel = root.querySelector<HTMLElement>('[data-board-action-label]');
     const needsBrowser = root.querySelector<HTMLElement>('[data-needs-browser]')!;
@@ -793,6 +800,7 @@ const needsBrowser = wording.UNSUPPORTED;
       sketch: steps[0].key,
       baud: root.dataset.baud ? Number(root.dataset.baud) : undefined,
     });
+    const stepKeys = steps.map((step) => step.key);
     // The sketch the connected board said it runs; unknown again from each connection or flash until it says.
     let heard: string | undefined;
     let pressed: BoardAction | undefined;
@@ -803,10 +811,12 @@ const needsBrowser = wording.UNSUPPORTED;
     function showLink() {
       const state = session.state;
       const key = steps[selected].key;
-      const status = boardStatus(state, heard, key);
+      const status = boardStatus(state, heard, key, stepKeys);
       const text = boardStatusText(status);
       cell.dataset.status = status.kind;
-      if (statusText.textContent !== text.word) statusText.textContent = text.word;
+      // Set only on a change, since the status is a live region.
+      if (statusWord.textContent !== text.word) statusWord.textContent = text.word;
+      if (statusSentence.textContent !== `: ${text.title}`) statusSentence.textContent = `: ${text.title}`;
       statusText.title = text.title;
 
       const action = boardAction(state, heard, key, pressed);

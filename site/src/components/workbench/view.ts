@@ -140,15 +140,20 @@ export function changedRows(
     .map((row) => row.name);
 }
 
-/** What the Board cell reads for a status, and the longer sentence its tooltip gives, which an ellipsis may cut. */
+/**
+ * What the Board cell reads for a status, short enough for its fixed width, and the sentence that names the board's
+ * sketch in full, for the tooltip and for a screen reader.
+ */
 export function boardStatusText(status: BoardStatus): { readonly word: string; readonly title: string } {
   switch (status.kind) {
     case 'simulated':
       return { word: 'Simulated', title: 'Running in the browser' };
     case 'live':
       return { word: 'Live', title: 'Your board runs this step' };
-    case 'other':
-      return { word: `Runs ${status.key}`, title: `Your board runs ${status.key}` };
+    case 'step':
+      return { word: `Runs step ${status.number}`, title: `Your board runs ${status.key}` };
+    case 'sketch':
+      return { word: 'Other sketch', title: `Your board runs ${status.key}` };
   }
 }
 

@@ -2,9 +2,14 @@ import { isBusy, type SessionState } from '../flash';
 
 /**
  * Which board the workbench's pictures follow, as the Board cell names it: the simulator, the visitor's board running
- * the selected step, or the visitor's board running another sketch, named by its key.
+ * the selected step, another step of the project, numbered from 1 as the rail numbers it, or a sketch from outside
+ * the project. `key` is the key the board printed.
  */
-export type BoardStatus = { kind: 'simulated' } | { kind: 'live' } | { kind: 'other'; key: string };
+export type BoardStatus =
+  | { kind: 'simulated' }
+  | { kind: 'live' }
+  | { kind: 'step'; key: string; number: number }
+  | { kind: 'sketch'; key: string };
 
 /** What the Board cell's button does, and what it shows for it. */
 export interface BoardAction {
@@ -27,12 +32,19 @@ export function isConnected(state: SessionState): boolean {
 }
 
 /**
- * Which board the pictures follow, given the key the connected board last printed, `heard`, and the selected step's
- * key. Until the board names its sketch, the page goes on simulating.
+ * Which board the pictures follow, given the key the connected board last printed, `heard`, the selected step's key
+ * and the keys of the project's steps in rail order. Until the board names its sketch, the page goes on simulating.
  */
-export function boardStatus(state: SessionState, heard: string | undefined, selected: string): BoardStatus {
+export function boardStatus(
+  state: SessionState,
+  heard: string | undefined,
+  selected: string,
+  steps: readonly string[],
+): BoardStatus {
   if (!isConnected(state) || heard === undefined) return { kind: 'simulated' };
-  return heard === selected ? { kind: 'live' } : { kind: 'other', key: heard };
+  if (heard === selected) return { kind: 'live' };
+  const index = steps.indexOf(heard);
+  return index < 0 ? { kind: 'sketch', key: heard } : { kind: 'step', key: heard, number: index + 1 };
 }
 
 /**
