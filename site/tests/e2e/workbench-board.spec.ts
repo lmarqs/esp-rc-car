@@ -282,7 +282,9 @@ test.describe('flashing from the workbench', () => {
 
     await boardButton(page).click();
 
-    await expect(message(page)).toHaveText('This board is an ESP32-C3. blink/input has images for: ESP32.');
+    await expect(message(page)).toHaveText(
+      'This board is an ESP32-C3. blink/input has images for: ESP32. Connect an ESP32, or pick another step.',
+    );
     await expect(picture(page)).toBeHidden();
     await expect(status(page)).toHaveText('Runs step 1');
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
@@ -292,6 +294,22 @@ test.describe('flashing from the workbench', () => {
     await expect(picture(page)).toBeVisible();
     await expect(message(page)).toBeHidden();
   });
+
+  for (const width of [821, 400]) {
+    test(`keeps the reports in place when the no-image message shows at ${width} px`, async ({ page, fakeFlasher }) => {
+      await fakeFlasher.install({ chip: 'ESP32-C3', lines: ['sketch blink/simple'] });
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(BLINK);
+      await connect(page);
+      await tab(page, '2 input').click();
+      const scopeBefore = await bench(page).locator('.scope').boundingBox();
+
+      await boardButton(page).click();
+
+      await expect(message(page)).toContainText('pick another step');
+      expect(await bench(page).locator('.scope').boundingBox()).toEqual(scopeBefore);
+    });
+  }
 
   test('in a browser without Web Serial, simulates and shows the browser note in place of the button', async ({ page }) => {
     await page.addInitScript(() => {

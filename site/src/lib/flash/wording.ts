@@ -27,6 +27,11 @@ export function noImage(state: Extract<SessionState, { kind: 'noImage' }>, title
   return `This board is an ${state.chip}. ${title} has images for: ${state.available.join(', ')}.`;
 }
 
+/** What to do when a step has no image for the board: use a board it has images for, `available`, or another step. */
+export function otherBoardOrStep(available: readonly string[]): string {
+  return available.length === 0 ? 'Pick another step.' : `Connect an ${available.join(' or ')}, or pick another step.`;
+}
+
 /** The flash dropped part way; the caller adds what to do. */
 export function droppedAt(pct: number): string {
   return `The connection dropped at ${pct}%. Nothing is broken.`;

@@ -197,7 +197,13 @@ describe('boardMessage', () => {
       });
     }
     expect(boardMessage({ kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] }, 'blink/input', true)?.text).toBe(
-      'This board is an ESP8266. blink/input has images for: ESP32.',
+      'This board is an ESP8266. blink/input has images for: ESP32. Connect an ESP32, or pick another step.',
+    );
+    expect(boardMessage({ kind: 'noImage', chip: 'ESP8266', available: ['ESP32', 'ESP32-C3'] }, 'blink/input', true)?.text).toBe(
+      'This board is an ESP8266. blink/input has images for: ESP32, ESP32-C3. Connect an ESP32 or ESP32-C3, or pick another step.',
+    );
+    expect(boardMessage({ kind: 'noImage', chip: 'ESP8266', available: [] }, 'blink/input', true)?.text).toMatch(
+      /\. Pick another step\.$/,
     );
   });
 
@@ -215,7 +221,7 @@ describe('boardMessage', () => {
   it('shows a refused flash until the page drops it', () => {
     const refused: SessionState = { ...running, flashRefused: { key: 'blink/timer', available: ['ESP32'] } };
     expect(boardMessage(refused, 'blink/input', true)).toEqual({
-      text: 'This board is an ESP32. blink/timer has images for: ESP32.',
+      text: 'This board is an ESP32. blink/timer has images for: ESP32. Connect an ESP32, or pick another step.',
       notice: true,
     });
     expect(boardMessage(refused, 'blink/input', false)).toBeUndefined();

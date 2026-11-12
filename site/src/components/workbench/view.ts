@@ -274,7 +274,7 @@ export function boardMessage(state: SessionState, key: string, showRefusal: bool
     case 'noAnswer':
       return notice(wording.NO_ANSWER);
     case 'noImage':
-      return notice(wording.noImage(state, key));
+      return notice(`${wording.noImage(state, key)} ${wording.otherBoardOrStep(state.available)}`);
     case 'noDownload':
       return notice(`${wording.NO_DOWNLOAD}. ${RECONNECT}`);
     case 'dropped':
@@ -283,7 +283,8 @@ export function boardMessage(state: SessionState, key: string, showRefusal: bool
       if (state.lost) return notice(wording.LOST);
       if (state.flashRefused !== undefined && showRefusal) {
         const { key: refused, available } = state.flashRefused;
-        return notice(wording.noImage({ kind: 'noImage', chip: state.chip, available }, refused));
+        const why = wording.noImage({ kind: 'noImage', chip: state.chip, available }, refused);
+        return notice(`${why} ${wording.otherBoardOrStep(available)}`);
       }
       return undefined;
     default:
