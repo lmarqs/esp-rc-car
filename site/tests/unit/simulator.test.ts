@@ -164,6 +164,29 @@ describe('simulator runner', () => {
     runner.dispose();
   });
 
+  it('has a cost of 0 once the program ended', () => {
+    const runner = createRunner<null>({ init: () => null, *program() { yield waitOp(WAIT, 1000); } });
+    expect(runner.view().cost).toBe(1000);
+    runner.step();
+    expect(runner.view()).toMatchObject({ status: 'ended', cost: 0, duration: 0 });
+    runner.dispose();
+  });
+
+  it('has a cost of 0 and stops in error when the cost of the line about to run throws', () => {
+    const runner = createRunner<null>({
+      init: () => null,
+      *program() {
+        yield op(PASS, undefined, () => {
+          throw new Error('no clock');
+        });
+      },
+    });
+    const view = runner.view();
+    expect(view).toMatchObject({ status: 'error', cost: 0, duration: 0, line: PASS });
+    expect((view.error as Error).message).toBe('no clock');
+    runner.dispose();
+  });
+
   it('makes each line last at least 500 ms in slow mode, and a wait its full length', () => {
     const runner = createRunner(echo, { slow: true });
     runner.run();
