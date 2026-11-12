@@ -37,6 +37,8 @@
 </style>
 
 <script>
+  import { onEveryPage } from '../../lib/page';
+
   // A port of sketches/omnidirectional/wheel_mixer.cpp, so the bars show what the firmware computes.
   const STICK_MAX = 512;
   const DEAD_ZONE = 62;
@@ -66,60 +68,62 @@
     return r.values.map((rv, i) => Math.trunc((rv * r.magnitude + t.values[i] * t.magnitude) / total));
   }
 
-  for (const root of document.querySelectorAll<HTMLElement>('.omni')) {
-    const sticks: Record<string, Stick> = { rotation: { x: 0, y: 0 }, translation: { x: 0, y: 0 } };
-    const bars = [...root.querySelectorAll<HTMLElement>('.bar')];
-    const status = root.querySelector('.status')!;
-    let quietUntil = 0;
-    let lastCommand = performance.now();
-    let held = [0, 0, 0, 0];
+  onEveryPage((signal) => {
+    for (const root of document.querySelectorAll<HTMLElement>('.omni')) {
+      const sticks: Record<string, Stick> = { rotation: { x: 0, y: 0 }, translation: { x: 0, y: 0 } };
+      const bars = [...root.querySelectorAll<HTMLElement>('.bar')];
+      const status = root.querySelector('.status')!;
+      let quietUntil = 0;
+      let lastCommand = performance.now();
+      let held = [0, 0, 0, 0];
 
-    function render() {
-      const now = performance.now();
-      if (now >= quietUntil) lastCommand = now;
-      const stale = now - lastCommand > TIMEOUT_MS;
-      // While quiet, the firmware keeps following the last command it received until it goes stale.
-      if (now >= quietUntil) held = mixWheels(sticks.rotation, sticks.translation);
-      const speeds = stale ? [0, 0, 0, 0] : held;
-      bars.forEach((bar, i) => {
-        const v = speeds[i];
-        const fill = bar.querySelector('i')!;
-        const pct = (Math.abs(v) / STICK_MAX) * 50;
-        fill.style.left = v >= 0 ? '50%' : `${50 - pct}%`;
-        fill.style.width = `${pct}%`;
-        fill.style.background = v >= 0 ? 'var(--green)' : 'var(--coral)';
-        // The firmware caps a full-speed wheel at 80% duty.
-        bar.querySelector('code')!.textContent = `${Math.round((Math.abs(v) / STICK_MAX) * 80)}%`;
-      });
-      status.textContent = now < quietUntil
-        ? stale ? 'No command for over 500 ms: every motor stopped.' : 'Quiet… the robot keeps the last command for 500 ms.'
-        : '';
-      requestAnimationFrame(render);
-    }
+      function render() {
+        const now = performance.now();
+        if (now >= quietUntil) lastCommand = now;
+        const stale = now - lastCommand > TIMEOUT_MS;
+        // While quiet, the firmware keeps following the last command it received until it goes stale.
+        if (now >= quietUntil) held = mixWheels(sticks.rotation, sticks.translation);
+        const speeds = stale ? [0, 0, 0, 0] : held;
+        bars.forEach((bar, i) => {
+          const v = speeds[i];
+          const fill = bar.querySelector('i')!;
+          const pct = (Math.abs(v) / STICK_MAX) * 50;
+          fill.style.left = v >= 0 ? '50%' : `${50 - pct}%`;
+          fill.style.width = `${pct}%`;
+          fill.style.background = v >= 0 ? 'var(--green)' : 'var(--coral)';
+          // The firmware caps a full-speed wheel at 80% duty.
+          bar.querySelector('code')!.textContent = `${Math.round((Math.abs(v) / STICK_MAX) * 80)}%`;
+        });
+        status.textContent = now < quietUntil
+          ? stale ? 'No command for over 500 ms: every motor stopped.' : 'Quiet… the robot keeps the last command for 500 ms.'
+          : '';
+        if (!signal.aborted) requestAnimationFrame(render);
+      }
 
-    for (const el of root.querySelectorAll<HTMLElement>('.stick')) {
-      const knob = el.querySelector<HTMLElement>('.knob')!;
-      const stick = sticks[el.dataset.stick!];
-      let drag = false;
-      const move = (e: PointerEvent) => {
-        const r = el.getBoundingClientRect();
-        const R = r.width / 2 - 20;
-        let dx = e.clientX - r.left - r.width / 2;
-        let dy = e.clientY - r.top - r.height / 2;
-        const m = Math.hypot(dx, dy);
-        if (m > R) { dx *= R / m; dy *= R / m; }
-        knob.style.transform = `translate(${dx}px, ${dy}px)`;
-        // Bluepad32 reports y as positive downward, the same as the screen.
-        stick.x = Math.round((dx / R) * STICK_MAX);
-        stick.y = Math.round((dy / R) * STICK_MAX);
-      };
-      el.addEventListener('pointerdown', (e) => { drag = true; el.setPointerCapture(e.pointerId); move(e); });
-      el.addEventListener('pointermove', (e) => { if (drag) move(e); });
-      const up = () => { drag = false; stick.x = stick.y = 0; knob.style.transform = ''; };
-      el.addEventListener('pointerup', up);
-      el.addEventListener('pointercancel', up);
+      for (const el of root.querySelectorAll<HTMLElement>('.stick')) {
+        const knob = el.querySelector<HTMLElement>('.knob')!;
+        const stick = sticks[el.dataset.stick!];
+        let drag = false;
+        const move = (e: PointerEvent) => {
+          const r = el.getBoundingClientRect();
+          const R = r.width / 2 - 20;
+          let dx = e.clientX - r.left - r.width / 2;
+          let dy = e.clientY - r.top - r.height / 2;
+          const m = Math.hypot(dx, dy);
+          if (m > R) { dx *= R / m; dy *= R / m; }
+          knob.style.transform = `translate(${dx}px, ${dy}px)`;
+          // Bluepad32 reports y as positive downward, the same as the screen.
+          stick.x = Math.round((dx / R) * STICK_MAX);
+          stick.y = Math.round((dy / R) * STICK_MAX);
+        };
+        el.addEventListener('pointerdown', (e) => { drag = true; el.setPointerCapture(e.pointerId); move(e); });
+        el.addEventListener('pointermove', (e) => { if (drag) move(e); });
+        const up = () => { drag = false; stick.x = stick.y = 0; knob.style.transform = ''; };
+        el.addEventListener('pointerup', up);
+        el.addEventListener('pointercancel', up);
+      }
+      root.querySelector('[data-quiet]')!.addEventListener('click', () => { quietUntil = performance.now() + 1000; });
+      render();
     }
-    root.querySelector('[data-quiet]')!.addEventListener('click', () => { quietUntil = performance.now() + 1000; });
-    render();
-  }
+  });
 </script>

@@ -146,84 +146,92 @@ const ownCard = flashable.filter(({ ladder }) => !ladder);
 </style>
 
 <script>
-  const buttons = [...document.querySelectorAll<HTMLButtonElement>('[data-pick]')];
-  const panels = [...document.querySelectorAll<HTMLElement>('[data-panel]')];
-  const ladderLinks = [...document.querySelectorAll<HTMLAnchorElement>('[data-ladder-link]')];
-  const locked = document.querySelector<HTMLElement>('[data-locked]');
-  let picked: string | undefined;
+  import { onEveryPage } from '../../lib/page';
 
-  function show(id: string | undefined) {
-    if (id === picked) return;
-    const left = panels.find((panel) => panel.dataset.panel === picked);
-    picked = id;
-    for (const button of buttons) button.setAttribute('aria-pressed', String(button.dataset.pick === id));
-    for (const panel of panels) panel.hidden = panel.dataset.panel !== id;
-    // A board that is still connected would stay open under the hidden card and refuse the next card's port.
-    left?.querySelector('[data-flash-card]')?.dispatchEvent(new CustomEvent('flash-release'));
-  }
+  onEveryPage((signal) => {
+    const buttons = [...document.querySelectorAll<HTMLButtonElement>('[data-pick]')];
+    const panels = [...document.querySelectorAll<HTMLElement>('[data-panel]')];
+    const ladderLinks = [...document.querySelectorAll<HTMLAnchorElement>('[data-ladder-link]')];
+    const locked = document.querySelector<HTMLElement>('[data-locked]');
+    // The router runs this on every page; only the Flash page has picks.
+    if (buttons.length === 0) return;
+    let picked: string | undefined;
 
-  function shownHeading() {
-    return panels.find((panel) => panel.dataset.panel === picked)?.querySelector<HTMLElement>('h2');
-  }
-
-  function busy() {
-    return panels.some((panel) => panel.querySelector('[data-busy]'));
-  }
-
-  function hashedId() {
-    try {
-      return decodeURIComponent(location.hash.slice(1));
-    } catch {
-      return undefined;
+    function show(id: string | undefined) {
+      if (id === picked) return;
+      const left = panels.find((panel) => panel.dataset.panel === picked);
+      picked = id;
+      for (const button of buttons) button.setAttribute('aria-pressed', String(button.dataset.pick === id));
+      for (const panel of panels) panel.hidden = panel.dataset.panel !== id;
+      // A board that is still connected would stay open under the hidden card and refuse the next card's port.
+      left?.querySelector('[data-flash-card]')?.dispatchEvent(new CustomEvent('flash-release'));
     }
-  }
 
-  function writeHash() {
-    history.replaceState(null, '', picked ? `#${picked}` : location.pathname + location.search);
-  }
-
-  function fromHash() {
-    if (busy()) {
-      // Back and forward must not switch a card that is writing; the address goes back to the card that is shown.
-      writeHash();
-      return;
+    function shownHeading() {
+      return panels.find((panel) => panel.dataset.panel === picked)?.querySelector<HTMLElement>('h2');
     }
-    const id = hashedId();
-    if (id !== undefined && buttons.some((button) => button.dataset.pick === id)) {
-      show(id);
-      shownHeading()?.scrollIntoView();
+
+    function busy() {
+      return panels.some((panel) => panel.querySelector('[data-busy]'));
     }
-  }
 
-  for (const button of buttons) {
-    button.addEventListener('click', () => {
-      show(button.dataset.pick);
-      writeHash();
-      // The card is below the whole list, so the focus goes to it: a keyboard visitor would not find it otherwise.
-      const heading = shownHeading();
-      heading?.focus({ preventScroll: true });
-      heading?.scrollIntoView();
-    });
-  }
+    function hashedId() {
+      try {
+        return decodeURIComponent(location.hash.slice(1));
+      } catch {
+        return undefined;
+      }
+    }
 
-  // Following a link away would also leave a write half-done.
-  for (const link of ladderLinks) {
-    link.addEventListener('click', (event) => {
-      if (busy()) event.preventDefault();
-    });
-  }
+    function writeHash() {
+      history.replaceState(null, '', picked ? `#${picked}` : location.pathname + location.search);
+    }
 
-  // A visitor must not leave a write half-done by picking another project.
-  new MutationObserver(() => {
-    const isBusy = busy();
-    for (const button of buttons) button.disabled = isBusy;
+    function fromHash() {
+      if (busy()) {
+        // Back and forward must not switch a card that is writing; the address goes back to the card that is shown.
+        writeHash();
+        return;
+      }
+      const id = hashedId();
+      if (id !== undefined && buttons.some((button) => button.dataset.pick === id)) {
+        show(id);
+        shownHeading()?.scrollIntoView();
+      }
+    }
+
+    for (const button of buttons) {
+      button.addEventListener('click', () => {
+        show(button.dataset.pick);
+        writeHash();
+        // The card is below the whole list, so the focus goes to it: a keyboard visitor would not find it otherwise.
+        const heading = shownHeading();
+        heading?.focus({ preventScroll: true });
+        heading?.scrollIntoView();
+      });
+    }
+
+    // Following a link away would also leave a write half-done.
     for (const link of ladderLinks) {
-      if (isBusy) link.setAttribute('aria-disabled', 'true');
-      else link.removeAttribute('aria-disabled');
+      link.addEventListener('click', (event) => {
+        if (busy()) event.preventDefault();
+      });
     }
-    if (locked) locked.hidden = !isBusy;
-  }).observe(document.body, { attributes: true, attributeFilter: ['data-busy'], subtree: true });
 
-  window.addEventListener('hashchange', fromHash);
-  fromHash();
+    // A visitor must not leave a write half-done by picking another project.
+    const lock = new MutationObserver(() => {
+      const isBusy = busy();
+      for (const button of buttons) button.disabled = isBusy;
+      for (const link of ladderLinks) {
+        if (isBusy) link.setAttribute('aria-disabled', 'true');
+        else link.removeAttribute('aria-disabled');
+      }
+      if (locked) locked.hidden = !isBusy;
+    });
+    lock.observe(document.body, { attributes: true, attributeFilter: ['data-busy'], subtree: true });
+    signal.addEventListener('abort', () => lock.disconnect());
+
+    window.addEventListener('hashchange', fromHash, { signal });
+    fromHash();
+  });
 </script>

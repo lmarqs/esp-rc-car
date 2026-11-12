@@ -29,31 +29,35 @@
 </style>
 
 <script>
-  for (const root of document.querySelectorAll<HTMLElement>('.motor')) {
-    const rotor = root.querySelector('.rotor')!;
-    const pulse = root.querySelector('.pulse')!;
-    const readout = root.querySelector('.readout')!;
-    const duty = root.querySelector<HTMLInputElement>('[data-duty]')!;
-    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let angle = 0;
-    let speed = 0;
+  import { onEveryPage } from '../../lib/page';
 
-    function draw() {
-      const d = Number(duty.value) / 100;
-      let path = 'M10 74';
-      for (let x = 10; x < 250; x += 48) path += ` V${d > 0 ? 20 : 74} H${x + 48 * d} V74 H${x + 48}`;
-      pulse.setAttribute('d', path);
-      readout.textContent = `on ${Math.round(d * 100)}% of each 200 µs period (5 kHz)`;
+  onEveryPage((signal) => {
+    for (const root of document.querySelectorAll<HTMLElement>('.motor')) {
+      const rotor = root.querySelector('.rotor')!;
+      const pulse = root.querySelector('.pulse')!;
+      const readout = root.querySelector('.readout')!;
+      const duty = root.querySelector<HTMLInputElement>('[data-duty]')!;
+      const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      let angle = 0;
+      let speed = 0;
+
+      function draw() {
+        const d = Number(duty.value) / 100;
+        let path = 'M10 74';
+        for (let x = 10; x < 250; x += 48) path += ` V${d > 0 ? 20 : 74} H${x + 48 * d} V74 H${x + 48}`;
+        pulse.setAttribute('d', path);
+        readout.textContent = `on ${Math.round(d * 100)}% of each 200 µs period (5 kHz)`;
+      }
+      function frame() {
+        // The rotor eases toward its new speed the way a real motor's inertia makes it.
+        speed += (Number(duty.value) / 100 * 14 - speed) * 0.05;
+        angle = (angle + speed) % 360;
+        rotor.setAttribute('transform', `rotate(${angle.toFixed(1)} 176 80)`);
+        if (!still && !signal.aborted) requestAnimationFrame(frame);
+      }
+      duty.addEventListener('input', draw);
+      draw();
+      frame();
     }
-    function frame() {
-      // The rotor eases toward its new speed the way a real motor's inertia makes it.
-      speed += (Number(duty.value) / 100 * 14 - speed) * 0.05;
-      angle = (angle + speed) % 360;
-      rotor.setAttribute('transform', `rotate(${angle.toFixed(1)} 176 80)`);
-      if (!still) requestAnimationFrame(frame);
-    }
-    duty.addEventListener('input', draw);
-    draw();
-    frame();
-  }
+  });
 </script>

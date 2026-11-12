@@ -160,175 +160,183 @@ const helpOf = (field: (typeof fields)[number]) =>
 <script>
   import { createFlasher } from '../../lib/flash/createFlasher';
   import { href } from '../../lib/href';
+  import { onEveryPage } from '../../lib/page';
   import type { Manifest } from '../../lib/flash/manifest';
   import { createSession, isBusy } from '../../lib/flash/session';
   import { settingsOf } from '../../lib/flash/settings';
   import { stepsFor, viewFor } from './view';
 
-  for (const card of document.querySelectorAll<HTMLElement>('[data-flash-card]')) {
-    const { sketch, title, next, baud: baudText, detailsHref } = card.dataset;
-    const baud = baudText ? Number(baudText) : undefined;
-    const manifest = JSON.parse(card.dataset.manifest!) as Manifest;
-    const session = createSession({
-      flasher: createFlasher(),
-      manifest,
-      sketch: sketch!,
-      baud,
-    });
-    const settings = settingsOf(manifest, sketch!, baud);
-    const context = {
-      title: title!,
-      next,
-      baud,
-      images: manifest.sketches[sketch!]!.images,
-      firmwareUrl: href('/firmware/'),
-      detailsHref,
-      settings,
-    };
-    const stepOrder = stepsFor(settings.length > 0);
-
-    const message = card.querySelector<HTMLElement>('[data-message]')!;
-    const progress = card.querySelector<HTMLElement>('[data-progress]')!;
-    const track = progress.querySelector<HTMLElement>('[role="progressbar"]')!;
-    const fill = progress.querySelector<HTMLElement>('[data-fill]')!;
-    const percent = progress.querySelector<HTMLElement>('[data-percent]')!;
-    const output = card.querySelector<HTMLElement>('[data-output]')!;
-    const outputLabel = output.querySelector<HTMLElement>('[data-output-label]')!;
-    const lines = output.querySelector<HTMLElement>('[data-lines]')!;
-    const buttons = [...card.querySelectorAll<HTMLButtonElement>('[data-action]')];
-    const links = card.querySelector<HTMLElement>('[data-links]')!;
-    const steps = [...card.querySelectorAll<HTMLElement>('[data-step]')];
-    const form = card.querySelector<HTMLFormElement>('[data-settings]');
-    const inputs = [...card.querySelectorAll<HTMLInputElement>('[data-settings] input[data-key]')];
-    const formHelp = card.querySelector<HTMLElement>('[data-form-help]');
-    const formValues = () => Object.fromEntries(inputs.map((input) => [input.dataset.key!, input.value]));
-    let filledWith: Readonly<Record<string, string>> | undefined;
-
-    async function submitSettings(restoreDefaults = false) {
-      await session.send({ type: 'submitSettings', values: formValues(), restoreDefaults });
-      const state = session.state;
-      if (state.kind === 'settings' && state.errors) {
-        inputs.find((input) => input.dataset.key! in state.errors!)?.focus();
-      }
-    }
-
-    form?.addEventListener('submit', (event) => {
-      event.preventDefault();
-      void submitSettings();
-    });
-    form?.querySelector('[data-defaults]')?.addEventListener('click', () => {
-      for (const input of inputs) input.value = input.dataset.default!;
-      void submitSettings(true);
-    });
-    for (const toggle of card.querySelectorAll<HTMLButtonElement>('[data-show]')) {
-      const input = inputs.find((candidate) => candidate.dataset.key === toggle.dataset.show)!;
-      toggle.addEventListener('click', () => {
-        const shown = input.type === 'password';
-        input.type = shown ? 'text' : 'password';
-        toggle.setAttribute('aria-pressed', String(shown));
+  onEveryPage((signal) => {
+    for (const card of document.querySelectorAll<HTMLElement>('[data-flash-card]')) {
+      const { sketch, title, next, baud: baudText, detailsHref } = card.dataset;
+      const baud = baudText ? Number(baudText) : undefined;
+      const manifest = JSON.parse(card.dataset.manifest!) as Manifest;
+      const session = createSession({
+        flasher: createFlasher(),
+        manifest,
+        sketch: sketch!,
+        baud,
       });
-    }
+      const settings = settingsOf(manifest, sketch!, baud);
+      const context = {
+        title: title!,
+        next,
+        baud,
+        images: manifest.sketches[sketch!]!.images,
+        firmwareUrl: href('/firmware/'),
+        detailsHref,
+        settings,
+      };
+      const stepOrder = stepsFor(settings.length > 0);
 
-    for (const button of buttons) {
-      button.addEventListener('click', () => {
-        const event = button.dataset.event;
-        if (
-          event === 'connect' ||
-          event === 'retry' ||
-          event === 'disconnect' ||
-          event === 'changeSettings' ||
-          event === 'closeSettings'
-        ) {
-          void session.send({ type: event });
+      const message = card.querySelector<HTMLElement>('[data-message]')!;
+      const progress = card.querySelector<HTMLElement>('[data-progress]')!;
+      const track = progress.querySelector<HTMLElement>('[role="progressbar"]')!;
+      const fill = progress.querySelector<HTMLElement>('[data-fill]')!;
+      const percent = progress.querySelector<HTMLElement>('[data-percent]')!;
+      const output = card.querySelector<HTMLElement>('[data-output]')!;
+      const outputLabel = output.querySelector<HTMLElement>('[data-output-label]')!;
+      const lines = output.querySelector<HTMLElement>('[data-lines]')!;
+      const buttons = [...card.querySelectorAll<HTMLButtonElement>('[data-action]')];
+      const links = card.querySelector<HTMLElement>('[data-links]')!;
+      const steps = [...card.querySelectorAll<HTMLElement>('[data-step]')];
+      const form = card.querySelector<HTMLFormElement>('[data-settings]');
+      const inputs = [...card.querySelectorAll<HTMLInputElement>('[data-settings] input[data-key]')];
+      const formHelp = card.querySelector<HTMLElement>('[data-form-help]');
+      const formValues = () => Object.fromEntries(inputs.map((input) => [input.dataset.key!, input.value]));
+      let filledWith: Readonly<Record<string, string>> | undefined;
+
+      async function submitSettings(restoreDefaults = false) {
+        await session.send({ type: 'submitSettings', values: formValues(), restoreDefaults });
+        const state = session.state;
+        if (state.kind === 'settings' && state.errors) {
+          inputs.find((input) => input.dataset.key! in state.errors!)?.focus();
         }
-      });
-    }
-
-    function render() {
-      // The page that lists several cards reads this to keep a visitor from leaving a write half-done.
-      card.toggleAttribute('data-busy', isBusy(session.state));
-      const view = viewFor(session.state, context);
-      // Only a change of text is announced: the progress bar carries the percentage.
-      if (message.textContent !== view.message) message.textContent = view.message;
-      message.className = view.notice ? 'notice' : '';
-
-      const current = stepOrder.indexOf(view.step);
-      steps.forEach((li, index) => {
-        li.dataset.state = index < current ? 'done' : '';
-        if (index === current) li.setAttribute('aria-current', 'step');
-        else li.removeAttribute('aria-current');
-      });
-
-      progress.hidden = view.progress === undefined;
-      if (view.progress !== undefined) {
-        track.setAttribute('aria-valuenow', String(view.progress));
-        fill.style.width = `${view.progress}%`;
-        percent.textContent = `${view.progress}%`;
       }
 
-      // The output is not a live region: it changes with every line the board prints, and the status above says what
-      // the card is doing.
-      output.hidden = !view.output;
-      if (view.output) {
-        outputLabel.textContent = view.output.label;
-        lines.setAttribute('aria-label', view.output.label);
-        const text = view.output.lines.join('\n');
-        if (lines.textContent !== text) lines.textContent = text;
+      form?.addEventListener('submit', (event) => {
+        event.preventDefault();
+        void submitSettings();
+      });
+      form?.querySelector('[data-defaults]')?.addEventListener('click', () => {
+        for (const input of inputs) input.value = input.dataset.default!;
+        void submitSettings(true);
+      });
+      for (const toggle of card.querySelectorAll<HTMLButtonElement>('[data-show]')) {
+        const input = inputs.find((candidate) => candidate.dataset.key === toggle.dataset.show)!;
+        toggle.addEventListener('click', () => {
+          const shown = input.type === 'password';
+          input.type = shown ? 'text' : 'password';
+          toggle.setAttribute('aria-pressed', String(shown));
+        });
       }
 
-      if (form) {
-        // A hidden form cannot keep the focus either.
-        if (!view.form && form.contains(document.activeElement)) message.focus();
-        form.hidden = !view.form;
-        if (view.form) {
-          // Fills the inputs once per opening, so a re-render after an error keeps what the visitor typed.
-          if (view.form.values !== filledWith) {
-            filledWith = view.form.values;
-            for (const input of inputs) input.value = filledWith[input.dataset.key!] ?? '';
+      for (const button of buttons) {
+        button.addEventListener('click', () => {
+          const event = button.dataset.event;
+          if (
+            event === 'connect' ||
+            event === 'retry' ||
+            event === 'disconnect' ||
+            event === 'changeSettings' ||
+            event === 'closeSettings'
+          ) {
+            void session.send({ type: event });
           }
-          formHelp!.textContent = view.form.help ?? '';
-          formHelp!.hidden = !view.form.help;
-          form.querySelector('[data-submit]')!.textContent = view.form.submit;
-          for (const input of inputs) {
-            const key = input.dataset.key!;
-            const error = view.form.errors[key];
-            const shown = form.querySelector<HTMLElement>(`[data-error="${key}"]`)!;
-            shown.textContent = error ?? '';
-            shown.hidden = !error;
-            if (error) input.setAttribute('aria-invalid', 'true');
-            else input.removeAttribute('aria-invalid');
-          }
-        }
+        });
       }
 
-      buttons.forEach((button, index) => {
-        const action = view.actions?.[index];
-        // A hidden button cannot keep the focus, which would fall to the page; the status is the next thing to read.
-        if (!action && document.activeElement === button) message.focus();
-        button.hidden = !action;
-        if (action) {
-          button.textContent = action.label;
-          button.dataset.event = action.event;
+      function render() {
+        // The page that lists several cards reads this to keep a visitor from leaving a write half-done.
+        card.toggleAttribute('data-busy', isBusy(session.state));
+        const view = viewFor(session.state, context);
+        // Only a change of text is announced: the progress bar carries the percentage.
+        if (message.textContent !== view.message) message.textContent = view.message;
+        message.className = view.notice ? 'notice' : '';
+
+        const current = stepOrder.indexOf(view.step);
+        steps.forEach((li, index) => {
+          li.dataset.state = index < current ? 'done' : '';
+          if (index === current) li.setAttribute('aria-current', 'step');
+          else li.removeAttribute('aria-current');
+        });
+
+        progress.hidden = view.progress === undefined;
+        if (view.progress !== undefined) {
+          track.setAttribute('aria-valuenow', String(view.progress));
+          fill.style.width = `${view.progress}%`;
+          percent.textContent = `${view.progress}%`;
         }
+
+        // The output is not a live region: it changes with every line the board prints, and the status above says what
+        // the card is doing.
+        output.hidden = !view.output;
+        if (view.output) {
+          outputLabel.textContent = view.output.label;
+          lines.setAttribute('aria-label', view.output.label);
+          const text = view.output.lines.join('\n');
+          if (lines.textContent !== text) lines.textContent = text;
+        }
+
+        if (form) {
+          // A hidden form cannot keep the focus either.
+          if (!view.form && form.contains(document.activeElement)) message.focus();
+          form.hidden = !view.form;
+          if (view.form) {
+            // Fills the inputs once per opening, so a re-render after an error keeps what the visitor typed.
+            if (view.form.values !== filledWith) {
+              filledWith = view.form.values;
+              for (const input of inputs) input.value = filledWith[input.dataset.key!] ?? '';
+            }
+            formHelp!.textContent = view.form.help ?? '';
+            formHelp!.hidden = !view.form.help;
+            form.querySelector('[data-submit]')!.textContent = view.form.submit;
+            for (const input of inputs) {
+              const key = input.dataset.key!;
+              const error = view.form.errors[key];
+              const shown = form.querySelector<HTMLElement>(`[data-error="${key}"]`)!;
+              shown.textContent = error ?? '';
+              shown.hidden = !error;
+              if (error) input.setAttribute('aria-invalid', 'true');
+              else input.removeAttribute('aria-invalid');
+            }
+          }
+        }
+
+        buttons.forEach((button, index) => {
+          const action = view.actions?.[index];
+          // A hidden button cannot keep the focus, which would fall to the page; the status is the next thing to read.
+          if (!action && document.activeElement === button) message.focus();
+          button.hidden = !action;
+          if (action) {
+            button.textContent = action.label;
+            button.dataset.event = action.event;
+          }
+        });
+
+        links.hidden = !view.links;
+        links.replaceChildren(
+          ...(view.links ?? []).map((link) => {
+            const item = document.createElement('li');
+            const anchor = document.createElement('a');
+            anchor.textContent = link.label;
+            anchor.href = link.href;
+            item.append(anchor);
+            return item;
+          }),
+        );
+      }
+
+      // The page asks a card it hides to let go of the board; `retry` leaves an idle, connecting or flashing card as it is.
+      card.addEventListener('flash-release', () => void session.send({ type: 'retry' }));
+
+      const unsubscribe = session.subscribe(render);
+      // The router swaps the page out without unloading it, so the port is let go as the page goes.
+      signal.addEventListener('abort', () => {
+        unsubscribe();
+        void session.send({ type: 'retry' });
       });
-
-      links.hidden = !view.links;
-      links.replaceChildren(
-        ...(view.links ?? []).map((link) => {
-          const item = document.createElement('li');
-          const anchor = document.createElement('a');
-          anchor.textContent = link.label;
-          anchor.href = link.href;
-          item.append(anchor);
-          return item;
-        }),
-      );
+      render();
     }
-
-    // The page asks a card it hides to let go of the board; `retry` leaves an idle, connecting or flashing card as it is.
-    card.addEventListener('flash-release', () => void session.send({ type: 'retry' }));
-
-    session.subscribe(render);
-    render();
-  }
+  });
 </script>

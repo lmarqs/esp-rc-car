@@ -84,46 +84,53 @@
 </style>
 
 <script>
-  const car = document.getElementById('car')!;
-  const stick = document.getElementById('stick')!;
-  const knob = document.getElementById('knob')!;
-  const led = document.getElementById('led')!;
-  const R = 26;
-  const keys: Record<string, boolean> = {};
-  let ax = 0, ay = 0, x = 0, y = 0, vx = 0, vy = 0, dragging = false;
+  import { onEveryPage } from '../../lib/page';
 
-  function setKnob(dx: number, dy: number) {
-    const m = Math.hypot(dx, dy);
-    if (m > R) { dx *= R / m; dy *= R / m; }
-    ax = dx / R; ay = dy / R;
-    knob.style.transform = `translate(${dx}px,${dy}px)`;
-  }
-  function fromEvent(e: PointerEvent) {
-    const r = stick.getBoundingClientRect();
-    setKnob(e.clientX - r.left - r.width / 2, e.clientY - r.top - r.height / 2);
-  }
-  stick.addEventListener('pointerdown', (e) => { dragging = true; stick.setPointerCapture(e.pointerId); fromEvent(e); });
-  stick.addEventListener('pointermove', (e) => { if (dragging) fromEvent(e); });
-  const release = () => { dragging = false; setKnob(0, 0); };
-  stick.addEventListener('pointerup', release);
-  stick.addEventListener('pointercancel', release);
-  // Arrow keys drive only while the page itself has focus, so they never hijack a form field.
-  addEventListener('keydown', (e) => {
-    if (e.key.startsWith('Arrow') && (document.activeElement === document.body || document.activeElement === stick)) { keys[e.key] = true; e.preventDefault(); }
+  onEveryPage((signal) => {
+    const found = document.getElementById('car');
+    // The router runs this on every page; only the home page has the car.
+    if (found === null) return;
+    const car = found;
+    const stick = document.getElementById('stick')!;
+    const knob = document.getElementById('knob')!;
+    const led = document.getElementById('led')!;
+    const R = 26;
+    const keys: Record<string, boolean> = {};
+    let ax = 0, ay = 0, x = 0, y = 0, vx = 0, vy = 0, dragging = false;
+
+    function setKnob(dx: number, dy: number) {
+      const m = Math.hypot(dx, dy);
+      if (m > R) { dx *= R / m; dy *= R / m; }
+      ax = dx / R; ay = dy / R;
+      knob.style.transform = `translate(${dx}px,${dy}px)`;
+    }
+    function fromEvent(e: PointerEvent) {
+      const r = stick.getBoundingClientRect();
+      setKnob(e.clientX - r.left - r.width / 2, e.clientY - r.top - r.height / 2);
+    }
+    stick.addEventListener('pointerdown', (e) => { dragging = true; stick.setPointerCapture(e.pointerId); fromEvent(e); });
+    stick.addEventListener('pointermove', (e) => { if (dragging) fromEvent(e); });
+    const release = () => { dragging = false; setKnob(0, 0); };
+    stick.addEventListener('pointerup', release);
+    stick.addEventListener('pointercancel', release);
+    // Arrow keys drive only while the page itself has focus, so they never hijack a form field.
+    addEventListener('keydown', (e) => {
+      if (e.key.startsWith('Arrow') && (document.activeElement === document.body || document.activeElement === stick)) { keys[e.key] = true; e.preventDefault(); }
+    }, { signal });
+    addEventListener('keyup', (e) => { keys[e.key] = false; }, { signal });
+    led.addEventListener('click', () => led.classList.toggle('off'));
+
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function frame() {
+      const ix = dragging ? ax : (keys.ArrowRight ? 1 : 0) - (keys.ArrowLeft ? 1 : 0);
+      const up = dragging ? ay < -0.6 : keys.ArrowUp;
+      vx += (ix * 5 - vx) * (still ? 1 : 0.12);
+      x = Math.max(-150, Math.min(120, x + vx));
+      if (up && y === 0 && !still) vy = -8.5;
+      vy += 0.55; y = Math.min(0, y + vy); if (y === 0) vy = 0;
+      car.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${(still ? 0 : vx * 0.9).toFixed(2)} 305 290)`);
+      if (!signal.aborted) requestAnimationFrame(frame);
+    }
+    frame();
   });
-  addEventListener('keyup', (e) => { keys[e.key] = false; });
-  led.addEventListener('click', () => led.classList.toggle('off'));
-
-  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  function frame() {
-    const ix = dragging ? ax : (keys.ArrowRight ? 1 : 0) - (keys.ArrowLeft ? 1 : 0);
-    const up = dragging ? ay < -0.6 : keys.ArrowUp;
-    vx += (ix * 5 - vx) * (still ? 1 : 0.12);
-    x = Math.max(-150, Math.min(120, x + vx));
-    if (up && y === 0 && !still) vy = -8.5;
-    vy += 0.55; y = Math.min(0, y + vy); if (y === 0) vy = 0;
-    car.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${(still ? 0 : vx * 0.9).toFixed(2)} 305 290)`);
-    requestAnimationFrame(frame);
-  }
-  frame();
 </script>

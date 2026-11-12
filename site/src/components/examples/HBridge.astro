@@ -39,6 +39,8 @@
 </style>
 
 <script>
+  import { onEveryPage } from '../../lib/page';
+
   type State = [boolean, boolean, boolean, boolean];
   // Closed lever positions, per switch: from the lower contact straight up to the upper one.
   const OPEN = ['M100 110 L118 76', 'M100 180 L118 146', 'M260 110 L242 76', 'M260 180 L242 146'];
@@ -50,56 +52,58 @@
     coast: [false, false, false, false],
   };
 
-  for (const root of document.querySelectorAll<HTMLElement>('.hbridge')) {
-    const svg = root.querySelector('svg')!;
-    const flow = root.querySelector('.flow')!;
-    const spark = root.querySelector('.spark')!;
-    const readout = root.querySelector('.readout')!;
-    const switches = [...root.querySelectorAll<SVGGElement>('.sw')];
-    let s: State = [false, false, false, false];
+  onEveryPage(() => {
+    for (const root of document.querySelectorAll<HTMLElement>('.hbridge')) {
+      const svg = root.querySelector('svg')!;
+      const flow = root.querySelector('.flow')!;
+      const spark = root.querySelector('.spark')!;
+      const readout = root.querySelector('.readout')!;
+      const switches = [...root.querySelectorAll<SVGGElement>('.sw')];
+      let s: State = [false, false, false, false];
 
-    function draw() {
-      switches.forEach((g, i) => {
-        g.querySelector('.lever')!.setAttribute('d', s[i] ? CLOSED[i] : OPEN[i]);
-        g.setAttribute('aria-checked', String(s[i]));
-      });
-      const [s1, s2, s3, s4] = s;
-      svg.classList.remove('fwd', 'bwd');
-      spark.setAttribute('opacity', '0');
-      flow.setAttribute('opacity', '0');
-      let text: string;
-      if ((s1 && s2) || (s3 && s4)) {
-        spark.setAttribute('opacity', '1');
-        flow.setAttribute('d', s1 && s2 ? 'M100 30 V220' : 'M260 30 V220');
-        flow.setAttribute('opacity', '.9');
-        text = 'Short circuit! Both switches on one side connect +V straight to GND. This is called shoot-through, and it burns a real bridge.';
-      } else if (s1 && s4) {
-        svg.classList.add('fwd');
-        flow.setAttribute('d', 'M100 30 V125 H260 V220');
-        flow.setAttribute('opacity', '.9');
-        text = 'Forward: current flows left to right through the motor.';
-      } else if (s2 && s3) {
-        svg.classList.add('bwd');
-        flow.setAttribute('d', 'M260 30 V125 H100 V220');
-        flow.setAttribute('opacity', '.9');
-        text = 'Backward: current flows right to left, so the motor turns the other way.';
-      } else if (s2 && s4) {
-        text = 'Brake: both motor leads tied to GND, so the spinning motor fights itself and stops fast.';
-      } else if (s1 && s3) {
-        text = 'Brake: both motor leads tied to +V, which also stops the motor fast.';
-      } else {
-        text = 'Coast: the motor is disconnected and rolls to a stop on its own.';
+      function draw() {
+        switches.forEach((g, i) => {
+          g.querySelector('.lever')!.setAttribute('d', s[i] ? CLOSED[i] : OPEN[i]);
+          g.setAttribute('aria-checked', String(s[i]));
+        });
+        const [s1, s2, s3, s4] = s;
+        svg.classList.remove('fwd', 'bwd');
+        spark.setAttribute('opacity', '0');
+        flow.setAttribute('opacity', '0');
+        let text: string;
+        if ((s1 && s2) || (s3 && s4)) {
+          spark.setAttribute('opacity', '1');
+          flow.setAttribute('d', s1 && s2 ? 'M100 30 V220' : 'M260 30 V220');
+          flow.setAttribute('opacity', '.9');
+          text = 'Short circuit! Both switches on one side connect +V straight to GND. This is called shoot-through, and it burns a real bridge.';
+        } else if (s1 && s4) {
+          svg.classList.add('fwd');
+          flow.setAttribute('d', 'M100 30 V125 H260 V220');
+          flow.setAttribute('opacity', '.9');
+          text = 'Forward: current flows left to right through the motor.';
+        } else if (s2 && s3) {
+          svg.classList.add('bwd');
+          flow.setAttribute('d', 'M260 30 V125 H100 V220');
+          flow.setAttribute('opacity', '.9');
+          text = 'Backward: current flows right to left, so the motor turns the other way.';
+        } else if (s2 && s4) {
+          text = 'Brake: both motor leads tied to GND, so the spinning motor fights itself and stops fast.';
+        } else if (s1 && s3) {
+          text = 'Brake: both motor leads tied to +V, which also stops the motor fast.';
+        } else {
+          text = 'Coast: the motor is disconnected and rolls to a stop on its own.';
+        }
+        readout.textContent = text;
       }
-      readout.textContent = text;
+      switches.forEach((g, i) => {
+        const flip = () => { s[i] = !s[i]; draw(); };
+        g.addEventListener('click', flip);
+        g.addEventListener('keydown', (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flip(); } });
+      });
+      root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((b) =>
+        b.addEventListener('click', () => { s = [...PRESETS[b.dataset.preset!]] as State; draw(); }),
+      );
+      draw();
     }
-    switches.forEach((g, i) => {
-      const flip = () => { s[i] = !s[i]; draw(); };
-      g.addEventListener('click', flip);
-      g.addEventListener('keydown', (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flip(); } });
-    });
-    root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((b) =>
-      b.addEventListener('click', () => { s = [...PRESETS[b.dataset.preset!]] as State; draw(); }),
-    );
-    draw();
-  }
+  });
 </script>

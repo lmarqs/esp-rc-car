@@ -102,18 +102,21 @@ const flashable = Object.keys(manifest.sketches).length > 0;
   import { mountCommandLine } from './commandLine';
   import { linkView, paneMotion, paneView } from './paneView';
   import { mountWatchPanel } from './watchPanel';
+  import { onEveryPage } from '../../lib/page';
 
   interface StepData {
     sketch: string;
     source: string;
   }
 
-  for (const root of document.querySelectorAll<HTMLElement>('[data-workbench]')) {
-    const project = workbenchFor(root.dataset.project ?? '');
-    if (project !== undefined) mount(root, project);
-  }
+  onEveryPage((signal) => {
+    for (const root of document.querySelectorAll<HTMLElement>('[data-workbench]')) {
+      const project = workbenchFor(root.dataset.project ?? '');
+      if (project !== undefined) mount(root, project, signal);
+    }
+  });
 
-  function mount(root: HTMLElement, project: WorkbenchProject<unknown, unknown, unknown>) {
+  function mount(root: HTMLElement, project: WorkbenchProject<unknown, unknown, unknown>, signal: AbortSignal) {
     const steps: StepData[] = JSON.parse(root.dataset.steps ?? '[]');
     const tabs = [...root.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
     const panel = root.querySelector<HTMLElement>('[role="tabpanel"]')!;
@@ -138,12 +141,13 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     };
     let traceWidth = 0;
     // With no viewBox the trace is drawn in CSS pixels, so its marks keep their shape at any width.
-    new ResizeObserver(([entry]) => {
+    const resized = new ResizeObserver(([entry]) => {
       traceWidth = entry.contentRect.width;
       draw();
-    }).observe(traceView);
+    });
+    resized.observe(traceView);
     // The clock and the trace move again, or come to rest, as soon as the visitor changes the setting.
-    reducedMotion.addEventListener('change', () => draw());
+    reducedMotion.addEventListener('change', () => draw(), { signal });
 
     // The project's steps in rail order, as the pane numbers them.
     const paneProject: PaneProject<unknown> = {
@@ -351,8 +355,20 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       });
     }
 
-    session.subscribe((state) => dispatch({ kind: 'session', state }));
-    session.subscribeLines(({ text, at }) => dispatch({ kind: 'line', text, at }));
+    const unsubscribe = [
+      session.subscribe((state) => dispatch({ kind: 'session', state })),
+      session.subscribeLines(({ text, at }) => dispatch({ kind: 'line', text, at })),
+    ];
+    // The router swaps the page out without unloading it: what runs on its own stops, and the port is let go.
+    signal.addEventListener('abort', () => {
+      unsubscribe.forEach((stop) => stop());
+      resized.disconnect();
+      cancelAnimationFrame(frame);
+      cancelAnimationFrame(motionFrame);
+      commandLine.reset();
+      simulation.dispose();
+      void session.send({ type: 'retry' });
+    });
 
     /** Presses the board half of the Board switch, or Flash again, then asks the session for what the press starts. */
     function press(action: BoardAction['event']) {

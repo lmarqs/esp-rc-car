@@ -6,19 +6,23 @@
 </div>
 
 <script>
-  for (const group of document.querySelectorAll<HTMLElement>('[data-filter]')) {
-    const buttons = [...group.querySelectorAll<HTMLButtonElement>('button')];
-    for (const button of buttons) {
-      button.addEventListener('click', () => {
-        const level = button.dataset.level;
-        buttons.forEach((b) => b.setAttribute('aria-pressed', String(b === button)));
-        for (const item of document.querySelectorAll<HTMLElement>('[data-level-item]')) {
-          item.hidden = level !== 'all' && item.dataset.levelItem !== level;
-        }
-        for (const section of document.querySelectorAll<HTMLElement>('[data-family]')) {
-          section.hidden = ![...section.querySelectorAll<HTMLElement>('[data-level-item]')].some((i) => !i.hidden);
-        }
-      });
+  import { onEveryPage } from '../lib/page';
+
+  onEveryPage(() => {
+    for (const group of document.querySelectorAll<HTMLElement>('[data-filter]')) {
+      const buttons = [...group.querySelectorAll<HTMLButtonElement>('button')];
+      for (const button of buttons) {
+        button.addEventListener('click', () => {
+          const level = button.dataset.level;
+          buttons.forEach((b) => b.setAttribute('aria-pressed', String(b === button)));
+          for (const item of document.querySelectorAll<HTMLElement>('[data-level-item]')) {
+            item.hidden = level !== 'all' && item.dataset.levelItem !== level;
+          }
+          for (const section of document.querySelectorAll<HTMLElement>('[data-family]')) {
+            section.hidden = ![...section.querySelectorAll<HTMLElement>('[data-level-item]')].some((i) => !i.hidden);
+          }
+        });
+      }
     }
-  }
+  });
 </script>

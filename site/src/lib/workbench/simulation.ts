@@ -58,6 +58,8 @@ export interface Simulation<S, B> {
   toggleSlow(): void;
   /** Queues `text` for the program's serial input. */
   send(text: string): void;
+  /** Stops the run for good, as the page goes. */
+  dispose(): void;
 }
 
 /** The simulation of a project whose board follows `board`, starting with no step open. */
@@ -135,5 +137,6 @@ export function createSimulation<S, B>(board: BoardModel<unknown, B, S>, options
       runner?.setSlow(slow);
     },
     send: (text) => void runner?.send(text),
+    dispose: () => runner?.dispose(),
   };
 }
