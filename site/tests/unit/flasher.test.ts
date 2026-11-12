@@ -205,3 +205,119 @@ describe('EsptoolFlasher', () => {
     await expect(target.disconnect()).resolves.toBeUndefined();
   });
 });
+
+describe('EsptoolFlasher.monitor', () => {
+  const requestPort = esptool.requestPort;
+  const encoder = new TextEncoder();
+  let controller: ReadableStreamDefaultController<Uint8Array>;
+  let order: string[];
+  let port: { open: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn>; readable: ReadableStream<Uint8Array> };
+
+  beforeEach(() => {
+    order = [];
+    port = {
+      open: vi.fn(async () => {
+        order.push('open');
+      }),
+      close: vi.fn(async () => {
+        order.push('close');
+      }),
+      readable: new ReadableStream<Uint8Array>({
+        start(started) {
+          controller = started;
+        },
+      }),
+    };
+    vi.stubGlobal('navigator', { serial: { requestPort } });
+    requestPort.mockReset().mockResolvedValue(port);
+    esptool.main.mockReset().mockResolvedValue('ESP32');
+    esptool.disconnect.mockReset().mockImplementation(async () => {
+      order.push('release');
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  async function connected() {
+    const target = new EsptoolFlasher({ firmwareUrl: '/robomania/firmware/' });
+    await target.connect();
+    return target;
+  }
+
+  it('lets esptool-js go of the port, then opens it at the sketch baud', async () => {
+    const target = await connected();
+    const monitoring = target.monitor(9600, () => {});
+
+    await vi.waitFor(() => expect(port.open).toHaveBeenCalledWith({ baudRate: 9600 }));
+    expect(order).toEqual(['release', 'open']);
+    controller.close();
+    await monitoring;
+  });
+
+  it('calls onLines with the lines each piece completes, decoding text split inside a character', async () => {
+    const target = await connected();
+    const received: string[][] = [];
+    const monitoring = target.monitor(115200, (lines) => received.push(lines));
+    await vi.waitFor(() => expect(port.open).toHaveBeenCalled());
+
+    const bytes = encoder.encode('tilt 3\u00b0\r\nHIGH\npart');
+    controller.enqueue(bytes.slice(0, 8));
+    controller.enqueue(bytes.slice(8));
+    controller.enqueue(encoder.encode('ial\n'));
+    controller.close();
+    await monitoring;
+
+    expect(received.flat()).toEqual(['tilt 3\u00b0', 'HIGH', 'partial']);
+  });
+
+  it('resolves once disconnect has ended the reading, and closes the port', async () => {
+    const target = await connected();
+    const monitoring = target.monitor(9600, () => {});
+    await vi.waitFor(() => expect(port.open).toHaveBeenCalled());
+    await vi.waitFor(() => expect(port.readable.locked).toBe(true));
+
+    await target.disconnect();
+
+    await expect(monitoring).resolves.toBeUndefined();
+    expect(port.readable.locked).toBe(false);
+    expect(esptool.disconnect).toHaveBeenCalledTimes(2);
+  });
+
+  it('resolves when the port is lost', async () => {
+    const target = await connected();
+    const monitoring = target.monitor(9600, () => {});
+    await vi.waitFor(() => expect(port.readable.locked).toBe(true));
+
+    controller.error(new DOMException('The device has been lost.', 'NetworkError'));
+
+    await expect(monitoring).resolves.toBeUndefined();
+  });
+
+  it('closes the port it opened when disconnect ran while the port changed speed', async () => {
+    const target = await connected();
+    let finishOpen = () => {};
+    port.open.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishOpen = resolve;
+        }),
+    );
+    const monitoring = target.monitor(9600, () => {});
+    await vi.waitFor(() => expect(port.open).toHaveBeenCalled());
+
+    await target.disconnect();
+    finishOpen();
+
+    await expect(monitoring).resolves.toBeUndefined();
+    expect(port.close).toHaveBeenCalledOnce();
+  });
+
+  it('rejects before a connect', async () => {
+    const target = new EsptoolFlasher({ firmwareUrl: '/robomania/firmware/' });
+
+    await expect(target.monitor(9600, () => {})).rejects.toThrow('Not connected');
+  });
+});
+

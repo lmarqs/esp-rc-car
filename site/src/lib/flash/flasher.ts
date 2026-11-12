@@ -1,4 +1,5 @@
 import type { ESPLoader, Transport } from 'esptool-js';
+import { createLineSplitter } from './lines';
 import type { ManifestPart } from './manifest';
 
 /**
@@ -17,6 +18,11 @@ export interface Flasher {
   write(parts: readonly ManifestPart[], onProgress: (pct: number) => void): Promise<void>;
   /** Restarts the board into the sketch it now holds. */
   reset(): Promise<void>;
+  /**
+   * Reads what the sketch prints, at the sketch's own `baud`, and calls `onLines` with the lines each piece of text
+   * completes. Call it after `reset`. Resolves once `disconnect` has released the port or the port is lost.
+   */
+  monitor(baud: number, onLines: (lines: string[]) => void): Promise<void>;
   /** Releases the port. Never rejects. */
   disconnect(): Promise<void>;
 }
@@ -43,8 +49,10 @@ const silentTerminal = { clean() {}, write() {}, writeLine() {} };
  * and every offset comes from the manifest.
  */
 export class EsptoolFlasher implements Flasher {
+  private port?: SerialPort;
   private transport?: Transport;
   private loader?: ESPLoader;
+  private reader?: ReadableStreamDefaultReader<Uint8Array>;
   private downloaded = new Map<string, Uint8Array>();
 
   constructor(private readonly options: EsptoolFlasherOptions) {}
@@ -54,6 +62,7 @@ export class EsptoolFlasher implements Flasher {
     // First, while the click that started this is still fresh: requestPort needs that user activation, and the
     // download of esptool-js below can outlast it.
     const port = await navigator.serial.requestPort();
+    this.port = port;
     // Loaded here so that a page that never flashes does not download esptool-js.
     const esptool = await import('esptool-js');
     this.transport = new esptool.Transport(port);
@@ -116,10 +125,57 @@ export class EsptoolFlasher implements Flasher {
     await this.requireLoader().after('hard_reset');
   }
 
+  async monitor(baud: number, onLines: (lines: string[]) => void): Promise<void> {
+    const transport = this.transport;
+    const port = this.port;
+    if (!transport || !port) {
+      throw new Error('Not connected to a board.');
+    }
+    // esptool-js holds the port at the flashing speed; the sketch talks at its own.
+    await transport.disconnect();
+    await port.open({ baudRate: baud });
+    if (this.transport !== transport) {
+      // `disconnect` ran while the port was changing speed.
+      await port.close().catch(() => {});
+      return;
+    }
+    const reader = port.readable!.getReader();
+    this.reader = reader;
+    const decoder = new TextDecoder();
+    const splitter = createLineSplitter();
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) {
+          break;
+        }
+        const lines = splitter.push(decoder.decode(value, { stream: true }));
+        if (lines.length > 0) {
+          onLines(lines);
+        }
+      }
+    } catch {
+      // The board was unplugged, which ends the reading as disconnecting does.
+    } finally {
+      reader.releaseLock();
+      if (this.reader === reader) {
+        this.reader = undefined;
+      }
+    }
+  }
+
   async disconnect(): Promise<void> {
     const transport = this.transport;
+    const reader = this.reader;
     this.transport = undefined;
     this.loader = undefined;
+    this.reader = undefined;
+    try {
+      // Ends the reading that `monitor` started, which would keep the port locked.
+      await reader?.cancel();
+    } catch {
+      // The stream is already closed.
+    }
     try {
       await transport?.disconnect();
     } catch {
