@@ -17,6 +17,7 @@ Examples:
   python sketches/balance-beam/tools/sweep.py 0.07 0.10 0.001 2 --motor seq # left, then right (test both)
   python sketches/balance-beam/tools/sweep.py --port /dev/ttyACM0           # C3 native-USB port
 """
+
 import argparse
 import time
 
@@ -29,16 +30,23 @@ def main():
     ap.add_argument("stop", nargs="?", type=float, default=0.10, help="stop throttle 0..1 (default 0.10)")
     ap.add_argument("step", nargs="?", type=float, default=0.005, help="throttle step (default 0.005)")
     ap.add_argument("hold", nargs="?", type=float, default=3.0, help="seconds held per step (default 3)")
-    ap.add_argument("--motor", choices=["both", "1", "2", "seq"], default="both",
-                    help="both (default) | 1 (left/m1) | 2 (right/m2) | seq (1 then 2)")
+    ap.add_argument(
+        "--motor",
+        choices=["both", "1", "2", "seq"],
+        default="both",
+        help="both (default) | 1 (left/m1) | 2 (right/m2) | seq (1 then 2)",
+    )
     ap.add_argument("--port", default="/dev/ttyUSB0", help="serial port (default /dev/ttyUSB0; C3 = /dev/ttyACM0)")
     args = ap.parse_args()
 
     s = serial.Serial(args.port, 115200, timeout=0.2)
     s.dtr = False  # don't hold the board in reset
     s.rts = False
-    print(f"opened {args.port}; sweep {args.start:.4f}->{args.stop:.4f} step {args.step:.4f}, "
-          f"hold {args.hold:.0f}s, motor={args.motor}", flush=True)
+    print(
+        f"opened {args.port}; sweep {args.start:.4f}->{args.stop:.4f} step {args.step:.4f}, "
+        f"hold {args.hold:.0f}s, motor={args.motor}",
+        flush=True,
+    )
     print("waiting 5 s for boot + ESC arm...", flush=True)
     time.sleep(5.0)
 
@@ -64,8 +72,9 @@ def main():
             m1 = v if drive_m1 else 0.0
             m2 = v if drive_m2 else 0.0
             us = 1000 + v * 1000
-            print(f"\n>>> {label}: throttle {v:.4f} (~{us:.2f} us) — hold {args.hold:.0f}s — WATCH THE MOTOR",
-                  flush=True)
+            print(
+                f"\n>>> {label}: throttle {v:.4f} (~{us:.2f} us) — hold {args.hold:.0f}s — WATCH THE MOTOR", flush=True
+            )
             send(f"set motors_speed {m1:.4f} {m2:.4f}", args.hold)
             v += args.step
 

@@ -12,6 +12,7 @@ From the repository's root:
   mise exec -- python sketches/balance-beam/tools/serial_dbg.py probe --cmd "kp 0.02"
   mise exec -- python sketches/balance-beam/tools/serial_dbg.py stream --seconds 20 --grep "gx="
 """
+
 import argparse
 import sys
 import time
@@ -93,9 +94,7 @@ def cmd_stream(args):
 
 
 def main():
-    p = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
-    )
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--port", default=DEFAULT_PORT, help=f"serial port (default {DEFAULT_PORT})")
     sub = p.add_subparsers(dest="sub", required=True)
 

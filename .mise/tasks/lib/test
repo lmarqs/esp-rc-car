@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#MISE description="Build and run the tests of the drivers in lib/ on this machine"
+# MISE description="Build and run the tests of the drivers in lib/ on this machine"
 """Each test/test_*.cpp is one program, linked with the lib/ sources behind the headers it includes."""
 
 import os
@@ -48,7 +48,7 @@ def main() -> int:
             check=True,
         )
         print(f"== {test}", flush=True)
-        failed += subprocess.run([str(binary)]).returncode != 0
+        failed += subprocess.run([str(binary)], check=False).returncode != 0
     return 1 if failed else 0
 
 
