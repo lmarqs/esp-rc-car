@@ -6,6 +6,7 @@ const headers = import.meta.glob<string>('../../../../lib/*.h', { query: '?raw',
 const purpose: Record<string, string> = {
   'pin.h': 'The kinds of pin output a driver can ask for: a level, or a PWM signal.',
   'digital_pin.h': 'A GPIO pin turned on or off through the Arduino API, active high or low.',
+  'board_led.h': 'The LED on the board the sketch is built for, lit HIGH on an ESP32 and LOW on an ESP8266.',
   'analog_pin.h': 'A PWM pin through the Arduino API.',
   'ledc_pin.h': 'A PWM pin through the ESP32 LEDC peripheral, on a channel it allocates.',
   'h_bridge.h': 'A motor through a full or half H-bridge.',

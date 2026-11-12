@@ -1,8 +1,8 @@
 #include <Arduino.h>
-#include <digital_pin.h>
+#include <board_led.h>
 #include <serial_io.h>
 
-DigitalOutPin led(2);
+BoardLed led;
 SerialOutput output;
 
 void setup() {
