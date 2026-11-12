@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clockFace, codeRows, crumbs, fileName, serialText, shortcutNames, SERIAL_LINES } from '../../src/components/workbench/view';
+import { clockFace, codeRows, debuggerControls, crumbs, fileName, serialText, shortcutNames, SERIAL_LINES } from '../../src/components/workbench/view';
 import { blinkCommands, blinkSimple } from '../../src/lib/workbench/steps/blink';
 
 describe('codeRows', () => {
@@ -63,5 +63,29 @@ describe('shortcutNames', () => {
   it('lists what each chip sends and each slider sets', () => {
     expect(shortcutNames(blinkCommands.shortcuts)).toBe('pause run delay');
     expect(shortcutNames(blinkSimple.shortcuts)).toBe('');
+  });
+});
+
+describe('debuggerControls', () => {
+  it('offers Pause while running and Continue while paused, with Step in both', () => {
+    expect(debuggerControls('running')).toEqual({ paused: false, label: 'Pause', canContinue: true, canStep: true });
+    expect(debuggerControls('paused')).toEqual({ paused: true, label: 'Continue', canContinue: true, canStep: true });
+  });
+
+  it('disables Continue and Step after an error and says what happened and to restart', () => {
+    expect(debuggerControls('error', new Error('line.toInt() overflowed.'))).toEqual({
+      paused: true,
+      label: 'Continue',
+      canContinue: false,
+      canStep: false,
+      problem: 'The simulator stopped: line.toInt() overflowed. Restart to try again.',
+    });
+    expect(debuggerControls('error', undefined).problem).toBe(
+      'The simulator stopped: something went wrong. Restart to try again.',
+    );
+  });
+
+  it('disables Continue and Step once the sketch ended and says to restart', () => {
+    expect(debuggerControls('ended')).toMatchObject({ canContinue: false, canStep: false, problem: /Restart/ });
   });
 });

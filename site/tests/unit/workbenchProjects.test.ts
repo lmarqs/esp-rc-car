@@ -43,8 +43,14 @@ describe('workbenchFor', () => {
 describe('openRunner', () => {
   it('opens running in slow mode', () => {
     expect(OPENING).toEqual({ slow: true, running: true });
-    const runner = openRunner(blinkSimple, () => {}, fakeClock());
+    const runner = openRunner(blinkSimple, () => {}, { clock: fakeClock() });
     expect(runner.view()).toMatchObject({ status: 'running', slow: true, line: 'Serial.begin(115200);' });
+    runner.dispose();
+  });
+
+  it('runs at full speed when the visitor turned slow off', () => {
+    const runner = openRunner(blinkSimple, () => {}, { clock: fakeClock(), slow: false });
+    expect(runner.view()).toMatchObject({ status: 'running', slow: false });
     runner.dispose();
   });
 
@@ -54,7 +60,7 @@ describe('openRunner', () => {
     const listener = vi.fn((_view: unknown, effects: readonly Effect[]) => {
       for (const effect of effects) if (effect.kind === 'print') printed.push(effect.text);
     });
-    const runner = openRunner(blinkSimple, listener, clock);
+    const runner = openRunner(blinkSimple, listener, { clock });
     clock.advance(3000);
     expect(printed).toEqual(['', 'sketch blink/simple', 'HIGH']);
     runner.dispose();

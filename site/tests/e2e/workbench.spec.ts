@@ -12,6 +12,9 @@ const visibleCode = (page: Page) => bench(page).locator('[data-code]:visible');
 const watchNames = (page: Page) => bench(page).locator('.watch div:visible dt');
 const watchValue = (page: Page, name: string) => bench(page).locator(`[data-watch-row="${name}"] dd`);
 const serial = (page: Page) => bench(page).getByRole('log', { name: 'Serial output' });
+const toolbar = (page: Page) => bench(page).getByRole('toolbar', { name: 'Debugger' });
+const button = (page: Page, name: string) => toolbar(page).getByRole('button', { name, exact: true });
+const runningLine = (page: Page) => runningRow(page).getAttribute('data-line').then(Number);
 const runningRow = (page: Page) => visibleCode(page).locator('[data-running]');
 const clockFill = (row: Locator) =>
   row.locator('[data-pie] .fill').evaluate((fill) => parseFloat(getComputedStyle(fill).strokeDasharray));
@@ -187,6 +190,143 @@ test.describe('the Blink workbench', () => {
     await page.clock.runFor(500);
     expect(await clockFill(runningRow(page))).toBe(first);
     expect(first).toBe(100);
+  });
+
+  test('has a joined Pause, Step and Restart group and a separate Slow toggle in the editor tab row', async ({
+    page,
+  }) => {
+    await expect(bench(page).locator('.edhead [role="toolbar"]')).toHaveCount(1);
+    const names = ['Pause', 'Step', 'Restart', 'Slow'];
+    await expect(toolbar(page).getByRole('button')).toHaveText(names);
+    for (const name of names) await expect(button(page, name).locator('svg:visible')).toHaveCount(1);
+
+    const [pause, step, restart, slow] = await Promise.all(names.map((name) => button(page, name).boundingBox()));
+    expect(Math.abs(step!.x - (pause!.x + pause!.width))).toBeLessThan(1);
+    expect(Math.abs(restart!.x - (step!.x + step!.width))).toBeLessThan(1);
+    expect(slow!.x - (restart!.x + restart!.width)).toBeGreaterThan(4);
+  });
+
+  test('turns Pause into a green-play Continue of the same width, and back', async ({ page }) => {
+    const pause = button(page, 'Pause');
+    const before = await pause.boundingBox();
+    await expect(pause.locator('.i-pause')).toBeVisible();
+    await pause.click();
+
+    const resume = button(page, 'Continue');
+    await expect(resume).toBeVisible();
+    await expect(resume.locator('.i-pause')).toBeHidden();
+    await expect(resume.locator('.i-play')).toBeVisible();
+    await expect(resume.locator('.i-play')).toHaveCSS('color', 'rgb(46, 158, 107)');
+    const after = await resume.boundingBox();
+    expect(after!.width).toBe(before!.width);
+    expect(after!.x).toBe(before!.x);
+
+    const line = await runningLine(page);
+    await page.clock.runFor(3000);
+    expect(await runningLine(page)).toBe(line);
+
+    await resume.click();
+    await expect(button(page, 'Pause')).toBeVisible();
+    await page.clock.runFor(600);
+    expect(await runningLine(page)).not.toBe(line);
+  });
+
+  test('opens with Slow pressed and lets the visitor turn it off with the keyboard', async ({ page }) => {
+    const slow = button(page, 'Slow');
+    await expect(slow).toHaveAttribute('aria-pressed', 'true');
+    await expect(slow).toHaveCSS('background-color', 'rgb(31, 45, 58)');
+
+    await slow.focus();
+    await expect(slow).toHaveCSS('outline-color', 'rgb(226, 96, 58)');
+    await page.keyboard.press('Space');
+    await expect(slow).toHaveAttribute('aria-pressed', 'false');
+    await expect(slow).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+    // At full speed the lines before the first delay take no time, so the arrow goes straight to it.
+    await page.clock.runFor(50);
+    await expect(runningRow(page)).toHaveAttribute('data-line', String(linesOf('sketches/blink/simple', 'delay(1000);')[0]));
+    await expect(serial(page)).toContainText('HIGH');
+  });
+
+  test('Step runs exactly one line, and the LED, output and watch change only when their line runs', async ({
+    page,
+  }) => {
+    await tab(page, '2 input').click();
+    await button(page, 'Pause').click();
+    const input = source('sketches/blink/input');
+    const at = (text: string, occurrence = 1) => lineNumber(input, text, occurrence)!;
+    const order = [
+      at('Serial.begin(115200);'),
+      at('Serial.println();'),
+      at('Serial.println("sketch blink/input");'),
+      at('led.begin();'),
+      at('if (Serial.available()) {'),
+      at('Serial.println("HIGH");'),
+      at('led.write(HIGH);'),
+      at('delay(blinkDelay);'),
+      at('Serial.println("LOW");'),
+      at('led.write(LOW);'),
+      at('delay(blinkDelay);', 2),
+    ];
+    const step = button(page, 'Step');
+    await expect(runningRow(page)).toHaveAttribute('data-line', String(order[0]));
+    for (const line of order.slice(1, 7)) {
+      await step.click();
+      await expect(runningRow(page)).toHaveAttribute('data-line', String(line));
+    }
+    // About to run led.write(HIGH): the print before it ran, the LED has not changed yet.
+    await expect(serial(page)).toHaveText(/HIGH$/);
+    await expect(watchValue(page, 'LED')).toHaveText('LOW');
+    await expect(bench(page).locator('[data-picture]')).not.toHaveClass(/\bon\b/);
+
+    await step.click();
+    await expect(runningRow(page)).toHaveAttribute('data-line', String(order[7]));
+    await expect(watchValue(page, 'LED')).toHaveText('HIGH');
+    await expect(bench(page).locator('[data-picture]')).toHaveClass(/\bon\b/);
+
+    // Step runs a whole delay at once, with no real wait.
+    await step.click();
+    await expect(runningRow(page)).toHaveAttribute('data-line', String(order[8]));
+    await step.click();
+    await expect(runningRow(page)).toHaveAttribute('data-line', String(order[9]));
+    await expect(serial(page)).toHaveText(/LOW$/);
+    await expect(watchValue(page, 'LED')).toHaveText('HIGH');
+    await expect(watchValue(page, 'measured')).toHaveText('…');
+
+    await step.click();
+    await expect(runningRow(page)).toHaveAttribute('data-line', String(order[10]));
+    await expect(watchValue(page, 'LED')).toHaveText('LOW');
+    await expect(watchValue(page, 'measured')).toHaveText('1000 ms');
+    await expect(button(page, 'Continue')).toBeVisible();
+  });
+
+  test('Restart starts again from the first line with the output and watch cleared, and keeps on running', async ({
+    page,
+  }) => {
+    const first = String(lineNumber(source('sketches/blink/simple'), 'Serial.begin(115200);'));
+    await page.clock.runFor(5100);
+    await expect(serial(page)).toContainText('LOW');
+    await expect(watchValue(page, 'measured')).toHaveText('1000 ms');
+
+    await button(page, 'Restart').click();
+    await expect(runningRow(page)).toHaveAttribute('data-line', first);
+    await expect(serial(page)).toHaveText('');
+    await expect(watchValue(page, 'LED')).toHaveText('LOW');
+    await expect(watchValue(page, 'measured')).toHaveText('…');
+    await expect(button(page, 'Pause')).toBeVisible();
+    await page.clock.runFor(1600);
+    await expect(serial(page)).toHaveText('\nsketch blink/simple');
+  });
+
+  test('Restart stays paused when the visitor had paused', async ({ page }) => {
+    const first = String(lineNumber(source('sketches/blink/simple'), 'Serial.begin(115200);'));
+    await page.clock.runFor(2600);
+    await button(page, 'Pause').click();
+    await button(page, 'Restart').click();
+    await expect(runningRow(page)).toHaveAttribute('data-line', first);
+    await expect(serial(page)).toHaveText('');
+    await page.clock.runFor(2000);
+    await expect(runningRow(page)).toHaveAttribute('data-line', first);
+    await expect(button(page, 'Continue')).toBeVisible();
   });
 
   test('moves between tabs with the arrow keys and shows the focus', async ({ page }) => {

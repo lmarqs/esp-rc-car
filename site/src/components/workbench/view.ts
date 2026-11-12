@@ -1,5 +1,5 @@
 import { highlightLine, type Token } from '../../lib/workbench/highlight';
-import type { OutputLine, RunnerView } from '../../lib/workbench/simulator';
+import type { OutputLine, RunnerView, RunStatus } from '../../lib/workbench/simulator';
 import { sketchSourcePath } from '../../lib/workbench/source';
 import type { Shortcut } from '../../lib/workbench/step';
 
@@ -76,4 +76,34 @@ export function serialText(output: readonly OutputLine[]): string {
 /** What each of a step's shortcuts sends or sets, such as `pause run delay`; empty for a step with none. */
 export function shortcutNames(shortcuts: readonly Shortcut[]): string {
   return shortcuts.map((shortcut) => (shortcut.kind === 'chip' ? shortcut.text : shortcut.label)).join(' ');
+}
+
+/** What the debugger's toolbar shows for a run: the Pause button's word, which buttons work, and any problem. */
+export interface DebuggerControls {
+  /** The Pause button reads Continue, with a play icon. */
+  readonly paused: boolean;
+  readonly label: 'Pause' | 'Continue';
+  readonly canContinue: boolean;
+  readonly canStep: boolean;
+  /** What stopped the run and what to do, in plain words; absent while the run can go on. */
+  readonly problem?: string;
+}
+
+/** The toolbar for a run in `status`; `error` is what the program threw, for a run in `error`. */
+export function debuggerControls(status: RunStatus, error?: unknown): DebuggerControls {
+  const live = status === 'running' || status === 'paused';
+  const controls = {
+    paused: status !== 'running',
+    label: status === 'running' ? 'Pause' : 'Continue',
+    canContinue: live,
+    canStep: live,
+  } as const;
+  if (status === 'error') return { ...controls, problem: `The simulator stopped: ${reason(error)}. Restart to try again.` };
+  if (status === 'ended') return { ...controls, problem: 'The sketch has ended. Restart to run it again.' };
+  return controls;
+}
+
+function reason(error: unknown): string {
+  const text = error instanceof Error ? error.message : (error ?? '').toString();
+  return text.replace(/[.\s]+$/, '') || 'something went wrong';
 }
