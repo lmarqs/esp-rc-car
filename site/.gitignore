@@ -20,3 +20,6 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
+
+# images built by arduino:firmware
+/public/firmware/

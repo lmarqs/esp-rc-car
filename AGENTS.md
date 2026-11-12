@@ -1,7 +1,7 @@
 # esp-rc-car
 
 Firmware for an ESP32 RC car: drivers in `lib/` and sketches in `sketches/`, and Robomania, the project's website,
-in `site/`. The [README](README.md) says what is built so far and how to build and flash it.
+in `site/`. The [README](README.md) says what is built and how to build and flash it.
 
 Stack: C++ on the Arduino cores `esp32-bluepad32:esp32` 4, `esp8266:esp8266` 3 and `digistump:avr` 1, pinned in
 each sketch's `sketch.yaml`; arduino-cli 1,
@@ -20,7 +20,8 @@ website: Astro 7 on Node 24 and pnpm 12, pinned in `mise.toml` and `package.json
   `mise run site:dev` to serve it locally
 - Test: `mise run lib:test`; the website: `mise run site:test`
 - Lint or format one file: `mise exec -- clang-format -i <file>`; Python: `mise exec -- ruff format <file>`
-- Generate code: `mise run arduino:hexdump <sketch>`, which turns each file in `<sketch>/data` into a C header
+- Generate: `mise run arduino:hexdump <sketch>`, a C header per `<sketch>/data` file; website images:
+  `mise run arduino:firmware`
 - Worktrees: `git worktree add .worktrees/<branch> -b <branch> && (cd .worktrees/<branch> && .worktrees/setup)`;
   remove with `(cd .worktrees/<branch> && .worktrees/teardown) && git worktree remove .worktrees/<branch>`
 - Quick check: `mise exec -- clang-format --dry-run --Werror <file>` on each changed file,
@@ -61,7 +62,8 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
   a sketch's secrets in its gitignored `local.h`
 - How the parts fit and coding standards: `docs/`, by the map in `docs/README.md`; write and review pages with the
   `docs-layout` skill
-- A mise task: an executable file at `.mise/tasks/<namespace>/<task>`, run as `mise run <namespace>:<task>`.
+- A mise task: an executable `.mise/tasks/<namespace>/<task>`, run as `mise run <namespace>:<task>`.
+- Firmware images: gitignored `site/public/firmware/`.
 - A procedure an agent repeats: a skill in `.agents/skills/`.
 - A trap in one area: `.agents/memory/`, listed under Deep dive.
 
@@ -71,7 +73,7 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 - Write C++ and Python by [the standards](docs/standards/README.md).
 - Change only what the task needs, matching the surrounding code.
 - Format with `.clang-format`.
-- Commits: one change per commit, pushed straight to `main`; no pull requests
+- Commits: one change each, pushed straight to `main`; no pull requests
 - Deploy: a push to `main` releases the website on a `#site-release` commit message, and the `lib/` library on
   `#lib-release` after raising `version` in `lib/library.properties`
 

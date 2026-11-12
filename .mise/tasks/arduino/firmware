@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+# [MISE] description="Build the ESP images the website flashes, and their manifest, into site/public/firmware"
+# [USAGE] flag "--allow-local" help="Build a sketch that has a local.h, which bakes its secrets into the image"
+"""Builds the images the website flashes from the browser.
+
+Run it from the repository's root: `mise run arduino:firmware`.
+
+The parts of an image and their offsets are the ones the core's own upload recipe writes, read from
+`tools.esptool_py.upload.pattern_args` (ESP32) or `tools.esptool.upload.pattern` (ESP8266) in
+`arduino-cli compile --show-properties`.
+"""
+
+import itertools
+import json
+import os
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+SKETCHES = Path("sketches")
+BUILD = Path(".build/firmware")
+OUTPUT = Path("site/public/firmware")
+PLATFORM_PREFIXES = ("esp32-bluepad32:esp32", "esp8266:esp8266")
+CHIP_FAMILIES = {"esp32": "ESP32", "esp32c3": "ESP32-C3", "esp8266": "ESP8266"}
+UPLOAD_RECIPES = ("tools.esptool_py.upload.pattern_args", "tools.esptool.upload.pattern")
+PROFILE = re.compile(r"^  (\w[\w-]*):\s*$")
+PLATFORM = re.compile(r"^\s+- platform:\s*(\S+)")
+HEX_OFFSET = re.compile(r"^0x[0-9a-fA-F]+$")
+
+
+def esp_profiles(sketch: Path) -> list[str]:
+    """Names the profiles of a sketch.yaml whose platform is an ESP core."""
+    profiles: list[str] = []
+    current = None
+    for line in (sketch / "sketch.yaml").read_text().splitlines():
+        if match := PROFILE.match(line):
+            current = match.group(1)
+        elif (match := PLATFORM.match(line)) and current and match.group(1).startswith(PLATFORM_PREFIXES):
+            profiles.append(current)
+            current = None
+    return profiles
+
+
+def run(command: list[str]) -> str:
+    return subprocess.run(command, check=True, capture_output=True, text=True).stdout
+
+
+def upload_arguments(sketch: Path, profile: str, build_path: Path) -> list[str]:
+    properties = run(
+        [
+            "arduino-cli",
+            "compile",
+            str(sketch),
+            "--profile",
+            profile,
+            "--build-path",
+            str(build_path),
+            "--show-properties",
+        ]
+    )
+    values = dict(line.split("=", 1) for line in properties.splitlines() if "=" in line)
+    for recipe in UPLOAD_RECIPES:
+        if recipe in values:
+            return shlex.split(values[recipe])
+    raise SystemExit(f"{sketch}/{profile}: arduino-cli prints none of {', '.join(UPLOAD_RECIPES)}")
+
+
+def chip_family(arguments: list[str]) -> str:
+    chip = arguments[arguments.index("--chip") + 1]
+    if chip not in CHIP_FAMILIES:
+        raise SystemExit(f"no chipFamily for the esptool chip {chip}")
+    return CHIP_FAMILIES[chip]
+
+
+def flash_parts(arguments: list[str]) -> list[tuple[int, Path]]:
+    """Pairs each `<offset> <file>` that follows write_flash."""
+    tail = arguments[arguments.index("write_flash") + 1 :]
+    return [(int(offset, 16), Path(file)) for offset, file in itertools.pairwise(tail) if HEX_OFFSET.match(offset)]
+
+
+def publish(sketch: Path, profile: str) -> dict:
+    build_path = BUILD / sketch.name / profile
+    subprocess.run(
+        ["arduino-cli", "compile", str(sketch), "--profile", profile, "--build-path", str(build_path)], check=True
+    )
+    arguments = upload_arguments(sketch, profile, build_path)
+    target = OUTPUT / sketch.name / profile
+    target.mkdir(parents=True)
+    parts = []
+    for offset, file in flash_parts(arguments):
+        shutil.copy(file, target / file.name)
+        parts.append({"path": (target / file.name).relative_to(OUTPUT).as_posix(), "offset": offset})
+    return {"profile": profile, "chipFamily": chip_family(arguments), "parts": parts}
+
+
+def main() -> int:
+    allow_local = os.environ.get("usage_allow_local") == "true"
+    selected = {sketch: profiles for sketch in sorted(SKETCHES.iterdir()) if (profiles := esp_profiles(sketch))}
+
+    baked = [sketch for sketch in selected if (sketch / "local.h").exists()]
+    if baked and not allow_local:
+        names = ", ".join(str(sketch / "local.h") for sketch in baked)
+        print(
+            f"Refusing to publish images built with {names}: its secrets would ship to every visitor.", file=sys.stderr
+        )
+        print("Delete it, or run with --allow-local.", file=sys.stderr)
+        return 1
+
+    shutil.rmtree(OUTPUT, ignore_errors=True)
+    manifest: dict = {"sketches": {}}
+    for sketch, profiles in selected.items():
+        subprocess.run(["mise", "run", "arduino:hexdump", str(sketch)], check=True)
+        manifest["sketches"][sketch.name] = {"images": [publish(sketch, profile) for profile in profiles]}
+
+    (OUTPUT / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
