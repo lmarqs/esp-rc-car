@@ -303,7 +303,7 @@ export const blinkTimer: BlinkStep = {
   program: timer,
   shortcuts: [delaySlider((ms) => String(ms))],
   placeholder: 'a number, then Enter',
-  hint: 'There is no delay(): the board runs loop() again and again and checks the clock each time. A number you send is read on the next pass.',
+  hint: 'There is no delay(): the board runs loop() again and again and checks the clock each time. Send a number and the blink changes pace on the next pass, even halfway through a blink.',
   live: liveDelay,
   parse: parseBlinkLine,
   answers: answersBlinkLine,

@@ -152,6 +152,10 @@ describe('the four steps', () => {
     expect(step.hint.endsWith('.')).toBe(true);
   });
 
+  it.each(blinkSteps)('$key has a hint that says what to do: press Step, send a line or drag the slider', (step) => {
+    expect(step.hint).toMatch(/\b(Press Step|Send|drag the slider)\b/);
+  });
+
   it.each(blinkSteps)('$key prints a blank line, then its name, as setup() does', (step) => {
     const { runner, printed } = start(step);
     stepUntil(runner, step === blinkSimple ? 'Serial.println("HIGH");' : (step === blinkInput ? IF_AVAILABLE : WHILE_AVAILABLE));
