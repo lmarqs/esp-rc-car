@@ -1,4 +1,5 @@
 ---
+import { BOARD_MODELS } from '../../lib/board/models';
 import { sketchNames } from '../../lib/board/names';
 import { readManifest } from '../../lib/flash/readManifest';
 import { href } from '../../lib/href';
@@ -52,12 +53,17 @@ const manifest = readManifest();
     </div>
   </div>
   <div class="bar wrap">
+    <select class="pick" aria-label="My board" data-dock-pick>
+      <option value="">Which board?</option>
+      {BOARD_MODELS.map((model) => <option value={model.id}>{model.name}</option>)}
+    </select>
     <span class="dot" aria-hidden="true" data-dock-dot></span>
     <span class="status" aria-live="polite" data-dock-status>
       <b class="chip" data-dock-chip>No board</b>{' '}<span data-dock-doing></span>{' '}<a data-dock-link hidden></a><span
         data-dock-sketch
       ></span>
     </span>
+    <span class="notice" role="status" data-dock-notice hidden></span>
     <span class="meter" data-dock-meter hidden>
       <span class="track" role="progressbar" aria-label="Flashing" aria-valuemin="0" aria-valuemax="100" data-dock-track>
         <i data-dock-fill></i>
@@ -103,6 +109,10 @@ const manifest = readManifest();
   .dock { position: sticky; bottom: 0; z-index: 10; background: var(--ink); color: var(--on-ink); font-size: 13px; line-height: 1.5; border-top: 1px solid var(--on-ink-edge); box-shadow: 0 -8px 20px var(--ink-shadow); }
   .dock:focus { outline: none; }
   .bar { display: flex; align-items: center; gap: 10px; min-height: 44px; padding-top: 6px; padding-bottom: 6px; flex-wrap: wrap; }
+  .pick { font: inherit; font-weight: 700; font-size: 12px; color: var(--card); background: var(--ink-raised); border: 1px solid var(--on-ink-edge); border-radius: 999px; padding: 3px 8px; cursor: pointer; }
+  .pick:hover { border-color: var(--yellow); }
+  .pick:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .notice { flex: 1 1 100%; order: 1; color: var(--yellow); }
   .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--faint); flex: none; }
   .dot.on { background: var(--green); box-shadow: 0 0 0 3px var(--green-halo); }
   .status { min-width: 0; flex: 0 1 auto; }
@@ -155,6 +165,8 @@ const manifest = readManifest();
 
 <script>
   import { theBoard } from '../../lib/board/board';
+  import { correctionNotice, modelAnswering } from '../../lib/board/models';
+  import { thePick } from '../../lib/board/pick';
   import type { SketchName } from '../../lib/board/names';
   import type { Manifest } from '../../lib/flash';
   import { runs } from '../../lib/board/record';
@@ -191,6 +203,32 @@ const manifest = readManifest();
     const again = find<HTMLButtonElement>('again');
     const disconnect = find<HTMLButtonElement>('disconnect');
     const connect = find<HTMLButtonElement>('connect');
+
+    const pick = thePick();
+    const select = find<HTMLSelectElement>('pick');
+    const notice = find<HTMLElement>('notice');
+    select.value = pick.model?.id ?? '';
+    select.addEventListener('change', () => {
+      notice.hidden = true;
+      pick.choose(select.value || undefined);
+    });
+    pick.subscribe(() => {
+      select.value = pick.model?.id ?? '';
+    });
+
+    /** Once a board answers, its chip is certain: the pick follows it, and says so when the visitor picked another. */
+    function followChip() {
+      const state = session.state;
+      if (!('chip' in state)) return;
+      const picked = pick.model;
+      const answering = modelAnswering(picked, state.chip);
+      if (answering === undefined || answering === picked) return;
+      if (picked !== undefined) {
+        notice.textContent = correctionNotice(picked, answering);
+        notice.hidden = false;
+      }
+      pick.choose(answering.id);
+    }
 
     connect.addEventListener('click', () => void board.send({ type: 'connect', reset: true }));
     disconnect.addEventListener('click', () => void board.send({ type: 'disconnect' }));
@@ -239,6 +277,7 @@ const manifest = readManifest();
       monitor.show(view.canSend);
     }
 
+    board.subscribe(followChip);
     board.subscribe(render);
     render();
   }

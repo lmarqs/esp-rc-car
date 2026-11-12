@@ -165,3 +165,41 @@ test.describe('the board dock', () => {
     expect([after.x, after.width]).toEqual([before.x, before.width]);
   });
 });
+
+test.describe('the board pick', () => {
+  const pick = (page: Page) => dock(page).getByRole('combobox', { name: 'My board' });
+
+  test('is kept from page to page and from visit to visit', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install();
+    await page.goto('/robomania/learn/');
+    await expect(pick(page)).toHaveValue('');
+    await pick(page).selectOption({ label: 'ESP-01S' });
+
+    await nav(page).getByRole('link', { name: 'Projects' }).click();
+    await expect(pick(page)).toHaveValue('esp01s');
+    await page.reload();
+    await expect(pick(page)).toHaveValue('esp01s');
+  });
+
+  test('follows the chip that answers, and says so when it is not the picked one', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ chip: 'ESP32', lines: ['sketch blink/input'] });
+    await page.goto('/robomania/learn/');
+    await pick(page).selectOption({ label: 'ESP-01S' });
+
+    await dock(page).getByRole('button', { name: 'Connect board' }).click();
+
+    await expect(pick(page)).toHaveValue('esp32');
+    await expect(dock(page).getByRole('status')).toHaveText(
+      'You picked an ESP-01S, but an ESP32 answered. The site now follows the ESP32 dev board.',
+    );
+  });
+
+  test('takes the board from the chip that answers when none was picked', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ chip: 'ESP8266', lines: ['sketch web-relay'] });
+    await page.goto('/robomania/learn/');
+    await dock(page).getByRole('button', { name: 'Connect board' }).click();
+
+    await expect(pick(page)).toHaveValue('esp01s');
+    await expect(dock(page).getByRole('status')).toBeHidden();
+  });
+});
