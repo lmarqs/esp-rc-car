@@ -14,7 +14,8 @@ other. A fact belongs here when no single file shows it. A good page names each 
 the dependencies; it names no class, function or constant, since those are implementation and the code holds them.
 
 **[Sketches](sketches/README.md)**: what each sketch does for whoever runs it, one page per sketch, named after its
-directory. A fact belongs here when it states what the sketch owes its user and reading the code would not tell them:
+directory, or one page per project whose sketches are the steps of a ladder, named after the project's directory.
+A fact belongs here when it states what the sketch owes its user and reading the code would not tell them:
 a pin, a threshold, a timeout. A good page opens with what the sketch is for and why, follows its inputs, signals
 and outputs, and names what it does not handle, each with its workaround.
 
