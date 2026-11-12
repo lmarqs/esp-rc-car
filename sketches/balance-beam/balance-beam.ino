@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <Preferences.h>
 #include <Wire.h>
 #include <esc.h>
 #include <imu.h>
@@ -6,6 +7,7 @@
 
 #include "./balancer.h"
 #include "./config.h"
+#include "./config_command.h"
 #include "./tuning_server.h"
 
 // 14 bits is the finest LEDC resolution the ESP32-C3 has, and at 200 Hz one step of it is 0.3 µs. The ESCs take
@@ -24,8 +26,23 @@ static EspLedcOutPin escPin2(ESC_2_PIN, ESC_HZ, ESC_RESOLUTION);
 static Esc esc1(&escPin1);
 static Esc esc2(&escPin2);
 static Mpu6050Imu imu(&Wire);
-static Balancer balancer(ComplementaryFilter(FILTER_ALPHA), PidController({KP, KI, KD}, -PID_OUT_LIMIT, PID_OUT_LIMIT),
-                         Mixer(THROTTLE_MID, THROTTLE_MIN, THROTTLE_MAX), TILT_LIMIT_DEG);
+// Rebuilt in setup() from the settings, which the board reads from flash. Until then it holds a band of 0.
+static Balancer balancer(ComplementaryFilter(FILTER_ALPHA), PidController({KP, KI, KD}, 0.0f, 0.0f),
+                         Mixer(0.0f, 0.0f, 0.0f), 0.0f);
+
+static const char* const NVS_NAMESPACE = "bbcfg";
+// NVS keys are at most 15 characters, which angle_offset_deg exceeds, so they differ from the protocol's keys.
+static const char* const NVS_KEYS[CONFIG_FIELD_COUNT] = {"ap_ssid", "ap_pass", "angle_off", "thr_min",
+                                                         "thr_mid", "thr_max", "tilt_lim"};
+
+static const ConfigDefaults CONFIG_DEFAULTS{DEFAULT_AP_SSID,       DEFAULT_AP_PASSWORD,  DEFAULT_ANGLE_OFFSET_DEG,
+                                            DEFAULT_THROTTLE_MIN,  DEFAULT_THROTTLE_MID, DEFAULT_THROTTLE_MAX,
+                                            DEFAULT_TILT_LIMIT_DEG};
+
+static StoredConfig storedConfig = emptyConfig();
+// Written in setup() before the control task starts, and only read after.
+static BoardSettings settings;
+static ConfigLineReader serialLine;
 
 // Only the control task touches these.
 static PidGains gains{KP, KI, KD};
@@ -50,7 +67,7 @@ static void step(float dt) {
   }
 #endif
 
-  tuningServerPoll(gains, setpoint);
+  tuningServerPoll(gains, setpoint, settings.tiltLimitDeg);
   const int arm = tuningServerPollArm();
   if (arm >= 0) {
     enabled = arm == 1;
@@ -63,7 +80,7 @@ static void step(float dt) {
 
   // The beam pivots around the sensor's Z axis: level, gravity lies on +X, and tilting swings it into Y. The Z rate
   // is negated to agree in sign with that angle. Both depend on how the sensor is mounted.
-  const float accelAngle = atan2f(sample.ay, sample.ax) * RAD_TO_DEG - ANGLE_OFFSET_DEG;
+  const float accelAngle = atan2f(sample.ay, sample.ax) * RAD_TO_DEG - settings.angleOffsetDeg;
   balancer.setGains(gains);
   last = balancer.step({accelAngle, -sample.gz, setpoint, dt, enabled});
 
@@ -160,17 +177,77 @@ static void handleCommand(String line) {
   }
 }
 
-static void pollSerial() {
-  static String line;
-  while (Serial.available()) {
-    const char c = Serial.read();
-    if (c == '\n' || c == '\r') {
-      handleCommand(line);
-      line = "";
+static void loadConfig() {
+  Preferences prefs;
+  if (!prefs.begin(NVS_NAMESPACE)) {
+    log_e("the stored settings are unreadable, so the defaults apply");
+    return;
+  }
+  for (int i = 0; i < CONFIG_FIELD_COUNT; i++) {
+    const ConfigField field = static_cast<ConfigField>(i);
+    if (!prefs.isKey(NVS_KEYS[field])) {
+      continue;
+    }
+    bool kept;
+    if (configFieldIsText(field)) {
+      char text[CONFIG_PASSWORD_MAX + 2];
+      text[0] = '\0';
+      prefs.getString(NVS_KEYS[field], text, sizeof(text));
+      kept = restoreText(storedConfig, field, text);
     } else {
-      line += c;
+      kept = restoreNumber(storedConfig, field, prefs.getFloat(NVS_KEYS[field], NAN));
+    }
+    if (!kept) {
+      log_w("the stored %s is invalid and ignored", configKey(field));
     }
   }
+  prefs.end();
+}
+
+static void saveConfig(ConfigField field) {
+  Preferences prefs;
+  if (!prefs.begin(NVS_NAMESPACE)) {
+    log_e("the %s could not be saved", configKey(field));
+    return;
+  }
+  const bool saved = configFieldIsText(field) ? prefs.putString(NVS_KEYS[field], storedText(storedConfig, field)) > 0
+                                              : prefs.putFloat(NVS_KEYS[field], storedNumber(storedConfig, field)) > 0;
+  prefs.end();
+  if (!saved) {
+    log_e("the %s could not be saved", configKey(field));
+  }
+}
+
+// Settings are read at boot, so a new value takes effect after `cfg restart`. The reply goes out raw, a line the
+// page recognizes by its "cfg " start, and not through the log.
+static void handleConfigCommand(const char* line) {
+  char reply[CONFIG_REPLY_MAX];
+  const ConfigResult result = handleConfigLine(line, storedConfig, CONFIG_DEFAULTS, enabled, reply, sizeof(reply));
+  if (result.action == ConfigAction::Save) {
+    saveConfig(result.field);
+  }
+  Serial.print(reply);
+  if (result.action == ConfigAction::Restart) {
+    Serial.flush();
+    ESP.restart();
+  }
+}
+
+static void pollSerial() {
+  while (Serial.available()) {
+    if (serialLine.feed(static_cast<char>(Serial.read()))) {
+      if (isConfigLine(serialLine.line())) {
+        handleConfigCommand(serialLine.line());
+      } else {
+        handleCommand(serialLine.line());
+      }
+    }
+  }
+}
+
+// The PID's output reaches from the middle throttle to the farther edge of the band; the mixer clamps at the nearer.
+static float pidOutputLimit(const BoardSettings& s) {
+  return fmaxf(s.throttleMax - s.throttleMid, s.throttleMid - s.throttleMin);
 }
 
 static void controlTask(void*) {
@@ -200,6 +277,17 @@ void setup() {
   Serial.setDebugOutput(true);
   log_i("boot, disarmed. Arm from the page; the ESCs' supply has its own switch.");
 
+  loadConfig();
+  settings = activeSettings(storedConfig, CONFIG_DEFAULTS);
+  if (settings.bandRejected) {
+    log_e("the throttles break 0 <= min <= mid <= max <= 1, so the band is 0 and no motor spins");
+  }
+  log_i("settings: angle_offset=%.3f throttle=%.3f/%.3f/%.3f tilt_limit=%.3f", settings.angleOffsetDeg,
+        settings.throttleMin, settings.throttleMid, settings.throttleMax, settings.tiltLimitDeg);
+  const float outLimit = pidOutputLimit(settings);
+  balancer = Balancer(ComplementaryFilter(FILTER_ALPHA), PidController({KP, KI, KD}, -outLimit, outLimit),
+                      Mixer(settings.throttleMid, settings.throttleMin, settings.throttleMax), settings.tiltLimitDeg);
+
   Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
   Wire.setClock(400000);
   // A stalled read fails within 10 ms and costs one step, where a hang would trip the watchdog.
@@ -217,7 +305,7 @@ void setup() {
   delay(ESC_ARM_MS);
   log_i("ESCs armed and idle");
 
-  tuningServerBegin();
+  tuningServerBegin(settings.apSsid, settings.apPassword);
 
   // The control loop gets its own task on the core Arduino runs on: core 1 on a dual-core chip, away from the WiFi
   // stack on core 0, and the only core on the C3. setup() runs in the Arduino loop task, which is deleted since

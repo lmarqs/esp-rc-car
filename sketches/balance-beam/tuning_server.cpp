@@ -102,15 +102,15 @@ static void registerUri(const char* path, esp_err_t (*handler)(httpd_req_t*)) {
   httpd_register_uri_handler(server, &uri);
 }
 
-bool tuningServerBegin() {
+bool tuningServerBegin(const char* apSsid, const char* apPassword) {
   WiFi.onEvent(onWifiEvent);
   WiFi.mode(WIFI_AP);
 
-  const bool secured = strlen(AP_PASSWORD) >= 8;
-  if (strlen(AP_PASSWORD) > 0 && !secured) {
+  const bool secured = strlen(apPassword) >= 8;
+  if (strlen(apPassword) > 0 && !secured) {
     log_w("the hotspot password is shorter than 8 characters, so the hotspot is open");
   }
-  if (!(secured ? WiFi.softAP(AP_SSID, AP_PASSWORD) : WiFi.softAP(AP_SSID))) {
+  if (!(secured ? WiFi.softAP(apSsid, apPassword) : WiFi.softAP(apSsid))) {
     log_e("the hotspot failed to start");
     return false;
   }
@@ -128,8 +128,7 @@ bool tuningServerBegin() {
   registerUri("/telemetry", telemetryHandler);
   registerUri("/set", setHandler);
 
-  log_i("page on %s hotspot '%s' at http://%s/", secured ? "WPA2" : "open", AP_SSID,
-        WiFi.softAPIP().toString().c_str());
+  log_i("page on %s hotspot '%s' at http://%s/", secured ? "WPA2" : "open", apSsid, WiFi.softAPIP().toString().c_str());
   return true;
 }
 
@@ -144,7 +143,7 @@ void tuningServerPublish(float angle, bool enabled, bool tripped, bool bench, Pi
   taskEXIT_CRITICAL(&mux);
 }
 
-bool tuningServerPoll(PidGains& gains, float& setpoint) {
+bool tuningServerPoll(PidGains& gains, float& setpoint, float tiltLimitDeg) {
   taskENTER_CRITICAL(&mux);
   const bool pending = shared.commandPending;
   const PidGains commandGains = shared.commandGains;
@@ -156,7 +155,7 @@ bool tuningServerPoll(PidGains& gains, float& setpoint) {
     return false;
   }
   gains = commandGains;
-  setpoint = constrain(commandSetpoint, -TILT_LIMIT_DEG, TILT_LIMIT_DEG);
+  setpoint = constrain(commandSetpoint, -tiltLimitDeg, tiltLimitDeg);
   return true;
 }
 

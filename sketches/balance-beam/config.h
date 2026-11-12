@@ -22,11 +22,13 @@ const uint8_t ESC_1_PIN = 16;
 const uint8_t ESC_2_PIN = 17;
 #endif
 
+// The compile-time defaults of the settings that `cfg set` can store on the board; a stored value wins over them.
+
 // The sensor's reading of a level beam, in degrees, which depends on how the sensor is mounted.
 #ifndef BALANCE_BEAM_ANGLE_OFFSET_DEG
 #define BALANCE_BEAM_ANGLE_OFFSET_DEG 0.0f
 #endif
-const float ANGLE_OFFSET_DEG = BALANCE_BEAM_ANGLE_OFFSET_DEG;
+const float DEFAULT_ANGLE_OFFSET_DEG = BALANCE_BEAM_ANGLE_OFFSET_DEG;
 
 const float FILTER_ALPHA = 0.98f;
 
@@ -53,23 +55,18 @@ const float SETPOINT_DEG = 0.0f;
 #ifndef BALANCE_BEAM_THROTTLE_MAX
 #define BALANCE_BEAM_THROTTLE_MAX 0.0f
 #endif
-constexpr float THROTTLE_MIN = BALANCE_BEAM_THROTTLE_MIN;
-constexpr float THROTTLE_MID = BALANCE_BEAM_THROTTLE_MID;
-constexpr float THROTTLE_MAX = BALANCE_BEAM_THROTTLE_MAX;
-static_assert(THROTTLE_MIN >= 0.0f, "BALANCE_BEAM_THROTTLE_MIN must be 0 or more");
-static_assert(THROTTLE_MAX <= 1.0f, "BALANCE_BEAM_THROTTLE_MAX must be 1 or less");
-static_assert(THROTTLE_MIN <= THROTTLE_MID && THROTTLE_MID <= THROTTLE_MAX,
+constexpr float DEFAULT_THROTTLE_MIN = BALANCE_BEAM_THROTTLE_MIN;
+constexpr float DEFAULT_THROTTLE_MID = BALANCE_BEAM_THROTTLE_MID;
+constexpr float DEFAULT_THROTTLE_MAX = BALANCE_BEAM_THROTTLE_MAX;
+static_assert(DEFAULT_THROTTLE_MIN >= 0.0f, "BALANCE_BEAM_THROTTLE_MIN must be 0 or more");
+static_assert(DEFAULT_THROTTLE_MAX <= 1.0f, "BALANCE_BEAM_THROTTLE_MAX must be 1 or less");
+static_assert(DEFAULT_THROTTLE_MIN <= DEFAULT_THROTTLE_MID && DEFAULT_THROTTLE_MID <= DEFAULT_THROTTLE_MAX,
               "BALANCE_BEAM_THROTTLE_MID must lie between MIN and MAX");
-
-// The PID's output reaches from MID to the farther edge of the band; the mixer clamps at the nearer one.
-constexpr float PID_OUT_LIMIT = (THROTTLE_MAX - THROTTLE_MID) > (THROTTLE_MID - THROTTLE_MIN)
-                                    ? (THROTTLE_MAX - THROTTLE_MID)
-                                    : (THROTTLE_MID - THROTTLE_MIN);
 
 #ifndef BALANCE_BEAM_TILT_LIMIT_DEG
 #define BALANCE_BEAM_TILT_LIMIT_DEG 45.0f
 #endif
-const float TILT_LIMIT_DEG = BALANCE_BEAM_TILT_LIMIT_DEG;
+const float DEFAULT_TILT_LIMIT_DEG = BALANCE_BEAM_TILT_LIMIT_DEG;
 
 #ifndef BALANCE_BEAM_AP_SSID
 #define BALANCE_BEAM_AP_SSID "balance-beam"
@@ -79,8 +76,8 @@ const float TILT_LIMIT_DEG = BALANCE_BEAM_TILT_LIMIT_DEG;
 #ifndef BALANCE_BEAM_AP_PASSWORD
 #define BALANCE_BEAM_AP_PASSWORD "thebalancebot"
 #endif
-const char AP_SSID[] = BALANCE_BEAM_AP_SSID;
-const char AP_PASSWORD[] = BALANCE_BEAM_AP_PASSWORD;
+const char DEFAULT_AP_SSID[] = BALANCE_BEAM_AP_SSID;
+const char DEFAULT_AP_PASSWORD[] = BALANCE_BEAM_AP_PASSWORD;
 
 // The bench commands drive each ESC directly, past the throttle band and the tilt limit, so they are compiled in
 // only on request and used with the propellers off.
