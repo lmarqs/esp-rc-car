@@ -214,6 +214,7 @@ const manifest = readManifest();
     });
     pick.subscribe(() => {
       select.value = pick.model?.id ?? '';
+      render();
     });
 
     /** Once a board answers, its chip is certain: the pick follows it, and says so when the visitor picked another. */
@@ -238,7 +239,7 @@ const manifest = readManifest();
     });
 
     function render() {
-      const view = dockView(session.state, board.record, names, flashable);
+      const view = dockView(session.state, board.record, names, flashable, pick.model);
       dock.hidden = !view.shown;
       if (!view.shown) return;
       dot.classList.toggle('on', view.connected);

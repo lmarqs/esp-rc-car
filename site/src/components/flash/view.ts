@@ -1,3 +1,4 @@
+import type { BoardModel } from '../../lib/board/models';
 import type { ManifestImage, SettingField } from '../../lib/flash/manifest';
 import type { SessionEvent, SessionState } from '../../lib/flash/session';
 import type { FieldErrors, SettingValues } from '../../lib/flash/settings';
@@ -74,6 +75,8 @@ export interface ViewContext {
   detailsHref?: string;
   /** The fields the card asks for; absent or empty when the sketch has none. */
   settings?: readonly SettingField[];
+  /** The board the visitor picked, whose hints the card gives. */
+  board?: BoardModel;
 }
 
 const BUILD_IT_YOURSELF = '#run-it-on-your-board';
@@ -126,7 +129,7 @@ function settingsView(state: Extract<SessionState, { kind: 'settings' }>, title:
 /** Maps what the session is doing to what the card shows. */
 export function viewFor(
   state: SessionState,
-  { title, next, baud, images, firmwareUrl, detailsHref = '', settings = [] }: ViewContext,
+  { title, next, baud, images, firmwareUrl, detailsHref = '', settings = [], board }: ViewContext,
 ): View {
   switch (state.kind) {
     case 'idle':
@@ -134,7 +137,7 @@ export function viewFor(
         step: 'connect',
         message: state.released
           ? 'The board is released and keeps running. Connect again to flash it.'
-          : 'Plug the board in over USB. This replaces whatever is on the board.',
+          : `${wording.plugIn(board)} This replaces whatever is on the board.`,
         actions: [{ label: 'Connect board', event: 'connect' }],
       };
     case 'connecting':
@@ -186,7 +189,7 @@ export function viewFor(
     case 'portBusy':
       return failure(wording.PORT_BUSY, 'Connect board');
     case 'noAnswer':
-      return failure(wording.NO_ANSWER, 'Connect board');
+      return failure(wording.noAnswer(board), 'Connect board');
     case 'noImage':
       return failure(wording.noImage(state, title), 'Connect another board');
     case 'noDownload':

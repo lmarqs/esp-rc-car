@@ -93,6 +93,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
   import type { PictureView } from '../../lib/workbench/board';
   import type { Manifest } from '../../lib/flash';
   import { DEFAULT_BAUD, theBoard } from '../../lib/board/board';
+  import { thePick } from '../../lib/board/pick';
   import type { BoardAction } from '../../lib/workbench/link';
   import {
     initialPane,
@@ -360,7 +361,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
 
     /** Paints the Board cell, its button and the board pane's message, and marks the rail's step the board runs. */
     function showLink() {
-      const link = linkView(paneProject, pane);
+      const link = linkView(paneProject, pane, thePick().model);
       boardLink.show(link);
       tabs.forEach((tab, at) => {
         tab.querySelector<HTMLElement>('[data-onboard]')!.hidden = paneProject.steps[at].key !== link.onBoard;
@@ -370,6 +371,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     const unsubscribe = [
       session.subscribe((state) => dispatch({ kind: 'session', state })),
       session.subscribeLines(({ text, at }) => dispatch({ kind: 'line', text, at })),
+      thePick().subscribe(showLink),
     ];
     // The router swaps the page out without unloading it: what runs on its own stops. The board stays connected.
     signal.addEventListener('abort', () => {

@@ -1,3 +1,4 @@
+import type { BoardModel } from '../board/models';
 import type { SessionState } from './session';
 
 /**
@@ -14,6 +15,23 @@ export const PORT_BUSY =
   'Another program is using the board. Close the serial monitor or the Arduino IDE, then connect again.';
 export const NO_ANSWER =
   'The board did not answer. Hold its BOOT button and connect again. On an ESP-01S, set the USB adapter to flash mode first.';
+
+/** Why the board did not answer and what to do, for the board the visitor picked, if any. */
+export function noAnswer(board: BoardModel | undefined): string {
+  if (board === undefined) return NO_ANSWER;
+  if (board.flashSwitch) {
+    return "The board did not answer. Set the adapter's switch to PROG, unplug the adapter, plug it back in and connect again.";
+  }
+  return 'The board did not answer. Hold its BOOT button and connect again.';
+}
+
+/** How to plug in the board the visitor picked, if any, so that it answers the page. */
+export function plugIn(board: BoardModel | undefined): string {
+  if (board?.flashSwitch) {
+    return `Put the ${board.name} in its USB adapter, set the adapter's switch to PROG, then plug it in.`;
+  }
+  return 'Plug the board in over USB.';
+}
 /** An ESP8266 that its adapter keeps in flash mode after the write. */
 export const FLASH_MODE =
   "The sketch is on the board, which is still in flash mode. Set the adapter's switch to UART, or take its jumper " +

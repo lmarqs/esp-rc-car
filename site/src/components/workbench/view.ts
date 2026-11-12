@@ -1,4 +1,5 @@
 import { highlightLine, type Token } from '../../lib/workbench/highlight';
+import type { BoardModel } from '../../lib/board/models';
 import type { WatchRow } from '../../lib/workbench/board';
 import type { OutputLine, RunnerView, RunStatus } from '../../lib/workbench/simulator';
 import { sketchSourcePath } from '../../lib/workbench/source';
@@ -258,7 +259,12 @@ const RECONNECT = 'Connect again, then press Flash step.';
  * step last flashed, which a missing image names. `showRefusal` keeps the refusal of a step with no image for the
  * board on screen; the page drops it once the visitor picks another step.
  */
-export function boardMessage(state: SessionState, key: string, showRefusal: boolean): BoardMessage | undefined {
+export function boardMessage(
+  state: SessionState,
+  key: string,
+  showRefusal: boolean,
+  board?: BoardModel,
+): BoardMessage | undefined {
   const notice = (text: string): BoardMessage => ({ text, notice: true });
   switch (state.kind) {
     case 'connecting':
@@ -272,7 +278,7 @@ export function boardMessage(state: SessionState, key: string, showRefusal: bool
     case 'portBusy':
       return notice(wording.PORT_BUSY);
     case 'noAnswer':
-      return notice(wording.NO_ANSWER);
+      return notice(wording.noAnswer(board));
     case 'noImage':
       return notice(`${wording.noImage(state, key)} ${wording.otherBoardOrStep(state.available)}`);
     case 'noDownload':

@@ -154,6 +154,7 @@ const helpOf = (field: (typeof fields)[number]) =>
 
 <script>
   import { theBoard } from '../../lib/board/board';
+  import { thePick } from '../../lib/board/pick';
   import { paintFlashPicture } from '../board/flashPicture';
   import { runs } from '../../lib/board/record';
   import { href } from '../../lib/href';
@@ -253,7 +254,7 @@ const helpOf = (field: (typeof fields)[number]) =>
         const state = shownState();
         // The page that lists several cards reads this to keep a visitor from leaving a write half-done.
         card.toggleAttribute('data-busy', isBusy(state));
-        const view = viewFor(state, context);
+        const view = viewFor(state, { ...context, board: thePick().model });
         // Only a change of text is announced: the progress bar carries the percentage.
         if (message.textContent !== view.message) message.textContent = view.message;
         message.className = view.notice ? 'notice' : '';
@@ -327,9 +328,9 @@ const helpOf = (field: (typeof fields)[number]) =>
         );
       }
 
-      const unsubscribe = board.subscribe(render);
+      const unsubscribe = [board.subscribe(render), thePick().subscribe(render)];
       // The router swaps the page out without unloading it; the board stays connected for the next page.
-      signal.addEventListener('abort', unsubscribe);
+      signal.addEventListener('abort', () => unsubscribe.forEach((stop) => stop()));
       render();
     }
   });

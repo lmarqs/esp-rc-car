@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dockView } from '../../src/components/board/dockView';
+import { boardModel } from '../../src/lib/board/models';
 import { EMPTY_RECORD, type BoardRecord } from '../../src/lib/board/record';
 import type { SessionState } from '../../src/lib/flash';
 
@@ -99,6 +100,22 @@ describe('the board dock', () => {
       doing: 'stopped talking to the page. Plug it back in and connect again.',
       connect: true,
       canSend: false,
+    });
+  });
+});
+
+describe('the board dock for the board the visitor picked', () => {
+  it('says to set an ESP-01S adapter to flash mode before plugging it in', () => {
+    expect(dockView({ kind: 'idle' }, EMPTY_RECORD, names, flashable, boardModel('esp01s')).doing).toBe(
+      "is connected. Put the ESP-01S in its USB adapter, set the adapter's switch to PROG, then plug it in.",
+    );
+  });
+
+  it('says the board is still in flash mode after the write, and offers to connect', () => {
+    expect(dockView({ kind: 'flashMode', chip: 'ESP8266' }, EMPTY_RECORD, names, flashable)).toMatchObject({
+      chip: 'ESP8266',
+      doing: 'is still in flash mode. Set the adapter to UART and plug it back in.',
+      connect: true,
     });
   });
 });

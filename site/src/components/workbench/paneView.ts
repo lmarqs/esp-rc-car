@@ -1,4 +1,5 @@
 import type { PictureView, WatchRow } from '../../lib/workbench/board';
+import type { BoardModel } from '../../lib/board/models';
 import type { Followed } from '../../lib/workbench/live';
 import type { BoardAction, BoardStatus } from '../../lib/workbench/link';
 import { paneAction, paneStatus, showsRefusal, type PaneProject, type PaneState } from '../../lib/workbench/pane';
@@ -134,7 +135,7 @@ export interface LinkView {
 }
 
 /** What the page shows of the link between the pane and the visitor's board. */
-export function linkView<B>(project: PaneProject<B>, pane: PaneState<B>): LinkView {
+export function linkView<B>(project: PaneProject<B>, pane: PaneState<B>, board?: BoardModel): LinkView {
   const status = paneStatus(project, pane);
   const action = paneAction(project, pane);
   const live = pane.mode === 'live';
@@ -145,6 +146,6 @@ export function linkView<B>(project: PaneProject<B>, pane: PaneState<B>): LinkVi
     action,
     live,
     flashAgain: live && action?.disabled === false,
-    message: boardMessage(pane.session, pane.flashed, showsRefusal(pane)),
+    message: boardMessage(pane.session, pane.flashed, showsRefusal(pane), board),
   };
 }

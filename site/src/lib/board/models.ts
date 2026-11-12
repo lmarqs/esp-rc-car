@@ -7,13 +7,18 @@ export interface BoardModel {
   /** What tells it apart in the visitor's hand. */
   readonly look: string;
   readonly chip: ChipFamily;
+  /**
+   * Set for a board whose USB adapter puts it in flash mode with a switch or a jumper, set before the adapter gets
+   * power. Otherwise the board has a BOOT button to hold when it does not answer.
+   */
+  readonly flashSwitch?: true;
 }
 
 /** The boards the site has images for, one per chip, so the chip that answers names the board. */
 export const BOARD_MODELS: readonly BoardModel[] = [
   { id: 'esp32', name: 'ESP32 dev board', look: 'USB socket and a BOOT button', chip: 'ESP32' },
   { id: 'esp32c3', name: 'ESP32-C3', look: 'Small board, USB-C', chip: 'ESP32-C3' },
-  { id: 'esp01s', name: 'ESP-01S', look: 'Stamp-sized, in a USB adapter', chip: 'ESP8266' },
+  { id: 'esp01s', name: 'ESP-01S', look: 'Stamp-sized, in a USB adapter', chip: 'ESP8266', flashSwitch: true },
 ];
 
 export function boardModel(id: string): BoardModel | undefined {

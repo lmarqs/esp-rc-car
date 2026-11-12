@@ -195,3 +195,28 @@ describe('the board pane', () => {
     expect(again.known).toBeUndefined();
   });
 });
+
+describe('a board left in flash mode after a flash', () => {
+  const esp8266: SessionState = { kind: 'running', chip: 'ESP8266', output: [] };
+  const flashMode: PaneEvent = { kind: 'session', state: { kind: 'flashMode', chip: 'ESP8266' } };
+  const connecting: PaneEvent = { kind: 'session', state: { kind: 'connecting' } };
+
+  it('is live on the written step once read again, though the port opened too late to hear it', () => {
+    const state = after(
+      { kind: 'session', state: esp8266 },
+      tab(INPUT),
+      { kind: 'press', action: 'flash' },
+      flashMode,
+      connecting,
+      { kind: 'session', state: esp8266 },
+    );
+
+    expect(paneStatus(blink, state)).toEqual({ kind: 'live' });
+  });
+
+  it('offers to connect while the board waits in flash mode', () => {
+    const state = after({ kind: 'session', state: esp8266 }, { kind: 'press', action: 'flash' }, flashMode);
+
+    expect(paneAction(blink, state)).toMatchObject({ event: 'connect', label: 'Connect my board' });
+  });
+});

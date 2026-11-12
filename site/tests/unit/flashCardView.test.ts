@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { stepsFor, viewFor } from '../../src/components/flash/view';
 import type { SessionState } from '../../src/lib/flash';
 import type { ManifestImage, SettingField } from '../../src/lib/flash/manifest';
+import { boardModel } from '../../src/lib/board/models';
+import * as wording from '../../src/lib/flash/wording';
 
 const context = { title: 'Blink' };
 
@@ -226,5 +228,35 @@ describe('viewFor a sketch with settings', () => {
       { label: 'Disconnect', event: 'disconnect' },
     ]);
     expect(viewFor({ ...running, lost: true }, withSettings).actions).toEqual([{ label: 'Connect again', event: 'connect' }]);
+  });
+});
+
+describe('the card for the board the visitor picked', () => {
+  const esp01s = boardModel('esp01s');
+  const esp32 = boardModel('esp32');
+
+  it('says to set the adapter to flash mode before plugging in an ESP-01S', () => {
+    expect(viewFor({ kind: 'idle' }, { title: 'Blink', board: esp01s }).message).toBe(
+      "Put the ESP-01S in its USB adapter, set the adapter's switch to PROG, then plug it in. This replaces whatever is on the board.",
+    );
+  });
+
+  it('says how to make the picked board answer', () => {
+    expect(viewFor({ kind: 'noAnswer' }, { title: 'Blink', board: esp01s }).message).toBe(
+      "The board did not answer. Set the adapter's switch to PROG, unplug the adapter, plug it back in and connect again.",
+    );
+    expect(viewFor({ kind: 'noAnswer' }, { title: 'Blink', board: esp32 }).message).toBe(
+      'The board did not answer. Hold its BOOT button and connect again.',
+    );
+    expect(viewFor({ kind: 'noAnswer' }, { title: 'Blink' }).message).toBe(wording.NO_ANSWER);
+  });
+
+  it('says how to get the board out of flash mode after the write', () => {
+    expect(viewFor({ kind: 'flashMode', chip: 'ESP8266' }, { title: 'Blink' })).toEqual({
+      step: 'flash',
+      message: wording.FLASH_MODE,
+      notice: true,
+      actions: [{ label: 'Connect again', event: 'connect' }],
+    });
   });
 });

@@ -1,4 +1,5 @@
 import { isBusy, wording, type SessionState } from '../../lib/flash';
+import type { BoardModel } from '../../lib/board/models';
 import type { SketchName } from '../../lib/board/names';
 import { runs, type BoardRecord } from '../../lib/board/record';
 
@@ -46,6 +47,7 @@ export function dockView(
   record: BoardRecord,
   names: Readonly<Record<string, SketchName>>,
   flashable: ReadonlySet<string>,
+  board?: BoardModel,
 ): DockView {
   if (state.kind === 'unsupported') {
     return { shown: false, connected: false, chip: '', doing: '', ...NOTHING };
@@ -106,7 +108,7 @@ export function dockView(
     shown: true,
     connected: false,
     chip: 'No board',
-    doing: 'is connected. Plug one in over USB.',
+    doing: board?.flashSwitch ? `is connected. ${wording.plugIn(board)}` : 'is connected. Plug one in over USB.',
     ...NOTHING,
     connect: true,
   };
