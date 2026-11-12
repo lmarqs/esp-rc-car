@@ -86,7 +86,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
   import { railOf, workbenchFor, type WorkbenchProject } from '../../lib/workbench/projects';
   import { createSimulation } from '../../lib/workbench/simulation';
   import { tabAfterKey } from '../../lib/workbench/tabs';
-  import type { PictureView, WatchRow } from '../../lib/workbench/board';
+  import type { PictureView } from '../../lib/workbench/board';
   import { createFlasher, createSession, type Manifest } from '../../lib/flash';
   import type { BoardAction } from '../../lib/workbench/link';
   import {
@@ -102,14 +102,11 @@ const flashable = Object.keys(manifest.sketches).length > 0;
   import {
     boardMessage,
     boardStatusText,
-    changedRows,
     CLOCK_DASH,
   } from './view';
   import { mountCommandLine } from './commandLine';
   import { paneMotion, paneView } from './paneView';
-
-  /** How long a watch value stays highlighted after it changes. */
-  const HIGHLIGHT_MS = 900;
+import { mountWatchPanel } from './watchPanel';
 
   interface StepData {
     sketch: string;
@@ -127,9 +124,6 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     const panel = root.querySelector<HTMLElement>('[role="tabpanel"]')!;
     const perStep = [...root.querySelectorAll<HTMLElement>('[data-for-step]')];
     const picture = root.querySelector<SVGElement>('[data-picture]')!;
-    const watchRows = new Map(
-      [...root.querySelectorAll<HTMLElement>('[data-watch-row]')].map((row) => [row.dataset.watchRow!, row]),
-    );
     const serialLines = [...root.querySelectorAll<HTMLElement>('[data-serial-line]')];
     const commandInput = root.querySelector<HTMLInputElement>('[data-command-line]')!;
     const say = root.querySelector<HTMLElement>('[data-say]')!;
@@ -176,9 +170,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       steps: railOf(project, steps.map((step) => step.sketch)),
       board: project.board,
     };
-    // The watch panel as last painted; undefined after a reset, so the values it starts with are not highlighted.
-    let shownRows: readonly WatchRow[] | undefined;
-    const highlightTimers = new Map<string, number>();
+    const watch = mountWatchPanel(root, project.board.steady);
     // While the pane follows the board, the simulator waits, paused, and its notices are not the pane's.
     const simulation = createSimulation(project.board, {
       has: () => pane.mode === 'simulator',
@@ -195,12 +187,12 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       if (pane.selected !== before.selected) openStep(pane.selected);
       if (pane.mode !== before.mode) commandLine.dropTyping();
       if (pane.simulation !== before.simulation) {
-        resetWatch();
+        watch.reset();
         simulation.restart();
       }
       if (pane.following !== before.following) {
         simulation.hold();
-        resetWatch();
+        watch.reset();
       }
       showLink();
       draw();
@@ -217,7 +209,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       for (const element of perStep) element.hidden = element.dataset.forStep !== String(index);
       commandInput.placeholder = chosen.placeholder;
       commandLine.reset();
-      resetWatch();
+      watch.reset();
 
       simulation.open(chosen);
     }
@@ -236,13 +228,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       const shown = paneView(paneProject, pane, run, steps[pane.selected].source);
       paintPicture(shown.picture);
       commandLine.follow(pane.selected, (name) => project.board.variable(shown.board, name));
-      for (const [name, element] of watchRows) {
-        const row = shown.rows.find((candidate) => candidate.name === name);
-        element.hidden = row === undefined;
-        if (row !== undefined) element.querySelector('dd')!.textContent = row.value;
-      }
-      for (const name of changedRows(shownRows, shown.rows, project.board.steady)) highlight(name);
-      shownRows = shown.rows;
+      watch.show(shown.rows);
       serialLines.forEach((element, at) => {
         element.textContent = shown.serial[at]?.text ?? '';
         element.toggleAttribute('data-sent', shown.serial[at]?.sent ?? false);
@@ -300,22 +286,6 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       }
     }
 
-    /** Marks a watch value that just changed for a moment. */
-    function highlight(name: string) {
-      const value = watchRows.get(name)?.querySelector('dd');
-      if (value == null) return;
-      value.setAttribute('data-changed', '');
-      clearTimeout(highlightTimers.get(name));
-      highlightTimers.set(name, window.setTimeout(() => value.removeAttribute('data-changed'), HIGHLIGHT_MS));
-    }
-
-    function resetWatch() {
-      shownRows = undefined;
-      for (const timer of highlightTimers.values()) clearTimeout(timer);
-      highlightTimers.clear();
-      for (const row of watchRows.values()) row.querySelector('dd')?.removeAttribute('data-changed');
-    }
-
     function showClock(pie: Element | null, face: { waiting: boolean; fill: number }) {
       if (pie === null) return;
       pie.classList.toggle('waiting', face.waiting);
@@ -365,7 +335,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     });
     restartButton.addEventListener('click', () => {
       if (pane.mode === 'live') return dispatch({ kind: 'detach' });
-      resetWatch();
+      watch.reset();
       commandLine.reset();
       simulation.restart();
     });
