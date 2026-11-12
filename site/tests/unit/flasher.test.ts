@@ -375,6 +375,27 @@ describe('EsptoolFlasher.monitor', () => {
     },
   );
 
+  it('releases the lock of the failed stream before it asks the port for a fresh one', async () => {
+    const target = await connected();
+    const monitoring = target.monitor(9600, () => {});
+    await vi.waitFor(() => expect(port.readable!.locked).toBe(true));
+    const failed = port.readable!;
+    const failedController = controller;
+    const lockedWhenAsked: boolean[] = [];
+    Object.defineProperty(port, 'readable', {
+      configurable: true,
+      get() {
+        lockedWhenAsked.push(failed.locked);
+        return null;
+      },
+    });
+
+    failedController.error(new DOMException('Bad frame.', 'FramingError'));
+
+    await expect(monitoring).resolves.toBeUndefined();
+    expect(lockedWhenAsked[0]).toBe(false);
+  });
+
   it('ends after a recoverable error when the port has no stream left', async () => {
     const target = await connected();
     const monitoring = target.monitor(9600, () => {});

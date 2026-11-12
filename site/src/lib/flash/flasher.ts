@@ -176,11 +176,15 @@ export class EsptoolFlasher implements Flasher {
           // A board at another speed than the reader's causes errors that leave the port usable, and `readable`
           // then returns a fresh stream. Any other error means the board was unplugged, which ends the reading as
           // disconnecting does.
-          const next = this.transport === transport && isRecoverable(error) ? port.readable : null;
+          if (this.transport !== transport || !isRecoverable(error)) {
+            break;
+          }
+          // Web Serial gives the fresh stream once the failed one is unlocked.
+          reader.releaseLock();
+          const next = port.readable;
           if (!next) {
             break;
           }
-          reader.releaseLock();
           reader = next.getReader();
           this.reader = reader;
         }
