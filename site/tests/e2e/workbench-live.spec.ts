@@ -304,6 +304,21 @@ test.describe('live mode', () => {
     await expect(serial(page).locator('[data-sent]')).toHaveCount(0);
   });
 
+  test('moves the focus from the command line to the My board view as the terminal goes inert', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await connectTo(page, fakeFlasher, 'blink/input', '2 input', 'Live');
+    await commandLine(page).fill('5');
+    await expect(commandLine(page)).toBeFocused();
+
+    await fakeFlasher.print('sketch blink/commands');
+
+    await expect(bench(page).locator('[data-terminal]')).toHaveJSProperty('inert', true);
+    await expect(boardButton(page)).toHaveAccessibleName('Flash input to board');
+    await expect(boardButton(page)).toBeFocused();
+  });
+
   test('drops a line a chip is typing when the visitor pauses, rather than sending it to the simulator', async ({
     page,
     fakeFlasher,

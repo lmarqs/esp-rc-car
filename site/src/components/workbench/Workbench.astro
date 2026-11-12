@@ -371,7 +371,11 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       const link = linkView(paneProject, pane, thePick().model);
       boardLink.show(link);
       // What the visitor would send has no board to reach until it runs the step.
-      terminal.inert = pane.mode === 'waiting';
+      const inert = pane.mode === 'waiting';
+      // An inert terminal drops the focus to the page: it goes on to what the My board view offers instead.
+      const refocus = inert && !terminal.inert && terminal.contains(document.activeElement);
+      terminal.inert = inert;
+      if (refocus) boardLink.takeFocus();
       tabs.forEach((tab, at) => {
         tab.querySelector<HTMLElement>('[data-onboard]')!.hidden = paneProject.steps[at].key !== link.onBoard;
       });

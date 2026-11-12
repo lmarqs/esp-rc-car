@@ -102,5 +102,10 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
       }
       if (toFlashAgain) flashAgain.focus();
     },
+    /** Gives the focus to the My board view's button, or to the switch's My board half while the view shows none. */
+    takeFocus() {
+      if (actionButton !== null && !actionButton.hidden && !actionButton.hasAttribute('data-off')) actionButton.focus();
+      else boardButton?.focus();
+    },
   };
 }
