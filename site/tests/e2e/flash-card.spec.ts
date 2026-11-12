@@ -207,8 +207,8 @@ test.describe('the Running step', () => {
     ]);
   });
 
-  test('a sketch with no baud rate shows no terminal and starts no monitor', async ({ page, fakeFlasher }) => {
-    await fakeFlasher.install({ lines: ['never read'] });
+  test('a sketch with a baud rate shows its next step and the lines the board prints', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ lines: ['sketch servo/sweep', 'angle 0', 'angle 1'] });
     await page.goto('/robomania/projects/servo/');
 
     await card(page).getByRole('button', { name: 'Connect board' }).click();
@@ -216,10 +216,9 @@ test.describe('the Running step', () => {
     await expect(card(page).locator('[data-message]')).toHaveText(
       "Done. Your board is running Servo. Connect the servo's signal wire to GPIO 13. It sweeps from 0° to 180° and back, about 2.7 seconds each way.",
     );
-    await expect(card(page).getByLabel(/Board output/)).toBeHidden();
-    await expect(card(page).locator('pre')).toBeHidden();
+    await expect(card(page).getByLabel('Board output, 115200 baud')).toHaveText('sketch servo/sweep\nangle 0\nangle 1');
     await expect(card(page).getByRole('button')).toHaveText(['Flash again', 'Disconnect']);
-    expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'write', 'reset']);
+    expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'write', 'reset', 'monitor 115200']);
   });
 });
 

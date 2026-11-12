@@ -5,8 +5,9 @@ art: servo
 level: beginner
 state: draft
 order: 2
-sketch: sketches/servo
+sketch: sketches/servo/sweep
 flash:
+  baud: 115200
   next: "Connect the servo's signal wire to GPIO 13. It sweeps from 0° to 180° and back, about 2.7 seconds each way."
 example: servo
 topics: [servo, pwm]
@@ -19,6 +20,8 @@ The sketch sweeps a positional hobby servo from end to end.
 - The servo's signal wire goes on GPIO 13.
 - The servo turns from 0° to 180° one degree every 15 ms, about 2.7 seconds, then back, and repeats.
 - The sketch sends pulses from 544 µs at 0° to 2400 µs at 180°.
+- The serial port, at 115200 baud, prints a blank line and `sketch servo/sweep` once at start, then `angle <n>` as
+  the angle changes.
 
 ## Run it on your board
 
@@ -26,7 +29,7 @@ Wire the servo's signal to GPIO 13. The card above flashes this sketch onto your
 computer, with no tools installed. To build and flash it yourself, run from the repository's root:
 
 ```sh
-mise run arduino:run sketches/servo --port /dev/ttyUSB0
+mise run arduino:run sketches/servo/sweep --port /dev/ttyUSB0 --monitor --baudrate 115200
 ```
 
 The sketch compiles; uploading has not been tried from this repository yet. If a step fails, the repository wants to
@@ -41,6 +44,8 @@ PositionalServo servo(&servoPin);
 void loop() {
   for (int angle = 0; angle <= 180; angle += 1) {
     servo.write(angle);
+    Serial.print("angle ");
+    Serial.println(angle);
     delay(15);
   }
   // ...and the same loop back from 180 to 0.
@@ -55,7 +60,7 @@ in the example above and watch the pulse grow.
 ## Not handled
 
 - A servo built for a narrower pulse range reaches its stop before 0° or 180° and strains against it there. Use a
-  servo that takes 544 µs to 2400 µs, or change the range in `sketches/servo/servo.ino`.
+  servo that takes 544 µs to 2400 µs, or change the range in `sketches/servo/sweep/sweep.ino`.
 - A continuous-rotation servo spins back and forth at changing speed instead of sweeping, since the pulse width sets
   its speed, not its angle.
 

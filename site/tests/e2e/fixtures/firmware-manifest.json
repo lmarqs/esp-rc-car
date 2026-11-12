@@ -12,14 +12,14 @@
         }
       ]
     },
-    "servo": {
+    "servo/sweep": {
       "images": [
         {
           "profile": "esp32",
           "chipFamily": "ESP32",
           "parts": [
-            { "path": "servo/esp32/servo.ino.bootloader.bin", "offset": 4096 },
-            { "path": "servo/esp32/servo.ino.bin", "offset": 65536 }
+            { "path": "servo/sweep/esp32/sweep.ino.bootloader.bin", "offset": 4096 },
+            { "path": "servo/sweep/esp32/sweep.ino.bin", "offset": 65536 }
           ]
         }
       ]
