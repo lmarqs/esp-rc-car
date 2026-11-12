@@ -221,13 +221,23 @@ static void saveConfig(ConfigField field) {
 // Settings are read at boot, so a new value takes effect after `cfg restart`. The reply goes out raw, a line the
 // page recognizes by its "cfg " start, and not through the log.
 static void handleConfigCommand(const char* line) {
+  // A save blocks the control task, so no set is accepted while the motors can run, balancing or on the bench.
+#if BALANCE_BEAM_BENCH_ENABLED
+  const bool motorsCanRun = enabled || (benchActive && motorsOn);
+#else
+  const bool motorsCanRun = enabled;
+#endif
   char reply[CONFIG_REPLY_MAX];
-  const ConfigResult result = handleConfigLine(line, storedConfig, CONFIG_DEFAULTS, enabled, reply, sizeof(reply));
+  const ConfigResult result = handleConfigLine(line, storedConfig, CONFIG_DEFAULTS, motorsCanRun, reply, sizeof(reply));
   if (result.action == ConfigAction::Save) {
     saveConfig(result.field);
   }
   Serial.print(reply);
   if (result.action == ConfigAction::Restart) {
+    // The ESCs get the minimum pulse for a control period first, so a restart never cuts the signal while they run.
+    esc1.write(0.0f);
+    esc2.write(0.0f);
+    vTaskDelay(pdMS_TO_TICKS(1000UL / LOOP_HZ));
     Serial.flush();
     ESP.restart();
   }
