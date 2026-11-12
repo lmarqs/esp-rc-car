@@ -127,10 +127,13 @@ test.describe('flashing from the workbench', () => {
     await page.goto(BLINK);
     await connect(page);
     await tab(page, '3 timer').click();
+    const scope = bench(page).locator('.scope');
+    const before = await scope.boundingBox();
 
     await boardButton(page).click();
 
     await expect(message(page)).toHaveText('Found ESP32');
+    expect(await scope.boundingBox()).toEqual(before);
     await expect(bench(page).getByRole('progressbar', { name: 'Flashing' })).toHaveAttribute('aria-valuenow', '40');
     await expect(bench(page).getByText('40%')).toBeVisible();
     await expect(picture(page)).toBeHidden();
@@ -189,10 +192,12 @@ test.describe('flashing from the workbench', () => {
   }) => {
     await fakeFlasher.install({ lines: ['sketch blink/simple'], failFirst: { connect: 'NotFoundError' } });
     await page.goto(BLINK);
+    const scopeBefore = await bench(page).locator('.scope').boundingBox();
 
     await connect(page);
 
     await expect(message(page)).toHaveText('No board was chosen. Plug it in and try again.');
+    expect(await bench(page).locator('.scope').boundingBox()).toEqual(scopeBefore);
     await expect(message(page)).toHaveClass(/notice/);
     await expect(picture(page)).toBeHidden();
     await expect(status(page)).toHaveText('Simulated');
