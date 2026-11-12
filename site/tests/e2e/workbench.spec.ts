@@ -298,7 +298,8 @@ test.describe('the Blink workbench', () => {
     await expect(slow).toHaveCSS('background-color', 'rgb(31, 45, 58)');
 
     await slow.focus();
-    await expect(slow).toHaveCSS('outline-color', 'rgb(226, 96, 58)');
+    await expect(slow).toHaveCSS('outline-color', 'rgb(59, 130, 196)');
+    await expect(slow).toHaveCSS('outline-style', 'solid');
     await page.keyboard.press('Space');
     await expect(slow).toHaveAttribute('aria-pressed', 'false');
     await expect(slow).toHaveCSS('background-color', 'rgb(255, 255, 255)');
