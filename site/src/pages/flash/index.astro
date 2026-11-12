@@ -5,25 +5,29 @@ import FlashCard from '../../components/flash/FlashCard.astro';
 import Meta from '../../components/Meta.astro';
 import Base from '../../layouts/Base.astro';
 import { href } from '../../lib/href';
-import { sketchKey } from '../../lib/flash/manifest';
+import { chipFamilies, sketchKey } from '../../lib/flash/manifest';
 import { readManifest } from '../../lib/flash/readManifest';
+import { workbenchFor } from '../../lib/workbench/projects';
 
 const manifest = readManifest();
-const withSketch = (await getCollection('projects'))
-  .filter((p) => p.data.sketch)
-  .sort((a, b) => a.data.order - b.data.order)
-  .map((project) => ({ project, entry: manifest.sketches[sketchKey(project.data.sketch!)] }));
-const flashable = withSketch.flatMap(({ project, entry }) =>
-  entry ? [{ project, chips: [...new Set(entry.images.map((image) => image.chipFamily))] }] : [],
-);
-const fromComputer = withSketch.filter(({ entry }) => !entry).map(({ project }) => project);
+const projects = (await getCollection('projects')).filter((p) => p.data.sketch).sort((a, b) => a.data.order - b.data.order);
+// A ladder project has step definitions: its workbench flashes each step, so this page sends the visitor there.
+const withImages = projects.map((project) => {
+  const ladder = workbenchFor(project.id) !== undefined && project.data.steps !== undefined;
+  const sketches = (ladder ? project.data.steps! : [project.data]).map((step) => sketchKey(step.sketch!));
+  return { project, ladder, chips: chipFamilies(manifest, sketches) };
+});
+const flashable = withImages.filter(({ chips }) => chips.length > 0);
+const fromComputer = withImages.filter(({ chips }) => chips.length === 0).map(({ project }) => project);
+const ownCard = flashable.filter(({ ladder }) => !ladder);
 ---
 
 <Base title="Flash" description="Pick a Robomania project and flash it onto your ESP board from the browser.">
   <h1>Flash</h1>
   <p class="prose">
     Plug your board in over USB, pick a project and put it on the board from this page. Flashing from the browser
-    works in Chrome and Edge on a computer; each project's page has the wiring.
+    works in Chrome and Edge on a computer; each project's page has the wiring. A project built in steps opens its
+    workbench instead, where each step is flashed and tried beside the code.
   </p>
 
   <h2>Pick a project</h2>
@@ -31,19 +35,29 @@ const fromComputer = withSketch.filter(({ entry }) => !entry).map(({ project }) 
     flashable.length > 0 ? (
       <>
         <ul class="grid picker" aria-label="Projects you can flash">
-          {flashable.map(({ project, chips }) => (
+          {flashable.map(({ project, ladder, chips }) => (
             <li class="card pick-card">
               <div class="art"><Art name={project.data.art} /></div>
               <Meta level={project.data.level} state={project.data.state} />
-              <h3>
-                <button class="pick" type="button" data-pick={project.id} aria-pressed="false">
-                  {project.data.title}
-                </button>
-              </h3>
+              {ladder ? (
+                <h3>{project.data.title}</h3>
+              ) : (
+                <h3>
+                  <button class="pick" type="button" data-pick={project.id} aria-pressed="false">
+                    {project.data.title}
+                  </button>
+                </h3>
+              )}
               <p>{project.data.summary}</p>
               <ul class="chips" aria-label="Boards">
                 {chips.map((chip) => <li>{chip}</li>)}
               </ul>
+              {ladder && (
+                <a class="bench-link" href={href(`/projects/${project.id}/#workbench`)} data-ladder-link>
+                  <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h10M9 4l4 4-4 4" /></svg>
+                  Open the workbench<span class="sr"> for {project.data.title}</span>
+                </a>
+              )}
             </li>
           ))}
         </ul>
@@ -56,7 +70,7 @@ const fromComputer = withSketch.filter(({ entry }) => !entry).map(({ project }) 
   <noscript><p class="notice">Picking a project needs JavaScript.</p></noscript>
 
   {
-    flashable.map(({ project }) => (
+    ownCard.map(({ project }) => (
       <section data-panel={project.id} aria-labelledby={`panel-${project.id}`} hidden>
         <h2 id={`panel-${project.id}`} tabindex="-1">{project.data.title}</h2>
         <p>
@@ -95,12 +109,19 @@ const fromComputer = withSketch.filter(({ entry }) => !entry).map(({ project }) 
   .pick-card { position: relative; }
   .pick-card:hover { transform: translateY(-3px); box-shadow: 0 6px 0 rgba(31, 45, 58, .12); }
   .pick-card:has([aria-pressed="true"]) { background: var(--tint-yellow); box-shadow: 0 6px 0 rgba(31, 45, 58, .12); }
-  .pick-card:has(:disabled) { opacity: .6; transform: none; box-shadow: none; cursor: not-allowed; }
+  .pick-card:has(:disabled, [aria-disabled="true"]) { opacity: .6; transform: none; box-shadow: none; cursor: not-allowed; }
   .pick-card h3 { font-size: 1.17em; }
   /* The button is the card's title; its ::after stretches the click target over the whole card. */
   .pick { font: inherit; color: var(--ink); background: none; border: 0; padding: 0; text-align: left; cursor: pointer; }
   .pick::after { content: ""; position: absolute; inset: 0; border-radius: var(--radius); }
   .pick:disabled { cursor: not-allowed; }
+  .sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+  .bench-link { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-weight: 700; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+  .bench-link svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .bench-link::after { content: ""; position: absolute; inset: 0; border-radius: var(--radius); }
+  .bench-link[aria-disabled="true"] { cursor: not-allowed; }
+  .bench-link:focus-visible { outline: none; }
+  .bench-link:focus-visible::after { outline: 3px solid var(--blue); outline-offset: 3px; }
   .pick:focus-visible { outline: none; }
   .pick:focus-visible::after { outline: 3px solid var(--blue); outline-offset: 3px; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 6px 0 0; padding: 0; }
@@ -110,6 +131,7 @@ const fromComputer = withSketch.filter(({ entry }) => !entry).map(({ project }) 
 <script>
   const buttons = [...document.querySelectorAll<HTMLButtonElement>('[data-pick]')];
   const panels = [...document.querySelectorAll<HTMLElement>('[data-panel]')];
+  const ladderLinks = [...document.querySelectorAll<HTMLAnchorElement>('[data-ladder-link]')];
   const locked = document.querySelector<HTMLElement>('[data-locked]');
   let picked: string | undefined;
 
@@ -167,10 +189,21 @@ const fromComputer = withSketch.filter(({ entry }) => !entry).map(({ project }) 
     });
   }
 
+  // Following a link away would also leave a write half-done.
+  for (const link of ladderLinks) {
+    link.addEventListener('click', (event) => {
+      if (busy()) event.preventDefault();
+    });
+  }
+
   // A visitor must not leave a write half-done by picking another project.
   new MutationObserver(() => {
     const isBusy = busy();
     for (const button of buttons) button.disabled = isBusy;
+    for (const link of ladderLinks) {
+      if (isBusy) link.setAttribute('aria-disabled', 'true');
+      else link.removeAttribute('aria-disabled');
+    }
     if (locked) locked.hidden = !isBusy;
   }).observe(document.body, { attributes: true, attributeFilter: ['data-busy'], subtree: true });
 

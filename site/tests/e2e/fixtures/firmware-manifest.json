@@ -96,6 +96,18 @@
         }
       ]
     },
+    "omnidirectional": {
+      "images": [
+        {
+          "profile": "esp32",
+          "chipFamily": "ESP32",
+          "parts": [
+            { "path": "omnidirectional/esp32/omnidirectional.ino.bootloader.bin", "offset": 4096 },
+            { "path": "omnidirectional/esp32/omnidirectional.ino.bin", "offset": 65536 }
+          ]
+        }
+      ]
+    },
     "balance-beam": {
       "images": [
         {
