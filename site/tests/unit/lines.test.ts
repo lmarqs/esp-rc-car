@@ -43,6 +43,19 @@ describe('createLineSplitter', () => {
     expect(splitter.push('\nAP up\n\n\r\nlamp blink\n')).toEqual(['AP up', 'lamp blink']);
   });
 
+  it('drops a line with a replacement character, which is the boot log read at the wrong speed', () => {
+    const splitter = createLineSplitter();
+
+    expect(splitter.push('\uFFFD\uFFFDx\uFFFD\nHIGH\nLO\uFFFDW\nLOW\n')).toEqual(['HIGH', 'LOW']);
+  });
+
+  it('drops a garbled line that is cut for its length', () => {
+    const splitter = createLineSplitter();
+
+    expect(splitter.push('\uFFFD'.repeat(201))).toEqual([]);
+    expect(splitter.push('after\n')).toEqual(['after']);
+  });
+
   it('cuts a line that never ends', () => {
     const splitter = createLineSplitter();
 

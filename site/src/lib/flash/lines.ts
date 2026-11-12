@@ -9,9 +9,14 @@ export interface LineSplitter {
   push(text: string): string[];
 }
 
+/** What decoding turns a byte that is not text into. */
+const REPLACEMENT_CHARACTER = '\uFFFD';
+
 /**
  * Cuts the text a board prints into lines. A line break is `\n`, `\r\n` or `\r`, and a line is complete once its
- * break has arrived, so a line split across pieces comes out whole. Blank lines are dropped.
+ * break has arrived, so a line split across pieces comes out whole. Blank lines are dropped, and so is a line with a
+ * replacement character: the ROM prints its boot log at another speed than the sketch's, and read at the sketch's it
+ * decodes to such characters.
  */
 export function createLineSplitter(): LineSplitter {
   let pending = '';
@@ -20,12 +25,11 @@ export function createLineSplitter(): LineSplitter {
       // A `\r` at the very end waits for the next piece, which may begin with the `\n` of a `\r\n`.
       const parts = (pending + text).split(/\r\n|\n|\r(?!$)/);
       pending = parts.pop()!;
-      const lines = parts.filter((line) => line !== '');
       if (pending.length > MAX_LINE_LENGTH) {
-        lines.push(pending);
+        parts.push(pending);
         pending = '';
       }
-      return lines;
+      return parts.filter((line) => line !== '' && !line.includes(REPLACEMENT_CHARACTER));
     },
   };
 }
