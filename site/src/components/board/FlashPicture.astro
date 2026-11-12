@@ -1,0 +1,59 @@
+---
+/**
+ * A flash as the visitor's desk has it: the computer, the cable the image runs down and the board's chip filling up,
+ * with each stage named under the part it happens in. `paintFlashPicture` moves it to a percentage.
+ */
+---
+
+<div class="flash-picture" data-flash-picture data-stage="writing">
+  <div class="wire" role="progressbar" aria-label="Flashing" aria-valuemin="0" aria-valuemax="100" data-flash-bar>
+    <svg class="computer" viewBox="0 0 70 60" aria-hidden="true">
+      <rect class="ink" x="12" y="8" width="46" height="30" rx="4"></rect>
+      <path class="ink" d="M4 46h62l-5 8H9z"></path>
+      <path class="tick" d="M27 23l6 6 11-12"></path>
+    </svg>
+    <svg class="cable" viewBox="0 0 200 60" preserveAspectRatio="none" aria-hidden="true">
+      <path class="line" d="M0 46 C60 46 60 30 100 30 S150 30 200 30"></path>
+      <path class="packets" d="M0 46 C60 46 60 30 100 30 S150 30 200 30"></path>
+    </svg>
+    <svg class="chip" viewBox="0 0 78 60" aria-hidden="true">
+      <path class="pins" d="M6 16h8M6 30h8M6 44h8M64 16h8M64 30h8M64 44h8"></path>
+      <rect class="body" x="14" y="6" width="50" height="48" rx="5"></rect>
+      <rect class="level" x="16" y="52" width="46" height="0" rx="3" data-flash-level></rect>
+      <rect class="edge" x="14" y="6" width="50" height="48" rx="5"></rect>
+      <text x="39" y="35.5" text-anchor="middle" data-flash-percent>0%</text>
+    </svg>
+  </div>
+  {/* The bar's percentage and the message above say the same to a screen reader. */}
+  <div class="stages" aria-hidden="true">
+    <span class="done">✓ Found</span>
+    <span class="writing" data-flash-writing>Writing</span>
+    <span class="restart" data-flash-restart>Restart</span>
+  </div>
+</div>
+
+<style>
+  .flash-picture { display: grid; gap: 2px; }
+  .wire { display: grid; grid-template-columns: 56px 1fr 62px; align-items: center; height: 48px; }
+  .wire svg { width: 100%; height: 48px; display: block; overflow: visible; }
+  .ink, .edge, .pins { stroke: var(--ink); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+  .ink, .body { fill: var(--card); }
+  .edge, .pins { fill: none; }
+  .tick { fill: none; stroke: var(--green); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+  .line { fill: none; stroke: var(--ink); stroke-width: 2.6; vector-effect: non-scaling-stroke; }
+  /* Bytes running down the cable while the image is written. */
+  .packets { fill: none; stroke: var(--yellow); stroke-width: 6; stroke-linecap: round; stroke-dasharray: 2 26; vector-effect: non-scaling-stroke; animation: flow .7s linear infinite; }
+  [data-stage="restart"] .packets { display: none; }
+  @keyframes flow { to { stroke-dashoffset: -28; } }
+  .level { fill: var(--blue); transition: height .15s, y .15s; }
+  /* A light halo keeps the percentage readable over the blue as the chip fills. */
+  text { font: 700 15px var(--mono); fill: var(--ink); paint-order: stroke; stroke: var(--card); stroke-width: 3px; stroke-linejoin: round; }
+  .stages { display: grid; grid-template-columns: 56px 1fr 62px; font-size: 12px; font-weight: 700; line-height: 1.4; color: var(--muted); white-space: nowrap; }
+  .stages span { text-align: center; }
+  .stages .done { color: var(--green-text); text-align: left; }
+  .stages .restart { text-align: right; }
+  [data-stage="writing"] .writing, [data-stage="restart"] .restart { color: var(--ink); background: linear-gradient(transparent 60%, var(--yellow) 60%); justify-self: center; }
+  [data-stage="restart"] .restart { justify-self: end; }
+  [data-stage="restart"] .writing { color: var(--green-text); }
+  @media (prefers-reduced-motion: reduce) { .packets { animation: none; } }
+</style>

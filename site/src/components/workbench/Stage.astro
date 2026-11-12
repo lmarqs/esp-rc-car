@@ -1,5 +1,6 @@
 ---
 import type { WorkbenchProject } from '../../lib/workbench/projects';
+import FlashPicture from '../board/FlashPicture.astro';
 import Led from './pictures/Led.astro';
 import Servo from './pictures/Servo.astro';
 
@@ -33,10 +34,7 @@ const Picture = { led: Led, servo: Servo }[picture];
   <div class="link" data-board-link>
     <p aria-live="polite" data-board-message></p>
     <div class="progress" data-board-progress hidden>
-      <div class="track" role="progressbar" aria-label="Flashing" aria-valuemin="0" aria-valuemax="100">
-        <div class="fill" data-board-fill></div>
-      </div>
-      <span class="readout" data-board-percent></span>
+      <FlashPicture />
     </div>
   </div>
 </div>
@@ -50,10 +48,6 @@ const Picture = { led: Led, servo: Servo }[picture];
   .stage[data-message] .led-row { visibility: hidden; }
   .stage[data-message] .link { visibility: visible; }
   .link p { margin: 0; }
-  .link .progress { display: flex; align-items: center; gap: 12px; }
-  .link .track { flex: 1; height: 14px; border: var(--stroke); border-radius: 999px; background: var(--tint-blue); overflow: hidden; }
-  .link .fill { height: 100%; width: 0; background: var(--blue); transition: width .15s; }
-  .link .readout { min-width: 4ch; text-align: right; font-family: var(--mono); }
   .led-row { --picture: 96px; display: grid; grid-template-columns: var(--picture) 1fr 1fr; gap: 12px; align-items: center; }
   /* A horn and its scale need more room than an LED to read its angle and target. */
   .led-row.wide { --picture: 132px; }

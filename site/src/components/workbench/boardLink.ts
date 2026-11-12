@@ -1,3 +1,4 @@
+import { paintFlashPicture } from '../board/flashPicture';
 import type { LinkView } from './paneView';
 
 /** What the visitor can press in the Board cell's switch. */
@@ -23,9 +24,6 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
   const stage = root.querySelector<HTMLElement>('[data-stage]')!;
   const message = root.querySelector<HTMLElement>('[data-board-message]')!;
   const progress = root.querySelector<HTMLElement>('[data-board-progress]')!;
-  const progressBar = progress.querySelector<HTMLElement>('[role="progressbar"]')!;
-  const progressFill = root.querySelector<HTMLElement>('[data-board-fill]')!;
-  const progressText = root.querySelector<HTMLElement>('[data-board-percent]')!;
 
   actionButton?.addEventListener('click', handlers.action);
   flashAgain?.addEventListener('click', () => {
@@ -76,11 +74,7 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
       if (message.textContent !== words) message.textContent = words;
       message.classList.toggle('notice', shown?.notice ?? false);
       progress.hidden = shown?.progress === undefined;
-      if (shown?.progress !== undefined) {
-        progressBar.setAttribute('aria-valuenow', String(shown.progress));
-        progressFill.style.width = `${shown.progress}%`;
-        progressText.textContent = `${shown.progress}%`;
-      }
+      if (shown?.progress !== undefined) paintFlashPicture(progress, shown.progress);
     },
   };
 }
