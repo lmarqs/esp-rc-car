@@ -60,6 +60,42 @@
         }
       ]
     },
+    "servo/angle": {
+      "images": [
+        {
+          "profile": "esp32",
+          "chipFamily": "ESP32",
+          "parts": [
+            { "path": "servo/angle/esp32/angle.ino.bootloader.bin", "offset": 4096 },
+            { "path": "servo/angle/esp32/angle.ino.bin", "offset": 65536 }
+          ]
+        }
+      ]
+    },
+    "servo/commands": {
+      "images": [
+        {
+          "profile": "esp32",
+          "chipFamily": "ESP32",
+          "parts": [
+            { "path": "servo/commands/esp32/commands.ino.bootloader.bin", "offset": 4096 },
+            { "path": "servo/commands/esp32/commands.ino.bin", "offset": 65536 }
+          ]
+        }
+      ]
+    },
+    "servo/speed": {
+      "images": [
+        {
+          "profile": "esp32",
+          "chipFamily": "ESP32",
+          "parts": [
+            { "path": "servo/speed/esp32/speed.ino.bootloader.bin", "offset": 4096 },
+            { "path": "servo/speed/esp32/speed.ino.bin", "offset": 65536 }
+          ]
+        }
+      ]
+    },
     "balance-beam": {
       "images": [
         {

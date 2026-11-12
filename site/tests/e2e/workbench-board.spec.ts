@@ -291,12 +291,13 @@ test.describe('the flash card', () => {
     await expect(card(page)).toHaveCount(0);
   });
 
-  test('stays on Servo, whose steps the workbench does not show yet', async ({ page, fakeFlasher }) => {
+  test('is gone from Servo, whose workbench flashes each step', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install();
     await page.goto('/robomania/projects/servo/');
 
-    await expect(bench(page)).toHaveCount(0);
-    await expect(card(page).getByRole('button', { name: 'Connect board' })).toBeVisible();
+    await expect(bench(page)).toBeVisible();
+    await expect(card(page)).toHaveCount(0);
+    await expect(boardButton(page)).toHaveAccessibleName('Connect');
   });
 
   test('stays on a single-sketch project', async ({ page, fakeFlasher }) => {

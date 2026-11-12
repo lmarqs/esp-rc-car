@@ -22,13 +22,13 @@ steps:
 flash:
   baud: 115200
   next: "Connect the servo's signal wire to GPIO 13. It sweeps from 0° to 180° and back, about 2.7 seconds each way."
-example: servo
 topics: [servo, pwm]
 ---
 
 ## What it does
 
-The sketch sweeps a positional hobby servo from end to end.
+The first step sweeps a positional hobby servo from end to end. The steps after it set the angle from serial, take
+commands while the servo sweeps, and move it at a speed you choose.
 
 - The servo's signal wire goes on GPIO 13.
 - The servo turns from 0° to 180° one degree every 15 ms, about 2.7 seconds, then back, and repeats.
@@ -38,8 +38,8 @@ The sketch sweeps a positional hobby servo from end to end.
 
 ## Run it on your board
 
-Wire the servo's signal to GPIO 13. The card above flashes this sketch onto your board from Chrome or Edge on a
-computer, with no tools installed. To build and flash it yourself, run from the repository's root:
+Wire the servo's signal to GPIO 13. The workbench above flashes each step onto your board from Chrome or Edge on a
+computer, with no tools installed. To build and flash the first step yourself, run from the repository's root:
 
 ```sh
 mise run arduino:run sketches/servo/sweep --port /dev/ttyUSB0 --monitor --baudrate 115200
@@ -80,8 +80,7 @@ void loop() {
 
 A servo reads the *width* of a pulse it gets 50 times a second, every 20 ms. `EspLedcOutPin(13, 50, 16)` asks the
 ESP32's LEDC hardware for a 50 Hz signal on GPIO 13 with 16 bits of resolution. `PositionalServo` turns an angle into
-a pulse width: 0° becomes 544 µs and 180° becomes 2400 µs, with the angles in between spread evenly. Drag the angle
-in the example above and watch the pulse grow.
+a pulse width: 0° becomes 544 µs and 180° becomes 2400 µs, with the angles in between spread evenly.
 
 ## Not handled
 

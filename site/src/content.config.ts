@@ -37,7 +37,7 @@ const projects = defineCollection({
         message: 'Step ids must be unique.',
       })
       .optional(),
-    example: z.enum(['blink', 'servo', 'omnidirectional']).optional(),
+    example: z.enum(['omnidirectional']).optional(),
     /** The flash card's copy for a sketch the browser flashes; a project whose sketch has no image sets none. */
     flash: z
       .object({

@@ -1,17 +1,13 @@
 ---
-import Blink from './examples/Blink.astro';
 import HBridge from './examples/HBridge.astro';
 import Motor from './examples/Motor.astro';
 import Omnidirectional from './examples/Omnidirectional.astro';
-import Servo from './examples/Servo.astro';
 
 interface Props {
   name?: string;
 }
 
 const examples: Record<string, any> = {
-  blink: Blink,
-  servo: Servo,
   omnidirectional: Omnidirectional,
   motor: Motor,
   'h-bridge': HBridge,

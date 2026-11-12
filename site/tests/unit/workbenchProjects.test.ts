@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { blinkWorkbench, OPENING, openRunner, workbenchFor } from '../../src/lib/workbench/projects';
+import { blinkWorkbench, OPENING, openRunner, servoWorkbench, workbenchFor } from '../../src/lib/workbench/projects';
 import type { Effect, RealClock } from '../../src/lib/workbench/simulator';
 import { blinkSimple } from '../../src/lib/workbench/steps/blink';
 
@@ -35,7 +35,8 @@ function fakeClock(): RealClock & { advance(ms: number): void } {
 describe('workbenchFor', () => {
   it('finds the projects with step definitions and nothing else', () => {
     expect(workbenchFor('blink')).toBe(blinkWorkbench);
-    expect(workbenchFor('servo')).toBeUndefined();
+    expect(workbenchFor('servo')).toBe(servoWorkbench);
+    expect(workbenchFor('balance-beam')).toBeUndefined();
     expect(workbenchFor('toString')).toBeUndefined();
   });
 });

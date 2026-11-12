@@ -765,9 +765,9 @@ test.describe('the Blink workbench', () => {
   });
 });
 
-test('a project with steps but no step definitions keeps its Try it example', async ({ page }) => {
-  await page.goto('/robomania/projects/servo/');
+test('a single-sketch project keeps its Try it example and has no workbench', async ({ page }) => {
+  await page.goto('/robomania/projects/omnidirectional/');
 
-  await expect(page.getByText('Try it', { exact: true })).toBeVisible();
+  await expect(page.getByText('Try it: drag both sticks', { exact: true })).toBeVisible();
   await expect(bench(page)).toHaveCount(0);
 });
