@@ -208,6 +208,36 @@ test.describe('live mode', () => {
     await expect(problem).toBeHidden();
   });
 
+  test('while the board prints nothing, leaves the code, the watch, the output, the status and the alert unwritten', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ lines: ['', 'sketch blink/input', 'delay 700'], failFirst: { send: 'NetworkError' } });
+    await page.goto(BLINK);
+    await tab(page, '2 input').click();
+    await boardButton(page).click();
+    await expect(watchValue(page, 'wait')).toHaveText('700 ms');
+    await commandLine(page).fill('500');
+    await commandLine(page).press('Enter');
+    await expect(bench(page).locator('[data-problem]')).toBeVisible();
+
+    const changes = await bench(page).evaluate(async (workbench) => {
+      const seen: string[] = [];
+      const watched = ['[data-serial]', '.watch', '[data-problem]', '[data-board-status]', '[data-code]:not([hidden])'];
+      const observer = new MutationObserver((records) => {
+        for (const record of records) seen.push((record.target as Element).nodeName ?? 'text');
+      });
+      for (const selector of watched) {
+        observer.observe(workbench.querySelector(selector)!, { subtree: true, childList: true, characterData: true });
+      }
+      await new Promise((done) => setTimeout(done, 500));
+      observer.disconnect();
+      return seen;
+    });
+
+    expect(changes).toEqual([]);
+  });
+
   test('writes the shortcuts to the board', async ({ page, fakeFlasher }) => {
     await connectTo(page, fakeFlasher, 'blink/commands', '4 commands', 'Live');
 

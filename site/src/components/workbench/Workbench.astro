@@ -610,6 +610,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     let board: unknown;
     let trace: Trace = emptyTrace(undefined);
     let frame = 0;
+    let motionFrame = 0;
     let slow: boolean = OPENING.slow;
     // Whether the visitor wants the sketch running: Pause and Step stop it, Continue and a tab pick start it.
     let keepRunning: boolean = OPENING.running;
@@ -677,12 +678,15 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       if (keepRunning) runner?.run();
     }
 
+    /** Paints the whole pane at the next frame, after something in it changed. */
     function draw() {
       if (frame === 0) frame = requestAnimationFrame(paint);
     }
 
     function paint() {
       frame = 0;
+      cancelAnimationFrame(motionFrame);
+      motionFrame = 0;
       if (view === undefined) return;
       const step = steps[pane.selected];
       const shown = pane.mode === 'simulator' ? undefined : pane.followed;
@@ -715,7 +719,8 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       const trouble = controls.problem ?? refused;
       problem.hidden = trouble === undefined;
       say.toggleAttribute('data-trouble', trouble !== undefined);
-      problem.textContent = trouble ?? '';
+      // Set only on a change, since the problem is an alert: each write would be read out again.
+      if (problem.textContent !== (trouble ?? '')) problem.textContent = trouble ?? '';
       const at = shown === undefined ? { text: view.line, occurrence: view.occurrence } : arrowOf(shown);
       const running = at.text === undefined ? undefined : lineNumber(step.source, at.text, at.occurrence);
       const code = root.querySelector<HTMLElement>(`[data-code][data-for-step="${pane.selected}"]`)!;
@@ -734,6 +739,18 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
         row?.setAttribute('data-running', '');
         if (before !== null) showClock(before.querySelector('[data-pie]'), { waiting: false, fill: 0 });
       }
+      paintMotion();
+    }
+
+    /**
+     * Paints what moves between changes, the running line's clock and the trace, and keeps painting them on every
+     * frame while they move; the rest of the pane waits for the next change.
+     */
+    function paintMotion() {
+      motionFrame = 0;
+      if (view === undefined) return;
+      const shown = pane.mode === 'simulator' ? undefined : pane.followed;
+      const row = root.querySelector(`[data-code][data-for-step="${pane.selected}"] [data-running]`);
       const progress = runner?.progress() ?? 0;
       const face =
         shown === undefined
@@ -749,10 +766,13 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
         shown === undefined
           ? traceShape(trace, traceTime(view, progress, reducedMotion.matches), traceWidth)
           : traceShape(shown.trace, Date.now(), traceWidth);
-      for (const [part, path] of Object.entries(tracePaths)) path.setAttribute('d', shape[part as keyof typeof shape]);
-      // The clock fills and the trace scrolls between the runner's notifications, so they are painted on every frame.
+      for (const [part, path] of Object.entries(tracePaths)) {
+        const d = shape[part as keyof typeof shape];
+        if (path.getAttribute('d') !== d) path.setAttribute('d', d);
+      }
+      // The clock fills and the trace scrolls between the runner's notifications.
       const moving = shown !== undefined || (view.status === 'running' && (face.waiting || view.cost > 0));
-      if (moving && !reducedMotion.matches) draw();
+      if (moving && !reducedMotion.matches) motionFrame = requestAnimationFrame(paintMotion);
     }
 
     /** Paints the picture's state: its classes, the custom properties its styles read and its accessible name. */
