@@ -81,16 +81,25 @@ The site also puts the firmware on a board. Its parts:
 - **Flash slice**: `site/src/lib/flash/` holds the logic and `site/src/components/flash/` the card. The logic reads
   the manifest, talks to the board over Web Serial and walks one session through connecting, the settings form,
   flashing and running. The rest of the site takes from the slice the card, the manifest and its reader, and a
-  public module, `site/src/lib/flash/index.ts`, that gives the workbench the session, the flasher and the wording the
-  card and the workbench share.
+  public module, `site/src/lib/flash/index.ts`, that gives the board slice the session and the flasher, and the
+  workbench the wording the card and the workbench share.
+- **Board slice**: `site/src/lib/board/` holds the visitor's board, one for the whole site: the flash session that
+  holds its port, which page owns it, and what the site knows of the board beyond the session's state: the sketch it
+  runs and the lines it printed and was sent. `site/src/components/board/` holds the dock, along the bottom of every
+  page, and the flashing picture that the card and the workbench share. The card and the workbench point the board at
+  their own sketches instead of opening a session; the slice depends on the flash slice.
+- **Router**: the site swaps pages in place with Astro's client router, so the board keeps its port from page to page
+  and the dock persists across the swap. A page's script runs once per visit to the site, so each one mounts on every
+  page the router shows and stops what outlives its page, such as a timer or a subscription to the board, as the
+  router swaps it out, through `site/src/lib/page.ts`. A reload, or a new tab, drops the port.
 - **Workbench slice**: `site/src/components/workbench/` holds the component, one Astro component for each part of it
   (`Rail`, `Editor`, `Board` with its `Stage`, `Scope` and `Terminal`) and its pictures, and `site/src/lib/workbench/`
   the logic. A project built as a ladder of step sketches, such as Blink and Servo, has a
   workbench: step tabs and a Board switch, then the selected step's code in an editor with a debugger beside a board
   pane. Per project, the logic holds one definition per step, which has the step's simulated program, what each line
   the step prints means, and the controls that send a line; and a board model, which turns that meaning into the
-  picture, the watch values and the trace. The slice depends on the flash slice, and on the images and the manifest
-  through it.
+  picture, the watch values and the trace. The slice depends on the board slice and the flash slice, and on the
+  images and the manifest through them.
 - **Simulator**: the DOM-free part of the workbench slice that runs a step's program on a simulated board, one source
   line at a time on a simulated clock, with Pause, Step and Restart. A program names the lines of the step's `.ino`
   and does what each does to the board, and the editor shows the real source, read from `sketches/` at build time,
@@ -114,11 +123,15 @@ flowchart TD
   sketches -->|their .ino, at build| workbench
   images --> card[Flash card]
   images --> workbench
+  images --> dock[Board dock]
   pages[Flash and project pages] --> card
   pages --> workbench[Workbench]
+  layout[Every page] --> dock
   workbench --> simulator[Simulator]
-  card --> session[Flash session]
-  workbench --> session
+  card --> site[Site's board]
+  workbench --> site
+  dock --> site
+  site --> session[Flash session]
   session -->|Web Serial| board[Board]
 ```
 
@@ -128,9 +141,17 @@ values first, flashes the board, and once the board has reset reads its serial o
 `cfg get` until the board lists its values, `cfg set` for each one that differs, and `cfg restart` so the new values
 take effect. A sketch with no baud prints nothing, so its card flashes without settings.
 
-The session also serves the workbench, which shares one connection for control and flashing. It can restart the board
-without flashing, hands every line the board prints, with its arrival time, to its listeners, writes a line, and
-flashes a manifest key onto the open port and keeps reading.
+The site holds one session, and the page that pointed it at its sketch last owns it: the card shows the board only
+while it owns it, from the visitor's press or because the board runs the card's sketch, and a card that does not
+waits to be pressed as if no board were connected. Pointing the session at another sketch keeps the images it knew,
+so whatever the site flashed can be flashed again from any page, and is refused while the session is busy. The
+session can restart the board without flashing, hands every line the board prints, with its arrival time, to its
+listeners, writes a line, and flashes a manifest key onto the open port and keeps reading.
+
+The dock names the board's chip and the sketch it runs, by the `sketch <key>` line or the key the site last flashed,
+links the sketch's project, and shows the last line it printed. It connects a board, flashes the sketch it runs again,
+lets it go, and opens a serial monitor that shows the lines and sends one. Every page carries the names of every
+project's sketches and the whole manifest for it.
 
 The workbench shows a simulated board until it hears from a real one, and it hears from a real one through the
 `sketch <key>` line. Every step of a ladder prints a blank line and then `sketch <key>` first, where the key is the
@@ -143,10 +164,12 @@ key ties a board to a step:
 - When the key is another step's or another sketch's, the tab of the step it runs is marked, the selected step is
   simulated like any other, and the switch's board half flashes the selected step.
 - Simulator, Pause, Step or Restart hands the pane back to the simulator with the port still open, and the switch's
-  board half, My board, brings it back to the board. Flash again, above the picture while live, flashes the step
-  the board runs.
+  board half, My board, brings it back to the board. Flash again, the switch's third segment, flashes the step the
+  board runs; it is dimmed until the board runs the selected step, so the switch keeps its width.
+- A workbench opened on a board that the site kept connected from another page follows it at once when it runs the
+  first step.
 
-The tests, in `site/tests`, run the card and the workbench in a browser against a fake serial port.
+The tests, in `site/tests`, run the card, the workbench and the dock in a browser against a fake serial port.
 
 The workflow publishes a new site version to GitHub Pages, at <https://lmarqs.github.io/robomania/>, when a push to
 `main` includes a commit whose message contains `#site-release`, or when someone runs it by hand. Other pushes leave the
