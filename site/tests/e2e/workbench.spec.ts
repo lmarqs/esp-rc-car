@@ -692,6 +692,8 @@ test.describe('the Blink workbench', () => {
       await expect(control).toBeFocused();
       await expect(control).toHaveCSS('outline-color', 'rgb(59, 130, 196)');
       await expect(control).toHaveCSS('outline-style', 'solid');
+      // Only the focused control shows a ring, not the command line's row around it.
+      await expect(bench(page).locator('.cmd')).toHaveCSS('box-shadow', 'none');
     }
   });
 
