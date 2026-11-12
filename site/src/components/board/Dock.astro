@@ -136,10 +136,10 @@ const manifest = readManifest();
   }
 
   .monitor { background: var(--ink-raised); border-bottom: 1px solid var(--on-ink-line); }
-  .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 8px; }
+  .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0 6px; border-bottom: 1px solid var(--on-ink-line); }
   .title { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
   /* Eight lines of 1.5em; older lines scroll up. */
-  .lines { margin: 0; padding: 6px 0; height: calc(8 * 1.5em + 12px); overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: none; color: inherit; border-radius: 0; font-family: var(--mono); font-size: 13px; line-height: 1.5; }
+  .lines { margin: 0; padding: 6px 0; height: calc(8 * 1.5em + 12px); overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: none; color: inherit; border-radius: 0; font-family: var(--mono); font-size: 13px; line-height: 1.5; scrollbar-width: thin; scrollbar-color: var(--on-ink-edge) transparent; }
   .lines :global([data-sent]) { color: var(--yellow); }
   .lines:empty::before { content: "Nothing printed yet."; color: var(--faint); }
   .cmd { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--on-ink-line); padding: 4px 4px 4px 0; font-family: var(--mono); }
