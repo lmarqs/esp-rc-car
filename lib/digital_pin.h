@@ -14,12 +14,16 @@ class DigitalInPin : public InPin {
   uint32_t read();
 };
 
+/** A pin that is on or off. Its active level is the one that turns its load on, HIGH unless the board wires it LOW. */
 class DigitalOutPin : public OutPin {
  private:
   uint8_t pin;
+  uint8_t activeLevel;
 
  public:
-  DigitalOutPin(uint8_t pin);
+  DigitalOutPin(uint8_t pin, uint8_t activeLevel = HIGH);
+  /** Makes the pin an output and turns it off. */
   void begin();
+  /** Turns the pin on for any value but 0. */
   void write(uint32_t value);
 };

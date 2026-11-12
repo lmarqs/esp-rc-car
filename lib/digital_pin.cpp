@@ -8,11 +8,17 @@ void DigitalInPin::begin() { pinMode(this->pin, INPUT); }
 
 uint32_t DigitalInPin::read() { return digitalRead(this->pin); }
 
-DigitalOutPin::DigitalOutPin(uint8_t pin) { this->pin = pin; }
+DigitalOutPin::DigitalOutPin(uint8_t pin, uint8_t activeLevel) {
+  this->pin = pin;
+  this->activeLevel = activeLevel;
+}
 
 void DigitalOutPin::begin() {
   pinMode(this->pin, OUTPUT);
-  digitalWrite(this->pin, 0);
+  write(0);
 }
 
-void DigitalOutPin::write(uint32_t value) { digitalWrite(this->pin, value); }
+void DigitalOutPin::write(uint32_t value) {
+  const uint8_t inactiveLevel = activeLevel == HIGH ? LOW : HIGH;
+  digitalWrite(this->pin, value != 0 ? activeLevel : inactiveLevel);
+}
