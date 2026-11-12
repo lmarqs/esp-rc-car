@@ -32,7 +32,10 @@ export interface Operation {
   readonly occurrence?: number;
   /** What running the line does to the program's state and the board. */
   readonly run?: () => void;
-  /** How long the line takes on the simulated clock; 0 when absent. Evaluated when scheduled and again when it runs. */
+  /**
+   * How long the line takes on the simulated clock; 0 when absent. Evaluated when the line comes up, again whenever the
+   * pace changes, and again when it runs.
+   */
   readonly cost?: Cost;
   /** Set on a line that waits, such as `delay(wait);`, so the page can show the wait filling. */
   readonly wait?: boolean;
@@ -226,6 +229,8 @@ export function createRunner<S>(sketch: Sketch<S>, options: RunnerOptions = {}):
   let program: Iterator<Operation, unknown, undefined>;
   // The line about to run. A line's effect that throws leaves it here, its cost not yet on the clock.
   let current: Operation | undefined;
+  // The cost of the line about to run as last priced, so reading the view never runs the program's code.
+  let currentCost = 0;
   let effects: Effect[] = [];
 
   // Real time spent on the current line before the last run(), and when that run() started counting.
@@ -272,26 +277,29 @@ export function createRunner<S>(sketch: Sketch<S>, options: RunnerOptions = {}):
     error = thrown;
   }
 
-  /** The simulated cost of the line about to run; 0 when there is none or its cost threw, which stops the run. */
-  function lineCost(): number | undefined {
-    if (current === undefined || status === 'error') return undefined;
+  /** Prices the line about to run at the current pace; a cost that throws stops the run in `error`. */
+  function price() {
+    currentCost = 0;
+    if (current === undefined || status === 'error' || status === 'disposed') return;
     try {
-      return costOf(current);
+      currentCost = costOf(current);
     } catch (thrown) {
       fail(thrown);
-      return undefined;
     }
   }
 
+  /** The simulated cost of the line about to run as priced; 0 when there is none or the run stopped in `error`. */
+  function lineCost(): number {
+    return current === undefined || status === 'error' ? 0 : currentCost;
+  }
+
   function realDuration(): number {
-    const cost = lineCost();
-    if (cost === undefined) return 0;
-    return slow ? Math.max(SLOW_LINE_MS, cost) : cost;
+    if (current === undefined || status === 'error') return 0;
+    return slow ? Math.max(SLOW_LINE_MS, currentCost) : currentCost;
   }
 
   function view(): RunnerView<S> {
-    // First, since a cost that throws turns the status to `error`.
-    const cost = lineCost() ?? 0;
+    const cost = lineCost();
     const duration = realDuration();
     return {
       status,
@@ -362,6 +370,7 @@ export function createRunner<S>(sketch: Sketch<S>, options: RunnerOptions = {}):
       stopTimer();
     } else {
       current = next.value;
+      price();
     }
   }
 
@@ -384,14 +393,20 @@ export function createRunner<S>(sketch: Sketch<S>, options: RunnerOptions = {}):
 
   function begin() {
     stopTimer();
-    state = sketch.init();
     millis = 0;
     output = [];
     queue = [];
     effects = [];
-    program = sketch.program(board);
+    current = undefined;
     if (status === 'ended' || status === 'error') status = 'paused';
     error = undefined;
+    try {
+      state = sketch.init();
+      program = sketch.program(board);
+    } catch (thrown) {
+      fail(thrown);
+      return;
+    }
     arrive();
   }
 
@@ -412,6 +427,7 @@ export function createRunner<S>(sketch: Sketch<S>, options: RunnerOptions = {}):
     run() {
       if (status !== 'paused') return;
       status = 'running';
+      price();
       schedule();
       notify();
     },
@@ -420,6 +436,7 @@ export function createRunner<S>(sketch: Sketch<S>, options: RunnerOptions = {}):
       settleElapsed();
       stopTimer();
       status = 'paused';
+      price();
       notify();
     },
     step() {
@@ -433,6 +450,7 @@ export function createRunner<S>(sketch: Sketch<S>, options: RunnerOptions = {}):
       if (status === 'disposed' || slow === on) return;
       settleElapsed();
       slow = on;
+      price();
       schedule();
       notify();
     },

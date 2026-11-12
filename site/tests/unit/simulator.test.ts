@@ -360,6 +360,55 @@ describe('simulator runner', () => {
     expect(runner.view().error).toBeUndefined();
   });
 
+  it('stops in error, rather than throwing, when the sketch cannot start on a restart, until a restart that works', () => {
+    let throws = false;
+    const fragile: Sketch<null> = {
+      init: () => {
+        if (throws) throw new Error('bad init');
+        return null;
+      },
+      *program() {
+        for (;;) yield op('loop();', undefined, 10);
+      },
+    };
+    const runner = createRunner(fragile);
+    runner.run();
+    throws = true;
+
+    expect(() => runner.restart()).not.toThrow();
+    expect(runner.view()).toMatchObject({ status: 'error', line: undefined, cost: 0, duration: 0 });
+    expect((runner.view().error as Error).message).toBe('bad init');
+    expect(vi.getTimerCount()).toBe(0);
+
+    throws = false;
+    runner.restart();
+    expect(runner.view()).toMatchObject({ status: 'paused', line: 'loop();' });
+    runner.dispose();
+  });
+
+  it('prices a line when it comes up and when the pace changes, never when the page reads the view', () => {
+    let priced = 0;
+    const counted: Sketch<null> = {
+      init: () => null,
+      *program(board) {
+        for (;;) yield op('loop();', undefined, () => (priced++, board.pace() === 'run' ? 10 : 100));
+      },
+    };
+    const runner = createRunner(counted);
+    const before = priced;
+    for (let i = 0; i < 5; i++) {
+      runner.view();
+      runner.progress();
+    }
+    expect(priced).toBe(before);
+
+    runner.run();
+    expect(runner.view()).toMatchObject({ pace: 'run', cost: 10 });
+    runner.pause();
+    expect(runner.view()).toMatchObject({ pace: 'step', cost: 100 });
+    runner.dispose();
+  });
+
   it('stops in error on a line whose effect throws, its cost not on the clock', () => {
     const broken: Sketch<null> = {
       init: () => null,
