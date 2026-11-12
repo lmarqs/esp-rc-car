@@ -43,7 +43,7 @@ describe('paneView', () => {
     expect(shown.picture.flags).toEqual({ on: snapshot.board.ledOn });
     expect(shown.serial.map((row) => row.text.trim())).toContain('sketch blink/input');
     expect(shown.arrow).toBeGreaterThan(0);
-    expect(shown.live).toBe('1000');
+    expect(shown.live).toEqual({ blinkDelay: '1000' });
     expect(shown.controls).toMatchObject({ canContinue: true, canSlow: true });
   });
 
@@ -53,7 +53,7 @@ describe('paneView', () => {
     const shown = paneView(blink, followed, snapshot, source);
     expect(shown.board).toBe(followed.followed?.board);
     expect(shown.serial.map((row) => row.text.trim())).toContain('delay 700');
-    expect(shown.live).toBe('700');
+    expect(shown.live).toEqual({ blinkDelay: '700' });
     expect(shown.problem).toBeUndefined();
     expect(shown.controls).toMatchObject({ canSlow: false });
   });
@@ -72,7 +72,7 @@ describe('paneView', () => {
     const first = reducePane(blink, pane(), { kind: 'tab', index: SIMPLE });
     const shown = paneView(blink, first, snapshot, source);
     expect(shown.problem).toBeUndefined();
-    expect(shown.live).toBeUndefined();
+    expect(shown.live).toEqual({});
   });
 });
 

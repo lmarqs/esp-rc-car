@@ -22,7 +22,7 @@ const commandLine = (page: Page) => bench(page).getByRole('textbox', { name: 'Li
 const sendButton = (page: Page) => bench(page).getByRole('button', { name: 'Send', exact: true });
 const shortcuts = (page: Page) => bench(page).locator('[data-shortcuts]:visible [data-shortcut]');
 const runningRow = (page: Page) => bench(page).locator('[data-code]:visible [data-running]');
-const livePill = (page: Page) => bench(page).locator('[data-code]:visible [data-live]');
+const livePill = (page: Page) => bench(page).locator('[data-code]:visible [data-live="blinkDelay"]');
 /** How full the clock on the arrow's line is, from 0 to 100. */
 const clockFill = (page: Page) =>
   runningRow(page)

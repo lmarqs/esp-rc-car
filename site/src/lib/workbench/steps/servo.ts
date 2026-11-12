@@ -382,6 +382,7 @@ export const servoSweep: ServoStep = {
   sketch: 'sketches/servo/sweep',
   program: sweep,
   shortcuts: [],
+  live: [],
   placeholder: 'this step reads no input',
   hint: 'The horn turns when servo.write() runs, one degree every 15 ms, and the trace draws the angle. This step reads no input: press Step to run it one line at a time.',
   parse: parseServoLine,
@@ -392,11 +393,17 @@ export const servoAngle: ServoStep = {
   sketch: 'sketches/servo/angle',
   program: angle,
   shortcuts: [angleSlider('angle', (degrees) => String(degrees))],
+  live: [],
   placeholder: 'a number, then Enter',
   hint: 'Send a number from 0 to 180 and the horn turns to it. Any other line gets an error reply, and the horn stays where it is.',
   parse: parseServoLine,
   ...replies(angleReply),
 };
+
+/** The live values of the sketch's variables `names`, each the state field of the same name. */
+function liveOf(...names: (keyof ServoState)[]): LiveValue<ServoState>[] {
+  return names.map((name) => ({ name, value: (state) => String(state[name]) }));
+}
 
 export const servoCommands: ServoStep = {
   key: 'servo/commands',
@@ -405,7 +412,7 @@ export const servoCommands: ServoStep = {
   shortcuts: [...commandChips, angleSlider('angle', (degrees) => `angle ${degrees}`)],
   placeholder: 'a command, then Enter',
   hint: 'Send angle 45, sweep or stop: with no delay(), the board reads a command even in the middle of a sweep. Any other line gets error unknown command.',
-  live: { name: 'angle', value: (state) => String(state.angle) } satisfies LiveValue<ServoState>,
+  live: liveOf('angle', 'step', 'sweeping', 'lastStep'),
   parse: parseServoLine,
   ...replies(commandsReply),
 };
@@ -417,7 +424,7 @@ export const servoSpeed: ServoStep = {
   shortcuts: [...commandChips, angleSlider('target', (degrees) => `angle ${degrees}`), speedSlider],
   placeholder: 'a command, then Enter',
   hint: 'The horn now moves one degree at a time toward the target, at the speed you set with speed 1 to 360. The dashed horn is the target, and the solid one is where the sketch estimates the servo is.',
-  live: { name: 'speed', value: (state) => String(state.speed) } satisfies LiveValue<ServoState>,
+  live: liveOf('angle', 'speed', 'sweeping', 'lastMove'),
   parse: parseServoLine,
   ...replies(speedReply),
 };

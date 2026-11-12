@@ -215,13 +215,15 @@ describe('the picture, the trace and the live values', () => {
     expect(servoBoard.level(initialServoBoard())).toBeUndefined();
   });
 
-  it('gives the live value of angle and speed from their lines, and waits 15 ms in sweep’s delay()', () => {
+  it('gives the live value of angle, speed and sweeping from their lines, and waits 15 ms in sweep’s delay()', () => {
     const board = printed(['angle 45', 'speed 10']);
     expect(servoBoard.variable(board, 'angle')).toBe('45');
     expect(servoBoard.variable(board, 'speed')).toBe('10');
     expect(servoBoard.variable(initialServoBoard(), 'angle')).toBeUndefined();
     expect(servoBoard.variable(board, 'target')).toBe('90');
-    expect(servoBoard.variable(board, 'sweeping')).toBeUndefined();
+    expect(servoBoard.variable(board, 'sweeping')).toBe('false');
+    expect(servoBoard.variable(printed(['sweeping']), 'sweeping')).toBe('true');
+    expect(servoBoard.variable(board, 'lastMove')).toBeUndefined();
     expect(servoBoard.wait(board)).toBe(15);
   });
 });

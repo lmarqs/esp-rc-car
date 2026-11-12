@@ -535,14 +535,23 @@ describe('the LED pin', () => {
   });
 });
 
-describe('the live value', () => {
-  it('shows blinkDelay on the steps that declare it, and nothing on simple', () => {
-    expect(blinkSimple.live).toBeUndefined();
-    for (const step of [blinkInput, blinkTimer, blinkCommands]) {
-      expect(step.live?.name).toBe('blinkDelay');
-      expect(readStepSource(step.sketch)).toMatch(/^int blinkDelay = 1000;$/m);
-      expect(step.live?.value({ ...step.program.init(), blinkDelay: 300 })).toBe('300');
-    }
+describe('the live values', () => {
+  it('shows every variable a step declares, and nothing on simple', () => {
+    const names = (step: BlinkStep) => step.live.map((value) => value.name);
+    expect(names(blinkSimple)).toEqual([]);
+    expect(names(blinkInput)).toEqual(['blinkDelay']);
+    expect(names(blinkTimer)).toEqual(['blinkDelay', 'ledOn', 'lastToggle']);
+    expect(names(blinkCommands)).toEqual(['blinkDelay', 'ledOn', 'paused', 'lastToggle']);
+  });
+
+  it.each([blinkInput, blinkTimer, blinkCommands])('$key: each live variable is declared at the top of the .ino', (step) => {
+    const source = readStepSource(step.sketch);
+    for (const { name } of step.live) expect(source).toMatch(new RegExp(`^[\\w ]+ ${name} = (\\d+|true|false);$`, 'm'));
+  });
+
+  it('reads each value from the program state', () => {
+    const state = { ...blinkCommands.program.init(), blinkDelay: 300, ledOn: true, paused: true, lastToggle: 1250 };
+    expect(blinkCommands.live.map((value) => value.value(state))).toEqual(['300', 'true', 'true', '1250']);
   });
 });
 

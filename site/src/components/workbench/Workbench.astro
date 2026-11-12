@@ -37,7 +37,11 @@ const rail: RailStep[] = steps.map((step, index) => {
     shortcuts: definition.shortcuts,
     file: fileName(step.sketch),
     crumbs: crumbs(step.sketch),
-    rows: codeRows(sources[index], newLines(sources[index - 1], sources[index]), definition.live?.name),
+    rows: codeRows(
+      sources[index],
+      newLines(sources[index - 1], sources[index]),
+      definition.live.map((value) => value.name),
+    ),
   };
 });
 const first = rail[0];
@@ -231,8 +235,10 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       // Set only on a change, since the problem is an alert: each write would be read out again.
       if (problem.textContent !== (shown.problem ?? '')) problem.textContent = shown.problem ?? '';
       const code = root.querySelector<HTMLElement>(`[data-code][data-for-step="${pane.selected}"]`)!;
-      const live = code.querySelector('[data-live]');
-      if (live !== null && shown.live !== undefined) live.textContent = shown.live;
+      for (const live of code.querySelectorAll<HTMLElement>('[data-live]')) {
+        const text = shown.live[live.dataset.live ?? ''];
+        if (text !== undefined) live.textContent = text;
+      }
       const before = code.querySelector('[data-running]');
       const row = shown.arrow === undefined ? null : code.querySelector(`[data-line="${shown.arrow}"]`);
       if (before !== row) {

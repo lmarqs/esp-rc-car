@@ -9,23 +9,29 @@ import type { SliderShortcut } from '../../lib/workbench/step';
 /** How many lines of serial output the terminal shows, the newest at the bottom. */
 export const SERIAL_LINES = 6;
 
+/** Which token of a row shows the live value of the variable `name`. */
+export interface LiveToken {
+  readonly at: number;
+  readonly name: string;
+}
+
 /**
  * One row of the editor: its 1-based number, its coloured text, whether it is new in this step, whether it calls
- * `delay()`, which gives it a clock, and which of its tokens shows the live value, if any.
+ * `delay()`, which gives it a clock, and which of its tokens shows a live value, if any.
  */
 export interface CodeRow {
   readonly number: number;
   readonly tokens: readonly Token[];
   readonly isNew: boolean;
   readonly waits: boolean;
-  readonly live?: number;
+  readonly live?: LiveToken;
 }
 
 /**
- * The editor's rows for `source`, with the 1-based line numbers in `added` marked new. When `live` names a variable,
- * the number it is declared with at the top of the file is marked to show its current value.
+ * The editor's rows for `source`, with the 1-based line numbers in `added` marked new. Each variable `live` names has
+ * the number or boolean it is declared with at the top of the file marked to show its current value.
  */
-export function codeRows(source: string, added: readonly number[], live?: string): CodeRow[] {
+export function codeRows(source: string, added: readonly number[], live: readonly string[] = []): CodeRow[] {
   const fresh = new Set(added);
   return source
     .replace(/\r?\n$/, '')
@@ -33,15 +39,22 @@ export function codeRows(source: string, added: readonly number[], live?: string
     .map((line, index) => {
       const tokens = highlightLine(line);
       const row = { number: index + 1, tokens, isNew: fresh.has(index + 1), waits: callsDelay(tokens) };
-      const at = live === undefined ? -1 : declaredValue(line, tokens, live);
-      return at < 0 ? row : { ...row, live: at };
+      for (const name of live) {
+        const at = declaredValue(line, tokens, name);
+        if (at >= 0) return { ...row, live: { at, name } };
+      }
+      return row;
     });
 }
 
-/** The index of the number token that `line` declares `name` with at file scope, as in `int name = 1000;`; else -1. */
+/**
+ * The index of the token that `line` declares `name` with at file scope, as `1000` in `int name = 1000;` or `false` in
+ * `bool name = false;`; else -1.
+ */
 function declaredValue(line: string, tokens: readonly Token[], name: string): number {
-  if (!new RegExp(`^[A-Za-z_][\\w ]*\\b${name}\\s*=\\s*\\d+\\s*;`).test(line)) return -1;
-  return tokens.findIndex((token) => token.kind === 'number');
+  const declared = new RegExp(`^[A-Za-z_][\\w ]*\\b${name}\\s*=\\s*(\\d+|true|false)\\s*;`).exec(line);
+  if (declared === null) return -1;
+  return tokens.findIndex((token) => token.text === declared[1]);
 }
 
 const callsDelay = (tokens: readonly Token[]): boolean =>

@@ -441,6 +441,19 @@ test.describe('the Blink workbench', () => {
     expect(new Set(widths).size).toBe(1);
   });
 
+  test('shows every variable of commands live, so ledOn and lastToggle change as the LED toggles', async ({ page }) => {
+    await tab(page, '4 commands').click();
+    const live = (name: string) => visibleCode(page).locator(`[data-live="${name}"]`);
+    await expect(live('blinkDelay')).toHaveText('1000');
+    await expect(live('ledOn')).toHaveText('false');
+    await expect(live('paused')).toHaveText('false');
+    await expect(live('lastToggle')).toHaveText('0');
+    await button(page, 'Slow').click();
+    await page.clock.runFor(1100);
+    await expect(live('ledOn')).toHaveText('true');
+    await expect(live('lastToggle')).not.toHaveText('0');
+  });
+
   test('has room for all six lines the serial output keeps', async ({ page }) => {
     await page.clock.runFor(9100);
     const text = await serial(page).textContent();
@@ -687,7 +700,7 @@ test.describe('the Blink workbench', () => {
     const input = source('sketches/blink/input');
     const at = (text: string, occurrence = 1) => lineNumber(input, text, occurrence)!;
     await tab(page, '2 input').click();
-    const live = visibleCode(page).locator('[data-live]');
+    const live = visibleCode(page).locator('[data-live="blinkDelay"]');
     await freezeUntilRunning(page, at('delay(blinkDelay);'));
 
     await commandLine(page).fill('1500');

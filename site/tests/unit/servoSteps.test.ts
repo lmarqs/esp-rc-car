@@ -236,13 +236,18 @@ describe('the four steps', () => {
     expect(turns).toEqual([]);
   });
 
-  it('shows the live variable the sketch declares: angle on commands, speed on speed, none before', () => {
-    expect(servoSweep.live).toBeUndefined();
-    expect(servoAngle.live).toBeUndefined();
-    expect(servoCommands.live?.name).toBe('angle');
-    expect(servoCommands.live?.value({ ...servoCommands.program.init(), angle: 45 })).toBe('45');
-    expect(servoSpeed.live?.name).toBe('speed');
-    expect(servoSpeed.live?.value({ ...servoSpeed.program.init(), speed: 10 })).toBe('10');
+  it('shows every variable the sketch declares with a value, and none on sweep and angle, which keep none', () => {
+    const names = (step: ServoStep) => step.live.map((value) => value.name);
+    expect(names(servoSweep)).toEqual([]);
+    expect(names(servoAngle)).toEqual([]);
+    expect(names(servoCommands)).toEqual(['angle', 'step', 'sweeping', 'lastStep']);
+    expect(names(servoSpeed)).toEqual(['angle', 'speed', 'sweeping', 'lastMove']);
+    for (const step of servoSteps) {
+      const source = readStepSource(step.sketch);
+      for (const { name } of step.live) expect(source).toMatch(new RegExp(`^[\\w ]+ ${name} = (\\d+|true|false);$`, 'm'));
+    }
+    const state = { ...servoSpeed.program.init(), angle: 45, speed: 10, sweeping: true, lastMove: 7 };
+    expect(servoSpeed.live.map((value) => value.value(state))).toEqual(['45', '10', 'true', '7']);
   });
 
   it('places no arrow on a real board: no printed line pins one source line', () => {

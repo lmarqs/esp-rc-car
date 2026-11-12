@@ -114,5 +114,13 @@ export const blinkBoard: BoardModel<BlinkEvent, BlinkBoard, BlinkState> = {
   picture: (_step, board) => ({ flags: { on: board.ledOn }, values: {} }),
   level: (board) => (board.ledOn ? 1 : 0),
   wait: (board) => board.wait,
-  variable: (board, name) => (name === 'blinkDelay' && board.wait !== undefined ? String(board.wait) : undefined),
+  variable: (board, name) => {
+    const known: Record<string, number | boolean | undefined> = {
+      blinkDelay: board.wait,
+      ledOn: board.ledOn,
+      paused: board.paused,
+    };
+    const value = Object.hasOwn(known, name) ? known[name] : undefined;
+    return value === undefined ? undefined : String(value);
+  },
 };

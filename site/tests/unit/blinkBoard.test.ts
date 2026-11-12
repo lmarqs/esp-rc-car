@@ -180,13 +180,20 @@ describe('followBlink', () => {
   });
 });
 
-describe('the variable a real board tells', () => {
+describe('the variables a real board tells', () => {
   it('is blinkDelay, from the interval the board last announced', () => {
     expect(blinkBoard.variable(initialBlinkBoard(), 'blinkDelay')).toBe('1000');
     expect(blinkBoard.variable(after([[{ kind: 'delay', ms: 500 }, 10]]), 'blinkDelay')).toBe('500');
   });
 
-  it('is unknown for any other variable', () => {
+  it('is ledOn from HIGH and LOW, and paused from paused and running', () => {
+    expect(blinkBoard.variable(after([[{ kind: 'high' }, 10]]), 'ledOn')).toBe('true');
+    expect(blinkBoard.variable(after([[{ kind: 'paused' }, 10]]), 'paused')).toBe('true');
+    expect(blinkBoard.variable(after([[{ kind: 'running' }, 10]]), 'paused')).toBe('false');
+    expect(blinkBoard.variable(followBlink('blink/commands'), 'paused')).toBeUndefined();
+  });
+
+  it('is unknown for a variable no line tells, such as lastToggle', () => {
     expect(blinkBoard.variable(initialBlinkBoard(), 'lastToggle')).toBeUndefined();
   });
 });

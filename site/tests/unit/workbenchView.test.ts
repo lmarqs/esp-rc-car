@@ -37,19 +37,36 @@ describe('codeRows', () => {
   });
 });
 
-describe('codeRows live value', () => {
-  const source = 'DigitalOutPin led(2);\nint blinkDelay = 1000;\n\nvoid loop() {\n  blinkDelay = constrain(x, 100, 2000);\n}\n';
+describe('codeRows live values', () => {
+  const source = [
+    'DigitalOutPin led(2);',
+    'int blinkDelay = 1000;',
+    'bool ledOn = false;',
+    'unsigned long lastToggle = 0;',
+    'int target = blinkDelay;',
+    '',
+    'void loop() {',
+    '  blinkDelay = constrain(x, 100, 2000);',
+    '  ledOn = !ledOn;',
+    '}',
+    '',
+  ].join('\n');
+  const marked = (names: readonly string[]) =>
+    codeRows(source, [], names).flatMap((row) =>
+      row.live === undefined ? [] : [[row.number, row.live.name, row.tokens[row.live.at].text]],
+    );
 
-  it('marks the number the variable is declared with at the top of the file, and nothing else', () => {
-    const rows = codeRows(source, [], 'blinkDelay');
-    expect(rows.flatMap((row) => (row.live === undefined ? [] : [[row.number, row.tokens[row.live].text]]))).toEqual([
-      [2, '1000'],
+  it('marks the number or boolean each variable is declared with at the top of the file, and nothing else', () => {
+    expect(marked(['blinkDelay', 'ledOn', 'lastToggle'])).toEqual([
+      [2, 'blinkDelay', '1000'],
+      [3, 'ledOn', 'false'],
+      [4, 'lastToggle', '0'],
     ]);
   });
 
-  it('marks nothing without a live variable or when the file does not declare it', () => {
-    expect(codeRows(source, []).some((row) => row.live !== undefined)).toBe(false);
-    expect(codeRows(source, [], 'wait').some((row) => row.live !== undefined)).toBe(false);
+  it('marks nothing for a variable declared from another variable, or one the file does not declare', () => {
+    expect(marked([])).toEqual([]);
+    expect(marked(['target', 'wait'])).toEqual([]);
   });
 });
 

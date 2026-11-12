@@ -161,7 +161,12 @@ export const servoBoard: BoardModel<ServoEvent, ServoBoard, ServoState> = {
   // Only `sweep` waits in delay(), always 15 ms.
   wait: () => SWEEP_DELAY,
   variable: (board, name) => {
-    const known: Record<string, number | undefined> = { angle: board.angle, target: board.target, speed: board.speed };
+    const known: Record<string, number | boolean | undefined> = {
+      angle: board.angle,
+      target: board.target,
+      speed: board.speed,
+      sweeping: board.sweeping,
+    };
     const value = Object.hasOwn(known, name) ? known[name] : undefined;
     return value === undefined ? undefined : String(value);
   },

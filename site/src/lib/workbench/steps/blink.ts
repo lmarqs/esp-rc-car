@@ -231,8 +231,10 @@ function delayAfterWrite(wait: string): (event: BlinkEvent) => LineRef | undefin
   };
 }
 
-/** The interval the three steps that read one show in their declaration of `blinkDelay`. */
 const liveDelay: LiveValue<BlinkState> = { name: 'blinkDelay', value: (state) => String(state.blinkDelay) };
+const liveLed: LiveValue<BlinkState> = { name: 'ledOn', value: (state) => String(state.ledOn) };
+const livePaused: LiveValue<BlinkState> = { name: 'paused', value: (state) => String(state.paused) };
+const liveToggle: LiveValue<BlinkState> = { name: 'lastToggle', value: (state) => String(state.lastToggle) };
 
 function delaySlider(command: (milliseconds: number) => string): SliderShortcut {
   return {
@@ -252,6 +254,7 @@ export const blinkSimple: BlinkStep = {
   sketch: 'sketches/blink/simple',
   program: simple,
   shortcuts: [],
+  live: [],
   placeholder: 'this step reads no input',
   hint: 'The arrow is the line the board is about to run, and the clock fills while it waits in delay(). Press Step to run one line at a time.',
   parse: parseBlinkLine,
@@ -265,7 +268,7 @@ export const blinkInput: BlinkStep = {
   shortcuts: [delaySlider((ms) => String(ms))],
   placeholder: 'a number, then Enter',
   hint: 'Send a number: the board reads it only when it is back at the input.ready() line, after both delays, so the blink under way keeps the old pace.',
-  live: liveDelay,
+  live: [liveDelay],
   parse: parseBlinkLine,
   liveLine: delayAfterWrite('delay(blinkDelay);'),
   answers: answersBlinkLine,
@@ -279,7 +282,7 @@ export const blinkTimer: BlinkStep = {
   shortcuts: [delaySlider((ms) => String(ms))],
   placeholder: 'a number, then Enter',
   hint: 'There is no delay(): the board runs loop() again and again and checks the clock each time. Send a number and the blink changes pace on the next pass, even halfway through a blink.',
-  live: liveDelay,
+  live: [liveDelay, liveLed, liveToggle],
   parse: parseBlinkLine,
   answers: answersBlinkLine,
   expectsAnswer: answersNumber,
@@ -292,7 +295,7 @@ export const blinkCommands: BlinkStep = {
   shortcuts: [{ kind: 'chip', text: 'pause' }, { kind: 'chip', text: 'run' }, delaySlider((ms) => `delay ${ms}`)],
   placeholder: 'a command, then Enter',
   hint: 'The buttons and the slider type for you: drag the slider and watch the line it is about to send. The same words work in any serial monitor.',
-  live: liveDelay,
+  live: [liveDelay, liveLed, livePaused, liveToggle],
   parse: parseBlinkLine,
   answers: answersBlinkLine,
   expectsAnswer: answersCommand,

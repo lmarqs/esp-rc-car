@@ -64,8 +64,8 @@ const { steps } = Astro.props;
               <i>{row.number}</i>
               <span>
                 {row.tokens.map((token, at) =>
-                  at === row.live ? (
-                    <span class="live" data-live>
+                  at === row.live?.at ? (
+                    <span class="live" data-live={row.live.name}>
                       {token.text}
                     </span>
                   ) : token.kind ? (

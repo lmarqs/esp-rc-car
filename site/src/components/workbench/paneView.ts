@@ -34,8 +34,8 @@ export interface PaneView<B> {
   readonly problem: string | undefined;
   /** The 1-based number of the source line the arrow sits on; `undefined` when no line has it. */
   readonly arrow: number | undefined;
-  /** The text of the editor's live value; `undefined` for a step with none. */
-  readonly live: string | undefined;
+  /** The text of each of the editor's live values, by variable name; empty for a step with none. */
+  readonly live: Readonly<Record<string, string>>;
 }
 
 /** The pane's followed board, or `undefined` while the simulator has it. */
@@ -57,7 +57,6 @@ export function paneView<B>(
   const controls = toolbar(pane.mode, view.status, view.error, view.slow);
   const refused = followed === undefined || pane.refused === undefined ? undefined : notSent(pane.refused);
   const arrow = followed === undefined ? { text: view.line, occurrence: view.occurrence } : arrowOf(followed);
-  const told = step.live && (followed === undefined ? step.live.value(view.state) : project.board.variable(followed.board, step.live.name));
   return {
     board,
     picture: project.board.picture(step.key, board),
@@ -67,8 +66,13 @@ export function paneView<B>(
     controls,
     problem: controls.problem ?? refused,
     arrow: arrow.text === undefined ? undefined : lineNumber(source, arrow.text, arrow.occurrence),
-    // A value the board has not told yet shows as unknown rather than as the number in the source.
-    live: step.live === undefined ? undefined : (told ?? '…'),
+    // A value the board has not told yet shows as unknown rather than as the value in the source.
+    live: Object.fromEntries(
+      step.live.map(({ name, value }) => [
+        name,
+        (followed === undefined ? value(view.state) : project.board.variable(followed.board, name)) ?? '…',
+      ]),
+    ),
   };
 }
 

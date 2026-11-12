@@ -224,7 +224,7 @@ test.describe('the Servo workbench', () => {
     await expect(sentLines(page).last()).toHaveText('› speed 10');
     await expect(serial(page)).toHaveText(/speed 10$/);
     await expect(watchValue(page, 'speed')).toHaveText('10 °/s');
-    await expect(bench(page).locator('[data-code]:visible [data-live]')).toHaveText('10');
+    await expect(bench(page).locator('[data-code]:visible [data-live="speed"]')).toHaveText('10');
 
     await send(page, 'speed 0');
     await expect(serial(page)).toHaveText(/error speed must be 1-360$/);

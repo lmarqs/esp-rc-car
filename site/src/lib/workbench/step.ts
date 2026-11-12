@@ -50,10 +50,10 @@ export interface StepDefinition<S, E> {
   /** One or two plain sentences: what the arrow is and what to try. */
   readonly hint: string;
   /**
-   * The variable whose current value the editor shows in place of the number it is declared with, such as
-   * `blinkDelay`, and that value; absent for a step with none.
+   * The variables whose current value the editor shows in place of the value they are declared with, such as
+   * `blinkDelay` and `ledOn`; empty for a step with none.
    */
-  readonly live?: LiveValue<S>;
+  readonly live: readonly LiveValue<S>[];
   /** What a line the board printed means; `undefined` for a line with no meaning to the page, such as a blank one. */
   parse(line: string): E | undefined;
   /**
