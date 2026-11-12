@@ -21,34 +21,45 @@ const step = z.object({
 
 const projects = defineCollection({
   loader: glob({ pattern: '*.md', base: './src/content/projects' }),
-  schema: z.object({
-    title: z.string(),
-    summary: z.string(),
-    art: z.string(),
-    level,
-    state,
-    order: z.number(),
-    /** The sketch folder in the repository; a project with none yet has no firmware here. */
-    sketch: z.string().optional(),
-    /** The project's steps, in order; a project with one sketch sets `sketch` alone. */
-    steps: z
-      .array(step)
-      .refine((steps) => new Set(steps.map(({ id }) => id)).size === steps.length, {
-        message: 'Step ids must be unique.',
-      })
-      .optional(),
-    example: z.enum(['omnidirectional']).optional(),
-    /** The flash card's copy for a sketch the browser flashes; a project whose sketch has no image sets none. */
-    flash: z
-      .object({
-        /** The speed of the sketch's `Serial.begin`; absent for a sketch that prints nothing, which gets no board output. */
-        baud: z.number().int().positive().optional(),
-        /** What to do once the board runs. */
-        next: z.string(),
-      })
-      .optional(),
-    topics: z.array(z.string()).default([]),
-  }),
+  schema: z
+    .object({
+      title: z.string(),
+      summary: z.string(),
+      art: z.string(),
+      level,
+      state,
+      order: z.number(),
+      /** The sketch folder in the repository; a project with none yet has no firmware here. */
+      sketch: z.string().optional(),
+      /** The project's steps, in order; a project with one sketch sets `sketch` alone. */
+      steps: z
+        .array(step)
+        .refine((steps) => new Set(steps.map(({ id }) => id)).size === steps.length, {
+          message: 'Step ids must be unique.',
+        })
+        .optional(),
+      example: z.enum(['omnidirectional']).optional(),
+      /** The flash card's copy for a sketch the browser flashes; a project whose sketch has no image sets none. */
+      flash: z
+        .object({
+          /** The speed of the sketch's `Serial.begin`; absent for a sketch that prints nothing, which gets no board output. */
+          baud: z.number().int().positive().optional(),
+          /** What to do once the board runs. */
+          next: z.string(),
+        })
+        .optional(),
+      topics: z.array(z.string()).default([]),
+    })
+    .superRefine((project, context) => {
+      // A ladder's `sketch` is the sketch it starts on, so it cannot drift from the first step.
+      if (project.steps !== undefined && project.steps.length > 0 && project.sketch !== project.steps[0].sketch) {
+        context.addIssue({
+          code: 'custom',
+          path: ['sketch'],
+          message: "A project with steps sets `sketch` to its first step's sketch.",
+        });
+      }
+    }),
 });
 
 const topics = defineCollection({
