@@ -136,6 +136,31 @@ test.describe('the Running step', () => {
     expect((await fakeFlasher.calls()).at(-1)).toBe('disconnect');
   });
 
+  test('Disconnect moves the focus to the status, since its button goes away', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ lines: ['HIGH'] });
+    await page.goto('/robomania/projects/blink/');
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+    await expect(output(page)).toHaveText('HIGH');
+
+    await card(page).getByRole('button', { name: 'Disconnect' }).focus();
+    await page.keyboard.press('Enter');
+
+    await expect(card(page).getByRole('button', { name: 'Connect board' })).toBeVisible();
+    await expect(card(page).locator('[data-message]')).toBeFocused();
+  });
+
+  test('Flash again keeps the focus on its button, which becomes Connect board', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ lines: ['HIGH'] });
+    await page.goto('/robomania/projects/blink/');
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+    await expect(output(page)).toHaveText('HIGH');
+
+    await card(page).getByRole('button', { name: 'Flash again' }).focus();
+    await page.keyboard.press('Enter');
+
+    await expect(card(page).getByRole('button', { name: 'Connect board' })).toBeFocused();
+  });
+
   test('Flash again returns to Connect, and the next flash prints its own lines', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['HIGH'] });
     await page.goto('/robomania/projects/blink/');
