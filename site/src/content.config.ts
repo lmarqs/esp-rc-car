@@ -10,6 +10,15 @@ const level = z.enum(['beginner', 'intermediate', 'advanced']);
  */
 const state = z.enum(['done', 'draft', 'coming']);
 
+/** One rung of a project's ladder: a sketch that adds one idea to the step before it. */
+const step = z.object({
+  id: z.string(),
+  /** The step's sketch folder in the repository. */
+  sketch: z.string(),
+  /** One short phrase: what this step adds. */
+  idea: z.string(),
+});
+
 const projects = defineCollection({
   loader: glob({ pattern: '*.md', base: './src/content/projects' }),
   schema: z.object({
@@ -21,6 +30,13 @@ const projects = defineCollection({
     order: z.number(),
     /** The sketch folder in the repository; a project with none yet has no firmware here. */
     sketch: z.string().optional(),
+    /** The project's steps, in order; a project with one sketch sets `sketch` alone. */
+    steps: z
+      .array(step)
+      .refine((steps) => new Set(steps.map(({ id }) => id)).size === steps.length, {
+        message: 'Step ids must be unique.',
+      })
+      .optional(),
     example: z.enum(['blink', 'servo', 'omnidirectional']).optional(),
     /** The flash card's copy for a sketch the browser flashes; a project whose sketch has no image sets none. */
     flash: z

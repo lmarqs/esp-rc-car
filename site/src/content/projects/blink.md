@@ -6,6 +6,19 @@ level: beginner
 state: draft
 order: 1
 sketch: sketches/blink/simple
+steps:
+  - id: simple
+    sketch: sketches/blink/simple
+    idea: Blink with delay()
+  - id: input
+    sketch: sketches/blink/input
+    idea: Set the delay from serial
+  - id: timer
+    sketch: sketches/blink/timer
+    idea: Blink without delay()
+  - id: commands
+    sketch: sketches/blink/commands
+    idea: "Named commands: pause and run"
 flash:
   baud: 115200
   next: "Watch the LED on GPIO 2: it turns on for one second, then off, and the board prints HIGH and LOW as it changes."

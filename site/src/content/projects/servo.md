@@ -6,6 +6,19 @@ level: beginner
 state: draft
 order: 2
 sketch: sketches/servo/sweep
+steps:
+  - id: sweep
+    sketch: sketches/servo/sweep
+    idea: Sweep and print the angle
+  - id: angle
+    sketch: sketches/servo/angle
+    idea: Check a number before using it
+  - id: commands
+    sketch: sketches/servo/commands
+    idea: Commands and a non-blocking sweep
+  - id: speed
+    sketch: sketches/servo/speed
+    idea: Move at a limited speed
 flash:
   baud: 115200
   next: "Connect the servo's signal wire to GPIO 13. It sweeps from 0° to 180° and back, about 2.7 seconds each way."
