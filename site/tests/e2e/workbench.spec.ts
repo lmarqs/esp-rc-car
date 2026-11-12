@@ -98,7 +98,7 @@ test.describe('the Blink workbench', () => {
       '1 simple Blink with delay()',
       '2 input Set the delay from serial',
       '3 timer Blink without delay()',
-      '4 commands Named commands: pause and run',
+      '4 commands Pause and run by name',
     ];
     await expect(tabs).toHaveCount(names.length);
     for (const [index, name] of names.entries()) await expect(tabs.nth(index)).toHaveAccessibleName(name);
