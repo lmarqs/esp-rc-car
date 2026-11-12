@@ -72,7 +72,7 @@ const fieldId = (key: string) => `flash-${name}-${key}`;
                       step={field.step}
                       minlength={field.minLength}
                       maxlength={field.maxLength}
-                      autocomplete="off"
+                      autocomplete={field.type === 'password' ? 'new-password' : 'off'}
                       spellcheck="false"
                       aria-describedby={`${fieldId(field.key)}-error${field.help ? ` ${fieldId(field.key)}-help` : ''}`}
                     />
