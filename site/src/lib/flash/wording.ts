@@ -5,7 +5,10 @@ import type { SessionState } from './session';
  * show. A sentence that tells the visitor which button to press next is left to each, since their buttons differ.
  */
 export const CONNECTING = 'Connecting to the board.';
-export const UNSUPPORTED = 'This browser cannot reach a USB board. Open this page in Chrome or Edge on a computer.';
+/** Why the page cannot flash in this browser, and what to do instead; `UNSUPPORTED` says both. */
+export const NO_WEB_SERIAL = 'This browser cannot reach a USB board.';
+export const USE_CHROME_OR_EDGE = 'Open this page in Chrome or Edge on a computer.';
+export const UNSUPPORTED = `${NO_WEB_SERIAL} ${USE_CHROME_OR_EDGE}`;
 export const NO_PORT = 'No board was chosen. Plug it in and try again.';
 export const PORT_BUSY =
   'Another program is using the board. Close the serial monitor or the Arduino IDE, then connect again.';

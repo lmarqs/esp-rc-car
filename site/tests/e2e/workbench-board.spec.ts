@@ -269,7 +269,12 @@ test.describe('flashing from the workbench', () => {
     await page.goto(BLINK);
 
     await expect(boardButton(page)).toBeHidden();
-    await expect(bench(page).getByText('This browser cannot reach a USB board. Open this page in Chrome or Edge on a computer.')).toBeVisible();
+    const note = bench(page).locator('[data-needs-browser]');
+    await expect(note).toBeVisible();
+    await expect(note).toHaveText('This browser cannot reach a USB board. Open this page in Chrome or Edge on a computer.');
+    await expect(note).toHaveAttribute('title', 'This browser cannot reach a USB board.');
+    // The note fits the rail as the button does, so the rail keeps the 70 px it has at 1280 px.
+    expect((await bench(page).locator('.rail').boundingBox())!.height).toBe(70);
     await expect(status(page)).toHaveText('Simulated');
     await expect(picture(page)).toBeVisible();
     await expect(serial(page)).toContainText('sketch blink/simple');
