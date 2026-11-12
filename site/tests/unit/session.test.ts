@@ -26,8 +26,8 @@ const manifest: Manifest = {
   },
 };
 
-/** The form of web-relay as it opens: each field at its default. */
-const DEFAULTS = { ap_ssid: 'web-relay', ap_password: 'web-relay-1234', low: '0', high: '0' };
+/** The form of web-relay as it opens: each field at its default, the password empty. */
+const DEFAULTS = { ap_ssid: 'web-relay', ap_password: '', low: '0', high: '0' };
 
 interface FakeFlasher extends Flasher {
   calls: string[];
@@ -466,10 +466,18 @@ describe('a session for a sketch with settings', () => {
     expect(session.state.kind).toBe('running');
   });
 
-  it('sends the default password over one the board stores, which may be another', async () => {
+  it('keeps the password the board stores when the form leaves it empty', async () => {
     const { flasher, session } = await connected({ answer: board({ ...BOARD, ap_password: 'set' }) });
 
-    await session.send({ type: 'submitSettings', values: DEFAULTS });
+    await session.send({ type: 'submitSettings', values: { ...DEFAULTS, ap_ssid: 'lamp' } });
+
+    expect(sent(flasher)).toEqual(['send cfg get', 'send cfg set ap_ssid lamp', 'send cfg restart']);
+  });
+
+  it('puts the default password back over one the board stores when restoring the defaults', async () => {
+    const { flasher, session } = await connected({ answer: board({ ...BOARD, ap_password: 'set' }) });
+
+    await session.send({ type: 'submitSettings', values: DEFAULTS, restoreDefaults: true });
 
     expect(sent(flasher)).toEqual(['send cfg get', 'send cfg set ap_password web-relay-1234', 'send cfg restart']);
   });

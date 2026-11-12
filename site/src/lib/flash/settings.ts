@@ -21,8 +21,17 @@ export function settingsOf(manifest: Manifest, sketch: string, baud: number | un
   return baud === undefined ? [] : (manifest.sketches[sketch]?.settings ?? []);
 }
 
+/**
+ * The form as it opens: each field at its default, and each password empty, which keeps the password the board
+ * holds.
+ */
 export function defaultValues(fields: readonly SettingField[]): Record<string, string> {
-  return Object.fromEntries(fields.map((field) => [field.key, String(field.default)]));
+  return Object.fromEntries(fields.map((field) => [field.key, field.type === 'password' ? '' : String(field.default)]));
+}
+
+/** What the form says under a password field, after its own help: what leaving it empty does. */
+export function passwordHelp(field: SettingField): string {
+  return `Leave it empty to keep the board's password (default: ${field.default}).`;
 }
 
 /** The board counts a text's length in bytes. */
@@ -66,11 +75,15 @@ function groupNumbers(fields: readonly SettingField[], group: string, values: Se
 /**
  * What is wrong with each value, in field order: a length, a number or a range the field's limits refuse, and a
  * group whose numbers, in field order, go down. A group's fault is on the first field lower than the one before it.
+ * An empty password is never wrong: it is not sent.
  */
 export function validate(fields: readonly SettingField[], values: SettingValues): FieldErrors {
   const errors: Record<string, string> = {};
   for (const field of fields) {
     const value = values[field.key] ?? '';
+    if (field.type === 'password' && value === '') {
+      continue;
+    }
     const error = field.type === 'number' ? numberError(field, value) : lengthError(field, value);
     if (error) {
       errors[field.key] = error;
@@ -112,24 +125,25 @@ function sameValue(field: SettingField, a: string, b: string | undefined): boole
 }
 
 /**
- * The values to send, by key, in field order. The board reports a password only as `set` when it stores one, or
- * `unset`, so a password is sent when it differs from the default or the board stores one, which may be another; any
- * other value, when it differs from what the board reported.
+ * The values to send, by key, in field order: each value that differs from what the board reported, and each
+ * password the visitor typed. The board reports a password only as `set` when it stores one, or `unset`, so an empty
+ * one is not sent, except with `restoreDefaults`, which sends the default over a password the board stores.
  */
 export function changedValues(
   fields: readonly SettingField[],
   values: SettingValues,
   board: SettingValues,
+  restoreDefaults = false,
 ): Record<string, string> {
   const changed: Record<string, string> = {};
   for (const field of fields) {
-    const value = values[field.key] ?? String(field.default);
-    const differs =
-      field.type === 'password'
-        ? value !== String(field.default) || board[field.key] === 'set'
-        : !sameValue(field, value, board[field.key]);
-    if (differs) {
+    const value = values[field.key] ?? '';
+    if (field.type !== 'password') {
+      if (!sameValue(field, value, board[field.key])) changed[field.key] = value;
+    } else if (value !== '') {
       changed[field.key] = value;
+    } else if (restoreDefaults && board[field.key] === 'set') {
+      changed[field.key] = String(field.default);
     }
   }
   return changed;

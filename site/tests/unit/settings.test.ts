@@ -8,6 +8,7 @@ import {
   defaultValues,
   NO_ANSWER,
   parseCfgLine,
+  passwordHelp,
   refusalText,
   sendOrder,
   settingsOf,
@@ -56,11 +57,17 @@ describe('settingsOf', () => {
   });
 });
 
+describe('passwordHelp', () => {
+  it('says an empty password keeps the board\'s, and names the default', () => {
+    expect(passwordHelp(field('ap_password'))).toBe("Leave it empty to keep the board's password (default: thebalancebot).");
+  });
+});
+
 describe('defaultValues', () => {
-  it('gives each default as text', () => {
+  it('gives each default as text, and each password empty', () => {
     expect(defaultValues(beam)).toEqual({
       ap_ssid: 'balance-beam',
-      ap_password: 'thebalancebot',
+      ap_password: '',
       angle_offset_deg: '0',
       throttle_min: '0',
       throttle_mid: '0',
@@ -77,6 +84,10 @@ describe('validate', () => {
     expect(validate(beam, { ...values, ap_ssid: '' })).toEqual({ ap_ssid: 'Use 1 to 32 characters.' });
     expect(validate(beam, { ...values, ap_ssid: 'é'.repeat(17) })).toEqual({ ap_ssid: 'Use 1 to 32 characters.' });
     expect(validate(beam, { ...values, ap_ssid: 'x'.repeat(32) })).toEqual({});
+  });
+
+  it('lets a password stay empty, which keeps the board\'s', () => {
+    expect(validate(beam, { ...values, ap_password: '' })).toEqual({});
   });
 
   it('refuses a password shorter than 8 or longer than 63 characters', () => {
@@ -146,24 +157,24 @@ describe('changedValues', () => {
     expect(changedValues(beam, defaultValues(beam), board)).toEqual({ ap_ssid: 'balance-beam', throttle_max: '0' });
   });
 
-  it('sends no password the board does not store while the form holds its default', () => {
-    const board = { ap_ssid: 'web-relay', ap_password: 'unset', ota_password: 'unset' };
+  it('sends no password the visitor left empty, so the board keeps the one it holds', () => {
+    const board = { ap_ssid: 'web-relay', ap_password: 'set', ota_password: 'unset' };
 
     expect(changedValues(relay, defaultValues(relay), board)).toEqual({});
   });
 
-  it('sends a password that differs from the default', () => {
-    const board = { ap_ssid: 'web-relay', ap_password: 'unset', ota_password: 'unset' };
+  it('sends a password the visitor typed', () => {
+    const board = { ap_ssid: 'web-relay', ap_password: 'set', ota_password: 'unset' };
 
-    expect(changedValues(relay, { ...defaultValues(relay), ota_password: 'another-secret' }, board)).toEqual({
-      ota_password: 'another-secret',
+    expect(changedValues(relay, { ...defaultValues(relay), ota_password: 'web-relay-1234' }, board)).toEqual({
+      ota_password: 'web-relay-1234',
     });
   });
 
-  it('sends the default password over one the board stores, which may be another', () => {
+  it('restoring the defaults sends the default over each password the board stores, and none over an unset one', () => {
     const board = { ap_ssid: 'web-relay', ap_password: 'set', ota_password: 'unset' };
 
-    expect(changedValues(relay, defaultValues(relay), board)).toEqual({ ap_password: 'web-relay-1234' });
+    expect(changedValues(relay, defaultValues(relay), board, true)).toEqual({ ap_password: 'web-relay-1234' });
   });
 
   it('sends a value the board did not report', () => {

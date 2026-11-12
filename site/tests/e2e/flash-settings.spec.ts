@@ -26,7 +26,10 @@ test.describe('a project whose sketch has settings', () => {
     await expect(card(page).locator('[data-message]')).toHaveText('Found ESP32. Check the settings, then flash the board.');
     await expect(card(page).locator('[aria-current="step"]')).toHaveText('Settings');
     await expect(field(page, 'Hotspot name')).toHaveValue('balance-beam');
-    await expect(field(page, 'Hotspot password')).toHaveValue('thebalancebot');
+    await expect(field(page, 'Hotspot password')).toHaveValue('');
+    await expect(field(page, 'Hotspot password')).toHaveAccessibleDescription(
+      "Whoever joins the hotspot can arm the motors. Leave it empty to keep the board's password (default: thebalancebot).",
+    );
     await expect(field(page, 'Hotspot password')).toHaveAttribute('type', 'password');
     await expect(field(page, 'Throttle mid')).toHaveValue('0');
     await expect(field(page, 'Tilt limit (degrees)')).toHaveValue('45');
@@ -171,6 +174,26 @@ test.describe('a project whose sketch has settings', () => {
       'send cfg get',
       'send cfg set ap_ssid beam-2',
       'send cfg set ap_password a-new-secret',
+      'send cfg restart',
+    ]);
+  });
+
+  test('Change settings that edits only the hotspot name sends no password', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ board: { values: { ...DEFAULTS, ap_password: 'set' } } });
+    await page.goto('/robomania/projects/balance-beam/');
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+    await card(page).getByRole('button', { name: 'Flash with these settings' }).click();
+    await card(page).getByRole('button', { name: 'Change settings' }).click();
+
+    await field(page, 'Hotspot name').fill('beam-2');
+    await card(page).getByRole('button', { name: 'Send these settings' }).click();
+
+    await expect(card(page).locator('[data-message]')).toContainText('Done. Your board is running Balance beam.');
+    expect(await fakeFlasher.calls()).toEqual([
+      ...FLASHED,
+      'send cfg get',
+      'send cfg get',
+      'send cfg set ap_ssid beam-2',
       'send cfg restart',
     ]);
   });

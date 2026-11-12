@@ -1,6 +1,6 @@
 ---
 import { readManifest } from '../../lib/flash/readManifest';
-import { settingsOf } from '../../lib/flash/settings';
+import { defaultValues, passwordHelp, settingsOf } from '../../lib/flash/settings';
 import { stepsFor, type Step } from './view';
 
 interface Props {
@@ -22,6 +22,9 @@ const manifest = entry && { sketches: { [name]: entry } };
 const fields = manifest ? settingsOf(manifest, name, baud) : [];
 const stepNames: Record<Step, string> = { connect: 'Connect', settings: 'Settings', flash: 'Flash', running: 'Running' };
 const fieldId = (key: string) => `flash-${name}-${key}`;
+const opening = defaultValues(fields);
+const helpOf = (field: (typeof fields)[number]) =>
+  [field.help, field.type === 'password' && passwordHelp(field)].filter(Boolean).join(' ');
 ---
 
 <section class="playground flash-card" aria-label="Put it on your board">
@@ -64,9 +67,9 @@ const fieldId = (key: string) => `flash-${name}-${key}`;
                     <input
                       id={fieldId(field.key)}
                       type={field.type}
-                      value={String(field.default)}
+                      value={opening[field.key]}
                       data-key={field.key}
-                      data-default={String(field.default)}
+                      data-default={opening[field.key]}
                       min={field.min}
                       max={field.max}
                       step={field.step}
@@ -74,7 +77,7 @@ const fieldId = (key: string) => `flash-${name}-${key}`;
                       maxlength={field.maxLength}
                       autocomplete={field.type === 'password' ? 'new-password' : 'off'}
                       spellcheck="false"
-                      aria-describedby={`${fieldId(field.key)}-error${field.help ? ` ${fieldId(field.key)}-help` : ''}`}
+                      aria-describedby={`${fieldId(field.key)}-error${helpOf(field) ? ` ${fieldId(field.key)}-help` : ''}`}
                     />
                     {field.type === 'password' && (
                       <button
@@ -90,9 +93,9 @@ const fieldId = (key: string) => `flash-${name}-${key}`;
                     )}
                   </div>
                   <p class="error" id={`${fieldId(field.key)}-error`} data-error={field.key} hidden />
-                  {field.help && (
+                  {helpOf(field) && (
                     <p class="help" id={`${fieldId(field.key)}-help`}>
-                      {field.help}
+                      {helpOf(field)}
                     </p>
                   )}
                 </div>
@@ -197,8 +200,8 @@ const fieldId = (key: string) => `flash-${name}-${key}`;
     const inputs = [...card.querySelectorAll<HTMLInputElement>('[data-settings] input[data-key]')];
     const formValues = () => Object.fromEntries(inputs.map((input) => [input.dataset.key!, input.value]));
 
-    async function submitSettings() {
-      await session.send({ type: 'submitSettings', values: formValues() });
+    async function submitSettings(restoreDefaults = false) {
+      await session.send({ type: 'submitSettings', values: formValues(), restoreDefaults });
       const state = session.state;
       if (state.kind === 'settings' && state.errors) {
         inputs.find((input) => input.dataset.key! in state.errors!)?.focus();
@@ -211,7 +214,7 @@ const fieldId = (key: string) => `flash-${name}-${key}`;
     });
     form?.querySelector('[data-defaults]')?.addEventListener('click', () => {
       for (const input of inputs) input.value = input.dataset.default!;
-      void submitSettings();
+      void submitSettings(true);
     });
     for (const toggle of card.querySelectorAll<HTMLButtonElement>('[data-show]')) {
       const input = inputs.find((candidate) => candidate.dataset.key === toggle.dataset.show)!;

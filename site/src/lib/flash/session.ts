@@ -45,9 +45,10 @@ export type SessionEvent =
   | { type: 'connect' }
   /**
    * From `settings`: checks the values against their limits, flashes the board unless it already runs the sketch,
-   * then sends the board each value that differs from what it holds.
+   * then sends the board each value that differs from what it holds. `restoreDefaults`, from "Use the defaults", also
+   * puts the default back over each password the board stores.
    */
-  | { type: 'submitSettings'; values: SettingValues }
+  | { type: 'submitSettings'; values: SettingValues; restoreDefaults?: boolean }
   /** From `running`, for a sketch with settings: reopens the form, to send values without flashing. */
   | { type: 'changeSettings' }
   /** From the form a running board reopened: returns to `running` and sends nothing. */
@@ -76,6 +77,8 @@ export interface FlashSession {
   /** Resolves once the event's work has settled: a state that waits for the next event, or a failure. */
   send(event: SessionEvent): Promise<void>;
 }
+
+type SettingsRequest = Omit<Extract<SessionEvent, { type: 'submitSettings' }>, 'type'>;
 
 type Failure = Extract<SessionState['kind'], 'noPort' | 'portBusy' | 'noAnswer'>;
 
@@ -166,10 +169,10 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
     await flash(active, chip);
   }
 
-  /** Flashes the board and, with `values`, sends it the settings once it runs the sketch. */
-  async function flash(active: Flasher, chip: string, values?: SettingValues) {
+  /** Flashes the board and, with `request`, sends it the settings once it runs the sketch. */
+  async function flash(active: Flasher, chip: string, request?: SettingsRequest) {
     downloading = true;
-    if (values) {
+    if (request) {
       // Replaces the form, which the download would otherwise leave on screen and unanswered.
       enter({ kind: 'flashing', chip, pct: 0 });
     }
@@ -204,9 +207,9 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
       return;
     }
     output = [];
-    if (values) {
+    if (request) {
       read(active, baud!);
-      await apply(active, chip, values);
+      await apply(active, chip, request);
       return;
     }
     enter({ kind: 'running', chip, output });
@@ -215,16 +218,16 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
     }
   }
 
-  async function submit(active: Flasher, form: Extract<SessionState, { kind: 'settings' }>, values: SettingValues) {
-    const errors = validate(fields, values);
+  async function submit(active: Flasher, form: Extract<SessionState, { kind: 'settings' }>, request: SettingsRequest) {
+    const errors = validate(fields, request.values);
     if (Object.keys(errors).length > 0) {
       enter({ kind: 'settings', chip: form.chip, ...(form.flashed && { flashed: true }), errors });
       return;
     }
     if (form.flashed) {
-      await apply(active, form.chip, values);
+      await apply(active, form.chip, request);
     } else {
-      await flash(active, form.chip, values);
+      await flash(active, form.chip, request);
     }
   }
 
@@ -275,7 +278,7 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
    * Sends the board each value that differs from what it holds, one line at a time, and restarts it once every one
    * is accepted. A refused value keeps the visitor on the form, with the board not restarted.
    */
-  async function apply(active: Flasher, chip: string, values: SettingValues) {
+  async function apply(active: Flasher, chip: string, { values, restoreDefaults }: SettingsRequest) {
     enter({ kind: 'applying', chip });
     const board = await readBoard(active);
     if (lost) {
@@ -290,7 +293,7 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
     const errors: Record<string, string> = {};
     // The order assumed every value of a group is accepted, so after a refusal the rest of the group waits in the form.
     const refusedGroups = new Set<string>();
-    const order = sendOrder(fields, changedValues(fields, values, board), board);
+    const order = sendOrder(fields, changedValues(fields, values, board, restoreDefaults), board);
     for (const [key, value] of order) {
       const field = fields.find((candidate) => candidate.key === key)!;
       if (field.group && refusedGroups.has(field.group)) {
@@ -396,7 +399,7 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
           break;
         case 'submitSettings':
           if (state.kind === 'settings') {
-            await submit(flasher, state, event.values);
+            await submit(flasher, state, event);
           }
           break;
         case 'changeSettings':
