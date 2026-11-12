@@ -5,7 +5,7 @@ DigitalOutPin led(2);
 int blinkDelay = 1000;
 bool ledOn = false;
 bool paused = false;
-unsigned long nextToggle = 0;
+unsigned long lastToggle = 0;
 String line;
 
 void setup() {
@@ -39,8 +39,8 @@ void loop() {
     }
     line = "";
   }
-  if (!paused && millis() >= nextToggle) {
-    nextToggle = millis() + blinkDelay;
+  if (!paused && millis() - lastToggle >= blinkDelay) {
+    lastToggle = millis();
     ledOn = !ledOn;
     Serial.println(ledOn ? "HIGH" : "LOW");
     led.write(ledOn);
