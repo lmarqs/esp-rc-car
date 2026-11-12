@@ -1,0 +1,137 @@
+---
+import { getCollection } from 'astro:content';
+import Art from '../../components/Art.astro';
+import FlashCard from '../../components/flash/FlashCard.astro';
+import Meta from '../../components/Meta.astro';
+import Base from '../../layouts/Base.astro';
+import { href } from '../../lib/href';
+import { readManifest } from '../../lib/flash/readManifest';
+
+const manifest = readManifest();
+const sketchName = (sketch: string) => sketch.split('/').pop()!;
+const withSketch = (await getCollection('projects'))
+  .filter((p) => p.data.sketch)
+  .sort((a, b) => a.data.order - b.data.order);
+const flashable = withSketch
+  .filter((p) => manifest.sketches[sketchName(p.data.sketch!)])
+  .map((p) => ({
+    project: p,
+    chips: [...new Set(manifest.sketches[sketchName(p.data.sketch!)]!.images.map((image) => image.chipFamily))],
+  }));
+const fromComputer = withSketch.filter((p) => !manifest.sketches[sketchName(p.data.sketch!)]);
+---
+
+<Base title="Flash" description="Pick a Robomania project and flash it onto your ESP board from the browser.">
+  <h1>Flash</h1>
+  <p class="prose">
+    Plug your board in over USB, pick a project and put it on the board from this page. Flashing from the browser
+    works in Chrome and Edge on a computer; each project's page has the wiring.
+  </p>
+
+  <h2>Pick a project</h2>
+  {
+    flashable.length > 0 ? (
+      <div class="grid" role="group" aria-label="Projects you can flash" data-picker>
+        {flashable.map(({ project, chips }) => (
+          <button class="card pick" type="button" data-pick={project.id} aria-pressed="false">
+            <div class="art"><Art name={project.data.art} /></div>
+            <Meta level={project.data.level} state={project.data.state} />
+            <h3>{project.data.title}</h3>
+            <p>{project.data.summary}</p>
+            <ul class="chips" aria-label="Boards">
+              {chips.map((chip) => <li>{chip}</li>)}
+            </ul>
+          </button>
+        ))}
+      </div>
+    ) : (
+      <p class="prose">No project has firmware to flash from the browser in this build.</p>
+    )
+  }
+  <noscript><p class="notice">Picking a project needs JavaScript.</p></noscript>
+
+  {
+    flashable.map(({ project }) => (
+      <section data-panel={project.id} aria-labelledby={`panel-${project.id}`} hidden>
+        <h2 id={`panel-${project.id}`}>{project.data.title}</h2>
+        <p>
+          <a href={href(`/projects/${project.id}/`)}>Wiring and details for {project.data.title}</a>
+        </p>
+        <FlashCard
+          sketch={project.data.sketch!}
+          title={project.data.title}
+          baud={project.data.flash?.baud}
+          next={project.data.flash?.next}
+          detailsHref={href(`/projects/${project.id}/`)}
+        />
+      </section>
+    ))
+  }
+
+  {
+    fromComputer.length > 0 && (
+      <section>
+        <h2>Flashed from your computer</h2>
+        <ul class="prose" data-from-computer>
+          {fromComputer.map((p) => (
+            <li>
+              <a href={href(`/projects/${p.id}/`)}>{p.data.title}</a>: this board is flashed from your computer with the
+              tools, not from the browser.
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
+</Base>
+
+<style>
+  .pick { font: inherit; color: var(--ink); text-align: left; width: 100%; cursor: pointer; }
+  .pick:hover { transform: translateY(-3px); box-shadow: 0 6px 0 rgba(31, 45, 58, .12); }
+  .pick[aria-pressed="true"] { background: var(--tint-yellow); box-shadow: 0 6px 0 rgba(31, 45, 58, .12); }
+  .pick:disabled { cursor: not-allowed; opacity: .6; transform: none; box-shadow: none; }
+  .pick h3 { font-size: 1.17em; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 6px 0 0; padding: 0; }
+  .chips li { font-size: 13px; font-weight: 700; padding: 1px 10px; border: 2px solid var(--line); border-radius: 999px; }
+</style>
+
+<script>
+  const buttons = [...document.querySelectorAll<HTMLButtonElement>('[data-pick]')];
+  const panels = [...document.querySelectorAll<HTMLElement>('[data-panel]')];
+  let picked: string | undefined;
+
+  function show(id: string | undefined) {
+    if (id === picked) return;
+    const left = panels.find((panel) => panel.dataset.panel === picked);
+    picked = id;
+    for (const button of buttons) button.setAttribute('aria-pressed', String(button.dataset.pick === id));
+    for (const panel of panels) panel.hidden = panel.dataset.panel !== id;
+    // A board that is still connected would stay open under the hidden card and refuse the next card's port.
+    left?.querySelector('[data-flash-card]')?.dispatchEvent(new CustomEvent('flash-release'));
+  }
+
+  function busy() {
+    return panels.some((panel) => panel.querySelector('[data-busy]'));
+  }
+
+  function fromHash() {
+    const id = decodeURIComponent(location.hash.slice(1));
+    if (!busy() && buttons.some((button) => button.dataset.pick === id)) show(id);
+  }
+
+  for (const button of buttons) {
+    button.addEventListener('click', () => {
+      show(button.dataset.pick);
+      history.replaceState(null, '', `#${button.dataset.pick}`);
+    });
+  }
+
+  // A visitor must not leave a write half-done by picking another project.
+  new MutationObserver(() => {
+    const locked = busy();
+    for (const button of buttons) button.disabled = locked;
+  }).observe(document.body, { attributes: true, attributeFilter: ['data-busy'], subtree: true });
+
+  window.addEventListener('hashchange', fromHash);
+  fromHash();
+</script>
