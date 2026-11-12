@@ -1,6 +1,6 @@
 ---
-description: Lists the standards the esp-rc-car firmware's code follows.
-audience: Whoever writes or reviews code in the repository
+description: Lists the standards the esp-rc-car firmware's code and the Robomania website's pages and sources follow.
+audience: Whoever writes or reviews firmware code, or a page, component or script of the website, in the repository
 ---
 # Standards
 
@@ -9,3 +9,5 @@ audience: Whoever writes or reviews code in the repository
   code and uses comments.
 - [Website UX](website-ux.md): the twelve rules every page and interactive component of the website follows, each with
   an example from the workbench.
+- [Website sources](website-sources.md): where code goes in `site/`, how logic is kept off the page, and how colours,
+  styles and tests are written.

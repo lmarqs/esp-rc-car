@@ -71,7 +71,8 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 ## Rules
 
 - Sketches have no tests: report how a behavior change was checked, by the Done check or a run on the board.
-- Follow the standards: [C++ and Python](docs/standards/README.md), [the website](docs/standards/website-ux.md).
+- Follow the standards: [C++ and Python](docs/standards/README.md), website [UX](docs/standards/website-ux.md),
+  [sources](docs/standards/website-sources.md).
 - Change only what the task needs, matching the surrounding code.
 - Format with `.clang-format`.
 - Commits: one change per commit, pushed straight to `main`; no pull requests
