@@ -71,8 +71,8 @@ const float DEFAULT_TILT_LIMIT_DEG = BALANCE_BEAM_TILT_LIMIT_DEG;
 #ifndef BALANCE_BEAM_AP_SSID
 #define BALANCE_BEAM_AP_SSID "balance-beam"
 #endif
-// Whoever joins the hotspot can arm the motors, so it has a password by default. WPA2 refuses one shorter than 8
-// characters, and the settings protocol stores no value longer than the limits below.
+// Whoever joins the hotspot can arm the motors, so it has a password by default. One shorter than 8 characters,
+// which WPA2 refuses, opens the hotspot.
 #ifndef BALANCE_BEAM_AP_PASSWORD
 #define BALANCE_BEAM_AP_PASSWORD "thebalancebot"
 #endif
@@ -80,8 +80,7 @@ const char DEFAULT_AP_SSID[] = BALANCE_BEAM_AP_SSID;
 const char DEFAULT_AP_PASSWORD[] = BALANCE_BEAM_AP_PASSWORD;
 static_assert(sizeof(DEFAULT_AP_SSID) - 1 >= 1 && sizeof(DEFAULT_AP_SSID) - 1 <= 32,
               "BALANCE_BEAM_AP_SSID must be 1 to 32 characters");
-static_assert(sizeof(DEFAULT_AP_PASSWORD) - 1 >= 8 && sizeof(DEFAULT_AP_PASSWORD) - 1 <= 63,
-              "BALANCE_BEAM_AP_PASSWORD must be 8 to 63 characters");
+static_assert(sizeof(DEFAULT_AP_PASSWORD) - 1 <= 63, "BALANCE_BEAM_AP_PASSWORD must be 63 characters or fewer");
 
 // The bench commands drive each ESC directly, past the throttle band and the tilt limit, so they are compiled in
 // only on request and used with the propellers off.

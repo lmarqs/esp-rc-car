@@ -48,7 +48,7 @@ only `local.h` sets:
 | `BALANCE_BEAM_TILT_LIMIT_DEG` | `tilt_limit_deg` | `45.0f` | The tilt past which the motors stop, above 0 and up to 90. |
 | `BALANCE_BEAM_ANGLE_OFFSET_DEG` | `angle_offset_deg` | `0.0f` | The angle the sensor reads with the beam level, subtracted from every reading, from -30 to 30. |
 | `BALANCE_BEAM_AP_SSID` | `ap_ssid` | `"balance-beam"` | The hotspot's name, 1 to 32 characters. |
-| `BALANCE_BEAM_AP_PASSWORD` | `ap_password` | `"thebalancebot"` | The hotspot's password, 8 to 63 characters, so the hotspot is never open. `cfg get` prints it as `set` or `unset`. |
+| `BALANCE_BEAM_AP_PASSWORD` | `ap_password` | `"thebalancebot"` | The hotspot's password, up to 63 characters. A default shorter than 8 characters opens the hotspot; `cfg set` stores only 8 to 63 characters. `cfg get` prints it as `set` or `unset`. |
 | `BALANCE_BEAM_BENCH_ENABLED` | none | `0` | `1` compiles in the bench commands. |
 
 The throttles must satisfy `throttle_min` ≤ `throttle_mid` ≤ `throttle_max`. `cfg set` checks each throttle against
