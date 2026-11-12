@@ -44,6 +44,38 @@ test.describe('a flashable project', () => {
     expect((await fakeFlasher.calls()).filter((call) => call === 'connect')).toHaveLength(1);
   });
 
+  test('announces "Found" once, however many percentages follow', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ progress: [20, 40, 60], hold: true });
+    await page.goto('/robomania/projects/blink/');
+    await page.evaluate(() => {
+      const added: string[] = [];
+      (window as unknown as { __messages: string[] }).__messages = added;
+      new MutationObserver((records) => {
+        for (const record of records) record.addedNodes.forEach((node) => added.push(node.textContent ?? ''));
+      }).observe(document.querySelector('[data-message]')!, { childList: true });
+    });
+
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+    await expect(card(page).getByText('60%')).toBeVisible();
+    await fakeFlasher.release();
+    await expect(card(page).getByText('Your board is running Blink.')).toBeVisible();
+
+    const messages = await page.evaluate(() => (window as unknown as { __messages: string[] }).__messages);
+    expect(messages.filter((message) => message === 'Found ESP32')).toHaveLength(1);
+  });
+
+  test('moves the focus to the status when the focused button goes away', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ progress: [40], hold: true });
+    await page.goto('/robomania/projects/blink/');
+
+    await card(page).getByRole('button', { name: 'Connect board' }).focus();
+    await page.keyboard.press('Enter');
+
+    await expect(card(page).getByText('40%')).toBeVisible();
+    await expect(card(page).locator('[data-message]')).toBeFocused();
+    await fakeFlasher.release();
+  });
+
   test('a board with no image for its chip shows the failure fallback', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ chip: 'ESP8266' });
     await page.goto('/robomania/projects/blink/');

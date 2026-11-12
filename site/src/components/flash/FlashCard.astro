@@ -36,7 +36,7 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
             <li data-step={step}>{stepNames[step]}</li>
           ))}
         </ol>
-        <p data-message aria-live="polite" />
+        <p data-message aria-live="polite" tabindex="-1" />
         <div class="progress" data-progress hidden>
           <div class="track" role="progressbar" aria-label="Flashing" aria-valuemin="0" aria-valuemax="100">
             <div class="fill" data-fill />
@@ -102,7 +102,8 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
 
     function render() {
       const view = viewFor(session.state, context);
-      message.textContent = view.message;
+      // Only a change of text is announced: the progress bar carries the percentage.
+      if (message.textContent !== view.message) message.textContent = view.message;
       message.className = view.notice ? 'notice' : '';
 
       const current = STEPS.indexOf(view.step);
@@ -119,6 +120,8 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
         percent.textContent = `${view.progress}%`;
       }
 
+      // A hidden button cannot keep the focus, which would fall to the page; the status is the next thing to read.
+      if (!view.action && document.activeElement === action) message.focus();
       action.hidden = !view.action;
       if (view.action) {
         action.textContent = view.action.label;
