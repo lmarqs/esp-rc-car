@@ -85,14 +85,11 @@ const flashable = Object.keys(manifest.sketches).length > 0;
 <script>
   import { railOf, workbenchFor, type WorkbenchProject } from '../../lib/workbench/projects';
   import { createSimulation } from '../../lib/workbench/simulation';
-  import { lineNumber } from '../../lib/workbench/source';
   import { tabAfterKey } from '../../lib/workbench/tabs';
   import type { PictureView, WatchRow } from '../../lib/workbench/board';
   import { createTypist } from '../../lib/workbench/typist';
-  import { traceShape, traceTime } from '../../lib/workbench/trace';
   import { createFlasher, createSession, type Manifest } from '../../lib/flash';
   import type { BoardAction } from '../../lib/workbench/link';
-  import type { Followed } from '../../lib/workbench/live';
   import {
     initialPane,
     paneAction,
@@ -110,12 +107,8 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     followedSliderValue,
     followSlider,
     CLOCK_DASH,
-    clockFace,
-    liveClockFace,
-    notSent,
-    serialRows,
-    toolbar,
   } from './view';
+  import { paneMotion, paneView } from './paneView';
 
   /** How long a watch value stays highlighted after it changes. */
   const HIGHLIGHT_MS = 900;
@@ -244,28 +237,23 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       frame = 0;
       cancelAnimationFrame(motionFrame);
       motionFrame = 0;
-      const view = simulation.view;
-      if (view === undefined) return;
-      const step = steps[pane.selected];
-      const shown = pane.mode === 'simulator' ? undefined : pane.followed;
-      const shownBoard = shown?.board ?? simulation.board;
-      paintPicture(project.board.picture(definition().key, shownBoard));
-      followSliders(shownBoard);
-      // A real board's clock is unknown: it prints no time.
-      const rows = project.board.watch(definition().key, shownBoard, shown === undefined ? view.millis : undefined);
+      const run = simulation.snapshot();
+      if (run === undefined) return;
+      const shown = paneView(paneProject, pane, run, steps[pane.selected].source);
+      paintPicture(shown.picture);
+      followSliders(shown.board);
       for (const [name, element] of watchRows) {
-        const row = rows.find((candidate) => candidate.name === name);
+        const row = shown.rows.find((candidate) => candidate.name === name);
         element.hidden = row === undefined;
         if (row !== undefined) element.querySelector('dd')!.textContent = row.value;
       }
-      for (const name of changedRows(shownRows, rows, project.board.steady)) highlight(name);
-      shownRows = rows;
-      const serialText = serialRows(shown?.output ?? view.output);
+      for (const name of changedRows(shownRows, shown.rows, project.board.steady)) highlight(name);
+      shownRows = shown.rows;
       serialLines.forEach((element, at) => {
-        element.textContent = serialText[at]?.text ?? '';
-        element.toggleAttribute('data-sent', serialText[at]?.sent ?? false);
+        element.textContent = shown.serial[at]?.text ?? '';
+        element.toggleAttribute('data-sent', shown.serial[at]?.sent ?? false);
       });
-      const controls = toolbar(pane.mode, view.status, view.error, view.slow);
+      const { controls } = shown;
       pauseButton.classList.toggle('is-paused', controls.paused);
       pauseLabel.textContent = controls.label;
       pauseButton.disabled = !controls.canContinue;
@@ -273,25 +261,15 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       restartButton.disabled = !controls.canRestart;
       slowButton.disabled = !controls.canSlow;
       slowButton.setAttribute('aria-pressed', String(controls.slow));
-      const refused = shown === undefined || pane.refused === undefined ? undefined : notSent(pane.refused);
-      const trouble = controls.problem ?? refused;
-      problem.hidden = trouble === undefined;
-      say.toggleAttribute('data-trouble', trouble !== undefined);
+      problem.hidden = shown.problem === undefined;
+      say.toggleAttribute('data-trouble', shown.problem !== undefined);
       // Set only on a change, since the problem is an alert: each write would be read out again.
-      if (problem.textContent !== (trouble ?? '')) problem.textContent = trouble ?? '';
-      const at = shown === undefined ? { text: view.line, occurrence: view.occurrence } : arrowOf(shown);
-      const running = at.text === undefined ? undefined : lineNumber(step.source, at.text, at.occurrence);
+      if (problem.textContent !== (shown.problem ?? '')) problem.textContent = shown.problem ?? '';
       const code = root.querySelector<HTMLElement>(`[data-code][data-for-step="${pane.selected}"]`)!;
       const live = code.querySelector('[data-live]');
-      const liveValue = definition().live;
-      if (live !== null && liveValue !== undefined) {
-        const value =
-          shown === undefined ? liveValue.value(view.state) : project.board.variable(shown.board, liveValue.name);
-        // A value the board has not told yet shows as unknown rather than as the number in the source.
-        live.textContent = value ?? '…';
-      }
+      if (live !== null && shown.live !== undefined) live.textContent = shown.live;
       const before = code.querySelector('[data-running]');
-      const row = running === undefined ? null : code.querySelector(`[data-line="${running}"]`);
+      const row = shown.arrow === undefined ? null : code.querySelector(`[data-line="${shown.arrow}"]`);
       if (before !== row) {
         before?.removeAttribute('data-running');
         row?.setAttribute('data-running', '');
@@ -306,32 +284,17 @@ const flashable = Object.keys(manifest.sketches).length > 0;
      */
     function paintMotion() {
       motionFrame = 0;
-      const view = simulation.view;
-      if (view === undefined) return;
-      const shown = pane.mode === 'simulator' ? undefined : pane.followed;
+      const run = simulation.snapshot();
+      if (run === undefined) return;
+      const motion = paneMotion(paneProject, pane, run, Date.now(), traceWidth, reducedMotion.matches);
       const row = root.querySelector(`[data-code][data-for-step="${pane.selected}"] [data-running]`);
-      const progress = simulation.progress();
-      const face =
-        shown === undefined
-          ? clockFace(view, progress, reducedMotion.matches)
-          : liveClockFace(
-              pane.mode === 'live' ? shown.arrowAt : undefined,
-              project.board.wait(shown.board),
-              Date.now(),
-              reducedMotion.matches,
-            );
-      showClock(row?.querySelector('[data-pie]') ?? null, face);
-      const shape =
-        shown === undefined
-          ? traceShape(simulation.trace, traceTime(view, progress, reducedMotion.matches), traceWidth)
-          : traceShape(shown.trace, Date.now(), traceWidth);
+      showClock(row?.querySelector('[data-pie]') ?? null, motion.clock);
       for (const [part, path] of Object.entries(tracePaths)) {
-        const d = shape[part as keyof typeof shape];
+        const d = motion.trace[part as keyof typeof motion.trace];
         if (path.getAttribute('d') !== d) path.setAttribute('d', d);
       }
       // The clock fills and the trace scrolls between the runner's notifications.
-      const moving = shown !== undefined || (view.status === 'running' && (face.waiting || view.cost > 0));
-      if (moving && !reducedMotion.matches) motionFrame = requestAnimationFrame(paintMotion);
+      if (motion.moving && !reducedMotion.matches) motionFrame = requestAnimationFrame(paintMotion);
     }
 
     /** Paints the picture's state: its classes, the custom properties its styles read and its accessible name. */
@@ -360,13 +323,6 @@ const flashable = Object.keys(manifest.sketches).length > 0;
         slider.value = String(next.move);
         slider.nextElementSibling!.textContent = slider.value;
       }
-    }
-
-    /** Where the arrow sits on the followed board: only live, and only on a step whose lines place it. */
-    function arrowOf(shown: Followed<unknown>): { text: string | undefined; occurrence: number } {
-      const ref = pane.mode === 'live' ? shown.arrow : undefined;
-      if (ref === undefined || typeof ref === 'string') return { text: ref, occurrence: 1 };
-      return { text: ref.text, occurrence: ref.occurrence };
     }
 
     /** Marks a watch value that just changed for a moment. */

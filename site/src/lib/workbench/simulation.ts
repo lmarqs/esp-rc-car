@@ -6,6 +6,15 @@ import { emptyTrace, recordEffects, recordLevel, traceTime, type Trace } from '.
 /** How a step's simulator starts when the page opens it or the visitor picks its tab. */
 export const OPENING = { slow: true, running: true } as const;
 
+/** The simulation at one moment: what the pane paints of it. */
+export interface Snapshot<S, B> {
+  readonly view: RunnerView<S>;
+  readonly board: B;
+  readonly trace: Trace;
+  /** How much of the line about to run has elapsed in real time, from 0 to 1. */
+  readonly progress: number;
+}
+
 export interface SimulationOptions {
   /** Whether the simulator has the board pane; while it does not, what the runner does is not the pane's to show. */
   has(): boolean;
@@ -32,6 +41,8 @@ export interface Simulation<S, B> {
   readonly slow: boolean;
   /** How much of the line about to run has elapsed in real time, from 0 to 1. */
   progress(): number;
+  /** The simulation as it stands, or `undefined` until a step is opened. */
+  snapshot(): Snapshot<S, B> | undefined;
   /** Shows `step` with a fresh run, started as {@link OPENING} says. */
   open(step: StepDefinition<S, unknown>): void;
   /** Starts the run again at the sketch's first line on a fresh board, running if the visitor wants it running. */
@@ -77,6 +88,7 @@ export function createSimulation<S, B>(board: BoardModel<unknown, B, S>, options
       return slow;
     },
     progress: () => runner?.progress() ?? 0,
+    snapshot: () => view && { view, board: simulated, trace, progress: runner?.progress() ?? 0 },
     open(step) {
       runner?.dispose();
       reset();
