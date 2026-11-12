@@ -1,6 +1,7 @@
 ---
 import { readManifest } from '../../lib/flash/readManifest';
-import { STEPS } from './view';
+import { settingsOf } from '../../lib/flash/settings';
+import { stepsFor, type Step } from './view';
 
 interface Props {
   /** The project's `sketch` field, such as `sketches/blink`; the manifest names a sketch by its folder. */
@@ -18,7 +19,9 @@ const { sketch, title, baud, next, detailsHref } = Astro.props;
 const name = sketch.split('/').pop()!;
 const entry = readManifest().sketches[name];
 const manifest = entry && { sketches: { [name]: entry } };
-const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', flash: 'Flash', running: 'Running' };
+const fields = manifest ? settingsOf(manifest, name, baud) : [];
+const stepNames: Record<Step, string> = { connect: 'Connect', settings: 'Settings', flash: 'Flash', running: 'Running' };
+const fieldId = (key: string) => `flash-${name}-${key}`;
 ---
 
 <section class="playground flash-card" aria-label="Put it on your board">
@@ -35,7 +38,7 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
         data-manifest={JSON.stringify(manifest)}
       >
         <ol class="steps">
-          {STEPS.map((step) => (
+          {stepsFor(fields.length > 0).map((step) => (
             <li data-step={step}>{stepNames[step]}</li>
           ))}
         </ol>
@@ -50,8 +53,62 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
           <div class="output-label" data-output-label aria-hidden="true" />
           <pre data-lines tabindex="0" role="group" />
         </div>
+        {
+          fields.length > 0 && (
+            <form class="settings" data-settings novalidate hidden>
+              {fields.map((field) => (
+                <div class="field">
+                  <label for={fieldId(field.key)}>{field.label}</label>
+                  <div class="input">
+                    {/* No name: the values never leave the page in a form submission, only through the port. */}
+                    <input
+                      id={fieldId(field.key)}
+                      type={field.type}
+                      value={String(field.default)}
+                      data-key={field.key}
+                      data-default={String(field.default)}
+                      min={field.min}
+                      max={field.max}
+                      step={field.step}
+                      minlength={field.minLength}
+                      maxlength={field.maxLength}
+                      autocomplete="off"
+                      spellcheck="false"
+                      aria-describedby={`${fieldId(field.key)}-error${field.help ? ` ${fieldId(field.key)}-help` : ''}`}
+                    />
+                    {field.type === 'password' && (
+                      <button
+                        class="btn ghost"
+                        type="button"
+                        data-show={field.key}
+                        aria-pressed="false"
+                        aria-controls={fieldId(field.key)}
+                        aria-label={`Show ${field.label}`}
+                      >
+                        Show
+                      </button>
+                    )}
+                  </div>
+                  <p class="error" id={`${fieldId(field.key)}-error`} data-error={field.key} hidden />
+                  {field.help && (
+                    <p class="help" id={`${fieldId(field.key)}-help`}>
+                      {field.help}
+                    </p>
+                  )}
+                </div>
+              ))}
+              <div class="actions">
+                <button class="btn" type="submit" data-submit />
+                <button class="btn ghost" type="button" data-defaults>
+                  Use the defaults
+                </button>
+              </div>
+            </form>
+          )
+        }
         <div class="actions">
           <button class="btn" type="button" data-action hidden />
+          <button class="btn ghost" type="button" data-action hidden />
           <button class="btn ghost" type="button" data-action hidden />
         </div>
         <ul class="links" data-links hidden />
@@ -85,6 +142,14 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
   .track { flex: 1; height: 14px; border: var(--stroke); border-radius: 999px; background: var(--tint-blue); overflow: hidden; }
   .fill { height: 100%; width: 0; background: var(--blue); transition: width .15s; }
   .progress .readout { min-width: 4ch; text-align: right; }
+  .settings { margin: 0 0 12px; }
+  .settings .field { margin: 0 0 12px; }
+  .settings label { display: block; font-weight: 700; margin: 0 0 4px; }
+  .settings .input { display: flex; gap: 8px; }
+  .settings input { flex: 1; min-width: 0; font: inherit; padding: 6px 10px; border: var(--stroke); border-radius: 8px; }
+  .settings input[aria-invalid="true"] { border-color: var(--coral); }
+  .settings .help { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
+  .settings .error { margin: 4px 0 0; padding-left: 8px; border-left: 4px solid var(--coral); font-size: 14px; font-weight: 700; }
 </style>
 
 <script>
@@ -92,7 +157,8 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
   import { href } from '../../lib/href';
   import type { Manifest } from '../../lib/flash/manifest';
   import { createSession, isBusy } from '../../lib/flash/session';
-  import { STEPS, viewFor } from './view';
+  import { settingsOf } from '../../lib/flash/settings';
+  import { stepsFor, viewFor } from './view';
 
   for (const card of document.querySelectorAll<HTMLElement>('[data-flash-card]')) {
     const { sketch, title, next, baud: baudText, detailsHref } = card.dataset;
@@ -104,6 +170,7 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
       sketch: sketch!,
       baud,
     });
+    const settings = settingsOf(manifest, sketch!, baud);
     const context = {
       title: title!,
       next,
@@ -111,7 +178,9 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
       images: manifest.sketches[sketch!]!.images,
       firmwareUrl: href('/firmware/'),
       detailsHref,
+      settings,
     };
+    const stepOrder = stepsFor(settings.length > 0);
 
     const message = card.querySelector<HTMLElement>('[data-message]')!;
     const progress = card.querySelector<HTMLElement>('[data-progress]')!;
@@ -124,11 +193,45 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
     const buttons = [...card.querySelectorAll<HTMLButtonElement>('[data-action]')];
     const links = card.querySelector<HTMLElement>('[data-links]')!;
     const steps = [...card.querySelectorAll<HTMLElement>('[data-step]')];
+    const form = card.querySelector<HTMLFormElement>('[data-settings]');
+    const inputs = [...card.querySelectorAll<HTMLInputElement>('[data-settings] input[data-key]')];
+    const formValues = () => Object.fromEntries(inputs.map((input) => [input.dataset.key!, input.value]));
+
+    async function submitSettings() {
+      await session.send({ type: 'submitSettings', values: formValues() });
+      const state = session.state;
+      if (state.kind === 'settings' && state.errors) {
+        inputs.find((input) => input.dataset.key! in state.errors!)?.focus();
+      }
+    }
+
+    form?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      void submitSettings();
+    });
+    form?.querySelector('[data-defaults]')?.addEventListener('click', () => {
+      for (const input of inputs) input.value = input.dataset.default!;
+      void submitSettings();
+    });
+    for (const toggle of card.querySelectorAll<HTMLButtonElement>('[data-show]')) {
+      const input = inputs.find((candidate) => candidate.dataset.key === toggle.dataset.show)!;
+      toggle.addEventListener('click', () => {
+        const shown = input.type === 'password';
+        input.type = shown ? 'text' : 'password';
+        toggle.setAttribute('aria-pressed', String(shown));
+      });
+    }
 
     for (const button of buttons) {
       button.addEventListener('click', () => {
         const event = button.dataset.event;
-        if (event === 'connect' || event === 'retry' || event === 'disconnect') {
+        if (
+          event === 'connect' ||
+          event === 'retry' ||
+          event === 'disconnect' ||
+          event === 'changeSettings' ||
+          event === 'closeSettings'
+        ) {
           void session.send({ type: event });
         }
       });
@@ -142,7 +245,7 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
       if (message.textContent !== view.message) message.textContent = view.message;
       message.className = view.notice ? 'notice' : '';
 
-      const current = STEPS.indexOf(view.step);
+      const current = stepOrder.indexOf(view.step);
       steps.forEach((li, index) => {
         li.dataset.state = index < current ? 'done' : '';
         if (index === current) li.setAttribute('aria-current', 'step');
@@ -164,6 +267,24 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
         lines.setAttribute('aria-label', view.output.label);
         const text = view.output.lines.join('\n');
         if (lines.textContent !== text) lines.textContent = text;
+      }
+
+      if (form) {
+        // A hidden form cannot keep the focus either.
+        if (!view.form && form.contains(document.activeElement)) message.focus();
+        form.hidden = !view.form;
+        if (view.form) {
+          form.querySelector('[data-submit]')!.textContent = view.form.submit;
+          for (const input of inputs) {
+            const key = input.dataset.key!;
+            const error = view.form.errors[key];
+            const shown = form.querySelector<HTMLElement>(`[data-error="${key}"]`)!;
+            shown.textContent = error ?? '';
+            shown.hidden = !error;
+            if (error) input.setAttribute('aria-invalid', 'true');
+            else input.removeAttribute('aria-invalid');
+          }
+        }
       }
 
       buttons.forEach((button, index) => {
@@ -193,11 +314,7 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
     // The page asks a card it hides to let go of the board; `retry` leaves an idle, connecting or flashing card as it is.
     card.addEventListener('flash-release', () => void session.send({ type: 'retry' }));
 
-    session.subscribe((state) => {
-      render();
-      // No sketch has settings yet, so the card flashes as soon as the board answers.
-      if (state.kind === 'settings') void session.send({ type: 'startFlash' });
-    });
+    session.subscribe(render);
     render();
   }
 </script>

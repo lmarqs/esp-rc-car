@@ -1,9 +1,15 @@
-import type { ManifestImage } from '../../lib/flash/manifest';
+import type { ManifestImage, SettingField } from '../../lib/flash/manifest';
 import type { SessionEvent, SessionState } from '../../lib/flash/session';
+import type { FieldErrors } from '../../lib/flash/settings';
 
-/** The card's three steps, in the order the visitor goes through them. */
-export const STEPS = ['connect', 'flash', 'running'] as const;
+/** The card's steps, in the order the visitor goes through them. */
+export const STEPS = ['connect', 'settings', 'flash', 'running'] as const;
 export type Step = (typeof STEPS)[number];
+
+/** The steps of a card: Settings only for a sketch that has some. */
+export function stepsFor(hasSettings: boolean): Step[] {
+  return STEPS.filter((step) => hasSettings || step !== 'settings');
+}
 
 /** What the card shows for one state of the session. */
 export interface View {
@@ -20,6 +26,15 @@ export interface View {
   output?: ViewOutput;
   /** The links the card shows instead of a button, for a visitor whose browser cannot flash. */
   links?: ViewLink[];
+  /** The settings form, when the card shows it. */
+  form?: ViewForm;
+}
+
+export interface ViewForm {
+  /** The label of the button that sends the form. */
+  submit: string;
+  /** What to show beside each field that is wrong, by key. */
+  errors: FieldErrors;
 }
 
 export interface ViewAction {
@@ -52,6 +67,8 @@ export interface ViewContext {
   firmwareUrl?: string;
   /** The page that has the section `Run it on your board`, when it is not the page the card is on. */
   detailsHref?: string;
+  /** The fields the card asks for; absent or empty when the sketch has none. */
+  settings?: readonly SettingField[];
 }
 
 const BUILD_IT_YOURSELF = '#run-it-on-your-board';
@@ -65,8 +82,40 @@ function imageLinks(images: readonly ManifestImage[], firmwareUrl: string): View
   );
 }
 
+/** The first field in form order that has an error, as `Check <label>: <error>`. */
+function firstError(errors: FieldErrors, settings: readonly SettingField[]): string | undefined {
+  const field = settings.find((candidate) => candidate.key in errors);
+  return field && `Check ${field.label}: ${errors[field.key]}`;
+}
+
+function settingsView(state: Extract<SessionState, { kind: 'settings' }>, title: string, settings: readonly SettingField[]): View {
+  const actions: ViewAction[] = [{ label: 'Cancel', event: state.flashed ? 'closeSettings' : 'retry' }];
+  const form = { submit: state.flashed ? 'Send these settings' : 'Flash with these settings', errors: state.errors ?? {} };
+  const step = state.flashed ? 'running' : 'settings';
+  const error = firstError(form.errors, settings);
+  if (error) {
+    return { step, message: error, notice: true, form, actions };
+  }
+  if (state.noAnswer) {
+    return {
+      step,
+      message: `The board did not list its settings. Check that it runs ${title}, then send them again.`,
+      notice: true,
+      form,
+      actions,
+    };
+  }
+  const message = state.flashed
+    ? `Your board is running ${title}. Change its settings, then send them.`
+    : `Found ${state.chip}. Check the settings, then flash the board.`;
+  return { step, message, form, actions };
+}
+
 /** Maps what the session is doing to what the card shows. */
-export function viewFor(state: SessionState, { title, next, baud, images, firmwareUrl, detailsHref = '' }: ViewContext): View {
+export function viewFor(
+  state: SessionState,
+  { title, next, baud, images, firmwareUrl, detailsHref = '', settings = [] }: ViewContext,
+): View {
   switch (state.kind) {
     case 'idle':
       return {
@@ -79,12 +128,11 @@ export function viewFor(state: SessionState, { title, next, baud, images, firmwa
     case 'connecting':
       return { step: 'connect', message: 'Connecting to the board.' };
     case 'settings':
+      return settingsView(state, title, settings);
     case 'flashing':
-      return {
-        step: 'flash',
-        message: `Found ${state.chip}`,
-        progress: state.kind === 'flashing' ? state.pct : 0,
-      };
+      return { step: 'flash', message: `Found ${state.chip}`, progress: state.pct };
+    case 'applying':
+      return { step: 'running', message: 'Sending the settings to the board.' };
     case 'running':
       if (state.lost) {
         return {
@@ -100,6 +148,7 @@ export function viewFor(state: SessionState, { title, next, baud, images, firmwa
         message: ['Done.', `Your board is running ${title}.`, next].filter(Boolean).join(' '),
         output: baud === undefined ? undefined : { label: `Board output, ${baud} baud`, lines: state.output },
         actions: [
+          ...(settings.length > 0 ? [{ label: 'Change settings', event: 'changeSettings' } as const] : []),
           { label: 'Flash again', event: 'retry' },
           { label: 'Disconnect', event: 'disconnect' },
         ],

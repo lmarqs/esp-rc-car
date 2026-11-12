@@ -21,8 +21,8 @@ test.describe('the Flash page', () => {
     await page.goto('/robomania/flash/');
 
     const projects = page.getByRole('list', { name: 'Projects you can flash' });
-    await expect(projects.getByRole('button')).toHaveText(['Blink', 'Servo']);
-    await expect(projects.getByRole('list', { name: 'Boards' })).toHaveText(['ESP32', 'ESP32']);
+    await expect(projects.getByRole('button')).toHaveText(['Blink', 'Servo', 'Balance beam']);
+    await expect(projects.getByRole('list', { name: 'Boards' })).toHaveText(['ESP32', 'ESP32', 'ESP32']);
     await expect(page.getByText(LOCKED)).toBeHidden();
     await expect(pick(page, 'Blink')).toHaveAttribute('aria-pressed', 'false');
     await expect(card(page)).toHaveCount(0);
@@ -157,7 +157,7 @@ test.describe('the Flash page', () => {
     await page.goto('/robomania/flash/');
 
     const list = page.getByRole('heading', { name: 'Flashed from your computer' }).locator('..').getByRole('listitem');
-    await expect(list).toHaveCount(4);
+    await expect(list).toHaveCount(3);
     await expect(list.filter({ hasText: 'Omnidirectional robot' })).toContainText(
       'this board is flashed from your computer with the tools, not from the browser.',
     );

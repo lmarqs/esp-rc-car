@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { viewFor } from '../../src/components/flash/view';
+import { stepsFor, viewFor } from '../../src/components/flash/view';
+import type { SettingField } from '../../src/lib/flash/manifest';
 
 const context = { title: 'Blink' };
 
@@ -136,5 +137,72 @@ describe('viewFor', () => {
     const view = viewFor({ kind: 'unsupported' }, { ...context, detailsHref: '/robomania/projects/blink/' });
 
     expect(view.links).toEqual([{ label: 'Run it on your board', href: '/robomania/projects/blink/#run-it-on-your-board' }]);
+  });
+});
+
+describe('stepsFor', () => {
+  it('puts Settings between Connect and Flash only for a sketch that has some', () => {
+    expect(stepsFor(false)).toEqual(['connect', 'flash', 'running']);
+    expect(stepsFor(true)).toEqual(['connect', 'settings', 'flash', 'running']);
+  });
+});
+
+describe('viewFor a sketch with settings', () => {
+  const settings: SettingField[] = [
+    { key: 'ap_ssid', label: 'Hotspot name', type: 'text', default: 'web-relay', minLength: 1, maxLength: 32 },
+    { key: 'ap_password', label: 'Hotspot password', type: 'password', default: 'web-relay-1234', minLength: 8 },
+  ];
+  const withSettings = { title: 'Web relay', settings };
+
+  it('shows the form on the Settings step once the board answers, with a button that flashes', () => {
+    expect(viewFor({ kind: 'settings', chip: 'ESP8266' }, withSettings)).toEqual({
+      step: 'settings',
+      message: 'Found ESP8266. Check the settings, then flash the board.',
+      form: { submit: 'Flash with these settings', errors: {} },
+      actions: [{ label: 'Cancel', event: 'retry' }],
+    });
+  });
+
+  it('names the first field at fault, in form order', () => {
+    const errors = { ap_password: 'Use at least 8 characters.', ap_ssid: 'Use 1 to 32 characters.' };
+    const view = viewFor({ kind: 'settings', chip: 'ESP8266', errors }, withSettings);
+
+    expect(view.message).toBe('Check Hotspot name: Use 1 to 32 characters.');
+    expect(view.notice).toBe(true);
+    expect(view.form).toEqual({ submit: 'Flash with these settings', errors });
+  });
+
+  it('reopens the form on the Running step for a board that runs the sketch, with a button that sends', () => {
+    expect(viewFor({ kind: 'settings', chip: 'ESP8266', flashed: true }, withSettings)).toEqual({
+      step: 'running',
+      message: 'Your board is running Web relay. Change its settings, then send them.',
+      form: { submit: 'Send these settings', errors: {} },
+      actions: [{ label: 'Cancel', event: 'closeSettings' }],
+    });
+  });
+
+  it('says the board did not list its settings', () => {
+    const view = viewFor({ kind: 'settings', chip: 'ESP8266', flashed: true, noAnswer: true }, withSettings);
+
+    expect(view.message).toBe('The board did not list its settings. Check that it runs Web relay, then send them again.');
+    expect(view.notice).toBe(true);
+  });
+
+  it('offers no button while it sends the settings', () => {
+    expect(viewFor({ kind: 'applying', chip: 'ESP8266' }, withSettings)).toEqual({
+      step: 'running',
+      message: 'Sending the settings to the board.',
+    });
+  });
+
+  it('offers Change settings once the board runs, but not once it is lost', () => {
+    const running = { kind: 'running', chip: 'ESP8266', output: [] } as const;
+
+    expect(viewFor(running, withSettings).actions).toEqual([
+      { label: 'Change settings', event: 'changeSettings' },
+      { label: 'Flash again', event: 'retry' },
+      { label: 'Disconnect', event: 'disconnect' },
+    ]);
+    expect(viewFor({ ...running, lost: true }, withSettings).actions).toEqual([{ label: 'Connect again', event: 'connect' }]);
   });
 });

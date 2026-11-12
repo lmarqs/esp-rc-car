@@ -18,6 +18,11 @@ export interface FakeFlasherOptions {
   lines?: string[];
   /** The first `monitor` returns after it printed `lines`, as when the port is lost, instead of waiting for `disconnect`. */
   monitorEnds?: boolean;
+  /**
+   * The settings the board holds, which it answers the `cfg` protocol with: `cfg get` lists them and `cfg set` stores
+   * a value, unless `refuse` names its key with the reason to refuse it with. Default: the board answers nothing.
+   */
+  board?: { values: Record<string, string>; refuse?: Record<string, string> };
 }
 
 /** Controls the fake flasher of one page. */
@@ -42,6 +47,28 @@ function installFakeFlasher(options: FakeFlasherOptions) {
   });
 
   let stopMonitor = () => {};
+  let printLines: (lines: string[]) => void = () => {};
+  const stored = { ...options.board?.values };
+
+  function answer(line: string): string[] {
+    if (!options.board) {
+      return [];
+    }
+    if (line === 'cfg get') {
+      return [...Object.entries(stored).map(([key, value]) => `cfg ${key}=${value}`), 'cfg end'];
+    }
+    const set = /^cfg set (\S+) (.*)$/.exec(line);
+    if (set) {
+      const [, key, value] = set as unknown as [string, string, string];
+      const reason = options.board.refuse?.[key];
+      if (reason) {
+        return [`cfg err ${key} ${reason}`];
+      }
+      stored[key] = value;
+      return [`cfg ok ${key}`];
+    }
+    return [];
+  }
 
   const chips = [options.chip ?? 'ESP32'].flat();
   const failing = { ...options.failFirst };
@@ -82,6 +109,7 @@ function installFakeFlasher(options: FakeFlasherOptions) {
     },
     async monitor(baud, onLines) {
       calls.push(`monitor ${baud}`);
+      printLines = onLines;
       for (const line of options.lines ?? []) {
         onLines([line]);
       }
@@ -91,6 +119,13 @@ function installFakeFlasher(options: FakeFlasherOptions) {
       await new Promise<void>((resolve) => {
         stopMonitor = resolve;
       });
+    },
+    async send(line) {
+      calls.push(`send ${line}`);
+      const lines = answer(line);
+      if (lines.length > 0) {
+        setTimeout(() => printLines(lines));
+      }
     },
     async disconnect() {
       calls.push('disconnect');

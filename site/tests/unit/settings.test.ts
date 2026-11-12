@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import balanceBeam from '../../../sketches/balance-beam/settings.json';
 import webRelay from '../../../sketches/web-relay/settings.json';
+import fixture from '../e2e/fixtures/firmware-manifest.json';
 import type { Manifest, SettingField } from '../../src/lib/flash/manifest';
 import {
   changedValues,
@@ -35,6 +36,10 @@ describe('the sketches settings.json', () => {
       }
       expect(validate(fields, defaultValues(fields))).toEqual({});
     }
+  });
+
+  it('are what the browser tests flash balance-beam with', () => {
+    expect(fixture.sketches['balance-beam'].settings).toEqual(beam);
   });
 });
 
