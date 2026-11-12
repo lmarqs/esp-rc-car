@@ -152,18 +152,6 @@ test.describe('the Running step', () => {
     await expect(card(page).locator('[data-message]')).toBeFocused();
   });
 
-  test('Flash again keeps the focus on its button, which becomes Connect board', async ({ page, fakeFlasher }) => {
-    await fakeFlasher.install({ lines: ['HIGH'] });
-    await page.goto('/robomania/projects/blink/');
-    await card(page).getByRole('button', { name: 'Connect board' }).click();
-    await expect(output(page)).toHaveText('HIGH');
-
-    await card(page).getByRole('button', { name: 'Flash again' }).focus();
-    await page.keyboard.press('Enter');
-
-    await expect(card(page).getByRole('button', { name: 'Connect board' })).toBeFocused();
-  });
-
   test('says the board stopped talking when the port is lost, and Connect again flashes once more', async ({
     page,
     fakeFlasher,
@@ -199,19 +187,18 @@ test.describe('the Running step', () => {
     ]);
   });
 
-  test('Flash again returns to Connect, and the next flash prints its own lines', async ({ page, fakeFlasher }) => {
+  test('Flash again flashes the board in the same click, and the next flash prints its own lines', async ({
+    page,
+    fakeFlasher,
+  }) => {
     await fakeFlasher.install({ lines: ['HIGH'] });
     await page.goto('/robomania/projects/blink/');
     await card(page).getByRole('button', { name: 'Connect board' }).click();
     await expect(output(page)).toHaveText('HIGH');
 
     await card(page).getByRole('button', { name: 'Flash again' }).click();
-    await expect(output(page)).toBeHidden();
-    await expect(card(page).locator('[data-message]')).toHaveText(
-      'Plug the board in over USB. This replaces whatever is on the board.',
-    );
-    await card(page).getByRole('button', { name: 'Connect board' }).click();
 
+    await expect(card(page).locator('[data-message]')).toContainText('Done. Your board is running Blink.');
     await expect(output(page)).toHaveText('HIGH');
     expect(await fakeFlasher.calls()).toEqual([
       'connect', 'load', 'write', 'reset', 'monitor 9600',

@@ -149,7 +149,7 @@ export function viewFor(
         output: baud === undefined ? undefined : { label: `Board output, ${baud} baud`, lines: state.output },
         actions: [
           ...(settings.length > 0 ? [{ label: 'Change settings', event: 'changeSettings' } as const] : []),
-          { label: 'Flash again', event: 'retry' },
+          { label: 'Flash again', event: 'connect' },
           { label: 'Disconnect', event: 'disconnect' },
         ],
       };

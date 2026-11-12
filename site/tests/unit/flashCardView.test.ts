@@ -45,9 +45,9 @@ describe('viewFor', () => {
       expect(viewFor(running, context).message).toBe('Done. Your board is running Blink.');
     });
 
-    it('offers Flash again, which retries, and Disconnect', () => {
+    it('offers Flash again, which connects, and Disconnect', () => {
       expect(viewFor(running, context).actions).toEqual([
-        { label: 'Flash again', event: 'retry' },
+        { label: 'Flash again', event: 'connect' },
         { label: 'Disconnect', event: 'disconnect' },
       ]);
     });
@@ -200,7 +200,7 @@ describe('viewFor a sketch with settings', () => {
 
     expect(viewFor(running, withSettings).actions).toEqual([
       { label: 'Change settings', event: 'changeSettings' },
-      { label: 'Flash again', event: 'retry' },
+      { label: 'Flash again', event: 'connect' },
       { label: 'Disconnect', event: 'disconnect' },
     ]);
     expect(viewFor({ ...running, lost: true }, withSettings).actions).toEqual([{ label: 'Connect again', event: 'connect' }]);

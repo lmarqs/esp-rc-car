@@ -41,7 +41,10 @@ export type SessionState =
   | { kind: 'dropped'; pct: number };
 
 export type SessionEvent =
-  /** From `idle`, a failure or a lost `running`: asks for a port and connects to the board. */
+  /**
+   * From `idle`, a failure or `running`: asks for a port and connects to the board. From `running`, it releases the
+   * port first, so "Flash again" flashes in the same click.
+   */
   | { type: 'connect' }
   /**
    * From `settings`: checks the values against their limits, flashes the board unless it already runs the sketch,
@@ -389,7 +392,7 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
       const { kind } = state;
       switch (event.type) {
         case 'connect':
-          if (state.kind === 'running' && state.lost) {
+          if (kind === 'running') {
             reading++;
             // Ignores a second click while the old port is released.
             enter({ kind: 'connecting' });
