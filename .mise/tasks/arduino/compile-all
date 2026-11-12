@@ -4,6 +4,11 @@ set -euo pipefail
 
 # Sketches sit at sketches/<name> or sketches/<project>/<variant>; a pattern that matches nothing expands to nothing.
 shopt -s nullglob
-for config in sketches/*/sketch.yaml sketches/*/*/sketch.yaml; do
+configs=(sketches/*/sketch.yaml sketches/*/*/sketch.yaml)
+if ((${#configs[@]} == 0)); then
+  echo "No sketch.yaml under sketches/: run from the repository root." >&2
+  exit 1
+fi
+for config in "${configs[@]}"; do
   mise run arduino:compile "$(dirname "${config}")"
 done
