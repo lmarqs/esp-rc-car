@@ -54,6 +54,11 @@ A sketch takes the values that differ from one build of its robot to the next, s
 range, from a `local.h` in its folder. Git ignores the file, so a secret stays out of the history, and a sketch
 without one builds with the defaults in its code.
 
+A sketch that also stores such values on the board, sent over its serial port with `cfg set`, lists them in a
+`settings.json` in its folder: each one's `cfg` key, label, type, default and limits, matching the sketch's own.
+`arduino:firmware` copies the list into the manifest of the images the website flashes, and the website's flash card
+asks for the values before it flashes the board and sends the ones the board does not hold yet.
+
 ## Website
 
 Robomania, the project's website in `site/`, is an Astro site built apart from the firmware. It depends on `lib/`:
