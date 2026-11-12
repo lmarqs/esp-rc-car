@@ -7,7 +7,7 @@ state: draft
 order: 3
 sketch: sketches/omnidirectional
 flash:
-  baud: 9600
+  baud: 115200
   next: "Pair a Bluetooth gamepad: the LED on GPIO 2 blinks once a second until one connects, then stays lit."
 example: omnidirectional
 topics: [dc-motor, h-bridge, pwm, dual-core]

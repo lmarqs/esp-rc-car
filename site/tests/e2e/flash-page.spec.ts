@@ -129,7 +129,7 @@ test.describe('the Flash page', () => {
     await card(page).getByRole('button', { name: 'Connect board' }).click();
 
     await expect(card(page).getByText('Your board is running Omnidirectional robot.')).toBeVisible();
-    expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'write', 'reset', 'monitor 9600']);
+    expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'write', 'reset', 'monitor 115200']);
   });
 
   test('cannot pick another project while a board is flashing', async ({ page, fakeFlasher }) => {

@@ -40,7 +40,7 @@ void receiveEventHandler(int len) {
 }
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   Wire.begin(0x01);
   Wire.onReceive(receiveEventHandler);
