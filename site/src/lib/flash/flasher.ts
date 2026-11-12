@@ -35,12 +35,11 @@ export class DownloadError extends Error {
 export interface EsptoolFlasherOptions {
   /** Where the manifest's part paths are served from, ending in a slash. */
   firmwareUrl: string;
-  /** Speed of the flashing; the ROM bootloader is always reached at 115200. */
-  baudRate?: number;
 }
 
+/** The ROM bootloader is always reached at 115200. */
 const ROM_BAUD_RATE = 115200;
-const DEFAULT_BAUD_RATE = 460800;
+const FLASH_BAUD_RATE = 460800;
 
 const silentTerminal = { clean() {}, write() {}, writeLine() {} };
 
@@ -68,7 +67,7 @@ export class EsptoolFlasher implements Flasher {
     this.transport = new esptool.Transport(port);
     this.loader = new esptool.ESPLoader({
       transport: this.transport,
-      baudrate: this.options.baudRate ?? DEFAULT_BAUD_RATE,
+      baudrate: FLASH_BAUD_RATE,
       romBaudrate: ROM_BAUD_RATE,
       terminal: silentTerminal,
     });
