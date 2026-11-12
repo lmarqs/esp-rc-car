@@ -311,52 +311,47 @@ test.describe('the Blink workbench', () => {
   test('Step runs exactly one line, and the LED, output and watch change only when their line runs', async ({
     page,
   }) => {
+    await freeze(page);
     await tab(page, '2 input').click();
     await button(page, 'Pause').click();
+    await nextFrame(page);
     const input = source('sketches/blink/input');
     const at = (text: string, occurrence = 1) => lineNumber(input, text, occurrence)!;
-    const order = [
-      at('Serial.begin(115200);'),
-      at('Serial.println();'),
-      at('Serial.println("sketch blink/input");'),
-      at('led.begin();'),
-      at('if (Serial.available()) {'),
-      at('Serial.println("HIGH");'),
-      at('led.write(HIGH);'),
-      at('delay(blinkDelay);'),
-      at('Serial.println("LOW");'),
-      at('led.write(LOW);'),
-      at('delay(blinkDelay);', 2),
+    // Each line in the order Step runs them, what it prints and which watch values it changes.
+    const runs: { line: number; prints?: string; watch?: Record<string, string> }[] = [
+      { line: at('Serial.begin(115200);') },
+      { line: at('Serial.println();'), prints: '' },
+      { line: at('Serial.println("sketch blink/input");'), prints: 'sketch blink/input' },
+      { line: at('led.begin();') },
+      { line: at('if (Serial.available()) {') },
+      { line: at('Serial.println("HIGH");'), prints: 'HIGH' },
+      { line: at('led.write(HIGH);'), watch: { LED: 'HIGH' } },
+      // Step runs a whole delay at once, with no real wait.
+      { line: at('delay(blinkDelay);') },
+      { line: at('Serial.println("LOW");'), prints: 'LOW' },
+      { line: at('led.write(LOW);'), watch: { LED: 'LOW', measured: '1000 ms' } },
+      { line: at('delay(blinkDelay);', 2) },
     ];
-    const step = button(page, 'Step');
-    await expect(runningRow(page)).toHaveAttribute('data-line', String(order[0]));
-    for (const line of order.slice(1, 7)) {
-      await step.click();
-      await expect(runningRow(page)).toHaveAttribute('data-line', String(line));
+    const output: string[] = [];
+    let watch: Record<string, string> = { LED: 'LOW', wait: '1000 ms', measured: '…' };
+    const expectBoard = async () => {
+      await expect.poll(() => serial(page).textContent()).toBe(output.slice(-SERIAL_LINES).join('\n'));
+      await expect(bench(page).locator('.watch div:visible dt')).toHaveText(Object.keys(watch));
+      await expect(bench(page).locator('.watch div:visible dd')).toHaveText(Object.values(watch));
+      const picture = bench(page).locator('[data-picture]');
+      await (watch.LED === 'HIGH' ? expect(picture).toHaveClass(/\bon\b/) : expect(picture).not.toHaveClass(/\bon\b/));
+    };
+
+    await expect(runningRow(page)).toHaveAttribute('data-line', String(runs[0].line));
+    await expectBoard();
+    for (const [index, run] of runs.slice(0, -1).entries()) {
+      await button(page, 'Step').click();
+      await nextFrame(page);
+      await expect(runningRow(page)).toHaveAttribute('data-line', String(runs[index + 1].line));
+      if (run.prints !== undefined) output.push(run.prints);
+      watch = { ...watch, ...run.watch };
+      await expectBoard();
     }
-    // About to run led.write(HIGH): the print before it ran, the LED has not changed yet.
-    await expect(serial(page)).toHaveText(/HIGH$/);
-    await expect(watchValue(page, 'LED')).toHaveText('LOW');
-    await expect(bench(page).locator('[data-picture]')).not.toHaveClass(/\bon\b/);
-
-    await step.click();
-    await expect(runningRow(page)).toHaveAttribute('data-line', String(order[7]));
-    await expect(watchValue(page, 'LED')).toHaveText('HIGH');
-    await expect(bench(page).locator('[data-picture]')).toHaveClass(/\bon\b/);
-
-    // Step runs a whole delay at once, with no real wait.
-    await step.click();
-    await expect(runningRow(page)).toHaveAttribute('data-line', String(order[8]));
-    await step.click();
-    await expect(runningRow(page)).toHaveAttribute('data-line', String(order[9]));
-    await expect(serial(page)).toHaveText(/LOW$/);
-    await expect(watchValue(page, 'LED')).toHaveText('HIGH');
-    await expect(watchValue(page, 'measured')).toHaveText('…');
-
-    await step.click();
-    await expect(runningRow(page)).toHaveAttribute('data-line', String(order[10]));
-    await expect(watchValue(page, 'LED')).toHaveText('LOW');
-    await expect(watchValue(page, 'measured')).toHaveText('1000 ms');
     await expect(button(page, 'Continue')).toBeVisible();
   });
 
@@ -392,6 +387,8 @@ test.describe('the Blink workbench', () => {
 
   test('highlights a watch value briefly when it changes, but not the clock', async ({ page }) => {
     const led = watchValue(page, 'LED');
+    await freeze(page);
+    await button(page, 'Restart').click();
     await expect(led).not.toHaveAttribute('data-changed');
     // led.write(HIGH) runs at 3000 ms in slow mode.
     await page.clock.runFor(3050);
