@@ -1,7 +1,10 @@
 import { expect, test } from './fake-flasher';
 
 const pick = (page: import('@playwright/test').Page, title: 'Blink' | 'Servo') =>
-  page.getByRole('group', { name: 'Projects you can flash' }).locator(`[data-pick="${title.toLowerCase()}"]`);
+  page.getByRole('list', { name: 'Projects you can flash' }).getByRole('button', { name: title, exact: true });
+const heading = (page: import('@playwright/test').Page, title: 'Blink' | 'Servo') =>
+  page.getByRole('heading', { level: 2, name: title });
+const LOCKED = 'Finish or stop the current flash before picking another project.';
 const card = (page: import('@playwright/test').Page) => page.getByRole('region', { name: 'Put it on your board' });
 
 test.describe('the Flash page', () => {
@@ -17,10 +20,10 @@ test.describe('the Flash page', () => {
   test('lists the projects of the manifest with their chips and shows no card until one is picked', async ({ page }) => {
     await page.goto('/robomania/flash/');
 
-    await expect(page.getByRole('group', { name: 'Projects you can flash' }).getByRole('button')).toHaveText([
-      /Blink.*ESP32/s,
-      /Servo.*ESP32/s,
-    ]);
+    const projects = page.getByRole('list', { name: 'Projects you can flash' });
+    await expect(projects.getByRole('button')).toHaveText(['Blink', 'Servo']);
+    await expect(projects.getByRole('list', { name: 'Boards' })).toHaveText(['ESP32', 'ESP32']);
+    await expect(page.getByText(LOCKED)).toBeHidden();
     await expect(pick(page, 'Blink')).toHaveAttribute('aria-pressed', 'false');
     await expect(card(page)).toHaveCount(0);
   });
@@ -63,12 +66,31 @@ test.describe('the Flash page', () => {
     await expect(pick(page, 'Blink')).toHaveAttribute('aria-pressed', 'false');
     await expect(page.getByRole('link', { name: 'Wiring and details for Servo' })).toBeVisible();
     await expect(card(page)).toHaveCount(1);
+    expect(await page.evaluate(() => document.activeElement?.tagName)).toBe('BODY');
   });
 
-  test('shows no card for an address that names no project', async ({ page }) => {
-    await page.goto('/robomania/flash/#nothing');
+  for (const hash of ['#nothing', '#omnidirectional', '#%']) {
+    test(`selects nothing for the address ${hash}`, async ({ page }) => {
+      const errors: Error[] = [];
+      page.on('pageerror', (error) => errors.push(error));
 
-    await expect(card(page)).toHaveCount(0);
+      await page.goto(`/robomania/flash/${hash}`);
+
+      await expect(pick(page, 'Blink')).toHaveAttribute('aria-pressed', 'false');
+      await expect(pick(page, 'Servo')).toHaveAttribute('aria-pressed', 'false');
+      await expect(card(page)).toHaveCount(0);
+      expect(errors).toEqual([]);
+    });
+  }
+
+  test('moves the focus to the card when a project is picked with the keyboard', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install();
+    await page.goto('/robomania/flash/');
+
+    await pick(page, 'Servo').focus();
+    await page.keyboard.press('Enter');
+
+    await expect(heading(page, 'Servo')).toBeFocused();
   });
 
   test('flashes the picked project', async ({ page, fakeFlasher }) => {
@@ -90,11 +112,13 @@ test.describe('the Flash page', () => {
     await expect(card(page).getByText('40%')).toBeVisible();
     await expect(pick(page, 'Servo')).toBeDisabled();
     await expect(pick(page, 'Blink')).toBeDisabled();
+    await expect(page.getByText(LOCKED)).toBeVisible();
 
     await fakeFlasher.release();
 
     await expect(card(page).getByText('Your board is running Blink.')).toBeVisible();
     await expect(pick(page, 'Servo')).toBeEnabled();
+    await expect(page.getByText(LOCKED)).toBeHidden();
   });
 
   test('cannot change the project through the address while a board is flashing', async ({ page, fakeFlasher }) => {
@@ -105,7 +129,9 @@ test.describe('the Flash page', () => {
 
     await page.evaluate(() => (location.hash = '#servo'));
 
+    await expect(page).toHaveURL('/robomania/flash/#blink');
     await expect(pick(page, 'Blink')).toHaveAttribute('aria-pressed', 'true');
+    await expect(pick(page, 'Servo')).toHaveAttribute('aria-pressed', 'false');
     await fakeFlasher.release();
     await expect(card(page).getByText('Your board is running Blink.')).toBeVisible();
   });

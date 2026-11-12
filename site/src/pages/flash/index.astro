@@ -31,19 +31,26 @@ const fromComputer = withSketch.filter((p) => !manifest.sketches[sketchName(p.da
   <h2>Pick a project</h2>
   {
     flashable.length > 0 ? (
-      <div class="grid" role="group" aria-label="Projects you can flash" data-picker>
-        {flashable.map(({ project, chips }) => (
-          <button class="card pick" type="button" data-pick={project.id} aria-pressed="false">
-            <div class="art"><Art name={project.data.art} /></div>
-            <Meta level={project.data.level} state={project.data.state} />
-            <h3>{project.data.title}</h3>
-            <p>{project.data.summary}</p>
-            <ul class="chips" aria-label="Boards">
-              {chips.map((chip) => <li>{chip}</li>)}
-            </ul>
-          </button>
-        ))}
-      </div>
+      <>
+        <ul class="grid picker" aria-label="Projects you can flash">
+          {flashable.map(({ project, chips }) => (
+            <li class="card pick-card">
+              <div class="art"><Art name={project.data.art} /></div>
+              <Meta level={project.data.level} state={project.data.state} />
+              <h3>
+                <button class="pick" type="button" data-pick={project.id} aria-pressed="false">
+                  {project.data.title}
+                </button>
+              </h3>
+              <p>{project.data.summary}</p>
+              <ul class="chips" aria-label="Boards">
+                {chips.map((chip) => <li>{chip}</li>)}
+              </ul>
+            </li>
+          ))}
+        </ul>
+        <p class="notice" data-locked hidden>Finish or stop the current flash before picking another project.</p>
+      </>
     ) : (
       <p class="prose">No project has firmware to flash from the browser in this build.</p>
     )
@@ -53,7 +60,7 @@ const fromComputer = withSketch.filter((p) => !manifest.sketches[sketchName(p.da
   {
     flashable.map(({ project }) => (
       <section data-panel={project.id} aria-labelledby={`panel-${project.id}`} hidden>
-        <h2 id={`panel-${project.id}`}>{project.data.title}</h2>
+        <h2 id={`panel-${project.id}`} tabindex="-1">{project.data.title}</h2>
         <p>
           <a href={href(`/projects/${project.id}/`)}>Wiring and details for {project.data.title}</a>
         </p>
@@ -86,11 +93,18 @@ const fromComputer = withSketch.filter((p) => !manifest.sketches[sketchName(p.da
 </Base>
 
 <style>
-  .pick { font: inherit; color: var(--ink); text-align: left; width: 100%; cursor: pointer; }
-  .pick:hover { transform: translateY(-3px); box-shadow: 0 6px 0 rgba(31, 45, 58, .12); }
-  .pick[aria-pressed="true"] { background: var(--tint-yellow); box-shadow: 0 6px 0 rgba(31, 45, 58, .12); }
-  .pick:disabled { cursor: not-allowed; opacity: .6; transform: none; box-shadow: none; }
-  .pick h3 { font-size: 1.17em; }
+  .picker { list-style: none; margin: 0; padding: 0; }
+  .pick-card { position: relative; }
+  .pick-card:hover { transform: translateY(-3px); box-shadow: 0 6px 0 rgba(31, 45, 58, .12); }
+  .pick-card:has([aria-pressed="true"]) { background: var(--tint-yellow); box-shadow: 0 6px 0 rgba(31, 45, 58, .12); }
+  .pick-card:has(:disabled) { opacity: .6; transform: none; box-shadow: none; cursor: not-allowed; }
+  .pick-card h3 { font-size: 1.17em; }
+  /* The button is the card's title; its ::after stretches the click target over the whole card. */
+  .pick { font: inherit; color: var(--ink); background: none; border: 0; padding: 0; text-align: left; cursor: pointer; }
+  .pick::after { content: ""; position: absolute; inset: 0; border-radius: var(--radius); }
+  .pick:disabled { cursor: not-allowed; }
+  .pick:focus-visible { outline: none; }
+  .pick:focus-visible::after { outline: 3px solid var(--blue); outline-offset: 3px; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 6px 0 0; padding: 0; }
   .chips li { font-size: 13px; font-weight: 700; padding: 1px 10px; border: 2px solid var(--line); border-radius: 999px; }
 </style>
@@ -98,6 +112,7 @@ const fromComputer = withSketch.filter((p) => !manifest.sketches[sketchName(p.da
 <script>
   const buttons = [...document.querySelectorAll<HTMLButtonElement>('[data-pick]')];
   const panels = [...document.querySelectorAll<HTMLElement>('[data-panel]')];
+  const locked = document.querySelector<HTMLElement>('[data-locked]');
   let picked: string | undefined;
 
   function show(id: string | undefined) {
@@ -110,26 +125,55 @@ const fromComputer = withSketch.filter((p) => !manifest.sketches[sketchName(p.da
     left?.querySelector('[data-flash-card]')?.dispatchEvent(new CustomEvent('flash-release'));
   }
 
+  function shownHeading() {
+    return panels.find((panel) => panel.dataset.panel === picked)?.querySelector<HTMLElement>('h2');
+  }
+
   function busy() {
     return panels.some((panel) => panel.querySelector('[data-busy]'));
   }
 
+  function hashedId() {
+    try {
+      return decodeURIComponent(location.hash.slice(1));
+    } catch {
+      return undefined;
+    }
+  }
+
+  function writeHash() {
+    history.replaceState(null, '', picked ? `#${picked}` : location.pathname + location.search);
+  }
+
   function fromHash() {
-    const id = decodeURIComponent(location.hash.slice(1));
-    if (!busy() && buttons.some((button) => button.dataset.pick === id)) show(id);
+    if (busy()) {
+      // Back and forward must not switch a card that is writing; the address goes back to the card that is shown.
+      writeHash();
+      return;
+    }
+    const id = hashedId();
+    if (id !== undefined && buttons.some((button) => button.dataset.pick === id)) {
+      show(id);
+      shownHeading()?.scrollIntoView();
+    }
   }
 
   for (const button of buttons) {
     button.addEventListener('click', () => {
       show(button.dataset.pick);
-      history.replaceState(null, '', `#${button.dataset.pick}`);
+      writeHash();
+      // The card is below the whole list, so the focus goes to it: a keyboard visitor would not find it otherwise.
+      const heading = shownHeading();
+      heading?.focus({ preventScroll: true });
+      heading?.scrollIntoView();
     });
   }
 
   // A visitor must not leave a write half-done by picking another project.
   new MutationObserver(() => {
-    const locked = busy();
-    for (const button of buttons) button.disabled = locked;
+    const isBusy = busy();
+    for (const button of buttons) button.disabled = isBusy;
+    if (locked) locked.hidden = !isBusy;
   }).observe(document.body, { attributes: true, attributeFilter: ['data-busy'], subtree: true });
 
   window.addEventListener('hashchange', fromHash);
