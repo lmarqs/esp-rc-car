@@ -335,7 +335,6 @@ export function createRunner<S>(sketch: Sketch<S>, options: RunnerOptions = {}):
     stopTimer();
     if (status !== 'running') return;
     const duration = realDuration();
-    if (status !== 'running') return;
     startedAt = clock.now();
     timer = clock.setTimeout(
       () => {
