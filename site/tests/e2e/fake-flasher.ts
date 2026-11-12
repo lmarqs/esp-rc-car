@@ -14,6 +14,8 @@ export interface FakeFlasherOptions {
    * `write` rejects after it has reported `progress`.
    */
   failFirst?: { connect?: string; load?: string; write?: string };
+  /** The lines `monitor` prints right away, one call each; it then waits until `disconnect`. Default: none. */
+  lines?: string[];
 }
 
 /** Controls the fake flasher of one page. */
@@ -36,6 +38,8 @@ function installFakeFlasher(options: FakeFlasherOptions) {
   const released = new Promise<void>((resolve) => {
     release = resolve;
   });
+
+  let stopMonitor = () => {};
 
   const chips = [options.chip ?? 'ESP32'].flat();
   const failing = { ...options.failFirst };
@@ -74,8 +78,18 @@ function installFakeFlasher(options: FakeFlasherOptions) {
     async reset() {
       calls.push('reset');
     },
+    async monitor(baud, onLines) {
+      calls.push(`monitor ${baud}`);
+      for (const line of options.lines ?? []) {
+        onLines([line]);
+      }
+      await new Promise<void>((resolve) => {
+        stopMonitor = resolve;
+      });
+    },
     async disconnect() {
       calls.push('disconnect');
+      stopMonitor();
     },
   };
 

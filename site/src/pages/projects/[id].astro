@@ -25,7 +25,16 @@ const repo = 'https://github.com/lmarqs/robomania/tree/main/';
     <h1>{project.data.title}</h1>
     <p class="lead">{project.data.summary}</p>
     <Example name={project.data.example} />
-    {project.data.sketch && <FlashCard sketch={project.data.sketch} title={project.data.title} />}
+    {
+      project.data.sketch && (
+        <FlashCard
+          sketch={project.data.sketch}
+          title={project.data.title}
+          baud={project.data.flash?.baud}
+          next={project.data.flash?.next}
+        />
+      )
+    }
     <StateNotice state={project.data.state} />
     <div class="prose"><Content /></div>
     {

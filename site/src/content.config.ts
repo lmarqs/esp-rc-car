@@ -22,6 +22,15 @@ const projects = defineCollection({
     /** The sketch folder in the repository; a project with none yet has no firmware here. */
     sketch: z.string().optional(),
     example: z.enum(['blink', 'servo', 'omnidirectional']).optional(),
+    /** The flash card's copy for a sketch the browser flashes; a project whose sketch has no image sets none. */
+    flash: z
+      .object({
+        /** The speed of the sketch's `Serial.begin`; absent for a sketch that prints nothing, which gets no board output. */
+        baud: z.number().int().positive().optional(),
+        /** What to do once the board runs. */
+        next: z.string(),
+      })
+      .optional(),
     topics: z.array(z.string()).default([]),
   }),
 });

@@ -11,6 +11,18 @@
           ]
         }
       ]
+    },
+    "servo": {
+      "images": [
+        {
+          "profile": "esp32",
+          "chipFamily": "ESP32",
+          "parts": [
+            { "path": "servo/esp32/servo.ino.bootloader.bin", "offset": 4096 },
+            { "path": "servo/esp32/servo.ino.bin", "offset": 65536 }
+          ]
+        }
+      ]
     }
   }
 }

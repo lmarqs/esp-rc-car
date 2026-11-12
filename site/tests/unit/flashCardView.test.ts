@@ -8,12 +8,12 @@ describe('viewFor', () => {
     expect(viewFor({ kind: 'idle' }, context)).toEqual({
       step: 'connect',
       message: 'Plug the board in over USB. This replaces whatever is on the board.',
-      action: { label: 'Connect board', event: 'connect' },
+      actions: [{ label: 'Connect board', event: 'connect' }],
     });
   });
 
   it('offers no button while connecting', () => {
-    expect(viewFor({ kind: 'connecting' }, context).action).toBeUndefined();
+    expect(viewFor({ kind: 'connecting' }, context).actions).toBeUndefined();
   });
 
   it('shows the chip and the percentage while flashing, with no button', () => {
@@ -22,15 +22,36 @@ describe('viewFor', () => {
     expect(view).toEqual({ step: 'flash', message: 'Found ESP32', progress: 42 });
   });
 
-  it('says the board runs, then what to do next', () => {
-    const view = viewFor({ kind: 'running', chip: 'ESP32' }, { title: 'Blink', next: 'Open the monitor.' });
+  describe('once the board runs', () => {
+    const running = { kind: 'running', chip: 'ESP32', output: [] } as const;
 
-    expect(view.step).toBe('running');
-    expect(view.message).toBe('Your board is running Blink. Open the monitor.');
-  });
+    it('says it is done, that the board runs the project, then what to do next', () => {
+      const view = viewFor(running, { title: 'Blink', next: 'Watch the LED.' });
 
-  it('says only that the board runs when the project has no next step', () => {
-    expect(viewFor({ kind: 'running', chip: 'ESP32' }, context).message).toBe('Your board is running Blink.');
+      expect(view.step).toBe('running');
+      expect(view.message).toBe('Done. Your board is running Blink. Watch the LED.');
+    });
+
+    it('says only that the board runs when the project has no next step', () => {
+      expect(viewFor(running, context).message).toBe('Done. Your board is running Blink.');
+    });
+
+    it('offers Flash again, which retries, and Disconnect', () => {
+      expect(viewFor(running, context).actions).toEqual([
+        { label: 'Flash again', event: 'retry' },
+        { label: 'Disconnect', event: 'disconnect' },
+      ]);
+    });
+
+    it('labels the output with the baud rate and hands over the lines', () => {
+      const view = viewFor({ ...running, output: ['HIGH', 'LOW'] }, { ...context, baud: 9600 });
+
+      expect(view.output).toEqual({ label: 'Board output, 9600 baud', lines: ['HIGH', 'LOW'] });
+    });
+
+    it('shows no output for a project with no baud rate', () => {
+      expect(viewFor(running, context).output).toBeUndefined();
+    });
   });
 
   it.each([
@@ -65,7 +86,7 @@ describe('viewFor', () => {
       step: 'connect',
       message,
       notice: true,
-      action: { label, event: 'connect' },
+      actions: [{ label, event: 'connect' }],
     });
   });
 
@@ -83,7 +104,7 @@ describe('viewFor', () => {
     const view = viewFor({ kind: 'unsupported' }, { ...context, images, firmwareUrl: '/robomania/firmware/' });
 
     expect(view.message).toBe('This browser cannot reach a USB board. Open this page in Chrome or Edge on a computer.');
-    expect(view.action).toBeUndefined();
+    expect(view.actions).toBeUndefined();
     expect(view.links).toEqual([
       { label: 'esp32: blink.ino.bootloader.bin', href: '/robomania/firmware/blink/esp32/blink.ino.bootloader.bin' },
       { label: 'esp32: blink.ino.bin', href: '/robomania/firmware/blink/esp32/blink.ino.bin' },

@@ -6,7 +6,7 @@ interface Props {
   /** The project's `sketch` field, such as `sketches/blink`; the manifest names a sketch by its folder. */
   sketch: string;
   title: string;
-  /** Speed of the flashing; the flasher's default when absent. */
+  /** Speed the sketch prints at; absent for a sketch that prints nothing, which gets no board output. */
   baud?: number;
   /** What to do once the board runs. */
   next?: string;
@@ -43,7 +43,14 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
           </div>
           <span class="readout" data-percent />
         </div>
-        <button class="btn" type="button" data-action hidden />
+        <div class="output" data-output hidden>
+          <div class="output-label" data-output-label aria-hidden="true" />
+          <pre data-lines tabindex="0" role="group" />
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" data-action hidden />
+          <button class="btn ghost" type="button" data-action hidden />
+        </div>
         <ul class="links" data-links hidden />
         <noscript><p class="notice">Flashing from the browser needs JavaScript.</p></noscript>
       </div>
@@ -66,6 +73,11 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
   [data-message] { margin: 0 0 12px; }
   [data-message].notice { margin: 0 0 12px; }
   .links { margin: 0; padding-left: 20px; }
+  .output { margin: 0 0 12px; }
+  .output-label { font-size: 14px; font-weight: 700; color: var(--muted); margin: 0 0 6px; }
+  .output pre { margin: 0; min-height: calc(6 * 1.55em + 32px); font-family: var(--mono); }
+  .output pre:empty::before { content: "Waiting for the board to print."; opacity: .7; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; }
   .progress { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; }
   .track { flex: 1; height: 14px; border: var(--stroke); border-radius: 999px; background: var(--tint-blue); overflow: hidden; }
   .fill { height: 100%; width: 0; background: var(--blue); transition: width .15s; }
@@ -80,16 +92,19 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
   import { STEPS, viewFor } from './view';
 
   for (const card of document.querySelectorAll<HTMLElement>('[data-flash-card]')) {
-    const { sketch, title, next, baud } = card.dataset;
+    const { sketch, title, next, baud: baudText } = card.dataset;
+    const baud = baudText ? Number(baudText) : undefined;
     const manifest = JSON.parse(card.dataset.manifest!) as Manifest;
     const session = createSession({
-      flasher: createFlasher({ baudRate: baud ? Number(baud) : undefined }),
+      flasher: createFlasher(),
       manifest,
       sketch: sketch!,
+      baud,
     });
     const context = {
       title: title!,
       next,
+      baud,
       images: manifest.sketches[sketch!]!.images,
       firmwareUrl: href('/firmware/'),
     };
@@ -99,16 +114,21 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
     const track = progress.querySelector<HTMLElement>('[role="progressbar"]')!;
     const fill = progress.querySelector<HTMLElement>('[data-fill]')!;
     const percent = progress.querySelector<HTMLElement>('[data-percent]')!;
-    const action = card.querySelector<HTMLButtonElement>('[data-action]')!;
+    const output = card.querySelector<HTMLElement>('[data-output]')!;
+    const outputLabel = output.querySelector<HTMLElement>('[data-output-label]')!;
+    const lines = output.querySelector<HTMLElement>('[data-lines]')!;
+    const buttons = [...card.querySelectorAll<HTMLButtonElement>('[data-action]')];
     const links = card.querySelector<HTMLElement>('[data-links]')!;
     const steps = [...card.querySelectorAll<HTMLElement>('[data-step]')];
 
-    action.addEventListener('click', () => {
-      const event = action.dataset.event;
-      if (event === 'connect' || event === 'retry') {
-        void session.send({ type: event });
-      }
-    });
+    for (const button of buttons) {
+      button.addEventListener('click', () => {
+        const event = button.dataset.event;
+        if (event === 'connect' || event === 'retry' || event === 'disconnect') {
+          void session.send({ type: event });
+        }
+      });
+    }
 
     function render() {
       const view = viewFor(session.state, context);
@@ -130,13 +150,26 @@ const stepNames: Record<(typeof STEPS)[number], string> = { connect: 'Connect', 
         percent.textContent = `${view.progress}%`;
       }
 
-      // A hidden button cannot keep the focus, which would fall to the page; the status is the next thing to read.
-      if (!view.action && document.activeElement === action) message.focus();
-      action.hidden = !view.action;
-      if (view.action) {
-        action.textContent = view.action.label;
-        action.dataset.event = view.action.event;
+      // The output is not a live region: it changes with every line the board prints, and the status above says what
+      // the card is doing.
+      output.hidden = !view.output;
+      if (view.output) {
+        outputLabel.textContent = view.output.label;
+        lines.setAttribute('aria-label', view.output.label);
+        const text = view.output.lines.join('\n');
+        if (lines.textContent !== text) lines.textContent = text;
       }
+
+      buttons.forEach((button, index) => {
+        const action = view.actions?.[index];
+        // A hidden button cannot keep the focus, which would fall to the page; the status is the next thing to read.
+        if (!action && document.activeElement === button) message.focus();
+        button.hidden = !action;
+        if (action) {
+          button.textContent = action.label;
+          button.dataset.event = action.event;
+        }
+      });
 
       links.hidden = !view.links;
       links.replaceChildren(

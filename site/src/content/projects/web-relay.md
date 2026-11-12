@@ -6,6 +6,9 @@ level: beginner
 state: draft
 order: 5
 sketch: sketches/web-relay
+flash:
+  baud: 115200
+  next: "Join the web-relay WiFi hotspot with the password web-relay-1234, then open http://192.168.4.1 to set the lamp."
 topics: [web-server, esp-boards]
 ---
 

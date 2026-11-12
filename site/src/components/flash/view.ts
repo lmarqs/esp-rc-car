@@ -14,10 +14,24 @@ export interface View {
   progress?: number;
   /** Shows `message` as a notice, for a state that is not part of the happy path. */
   notice?: boolean;
-  /** The button the card shows, and the event it sends. */
-  action?: { label: string; event: SessionEvent['type'] };
+  /** The buttons the card shows, in order, each with the event it sends. */
+  actions?: ViewAction[];
+  /** The board's output, which the card shows in a terminal; absent for a sketch that prints nothing. */
+  output?: ViewOutput;
   /** The links the card shows instead of a button, for a visitor whose browser cannot flash. */
   links?: ViewLink[];
+}
+
+export interface ViewAction {
+  label: string;
+  event: SessionEvent['type'];
+}
+
+export interface ViewOutput {
+  /** Names the terminal, as `Board output, 9600 baud`. */
+  label: string;
+  /** The last lines the board printed, oldest first. */
+  lines: readonly string[];
 }
 
 export interface ViewLink {
@@ -30,6 +44,8 @@ export interface ViewContext {
   title: string;
   /** What to do next, shown once the board runs. */
   next?: string;
+  /** The speed the sketch prints at; the card shows the board's output when it is set. */
+  baud?: number;
   /** The images of the project's sketch, which a visitor whose browser cannot flash downloads. */
   images?: readonly ManifestImage[];
   /** Where the images' part paths are served from, ending in a slash. */
@@ -48,13 +64,13 @@ function imageLinks(images: readonly ManifestImage[], firmwareUrl: string): View
 }
 
 /** Maps what the session is doing to what the card shows. */
-export function viewFor(state: SessionState, { title, next, images, firmwareUrl }: ViewContext): View {
+export function viewFor(state: SessionState, { title, next, baud, images, firmwareUrl }: ViewContext): View {
   switch (state.kind) {
     case 'idle':
       return {
         step: 'connect',
         message: 'Plug the board in over USB. This replaces whatever is on the board.',
-        action: { label: 'Connect board', event: 'connect' },
+        actions: [{ label: 'Connect board', event: 'connect' }],
       };
     case 'connecting':
       return { step: 'connect', message: 'Connecting to the board.' };
@@ -68,8 +84,12 @@ export function viewFor(state: SessionState, { title, next, images, firmwareUrl 
     case 'running':
       return {
         step: 'running',
-        message: [`Your board is running ${title}.`, next].filter(Boolean).join(' '),
-        action: { label: 'Flash again', event: 'retry' },
+        message: ['Done.', `Your board is running ${title}.`, next].filter(Boolean).join(' '),
+        output: baud === undefined ? undefined : { label: `Board output, ${baud} baud`, lines: state.output },
+        actions: [
+          { label: 'Flash again', event: 'retry' },
+          { label: 'Disconnect', event: 'disconnect' },
+        ],
       };
     case 'unsupported':
       return {
@@ -107,5 +127,5 @@ export function viewFor(state: SessionState, { title, next, images, firmwareUrl 
 
 /** A failure: the message as a notice, and a button that connects to a board again. */
 function failure(message: string, label: string): View {
-  return { step: 'connect', message, notice: true, action: { label, event: 'connect' } };
+  return { step: 'connect', message, notice: true, actions: [{ label, event: 'connect' }] };
 }

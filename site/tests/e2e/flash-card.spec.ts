@@ -27,7 +27,7 @@ test.describe('a flashable project', () => {
 
     await expect(card(page).getByText('Your board is running Blink.')).toBeVisible();
     await expect(card(page).locator('[aria-current="step"]')).toHaveText('Running');
-    expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'write', 'reset']);
+    expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'write', 'reset', 'monitor 9600']);
   });
 
   test('offers no second flash while one is under way', async ({ page, fakeFlasher }) => {
@@ -77,9 +77,102 @@ test.describe('a flashable project', () => {
   });
 })
 
+test.describe('the Running step', () => {
+  const NEXT = 'Watch the LED on GPIO 2: it turns on for one second, then off, and the board prints HIGH and LOW as it changes.';
+  const output = (page: import('@playwright/test').Page) => card(page).getByLabel('Board output, 9600 baud');
+
+  test('says it is done, gives the next step and prints the lines the board sends', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ lines: ['HIGH', 'LOW', 'HIGH'] });
+    await page.goto('/robomania/projects/blink/');
+
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+
+    await expect(card(page).locator('[data-message]')).toHaveText(`Done. Your board is running Blink. ${NEXT}`);
+    await expect(output(page)).toHaveText('HIGH\nLOW\nHIGH');
+    await expect(output(page)).toHaveJSProperty('tagName', 'PRE');
+    await expect(card(page).getByRole('button')).toHaveText(['Flash again', 'Disconnect']);
+    expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'write', 'reset', 'monitor 9600']);
+  });
+
+  test('shows the last 6 lines', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ lines: ['1', '2', '3', '4', '5', '6', '7', '8'] });
+    await page.goto('/robomania/projects/blink/');
+
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+
+    await expect(output(page)).toHaveText('3\n4\n5\n6\n7\n8');
+  });
+
+  test('keeps the output out of a live region and announces the status once', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ lines: ['HIGH', 'LOW', 'HIGH'] });
+    await page.goto('/robomania/projects/blink/');
+    await page.evaluate(() => {
+      const added: string[] = [];
+      (window as unknown as { __messages: string[] }).__messages = added;
+      new MutationObserver((records) => {
+        for (const record of records) record.addedNodes.forEach((node) => added.push(node.textContent ?? ''));
+      }).observe(document.querySelector('[data-message]')!, { childList: true });
+    });
+
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+    await expect(output(page)).toHaveText('HIGH\nLOW\nHIGH');
+
+    expect(await output(page).evaluate((pre) => pre.closest('[aria-live], [role="log"], [role="status"]'))).toBeNull();
+    const messages = await page.evaluate(() => (window as unknown as { __messages: string[] }).__messages);
+    expect(messages.filter((message) => message.startsWith('Done.'))).toHaveLength(1);
+  });
+
+  test('Disconnect releases the port and returns to Connect', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ lines: ['HIGH'] });
+    await page.goto('/robomania/projects/blink/');
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+    await expect(output(page)).toHaveText('HIGH');
+
+    await card(page).getByRole('button', { name: 'Disconnect' }).click();
+
+    await expect(card(page).getByRole('button', { name: 'Connect board' })).toBeVisible();
+    await expect(card(page).locator('[aria-current="step"]')).toHaveText('Connect');
+    await expect(output(page)).toBeHidden();
+    expect((await fakeFlasher.calls()).at(-1)).toBe('disconnect');
+  });
+
+  test('Flash again returns to Connect, and the next flash prints its own lines', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ lines: ['HIGH'] });
+    await page.goto('/robomania/projects/blink/');
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+    await expect(output(page)).toHaveText('HIGH');
+
+    await card(page).getByRole('button', { name: 'Flash again' }).click();
+    await expect(output(page)).toBeHidden();
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+
+    await expect(output(page)).toHaveText('HIGH');
+    expect(await fakeFlasher.calls()).toEqual([
+      'connect', 'load', 'write', 'reset', 'monitor 9600',
+      'disconnect',
+      'connect', 'load', 'write', 'reset', 'monitor 9600',
+    ]);
+  });
+
+  test('a sketch with no baud rate shows no terminal and starts no monitor', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ lines: ['never read'] });
+    await page.goto('/robomania/projects/servo/');
+
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+
+    await expect(card(page).locator('[data-message]')).toHaveText(
+      "Done. Your board is running Servo. Connect the servo's signal wire to GPIO 13. It sweeps from 0° to 180° and back, about 2.7 seconds each way.",
+    );
+    await expect(card(page).getByLabel(/Board output/)).toBeHidden();
+    await expect(card(page).locator('pre')).toBeHidden();
+    await expect(card(page).getByRole('button')).toHaveText(['Flash again', 'Disconnect']);
+    expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'write', 'reset']);
+  });
+});
+
 test.describe('a failure', () => {
   const RUNNING = 'Your board is running Blink.';
-  const connectCalls = ['connect', 'disconnect', 'connect', 'load', 'write', 'reset'];
+  const connectCalls = ['connect', 'disconnect', 'connect', 'load', 'write', 'reset', 'monitor 9600'];
 
   test('noPort: asks to plug the board in, and the button connects again', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ failFirst: { connect: 'NotFoundError' } });
@@ -133,7 +226,7 @@ test.describe('a failure', () => {
     await expect(card(page).locator('.notice')).toHaveText('This board is an ESP8266. Blink has images for: ESP32.');
     await card(page).getByRole('button', { name: 'Connect another board' }).click();
     await expect(card(page).getByText(RUNNING)).toBeVisible();
-    expect(await fakeFlasher.calls()).toEqual(['connect', 'disconnect', 'connect', 'load', 'write', 'reset']);
+    expect(await fakeFlasher.calls()).toEqual(['connect', 'disconnect', 'connect', 'load', 'write', 'reset', 'monitor 9600']);
   });
 
   test('noDownload: blames the connection, and the button connects again', async ({ page, fakeFlasher }) => {
@@ -147,7 +240,7 @@ test.describe('a failure', () => {
     );
     await card(page).getByRole('button', { name: 'Flash again' }).click();
     await expect(card(page).getByText(RUNNING)).toBeVisible();
-    expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'disconnect', 'connect', 'load', 'write', 'reset']);
+    expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'disconnect', 'connect', 'load', 'write', 'reset', 'monitor 9600']);
   });
 
   test('dropped: says how far the flashing got, and the button flashes again', async ({ page, fakeFlasher }) => {
@@ -161,7 +254,7 @@ test.describe('a failure', () => {
     );
     await card(page).getByRole('button', { name: 'Flash again' }).click();
     await expect(card(page).getByText(RUNNING)).toBeVisible();
-    expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'write', 'disconnect', 'connect', 'load', 'write', 'reset']);
+    expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'write', 'disconnect', 'connect', 'load', 'write', 'reset', 'monitor 9600']);
   });
 
   test('unsupported: shows at page load with links to the images and to the build-it-yourself section', async ({ page }) => {

@@ -6,6 +6,9 @@ level: advanced
 state: draft
 order: 6
 sketch: sketches/balance-beam
+flash:
+  baud: 115200
+  next: "Join the balance-beam WiFi hotspot with the password thebalancebot, then open http://192.168.4.1. The motors stay off until you set the throttle band in local.h and build the sketch yourself."
 topics: [pid, brushless-and-esc, imu, dual-core]
 ---
 

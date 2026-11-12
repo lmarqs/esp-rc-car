@@ -6,6 +6,8 @@ level: beginner
 state: draft
 order: 2
 sketch: sketches/servo
+flash:
+  next: "Connect the servo's signal wire to GPIO 13. It sweeps from 0° to 180° and back, about 2.7 seconds each way."
 example: servo
 topics: [servo, pwm]
 ---
