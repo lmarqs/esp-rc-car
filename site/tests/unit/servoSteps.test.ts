@@ -201,6 +201,13 @@ describe('the four steps', () => {
     expect(speed.kind === 'slider' && speed.command(10)).toBe('speed 10');
   });
 
+  it('points each slider at the board variable it shows: the angle, the target on speed, and the speed', () => {
+    const follows = (step: ServoStep) => step.shortcuts.map((shortcut) => (shortcut.kind === 'slider' ? shortcut.follows : 'chip'));
+    expect(follows(servoAngle)).toEqual(['angle']);
+    expect(follows(servoCommands)).toEqual(['chip', 'chip', 'angle']);
+    expect(follows(servoSpeed)).toEqual(['chip', 'chip', 'target', 'speed']);
+  });
+
   it.each(servoSteps)('$key has a hint of one or two sentences', (step) => {
     expect(step.hint.match(/[.!?](\s|$)/g)?.length).toBeLessThanOrEqual(2);
     expect(step.hint.endsWith('.')).toBe(true);

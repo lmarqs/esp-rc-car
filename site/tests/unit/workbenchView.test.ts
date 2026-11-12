@@ -14,6 +14,7 @@ import {
   fileName,
   serialRows,
   SERIAL_LINES,
+  followedSliderValue,
 } from '../../src/components/workbench/view';
 import { viewFor } from '../../src/components/flash/view';
 import type { SessionState } from '../../src/lib/flash/session';
@@ -290,5 +291,21 @@ describe('liveClockFace', () => {
 describe('notSent', () => {
   it('names the line the board did not get and says what to do', () => {
     expect(notSent('500')).toBe('The board did not get 500. Check that it is still plugged in, then send it again.');
+  });
+});
+
+describe('followedSliderValue', () => {
+  const slider = { follows: 'speed', min: 1, max: 360 };
+
+  it('is the board variable when it is a number in the slider range', () => {
+    expect(followedSliderValue(slider, '10')).toBe(10);
+    expect(followedSliderValue(slider, '360')).toBe(360);
+  });
+
+  it('is nothing while the variable is unknown, out of range, or for a slider that follows nothing', () => {
+    expect(followedSliderValue(slider, undefined)).toBeUndefined();
+    expect(followedSliderValue(slider, '0')).toBeUndefined();
+    expect(followedSliderValue(slider, 'x')).toBeUndefined();
+    expect(followedSliderValue({ min: 1, max: 360 }, '10')).toBeUndefined();
   });
 });

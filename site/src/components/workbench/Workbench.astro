@@ -511,6 +511,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     boardMessage,
     boardStatusText,
     changedRows,
+    followedSliderValue,
     CLOCK_DASH,
     clockFace,
     liveClockFace,
@@ -713,6 +714,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       const shown = mode === 'simulator' ? undefined : followed;
       const shownBoard = shown?.board ?? board;
       paintPicture(project!.board.picture(step.key, shownBoard));
+      followSliders(shownBoard);
       // A real board's clock is unknown: it prints no time.
       const rows = project!.board.watch(step.key, shownBoard, shown === undefined ? view.millis : undefined);
       for (const [name, element] of watchRows) {
@@ -782,6 +784,23 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       for (const [name, value] of Object.entries(shown.values)) picture.style.setProperty(`--${name}`, String(value));
       if (shown.label !== undefined && picture.getAttribute('aria-label') !== shown.label) {
         picture.setAttribute('aria-label', shown.label);
+      }
+    }
+
+    /**
+     * Sets each slider of the step that follows a board variable to the variable's value, once known, so it reads the
+     * last value sent or reported. A slider the visitor holds, or whose line is still to go out, keeps its place.
+     */
+    function followSliders(shownBoard: unknown) {
+      if (commandLine.hasAttribute('data-typing')) return;
+      for (const slider of sliders) {
+        if (slider === pressedSlider || slider.closest<HTMLElement>('[data-for-step]')!.hidden) continue;
+        const shortcut = shortcutOf(slider);
+        if (shortcut?.kind !== 'slider' || shortcut.follows === undefined) continue;
+        const value = followedSliderValue(shortcut, project!.board.variable(shownBoard, shortcut.follows));
+        if (value === undefined || slider.value === String(value)) continue;
+        slider.value = String(value);
+        slider.nextElementSibling!.textContent = slider.value;
       }
     }
 
@@ -883,6 +902,10 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     // Whether the line the typist holds came from a slider, which a further move of a slider replaces.
     let heldBySlider = false;
     const sliders = [...root.querySelectorAll<HTMLInputElement>('input[type="range"][data-shortcut]')];
+    // The slider under the visitor's pointer, which no value from the board moves.
+    let pressedSlider: HTMLInputElement | undefined;
+    for (const slider of sliders) slider.addEventListener('pointerdown', () => (pressedSlider = slider));
+    for (const done of ['pointerup', 'pointercancel']) window.addEventListener(done, () => (pressedSlider = undefined));
     function shortcutOf(control: HTMLElement) {
       const stepIndex = Number(control.closest<HTMLElement>('[data-for-step]')!.dataset.forStep);
       const step = project!.steps.find((candidate) => candidate.key === steps[stepIndex].key);

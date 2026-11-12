@@ -4,6 +4,7 @@ import type { OutputLine, RunnerView, RunStatus } from '../../lib/workbench/simu
 import { sketchSourcePath } from '../../lib/workbench/source';
 import { wording, type SessionState } from '../../lib/flash';
 import type { BoardStatus, PaneMode } from '../../lib/workbench/link';
+import type { SliderShortcut } from '../../lib/workbench/step';
 
 /** How many lines of serial output the terminal shows, the newest at the bottom. */
 export const SERIAL_LINES = 6;
@@ -158,6 +159,16 @@ export function toolbar(mode: PaneMode, status: RunStatus, error: unknown, slow:
     case 'other':
       return { paused: false, label: 'Pause', canContinue: false, canStep: false, canRestart: false, canSlow: false, slow: false };
   }
+}
+
+/**
+ * The value a slider that follows a board variable shows: `known`, the variable as the board model gives it, when it
+ * is a number within the slider's range; `undefined` while it is unknown, or for a slider that follows nothing.
+ */
+export function followedSliderValue(slider: Pick<SliderShortcut, 'follows' | 'min' | 'max'>, known: string | undefined): number | undefined {
+  if (slider.follows === undefined || known === undefined) return undefined;
+  const value = Number(known);
+  return Number.isFinite(value) && value >= slider.min && value <= slider.max ? value : undefined;
 }
 
 /** What the board pane says when the port refused a line the visitor sent to the board, and what to do. */

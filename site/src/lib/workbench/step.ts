@@ -15,6 +15,11 @@ export interface SliderShortcut {
   readonly max: number;
   readonly step: number;
   readonly initial: number;
+  /**
+   * The variable of the board the slider shows once the board's value is known, such as `speed`, so it reads the
+   * last value sent or reported rather than the one it was left at; absent on a slider that keeps its own value.
+   */
+  readonly follows?: string;
   command(value: number): string;
 }
 

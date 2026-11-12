@@ -385,8 +385,19 @@ function replies(reply: (sent: string) => string | undefined): Pick<ServoStep, '
   };
 }
 
-function angleSlider(command: (degrees: number) => string): SliderShortcut {
-  return { kind: 'slider', label: 'angle', unit: 'degrees', min: 0, max: MAX_ANGLE, step: 1, initial: SETUP_ANGLE, command };
+/** The angle slider, which shows `follows`: the angle the servo holds, or on `speed` the target it moves toward. */
+function angleSlider(follows: 'angle' | 'target', command: (degrees: number) => string): SliderShortcut {
+  return {
+    kind: 'slider',
+    label: 'angle',
+    unit: 'degrees',
+    min: 0,
+    max: MAX_ANGLE,
+    step: 1,
+    initial: SETUP_ANGLE,
+    follows,
+    command,
+  };
 }
 
 const speedSlider: SliderShortcut = {
@@ -397,6 +408,7 @@ const speedSlider: SliderShortcut = {
   max: MAX_SPEED,
   step: 1,
   initial: DEFAULT_SPEED,
+  follows: 'speed',
   command: (degreesPerSecond) => `speed ${degreesPerSecond}`,
 };
 
@@ -419,7 +431,7 @@ export const servoAngle: ServoStep = {
   key: 'servo/angle',
   sketch: 'sketches/servo/angle',
   program: angle,
-  shortcuts: [angleSlider((degrees) => String(degrees))],
+  shortcuts: [angleSlider('angle', (degrees) => String(degrees))],
   placeholder: 'a number, then Enter',
   hint: 'Send a number from 0 to 180 and the horn turns to it. Any other line gets an error reply, and the horn stays where it is.',
   parse: parseServoLine,
@@ -430,7 +442,7 @@ export const servoCommands: ServoStep = {
   key: 'servo/commands',
   sketch: 'sketches/servo/commands',
   program: commands,
-  shortcuts: [...commandChips, angleSlider((degrees) => `angle ${degrees}`)],
+  shortcuts: [...commandChips, angleSlider('angle', (degrees) => `angle ${degrees}`)],
   placeholder: 'a command, then Enter',
   hint: 'Send angle 45, sweep or stop: with no delay(), the board reads a command even in the middle of a sweep. Any other line gets error unknown command.',
   live: { name: 'angle', value: (state) => String(state.angle) } satisfies LiveValue<ServoState>,
@@ -442,7 +454,7 @@ export const servoSpeed: ServoStep = {
   key: 'servo/speed',
   sketch: 'sketches/servo/speed',
   program: speed,
-  shortcuts: [...commandChips, angleSlider((degrees) => `angle ${degrees}`), speedSlider],
+  shortcuts: [...commandChips, angleSlider('target', (degrees) => `angle ${degrees}`), speedSlider],
   placeholder: 'a command, then Enter',
   hint: 'The horn now moves one degree at a time toward the target, at the speed you set with speed 1 to 360. The dashed horn is the target, and the solid one is where the sketch estimates the servo is.',
   live: { name: 'speed', value: (state) => String(state.speed) } satisfies LiveValue<ServoState>,

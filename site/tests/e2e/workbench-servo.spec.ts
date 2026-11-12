@@ -230,6 +230,27 @@ test.describe('the Servo workbench', () => {
     await expect(watchValue(page, 'speed')).toHaveText('10 °/s');
   });
 
+  test('moves each slider to the value last sent or reported, not the one it was left at', async ({ page }) => {
+    await page.goto(SERVO);
+    await tab(page, '2 angle').click();
+    await fullSpeed(page);
+    await send(page, '120');
+    await expect(slider(page, 'angle in degrees')).toHaveValue('120');
+    await expect(shortcutRow(page).locator('output')).toHaveText('120');
+    // An error leaves the servo, and so the slider, where it was.
+    await send(page, 'abc');
+    await expect(serial(page)).toHaveText(/error angle must be 0-180$/);
+    await expect(slider(page, 'angle in degrees')).toHaveValue('120');
+
+    // Slow stays off across the tab pick.
+    await tab(page, '4 speed').click();
+    await expect(slider(page, 'angle in degrees')).toHaveValue('90');
+    await send(page, 'speed 10');
+    await send(page, 'angle 150');
+    await expect(slider(page, 'speed in degrees a second')).toHaveValue('10');
+    await expect(slider(page, 'angle in degrees')).toHaveValue('150');
+  });
+
   test('on speed, shows the target as a dashed horn and the estimate as the solid one while it moves', async ({ page }) => {
     await page.goto(SERVO);
     await tab(page, '4 speed').click();
@@ -325,6 +346,7 @@ test.describe('the Servo workbench, live', () => {
     await expect(serial(page)).toHaveText('sketch servo/angle\nangle 120');
     expect(await horn(page)).toBe('120');
     await expect(watchValue(page, 'angle')).toHaveText('120°');
+    await expect(slider(page, 'angle in degrees')).toHaveValue('120');
     await expect.poll(() => levelNow(page)).toBe(Number((LOW_Y - (120 / 180) * (LOW_Y - HIGH_Y)).toFixed(1)));
     // No printed line pins the board to one source line.
     await expect(runningRow(page)).toHaveCount(0);
@@ -340,6 +362,7 @@ test.describe('the Servo workbench, live', () => {
     await expect.poll(() => fakeFlasher.calls()).toContain('send 45');
     await fakeFlasher.print('angle 45');
     await expect(watchValue(page, 'angle')).toHaveText('45°');
+    await expect(slider(page, 'angle in degrees')).toHaveValue('45');
     expect(await horn(page)).toBe('45');
     await expect(bench(page).locator('[data-hint]:visible')).toContainText('Send a number from 0 to 180');
   });
