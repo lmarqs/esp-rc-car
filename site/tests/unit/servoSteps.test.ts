@@ -481,13 +481,27 @@ describe('servo/speed', () => {
     expect(state).toMatchObject({ angle: 95, target: 95, speed: 10, sweeping: false });
   });
 
-  it('moves every 1000 / speed ms in integer division: 2 ms at 360, 16 ms at the 60 it starts with', () => {
+  it('moves every 1000000 / speed µs in integer division: 2777 µs at 360, 16666 µs at the 60 it starts with', () => {
+    /** The microsecond each line of `printed` from `target` on went out, counted from `target`'s. */
+    const micros = (printed: readonly { at: number; text: string }[], target: string) => {
+      const from = printed.findIndex((line) => line.text === target);
+      return printed.slice(from).map((line) => `${Math.round((line.at - printed[from].at) * 1000)} ${line.text}`);
+    };
     const fast = run([[1000, 'speed 360'], [1000, 'angle 93']], 2000).printed;
-    const at = fast.find((line) => line.text === 'target 93')!.at;
-    expect(afterName(fast).slice(-3)).toEqual([`${at} angle 91`, `${at + 2} angle 92`, `${at + 4} angle 93`]);
+    expect(micros(fast, 'target 93')).toEqual(['0 target 93', '0 angle 91', '2777 angle 92', '5554 angle 93']);
     const usual = run([[1000, 'angle 88']], 2000).printed;
-    const from = usual.find((line) => line.text === 'target 88')!.at;
-    expect(afterName(usual).slice(-2)).toEqual([`${from} angle 89`, `${from + 16} angle 88`]);
+    expect(micros(usual, 'target 88')).toEqual(['0 target 88', '0 angle 89', '16666 angle 88']);
+  });
+
+  it('keeps its speed within 0.1% of the speed asked, 360 included', () => {
+    for (const speed of [1, 7, 60, 270, 360]) {
+      const { printed } = run([[1000, `speed ${speed}`], [1000, 'sweep']], 1000 + 2 * (180 * 1000) / speed);
+      const moves = printed.filter((line) => line.text.startsWith('angle ') && line.at >= 1000);
+      const first = moves[1];
+      const last = moves.at(-1)!;
+      const rate = ((moves.length - 2) * 1000) / (last.at - first.at);
+      expect(Math.abs(rate - speed) / speed).toBeLessThan(0.001);
+    }
   });
 
   it('sweeps at the set speed toward 180, then turns toward 0, and stop makes the estimate the target', () => {

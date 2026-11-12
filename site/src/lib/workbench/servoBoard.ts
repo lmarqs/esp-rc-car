@@ -20,7 +20,7 @@ export interface ServoBoard {
 /** The watch panel's rows, in order; each step shows the ones it has. */
 export const SERVO_WATCH_FIELDS = ['angle', 'target', 'speed', 'sweeping', 'millis()'] as const;
 
-/** The steps that keep a target and a speed, and those that sweep on command and read `millis()`. */
+/** The steps that keep a target and a speed, and those that sweep on command and watch the clock. */
 const SPEED_STEPS = new Set(['servo/speed']);
 const COMMAND_STEPS = new Set(['servo/commands', 'servo/speed']);
 
@@ -107,7 +107,8 @@ const degrees = (value: number | undefined): string => (value === undefined ? '�
 
 /**
  * The watch panel for `step`: the angle on every step, the target and speed on `speed`, and whether it sweeps and
- * `millis()` on the two steps that sweep on command. `millis` is `undefined` when the clock is unknown.
+ * `millis()` on the two steps that sweep on command, in whole milliseconds as the board counts them. `millis` is
+ * `undefined` when the clock is unknown.
  */
 export function servoWatch(step: string, board: ServoBoard, millis: number | undefined): WatchRow[] {
   const rows: WatchRow[] = [{ name: 'angle', value: degrees(board.angle) }];
@@ -117,7 +118,7 @@ export function servoWatch(step: string, board: ServoBoard, millis: number | und
   }
   if (COMMAND_STEPS.has(step)) {
     rows.push({ name: 'sweeping', value: board.sweeping === undefined ? '…' : String(board.sweeping) });
-    rows.push({ name: 'millis()', value: millis === undefined ? '…' : String(millis) });
+    rows.push({ name: 'millis()', value: millis === undefined ? '…' : String(Math.floor(millis)) });
   }
   return rows;
 }

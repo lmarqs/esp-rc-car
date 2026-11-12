@@ -15,7 +15,7 @@ export interface ServoState {
   step: number;
   /** The `millis()` of `commands`' last sweep step. */
   lastStep: number;
-  /** The `millis()` of `speed`'s last move. */
+  /** The `micros()` of `speed`'s last move. */
   lastMove: number;
 }
 
@@ -257,8 +257,11 @@ const commands: Sketch<ServoState> = {
   },
 };
 
-/** `speed`'s move interval: `1000 / speed` in integer division. */
-const moveInterval = (state: ServoState): number => Math.trunc(1000 / state.speed);
+/** `speed`'s move interval in microseconds: `1000000UL / speed` in integer division. */
+const moveInterval = (state: ServoState): number => Math.trunc(1_000_000 / state.speed);
+
+/** The board's `micros()`, rounded so the sum of fractional line costs lands on the microsecond a move fell due. */
+const micros = (board: Board<ServoState>): number => Math.round(board.millis() * 1000);
 
 const speed: Sketch<ServoState> = {
   init: initialState,
@@ -269,7 +272,7 @@ const speed: Sketch<ServoState> = {
     yield* writeKept(board, state.angle);
     // A sweep that reached its end turns at once, so it has a move due too.
     const moving = (s: ServoState) => s.angle !== s.target || s.sweeping;
-    const cost = passCost(board, (s) => (moving(s) ? s.lastMove + moveInterval(s) : undefined));
+    const cost = passCost(board, (s) => (moving(s) ? (s.lastMove + moveInterval(s)) / 1000 : undefined));
     const sweepEnd = () => (state.target = state.angle === MAX_ANGLE ? 0 : MAX_ANGLE);
     for (;;) {
       yield* readCommands(board, cost, function* (line) {
@@ -319,9 +322,9 @@ const speed: Sketch<ServoState> = {
       if (state.sweeping && state.angle === state.target) {
         yield op(nth('target = angle == 180 ? 0 : 180;', 2), sweepEnd);
       }
-      yield op('if (angle != target && millis() - lastMove >= 1000 / speed) {');
-      if (state.angle === state.target || board.millis() - state.lastMove < moveInterval(state)) continue;
-      yield op('lastMove = millis();', () => (state.lastMove = board.millis()));
+      yield op('if (angle != target && micros() - lastMove >= 1000000UL / speed) {');
+      if (state.angle === state.target || micros(board) - state.lastMove < moveInterval(state)) continue;
+      yield op('lastMove = micros();', () => (state.lastMove = micros(board)));
       yield op('writeAngle(angle + (target > angle ? 1 : -1));');
       yield* writeKept(board, state.angle + (state.target > state.angle ? 1 : -1));
     }

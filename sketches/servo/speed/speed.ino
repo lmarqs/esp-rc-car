@@ -83,8 +83,8 @@ void loop() {
   if (sweeping && angle == target) {
     target = angle == 180 ? 0 : 180;
   }
-  if (angle != target && millis() - lastMove >= 1000 / speed) {
-    lastMove = millis();
+  if (angle != target && micros() - lastMove >= 1000000UL / speed) {
+    lastMove = micros();
     writeAngle(angle + (target > angle ? 1 : -1));
   }
 }

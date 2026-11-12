@@ -172,6 +172,10 @@ describe('the watch', () => {
     expect(rows('servo/speed')).toEqual(['angle 91°', 'target 95°', 'speed 10 °/s', 'sweeping false', 'millis() 1234']);
   });
 
+  it('shows the clock in whole milliseconds, as millis() counts them', () => {
+    expect(servoWatch('servo/speed', board, 1002.777).at(-1)).toEqual({ name: 'millis()', value: '1002' });
+  });
+
   it('shows what it does not know as …', () => {
     const rows = servoWatch('servo/speed', followServo('servo/speed'), undefined).map(({ value }) => value);
     expect(rows).toEqual(['…', '…', '…', '…', '…']);

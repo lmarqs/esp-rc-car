@@ -73,6 +73,6 @@ An `angle` that is out of range prints `error angle must be 0-180`; any other li
   servo that takes 544 µs to 2400 µs, or pass the range to the step's `PositionalServo` constructor.
 - A continuous-rotation servo spins back and forth at changing speed instead of sweeping, since the pulse width sets
   its speed, not its angle.
-- `servo/speed` spaces its moves by 1000 ÷ speed ms in whole milliseconds, so a speed that does not divide 1000 runs
-  faster than asked: 360 runs at 500 degrees per second. The sketch estimates the angle; it does not read the servo,
-  and a real servo that cannot turn as fast as the target moves falls behind that estimate.
+- `servo/speed` estimates the angle; it does not read the servo, and a real servo that cannot turn as fast as the
+  target moves falls behind that estimate. The estimate spaces its moves by 1000000 ÷ speed µs in whole
+  microseconds, within 0.1% of the speed asked.
