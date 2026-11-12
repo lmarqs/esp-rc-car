@@ -3,7 +3,7 @@ export type ChipFamily = 'ESP32' | 'ESP32-C3' | 'ESP8266';
 
 /** One file of an image, written at `offset` bytes into the flash. */
 export interface ManifestPart {
-  /** Path under `firmware/`, such as `blink/bluepad32/blink.ino.bin`. */
+  /** Path under `firmware/`, such as `blink/simple/bluepad32/simple.ino.bin`. */
   path: string;
   offset: number;
 }

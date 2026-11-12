@@ -19,7 +19,7 @@ From the repository's root:
 ```sh
 mise install
 mise run '*:setup'
-mise run arduino:compile sketches/blink
+mise run arduino:compile sketches/blink/simple
 ```
 
 `mise install` fetches the tools. `mise run '*:setup'` installs what they need: the Python package the ESP32
@@ -33,10 +33,10 @@ computer, with none of these tools. To flash from your own machine, connect the 
 port:
 
 ```sh
-mise run arduino:run sketches/blink --port /dev/ttyUSB0 --monitor
+mise run arduino:run sketches/blink/simple --port /dev/ttyUSB0 --monitor --baudrate 115200
 ```
 
-The task compiles and uploads; `--monitor` then opens the serial monitor at 9600 baud. Your user needs read and
+The task compiles and uploads; `--monitor` then opens the serial monitor at the `--baudrate` you give, 9600 by default. Your user needs read and
 write access to the port: on Debian and Ubuntu, membership in the `dialout` group.
 
 ## Build this website

@@ -27,7 +27,7 @@ test.describe('a flashable project', () => {
 
     await expect(card(page).getByText('Your board is running Blink.')).toBeVisible();
     await expect(card(page).locator('[aria-current="step"]')).toHaveText('Running');
-    expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'write', 'reset', 'monitor 9600']);
+    expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'write', 'reset', 'monitor 115200']);
   });
 
   test('offers no second flash while one is under way', async ({ page, fakeFlasher }) => {
@@ -79,7 +79,7 @@ test.describe('a flashable project', () => {
 
 test.describe('the Running step', () => {
   const NEXT = 'Watch the LED on GPIO 2: it turns on for one second, then off, and the board prints HIGH and LOW as it changes.';
-  const output = (page: import('@playwright/test').Page) => card(page).getByLabel('Board output, 9600 baud');
+  const output = (page: import('@playwright/test').Page) => card(page).getByLabel('Board output, 115200 baud');
 
   test('says it is done, gives the next step and prints the lines the board sends', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['HIGH', 'LOW', 'HIGH'] });
@@ -91,7 +91,7 @@ test.describe('the Running step', () => {
     await expect(output(page)).toHaveText('HIGH\nLOW\nHIGH');
     await expect(output(page)).toHaveJSProperty('tagName', 'PRE');
     await expect(card(page).getByRole('button')).toHaveText(['Flash again', 'Disconnect']);
-    expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'write', 'reset', 'monitor 9600']);
+    expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'write', 'reset', 'monitor 115200']);
   });
 
   test('shows the last 6 lines', async ({ page, fakeFlasher }) => {
@@ -181,9 +181,9 @@ test.describe('the Running step', () => {
     await expect(card(page).locator('[data-message]')).toContainText('Done. Your board is running Blink.');
     await expect(output(page)).toHaveText('HIGH');
     expect(await fakeFlasher.calls()).toEqual([
-      'connect', 'load', 'write', 'reset', 'monitor 9600',
+      'connect', 'load', 'write', 'reset', 'monitor 115200',
       'disconnect',
-      'connect', 'load', 'write', 'reset', 'monitor 9600',
+      'connect', 'load', 'write', 'reset', 'monitor 115200',
     ]);
   });
 
@@ -201,9 +201,9 @@ test.describe('the Running step', () => {
     await expect(card(page).locator('[data-message]')).toContainText('Done. Your board is running Blink.');
     await expect(output(page)).toHaveText('HIGH');
     expect(await fakeFlasher.calls()).toEqual([
-      'connect', 'load', 'write', 'reset', 'monitor 9600',
+      'connect', 'load', 'write', 'reset', 'monitor 115200',
       'disconnect',
-      'connect', 'load', 'write', 'reset', 'monitor 9600',
+      'connect', 'load', 'write', 'reset', 'monitor 115200',
     ]);
   });
 
@@ -225,7 +225,7 @@ test.describe('the Running step', () => {
 
 test.describe('a failure', () => {
   const RUNNING = 'Your board is running Blink.';
-  const connectCalls = ['connect', 'disconnect', 'connect', 'load', 'write', 'reset', 'monitor 9600'];
+  const connectCalls = ['connect', 'disconnect', 'connect', 'load', 'write', 'reset', 'monitor 115200'];
 
   test('noPort: asks to plug the board in, and the button connects again', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ failFirst: { connect: 'NotFoundError' } });
@@ -279,7 +279,7 @@ test.describe('a failure', () => {
     await expect(card(page).locator('.notice')).toHaveText('This board is an ESP8266. Blink has images for: ESP32.');
     await card(page).getByRole('button', { name: 'Connect another board' }).click();
     await expect(card(page).getByText(RUNNING)).toBeVisible();
-    expect(await fakeFlasher.calls()).toEqual(['connect', 'disconnect', 'connect', 'load', 'write', 'reset', 'monitor 9600']);
+    expect(await fakeFlasher.calls()).toEqual(['connect', 'disconnect', 'connect', 'load', 'write', 'reset', 'monitor 115200']);
   });
 
   test('noDownload: blames the connection, and the button connects again', async ({ page, fakeFlasher }) => {
@@ -293,7 +293,7 @@ test.describe('a failure', () => {
     );
     await card(page).getByRole('button', { name: 'Flash again' }).click();
     await expect(card(page).getByText(RUNNING)).toBeVisible();
-    expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'disconnect', 'connect', 'load', 'write', 'reset', 'monitor 9600']);
+    expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'disconnect', 'connect', 'load', 'write', 'reset', 'monitor 115200']);
   });
 
   test('dropped: says how far the flashing got, and the button flashes again', async ({ page, fakeFlasher }) => {
@@ -307,7 +307,7 @@ test.describe('a failure', () => {
     );
     await card(page).getByRole('button', { name: 'Flash again' }).click();
     await expect(card(page).getByText(RUNNING)).toBeVisible();
-    expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'write', 'disconnect', 'connect', 'load', 'write', 'reset', 'monitor 9600']);
+    expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'write', 'disconnect', 'connect', 'load', 'write', 'reset', 'monitor 115200']);
   });
 
   test('unsupported: shows at page load with links to the images and to the build-it-yourself section', async ({ page }) => {
@@ -321,16 +321,16 @@ test.describe('a failure', () => {
     );
     await expect(card(page).getByRole('button')).toHaveCount(0);
     await expect(card(page).getByRole('link')).toHaveText([
-      'esp32: blink.ino.bootloader.bin at 0x1000',
-      'esp32: blink.ino.bin at 0x10000',
+      'esp32: simple.ino.bootloader.bin at 0x1000',
+      'esp32: simple.ino.bin at 0x10000',
       'Run it on your board',
     ]);
     const hrefs = await card(page)
       .getByRole('link')
       .evaluateAll((links) => links.map((link) => link.getAttribute('href')));
     expect(hrefs).toEqual([
-      '/robomania/firmware/blink/esp32/blink.ino.bootloader.bin',
-      '/robomania/firmware/blink/esp32/blink.ino.bin',
+      '/robomania/firmware/blink/simple/esp32/simple.ino.bootloader.bin',
+      '/robomania/firmware/blink/simple/esp32/simple.ino.bin',
       '#run-it-on-your-board',
     ]);
   });

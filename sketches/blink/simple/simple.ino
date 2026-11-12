@@ -4,7 +4,9 @@
 DigitalOutPin led(2);
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
+  Serial.println();
+  Serial.println("sketch blink/simple");
   led.begin();
 }
 

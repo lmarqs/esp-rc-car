@@ -3,7 +3,7 @@
 Firmware for a 1:10 RC car run by an ESP32, built with arduino-cli on the
 [Bluepad32](https://github.com/ricardoquesada/bluepad32) ESP32 core. The repository holds a library of drivers in
 `lib/` and the sketches that use it in `sketches/`. The car's own sketch is not written yet;
-[docs/sketches](docs/sketches/README.md) says what each sketch does, and `sketches/blink` proves the toolchain works.
+[docs/sketches](docs/sketches/README.md) says what each sketch does, and `sketches/blink/simple` proves the toolchain works.
 Two sketches run on other boards, each on the core its `sketch.yaml` pins: `sketches/web-relay` on an ESP-01S and
 `sketches/usb-key` on a Digispark ATtiny85.
 
@@ -18,7 +18,7 @@ Python, uv and clang-format. From the repository root:
 ```sh
 mise install
 mise run '*:setup'
-mise run arduino:compile sketches/blink
+mise run arduino:compile sketches/blink/simple
 ```
 
 `mise run '*:setup'` runs each `setup` task: `python:setup` installs pyserial into `.venv`, which every compile needs
@@ -67,10 +67,10 @@ The website's Flash page puts a sketch on an ESP32, ESP32-C3 or ESP8266 board ov
 tools installed. With the tools, connect the board over USB and pass its serial port, such as `/dev/ttyUSB0`:
 
 ```sh
-mise run arduino:run sketches/blink --port /dev/ttyUSB0 --monitor
+mise run arduino:run sketches/blink/simple --port /dev/ttyUSB0 --monitor --baudrate 115200
 ```
 
-The task compiles and uploads; `--monitor` then opens the serial monitor at 9600 baud. Your user needs read and
+The task compiles and uploads; `--monitor` then opens the serial monitor at the `--baudrate` you give, 9600 by default. Your user needs read and
 write access to the port: on Debian and Ubuntu, membership in the `dialout` group. A board that uploads through
 its own USB bootloader, such as the Digispark, takes no `--port`. Flashing has not been tried
 on a board yet; report what fails.
@@ -80,7 +80,7 @@ on a board yet; report what fails.
 Each sketch is a folder with a `sketch.yaml` that pins the board, the core version and the libraries, one or two
 levels under `sketches/`: `sketches/<name>/`, or `sketches/<project>/<variant>/` for a project whose variants are
 steps of one ladder. A sketch's path under `sketches/`, such as `blink/simple`, names it in the firmware manifest.
-`sketches/blink/sketch.yaml` is the one to copy. A sketch uses the drivers by listing the path to `lib`, `../../lib`
+`sketches/blink/simple/sketch.yaml` is the one to copy. A sketch uses the drivers by listing the path to `lib`, `../../lib`
 at one level and `../../../lib` at two, under `libraries`.
 
 The drivers in `lib/`:

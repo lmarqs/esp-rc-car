@@ -5,7 +5,7 @@ import { defaultValues, passwordHelp, settingsOf } from '../../lib/flash/setting
 import { stepsFor, type Step } from './view';
 
 interface Props {
-  /** The project's `sketch` field, such as `sketches/blink`; the manifest names a sketch by its path under `sketches/`. */
+  /** The project's `sketch` field, such as `sketches/blink/simple`; the manifest names a sketch by its path under `sketches/`. */
   sketch: string;
   title: string;
   /** Speed the sketch prints at; absent for a sketch that prints nothing, which gets no board output. */

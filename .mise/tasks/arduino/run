@@ -3,10 +3,11 @@
 #USAGE arg "<sketch>" help="Sketch folder"
 #USAGE flag "-p --port <port>" env="PORT" help="Serial port of the board"
 #USAGE flag "--monitor" default="false" help="Open the serial monitor after uploading"
+#USAGE flag "--baudrate <baudrate>" default="9600" help="Speed of the serial monitor"
 set -euo pipefail
 
 mise run arduino:compile "${usage_sketch}"
 mise run arduino:upload "${usage_sketch}" ${usage_port:+--port "${usage_port}"}
 if [ "${usage_monitor:-false}" = "true" ]; then
-  mise run arduino:monitor --port "${usage_port}"
+  mise run arduino:monitor --port "${usage_port}" --baudrate "${usage_baudrate}"
 fi

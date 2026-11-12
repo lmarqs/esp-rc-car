@@ -5,9 +5,9 @@ art: led
 level: beginner
 state: draft
 order: 1
-sketch: sketches/blink
+sketch: sketches/blink/simple
 flash:
-  baud: 9600
+  baud: 115200
   next: "Watch the LED on GPIO 2: it turns on for one second, then off, and the board prints HIGH and LOW as it changes."
 example: blink
 topics: [tooling, sketches-and-drivers]
@@ -18,7 +18,8 @@ topics: [tooling, sketches-and-drivers]
 Blink proves that a build, an upload and the board all work. It needs nothing but the board.
 
 - The LED on GPIO 2 turns on for one second, then off for one second, and repeats.
-- The serial port, at 9600 baud, prints `HIGH` and `LOW` as the LED changes.
+- The serial port, at 115200 baud, prints a blank line and `sketch blink/simple` once at start, then `HIGH` and
+  `LOW` as the LED changes.
 
 ## Run it on your board
 
@@ -27,7 +28,7 @@ and flash it yourself, install the tools (the [tooling page](../../learn/tooling
 and run, from the repository's root:
 
 ```sh
-mise run arduino:run sketches/blink --port /dev/ttyUSB0 --monitor
+mise run arduino:run sketches/blink/simple --port /dev/ttyUSB0 --monitor --baudrate 115200
 ```
 
 Use your board's port in place of `/dev/ttyUSB0`; `mise exec -- arduino-cli board list` lists them. The task
@@ -43,7 +44,9 @@ The whole sketch is one LED and a loop:
 DigitalOutPin led(2);
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
+  Serial.println();
+  Serial.println("sketch blink/simple");
   led.begin();
 }
 
