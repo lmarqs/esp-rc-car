@@ -6,7 +6,7 @@
 set -euo pipefail
 
 mise run arduino:compile "${usage_sketch}"
-mise run arduino:upload "${usage_sketch}" --port "${usage_port}"
+mise run arduino:upload "${usage_sketch}" ${usage_port:+--port "${usage_port}"}
 if [ "${usage_monitor:-false}" = "true" ]; then
   mise run arduino:monitor --port "${usage_port}"
 fi

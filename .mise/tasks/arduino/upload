@@ -4,4 +4,5 @@
 #USAGE flag "-p --port <port>" env="PORT" help="Serial port of the board"
 set -euo pipefail
 
-arduino-cli upload "${usage_sketch}" --input-dir ".build/${usage_sketch}" --port "${usage_port}"
+# A board that uploads over its own USB bootloader, such as the Digispark, has no serial port.
+arduino-cli upload "${usage_sketch}" --input-dir ".build/${usage_sketch}" ${usage_port:+--port "${usage_port}"}
