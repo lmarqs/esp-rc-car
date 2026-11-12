@@ -524,14 +524,58 @@ describe('the cost of a pass through loop()', () => {
     runner.dispose();
   });
 
-  it('is the time until the next move while one is due, so Step reaches it in one pass', () => {
+  it('is the idle time at most while a slow move waits, and the rest of the wait as the move falls due', () => {
     const { runner } = start(servoSpeed);
     stepUntil(runner, 'while (Serial.available()) {');
     runner.send('speed 1');
     runner.send('angle 92');
     stepUntil(runner, 'Serial.println(angle);');
     stepUntil(runner, 'while (Serial.available()) {');
-    expect(runner.view().cost).toBe(1000);
+    expect(runner.view().cost).toBe(250);
+    const moved = runner.view().millis;
+    for (let pass = 0; pass < 4; pass++) {
+      expect(runner.view().cost).toBe(Math.min(250, moved + 1000 - runner.view().millis));
+      runner.step();
+      stepUntil(runner, 'while (Serial.available()) {');
+    }
+    expect(runner.view().millis).toBe(moved + 1000);
+  });
+
+  /** A run at full speed of `step`: `actions` are a time on the simulated clock and a line to send then. */
+  function run(step: ServoStep, actions: readonly [number, string][], until: number) {
+    const { runner, printed } = start(step);
+    runner.run();
+    for (const [at, text] of actions) {
+      vi.advanceTimersByTime(at - runner.view().millis);
+      runner.send(text);
+    }
+    vi.advanceTimersByTime(until - runner.view().millis);
+    runner.dispose();
+    return printed;
+  }
+
+  it('reads a line sent while a slow move waits within 25 ms at full speed, and still moves every 1000 / speed ms', () => {
+    const printed = run(servoSpeed, [[1000, 'speed 1'], [1000, 'angle 0'], [2100, 'stop']], 4000);
+    const at = (text: string) => printed.find((line) => line.text === text)!.at;
+    const start = at('target 0');
+    expect(afterName(printed).slice(1, 6)).toEqual([
+      `${start} speed 1`,
+      `${start} target 0`,
+      `${start} angle 89`,
+      `${start + 1000} angle 88`,
+      expect.stringMatching(/ stopped$/),
+    ]);
+    expect(at('stopped') - 2100).toBeGreaterThanOrEqual(0);
+    expect(at('stopped') - 2100).toBeLessThanOrEqual(25);
+    expect(texts(printed).at(-1)).toBe('stopped');
+  });
+
+  it('reads a line sent mid-sweep on commands within 25 ms, and keeps every step on the 15 ms grid', () => {
+    const printed = run(servoCommands, [[1000, 'sweep'], [1007, 'angle 120']], 1100);
+    const swept = printed.find((line) => line.text === 'sweeping')!.at;
+    const steps = printed.filter((line) => line.text.startsWith('angle ') && line.at >= swept && line.text !== 'angle 120');
+    for (const step of steps) expect((step.at - swept) % 15).toBe(0);
+    expect(printed.find((line) => line.text === 'angle 120')!.at - 1007).toBeLessThanOrEqual(25);
   });
 });
 

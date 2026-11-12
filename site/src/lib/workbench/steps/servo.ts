@@ -69,14 +69,15 @@ export function isNumber(text: string, low: number, high: number): boolean {
 }
 
 /**
- * What a pass through `loop()` costs. A pass that waits for nothing costs the idle time; one with a move to make
- * costs the time until it is `due`, so the move comes on time, as on the board, whose passes take microseconds.
+ * What a pass through `loop()` costs: the idle time, or less when a move falls `due` sooner, so the move comes on
+ * time. A pass never costs more than the idle time, so a line sent while a slow move waits is read within it, as
+ * on the board, whose passes take microseconds.
  */
 function passCost(board: Board<ServoState>, due: (state: ServoState) => number | undefined): Cost {
   return () => {
+    const idle = board.pace() === 'run' ? IDLE_MS_FULL_SPEED : IDLE_MS_WATCHED;
     const at = due(board.state);
-    if (at !== undefined) return Math.max(0, at - board.millis());
-    return board.pace() === 'run' ? IDLE_MS_FULL_SPEED : IDLE_MS_WATCHED;
+    return at === undefined ? idle : Math.min(idle, Math.max(0, at - board.millis()));
   };
 }
 
