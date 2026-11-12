@@ -14,7 +14,9 @@ export const PORT_BUSY =
   'Another program is using the board. Close the serial monitor or the Arduino IDE, then connect again.';
 export const NO_ANSWER =
   'The board did not answer. Hold its BOOT button and connect again. On an ESP-01S, set the USB adapter to flash mode first.';
-export const LOST = 'The board stopped talking to the page. Plug it back in and connect again.';
+/** What a board whose port was lost did, after its name, and what to do; `LOST` says it of `The board`. */
+export const STOPPED_TALKING = 'stopped talking to the page. Plug it back in and connect again.';
+export const LOST = `The board ${STOPPED_TALKING}`;
 /** The download failed; the caller ends the sentence with what to do. */
 export const NO_DOWNLOAD = 'The image did not download. Check your internet connection';
 

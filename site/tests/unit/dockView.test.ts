@@ -25,6 +25,7 @@ describe('the board dock', () => {
         shown: true,
         connected: false,
         chip: 'No board',
+        doing: 'is connected. Plug one in over USB.',
         connect: true,
         flashAgain: false,
         disconnect: false,
@@ -84,6 +85,10 @@ describe('the board dock', () => {
     expect(dockView({ kind: 'connecting' }, EMPTY_RECORD, names, flashable)).toMatchObject({
       chip: 'Board',
       doing: 'is connecting',
+    });
+    expect(dockView({ kind: 'reading', chip: 'ESP32' }, EMPTY_RECORD, names, flashable)).toMatchObject({
+      chip: 'ESP32',
+      doing: 'is busy with its settings',
     });
   });
 

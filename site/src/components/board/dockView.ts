@@ -1,4 +1,4 @@
-import { isBusy, type SessionState } from '../../lib/flash';
+import { isBusy, wording, type SessionState } from '../../lib/flash';
 import type { SketchName } from '../../lib/board/names';
 import { runs, type BoardRecord } from '../../lib/board/record';
 
@@ -56,7 +56,7 @@ export function dockView(
         shown: true,
         connected: false,
         chip: state.chip,
-        doing: 'stopped talking to the page. Plug it back in and connect again.',
+        doing: wording.STOPPED_TALKING,
         ...NOTHING,
         connect: true,
       };
@@ -92,5 +92,12 @@ export function dockView(
     const chip = 'chip' in state ? state.chip : 'Board';
     return { shown: true, connected: true, chip, doing: 'is busy with its settings', ...NOTHING };
   }
-  return { shown: true, connected: false, chip: 'No board', doing: 'Plug one in over USB', ...NOTHING, connect: true };
+  return {
+    shown: true,
+    connected: false,
+    chip: 'No board',
+    doing: 'is connected. Plug one in over USB.',
+    ...NOTHING,
+    connect: true,
+  };
 }
