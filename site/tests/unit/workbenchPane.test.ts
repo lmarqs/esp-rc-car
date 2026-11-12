@@ -218,6 +218,16 @@ describe('the board pane', () => {
       expect(paneAction(blink, after(connected))).toMatchObject({ label: 'Flash simple to board', disabled: false });
     });
 
+    it('names a flash started elsewhere after a connect the visitor pressed here', () => {
+      const flashing: SessionState = { kind: 'flashing', chip: 'ESP32', pct: 10 };
+      const connecting: SessionState = { kind: 'connecting' };
+      const pane = after({ kind: 'press', action: 'connect' }, { kind: 'session', state: connecting }, connected, {
+        kind: 'session',
+        state: flashing,
+      });
+      expect(paneAction(blink, pane)).toEqual({ label: 'Flashing…', icon: 'bolt', event: 'flash', disabled: true });
+    });
+
     it('shows a refused flash until the visitor picks another step', () => {
       const refused: SessionState = { ...running, flashRefused: { key: 'blink/simple', available: ['ESP32'] } };
       const pane = after({ kind: 'session', state: refused });

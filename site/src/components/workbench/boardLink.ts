@@ -50,7 +50,7 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
       if (boardButton !== null && dot !== null) {
         boardButton.hidden = action === undefined;
         boardButton.setAttribute('aria-pressed', String(view.chosen === 'board'));
-        // The busy action's label says which it is.
+        // The busy action's event says which work it is.
         boardButton.title = view.dot === 'busy' && action?.event === 'flash' ? FLASHING_TITLE : DOT_TITLES[view.dot];
         dot.dataset.link = view.dot;
       }

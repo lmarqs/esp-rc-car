@@ -1,4 +1,4 @@
-import { awaitsRun, type SessionState } from '../flash';
+import { awaitsRun, isBusy, type SessionState } from '../flash';
 import type { BoardModel } from './board';
 import { sketchOf } from '../flash/lines';
 import {
@@ -48,7 +48,7 @@ export interface PaneState<B> {
   readonly following: number;
   /** Counts the times a fresh simulator took the pane from the board; the page then starts its run again. */
   readonly simulation: number;
-  /** What the visitor last pressed in the My board view, or Flash again, which the session may still work on. */
+  /** What the visitor pressed in the My board view, or Flash again, while the session works on it. */
   readonly pressed?: BoardAction['event'];
   /** The key of the step last flashed, or of the first step until one is: the step a missing image names. */
   readonly flashed: string;
@@ -129,6 +129,8 @@ export function reducePane<B>(project: PaneProject<B>, state: PaneState<B>, even
         session: event.state,
         heard: connecting ? undefined : state.heard,
         known: connecting ? undefined : state.known,
+        // Once the session is done with the press, a press elsewhere, such as the dock's Flash again, starts its work.
+        pressed: isBusy(event.state) ? state.pressed : undefined,
       });
     }
     case 'line':

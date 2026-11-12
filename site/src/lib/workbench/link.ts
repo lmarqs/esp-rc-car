@@ -54,7 +54,7 @@ export function boardStatus(
 /**
  * The My board view's button for the session's `state`, or `undefined` in a browser that cannot reach a board.
  * `step` is the selected step: its key and its id, such as `simple`, as its tab names it. `pressed` is what the
- * visitor last pressed, which names what the session works on while it is busy.
+ * visitor pressed on this page, which names what the session works on while it is busy.
  */
 export function boardAction(
   state: SessionState,
@@ -64,7 +64,8 @@ export function boardAction(
 ): BoardAction | undefined {
   if (state.kind === 'unsupported') return undefined;
   if (isBusy(state)) {
-    // A press elsewhere on the site, such as Flash again in the board dock, is named by what the session does.
+    // A press elsewhere on the site, such as the board dock's Flash again, leaves `pressed` unset: what the session
+    // does names it.
     const event = pressed ?? (state.kind === 'flashing' ? 'flash' : 'connect');
     return { label: event === 'flash' ? 'Flashing…' : 'Connecting…', icon: ICONS[event], event, disabled: true };
   }
