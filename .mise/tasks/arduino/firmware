@@ -88,10 +88,14 @@ def publish(sketch: Path, profile: str) -> dict:
         ["arduino-cli", "compile", str(sketch), "--profile", profile, "--build-path", str(build_path)], check=True
     )
     arguments = upload_arguments(sketch, profile, build_path)
+    files = flash_parts(arguments)
+    app = f"{sketch.name}.ino.bin"
+    if not any(file.name == app for _, file in files):
+        raise SystemExit(f"{sketch}/{profile}: the core's upload recipe writes no {app}: {shlex.join(arguments)}")
     target = OUTPUT / sketch.name / profile
     target.mkdir(parents=True)
     parts = []
-    for offset, file in flash_parts(arguments):
+    for offset, file in files:
         shutil.copy(file, target / file.name)
         parts.append({"path": (target / file.name).relative_to(OUTPUT).as_posix(), "offset": offset})
     return {"profile": profile, "chipFamily": chip_family(arguments), "parts": parts}
