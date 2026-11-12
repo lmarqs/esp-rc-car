@@ -305,7 +305,6 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
           )
         }
       </div>
-      <p class="problem" role="alert" data-problem hidden></p>
       <div class="say" data-say>
         {
           rail.map((step, index) => (
@@ -319,6 +318,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
           Your board runs <b data-other-running>{longestKey}</b>. Flash <b data-other-wanted>{longestKey}</b> to control it
           from here.
         </p>
+        <p class="problem" role="alert" data-problem hidden></p>
       </div>
     </div>
   </div>
@@ -487,12 +487,13 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
   /* Four digits, the most the value has, so the slider keeps its length as the value changes. */
   .slider output { min-width: 4ch; text-align: right; color: var(--card); }
   .hint { font-size: 13px; color: var(--muted); margin: 0; }
-  /* The notice takes the hint's place, which says how to send and does not apply then, so nothing below moves. */
+  /* A notice or a problem takes the hint's place, which says how to send and does not apply then, so nothing moves. */
   .say { display: grid; }
   .say > * { grid-area: 1 / 1; }
   .elsewhere { visibility: hidden; margin: 0; padding: 8px 12px; border: 1.5px solid var(--coral); border-radius: 12px; background: var(--wash-coral); font-size: 14px; }
   .say[data-elsewhere] .hint { visibility: hidden; }
   .say[data-elsewhere] .elsewhere { visibility: visible; }
+  .say[data-trouble] :is(.hint, .elsewhere) { visibility: hidden; }
   .problem { margin: 0; padding: 8px 12px; border: 1.5px solid var(--ink); border-radius: 10px; font-size: 14px; font-weight: 600; }
 </style>
 
@@ -744,6 +745,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       slowButton.setAttribute('aria-pressed', String(controls.slow));
       const trouble = controls.problem ?? (shown === undefined ? undefined : sendProblem);
       problem.hidden = trouble === undefined;
+      say.toggleAttribute('data-trouble', trouble !== undefined);
       problem.textContent = trouble ?? '';
       const at = shown === undefined ? { text: view.line, occurrence: view.occurrence } : arrowOf(shown);
       const running = at.text === undefined ? undefined : lineNumber(step.source, at.text, at.occurrence);

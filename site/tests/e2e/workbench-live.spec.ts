@@ -190,11 +190,15 @@ test.describe('live mode', () => {
     await boardButton(page).click();
     await expect(status(page)).toHaveText('Live');
 
+    const heightBefore = (await bench(page).boundingBox())!.height;
     await commandLine(page).fill('500');
     await commandLine(page).press('Enter');
 
     const problem = bench(page).locator('[data-problem]');
     await expect(problem).toHaveText('The board did not get 500. Check that it is still plugged in, then send it again.');
+    // The problem takes the hint's place, so the workbench keeps its size.
+    await expect(bench(page).locator('[data-hint]:not([hidden])')).toHaveCSS('visibility', 'hidden');
+    expect((await bench(page).boundingBox())!.height).toBe(heightBefore);
     await expect(serial(page).locator('[data-sent]')).toHaveCount(0);
     expect(await tracePath(page, 'sent')).toBe('');
 
