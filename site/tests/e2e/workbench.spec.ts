@@ -665,6 +665,18 @@ test.describe('the Blink workbench', () => {
     expect(applied - sent).toBeGreaterThan((width * 1000) / TRACE_WINDOW_MS);
   });
 
+  test('reaches the command line, Send, the chips and the slider by keyboard, each showing the focus', async ({ page }) => {
+    await tab(page, '4 commands').click();
+    await commandLine(page).focus();
+    await expect(bench(page).locator('.cmd')).toHaveCSS('box-shadow', /rgb\(59, 130, 196\)/);
+    for (const control of [sendButton(page), chip(page, 'pause'), chip(page, 'run'), delaySlider(page)]) {
+      await page.keyboard.press('Tab');
+      await expect(control).toBeFocused();
+      await expect(control).toHaveCSS('outline-color', 'rgb(59, 130, 196)');
+      await expect(control).toHaveCSS('outline-style', 'solid');
+    }
+  });
+
   test('stacks the panes code first at phone width with no sideways scroll', async ({ page }) => {
     await page.setViewportSize({ width: 400, height: 800 });
     await tab(page, '4 commands').click();
