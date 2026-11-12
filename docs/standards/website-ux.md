@@ -58,6 +58,7 @@ A MUST does not vary. A SHOULD yields only to a reason written beside the code. 
     what it showed MUST still appear without it. Example: a shortcut types its text into the command line one
     character at a time, and with reduced motion the whole text appears at once.
 12. **Every button pairs an icon with a word, and the icon changes when the action changes.** An icon alone is
-    guessed at, and a word alone is slower to find. Example: Pause shows a pause icon, and once the sketch is
-    paused the same button shows a play icon and reads Continue; the board's button shows a plug and reads Connect,
-    then shows a bolt once a board is connected.
+    guessed at, and a word alone is slower to find. A shortcut chip is the exception: its word is the command it
+    types (rule 8), so it shows the word alone. Example: Pause shows a pause icon, and once the sketch is paused the
+    same button shows a play icon and reads Continue; the board's button shows a plug and reads Connect, then shows
+    a bolt once a board is connected.
