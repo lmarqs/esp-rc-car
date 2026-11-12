@@ -21,8 +21,9 @@ mise run '*:setup'
 mise run arduino:compile sketches/blink
 ```
 
-`mise run '*:setup'` installs pyserial into `.venv`: every compile runs the core's esptool, which fails without it. The
-first compile of a sketch also downloads its core into `.arduino/`. `mise tasks` lists every task.
+`mise run '*:setup'` runs each `setup` task: `python:setup` installs pyserial into `.venv`, which every compile needs
+because the core's esptool fails without it, and `node:setup` installs the website's packages and the browser its tests
+use. The first compile of a sketch also downloads its core into `.arduino/`. `mise tasks` lists every task.
 
 A sketch with more than one board has a profile for each in its `sketch.yaml`, and the task builds the default one.
 Build another with `mise exec -- arduino-cli compile <sketch> --profile <profile>`.
@@ -39,6 +40,21 @@ mise run lib:test
 The task builds each program in `test/` with the machine's `g++` and runs it. The tests cover the drivers in `lib/`
 that compute without hardware; `test/host_test.h` gives them their assertions.
 
+## Build and test the website
+
+Robomania, the project's website, lives in `site/`. After `mise run '*:setup'`:
+
+```sh
+mise run arduino:firmware
+mise run site:build
+mise run site:test
+```
+
+`arduino:firmware` compiles every sketch that has an ESP profile and writes the images and a `manifest.json` to
+`site/public/firmware/`, which Git ignores; the site's Flash page and project pages read them. It refuses to build a
+sketch that has a `local.h`, since that file's passwords would ship to every visitor; `--allow-local` overrides it.
+`site:dev` serves the site with live reload, and `site:test` runs the unit and browser tests against a build.
+
 ## Edit in VS Code
 
 `.vscode/` sets up the Microsoft C/C++ extension: IntelliSense reads `.build/compile_commands.json`, and saving a
@@ -47,7 +63,8 @@ of every sketch compiled so far and points each sketch's entry at its `.ino`. Co
 
 ## Flash a sketch
 
-Connect the board over USB and pass its serial port, such as `/dev/ttyUSB0`:
+The website's Flash page puts a sketch on an ESP32, ESP32-C3 or ESP8266 board over USB from Chrome or Edge, with no
+tools installed. With the tools, connect the board over USB and pass its serial port, such as `/dev/ttyUSB0`:
 
 ```sh
 mise run arduino:run sketches/blink --port /dev/ttyUSB0 --monitor
