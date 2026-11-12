@@ -1,35 +1,36 @@
 # esp-rc-car
 
-Firmware for an ESP32 RC car: drivers in `lib/` and sketches in `sketches/`, and Robomania, the project's website,
-in `site/`. The [README](README.md) says what is built and how to build and flash it.
+Firmware for an ESP32 RC car: drivers in `lib/` and sketches in `sketches/`, and Robomania, its website,
+in `site/`. The [README](README.md) says how to build and flash it.
 
 Stack: C++ on the Arduino cores `esp32-bluepad32:esp32` 4, `esp8266:esp8266` 3 and `digistump:avr` 1, pinned in
 each sketch's `sketch.yaml`; arduino-cli 1,
 Python 3.12, uv, clang-format, ruff and the-cook, pinned in `mise.toml`; pyserial 3, pinned in `pyproject.toml`. The
-website: Astro 7 on Node 24 and pnpm 12, pinned in `mise.toml` and `site/package.json`.
+website: Astro 7, pinned in `site/package.json`, on Node 24 and pnpm 12, pinned in `mise.toml` and the root
+`package.json`.
 
 ## Quick reference
 
-- Install or add a dependency: `mise install && mise run '*:setup'`, [Build a sketch](README.md#build-a-sketch) says
-  why; a Python package: `uv add <package>` (unverified); a core or Arduino library: add to the sketch's
-  `sketch.yaml` profile (unverified); a website package: `pnpm --filter @robomania/site add <package>`
+- Install or add a dependency: `mise install && mise run '*:setup'`, including `node:setup`; a Python package:
+  `uv add <package>` (unverified); a core or Arduino library: add it to a profile in the sketch's `sketch.yaml`
+  (unverified); a website package: `pnpm --filter @robomania/site add <package>`
 - Run: `mise run arduino:run <sketch> --port <port>` (unverified)
-- Flash a compiled sketch: `mise run arduino:upload <sketch> --port <port>`, with the port from
-  `mise exec -- arduino-cli board list`
-- Build: `mise run arduino:compile <sketch>`, such as `sketches/blink`; the website: `mise run site:build`, and
-  `mise run site:dev` to serve it locally
+- Flash a compiled sketch: `mise run arduino:upload <sketch> --port <port>`
+- Build: `mise run arduino:compile <sketch>`; the website: `mise run site:build` or
+  `site:dev`, which serves it
 - Test: `mise run lib:test`; the website: `mise run site:test`
 - Lint or format one file: `mise exec -- clang-format -i <file>`; Python: `mise exec -- ruff format <file>`
-- Generate: `mise run arduino:hexdump <sketch>`, a C header per `<sketch>/data` file; website images:
-  `mise run arduino:firmware`
+- Generate: `mise run arduino:hexdump <sketch>`, a C header per `<sketch>/data` file; the website's firmware images,
+  gitignored in `site/public/firmware/`: `mise run arduino:firmware`
 - Worktrees: `git worktree add .worktrees/<branch> -b <branch> && (cd .worktrees/<branch> && .worktrees/setup)`;
-  remove with `(cd .worktrees/<branch> && .worktrees/teardown) && git worktree remove .worktrees/<branch>`
+  to remove one, see `.worktrees/README.md`
 - Quick check: `mise exec -- clang-format --dry-run --Werror <file>` on each changed file,
   then the Build command for the sketch the change touches, or `mise run site:build` for a `site/` change
 - Done check:
-  `mise exec -- clang-format --dry-run --Werror lib/* test/* sketches/*/*.ino`, then
+  `mise exec -- clang-format --dry-run --Werror lib/* test/* sketches/*/*.ino`,
   `mise exec -- ruff check . .vscode/*.py && mise exec -- ruff format --check . .vscode/*.py`, `mise run lib:test`,
-  the Build command for every sketch in `sketches/`, `mise run site:build`, `mise run site:test`
+  the Build command for every sketch in `sketches/`, `mise run arduino:firmware`, `mise run site:build`,
+  `mise run site:test`
 
 ## Boundaries
 
@@ -57,13 +58,13 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 - New code: drivers in `lib/`, sketches in `sketches/`, laid out as [Code layout](README.md#code-layout) says; no
   design document; website pages in `site/src/content/projects/` and `site/src/content/topics/`, one Markdown file
   each, and its playable examples in `site/src/components/examples/`
-- Tests: `test/test_<header>.cpp`, only for `lib/` drivers needing no hardware
+- Tests: `test/test_<header>.cpp`, only for `lib/` drivers needing no hardware; the website's in `site/tests`
+  (Vitest `unit`, Playwright `e2e`)
 - Settings: `.env` (gitignored, loaded by mise), arduino-cli in `arduino-cli.yaml`, board profiles in `sketch.yaml`;
   a sketch's secrets in its gitignored `local.h`
 - How the parts fit and coding standards: `docs/`, by the map in `docs/README.md`; write and review pages with the
   `docs-layout` skill
 - A mise task: an executable `.mise/tasks/<namespace>/<task>`, run as `mise run <namespace>:<task>`.
-- Firmware images: gitignored `site/public/firmware/`.
 - A procedure an agent repeats: a skill in `.agents/skills/`.
 - A trap in one area: `.agents/memory/`, listed under Deep dive.
 
@@ -73,9 +74,10 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 - Write C++ and Python by [the standards](docs/standards/README.md).
 - Change only what the task needs, matching the surrounding code.
 - Format with `.clang-format`.
-- Commits: one change each, pushed straight to `main`; no pull requests
+- Commits: one change per commit, pushed straight to `main`; no pull requests
 - Deploy: a push to `main` releases the website on a `#site-release` commit message, and the `lib/` library on
-  `#lib-release` after raising `version` in `lib/library.properties`
+  `#lib-release` after raising `version` in `lib/library.properties`; the library goes first: the
+  Library page links its `lib-v<version>` asset
 
 ## Gotchas
 
