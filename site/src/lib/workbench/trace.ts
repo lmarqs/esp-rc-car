@@ -46,11 +46,16 @@ export interface Trace {
   readonly edges: readonly TraceEdge[];
   /** The marks, oldest first. */
   readonly marks: readonly TraceMark[];
+  /** When the trace's source, the simulator or the real board, took the pane, in the trace's own clock. */
+  readonly since?: number;
 }
 
-/** A trace with no marks that starts at `start`, as at the start of a run; an LED starts low, at 0. */
-export function emptyTrace(start: number | undefined): Trace {
-  return { start, edges: [], marks: [] };
+/**
+ * A trace with no marks that starts at `start`, as at the start of a run; an LED starts low, at 0. `since` is when its
+ * source took the pane, left out while that is not known.
+ */
+export function emptyTrace(start: number | undefined, since?: number): Trace {
+  return { start, edges: [], marks: [], since };
 }
 
 /** The level the output has after the last edge kept. */
@@ -69,7 +74,7 @@ function prune(trace: Trace, now: number): Trace {
   }
   const marks = trace.marks.filter((mark) => mark.at >= from).slice(-MAX_MARKS);
   if (first === 0 && marks.length === trace.marks.length) return trace;
-  return { start, edges: trace.edges.slice(first), marks };
+  return { ...trace, start, edges: trace.edges.slice(first), marks };
 }
 
 /**
@@ -115,6 +120,8 @@ export interface TraceShape {
   readonly grid: string;
   /** The output's level; empty while it is not known. */
   readonly level: string;
+  /** A dashed vertical line where the trace's source took the pane; empty when that is not in the window. */
+  readonly source: string;
   /** A bar with a triangle at its top for each line sent. */
   readonly sent: string;
   /** A bar with a dot at its foot for each line applied. */
@@ -128,7 +135,8 @@ export function traceShape(trace: Trace, now: number, width: number): TraceShape
   const x = (at: number) => Math.min(width, Math.max(0, width - ((now - at) / TRACE_WINDOW_MS) * width));
   const seconds = TRACE_WINDOW_MS / 1000;
   const grid = Array.from({ length: seconds - 1 }, (_, i) => `M${px((width * (i + 1)) / seconds)} 0V${TRACE_HEIGHT}`);
-  let level = trace.start === undefined ? '' : `M0 ${levelY(trace.start)}`;
+  const sourceAt = trace.since !== undefined && now - trace.since <= TRACE_WINDOW_MS ? px(x(trace.since)) : undefined;
+  let level = trace.start === undefined ? '' : `M${sourceAt ?? 0} ${levelY(trace.start)}`;
   for (const edge of trace.edges) {
     level += level === '' ? `M${px(x(edge.at))} ${levelY(edge.level)}` : `H${px(x(edge.at))}V${levelY(edge.level)}`;
   }
@@ -142,6 +150,7 @@ export function traceShape(trace: Trace, now: number, width: number): TraceShape
   return {
     grid: grid.join(''),
     level,
+    source: sourceAt === undefined ? '' : `M${sourceAt} 0V${TRACE_HEIGHT}`,
     sent: marks('sent', (left) => `M${px(left - 5)} 2h10l-5 7z`),
     applied: marks('applied', (left) => `M${px(left - 4)} ${TRACE_HEIGHT - 6}a4 4 0 1 0 8 0a4 4 0 1 0 -8 0z`),
   };

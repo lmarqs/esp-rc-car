@@ -143,6 +143,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     const traceView = root.querySelector<SVGSVGElement>('[data-trace]')!;
     const tracePaths = {
       grid: traceView.querySelector('[data-trace-grid]')!,
+      source: traceView.querySelector('[data-trace-source]')!,
       level: traceView.querySelector('[data-trace-level]')!,
       sent: traceView.querySelector('[data-trace-sent]')!,
       applied: traceView.querySelector('[data-trace-applied]')!,

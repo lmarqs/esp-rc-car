@@ -67,13 +67,13 @@ export function createSimulation<S, B>(board: BoardModel<unknown, B, S>, options
   let runner: Runner<S> | undefined;
   let view: RunnerView<S> | undefined;
   let simulated = board.initial();
-  let trace: Trace = emptyTrace(undefined);
+  let trace: Trace = emptyTrace(undefined, 0);
   let slow: boolean = OPENING.slow;
   let wantsRunning: boolean = OPENING.running;
 
   function reset() {
     simulated = board.initial();
-    trace = emptyTrace(board.level(simulated));
+    trace = emptyTrace(board.level(simulated), 0);
   }
 
   return {

@@ -25,6 +25,7 @@ const { trace } = Astro.props;
     data-trace
   >
     <path class="grid" data-trace-grid />
+    <path class="source" data-trace-source />
     <path class="level" data-trace-level />
     <path class="sent" data-trace-sent />
     <path class="applied" data-trace-applied />
@@ -39,6 +40,7 @@ const { trace } = Astro.props;
   /* A mark made just now sits on the right edge; its shape may reach into the padding rather than be cut. */
   .trace { display: block; width: 100%; overflow: visible; }
   .trace .grid { stroke: var(--line); stroke-width: 1; }
+  .trace .source { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 3 3; }
   .trace .level { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
   .sent { fill: var(--yellow-strong); }
   .applied { fill: var(--green); }

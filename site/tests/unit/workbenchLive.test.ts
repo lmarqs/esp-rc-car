@@ -74,6 +74,13 @@ describe('receive', () => {
     expect(measuredInterval(followed.board)).toBe(507);
   });
 
+  it('marks the trace where the board took the pane at its first line, and keeps it for the lines after', () => {
+    expect(after(blinkInput, []).trace.since).toBeUndefined();
+    const first = after(blinkInput, [['print', 'sketch blink/input', 100]]);
+    expect(first.trace.since).toBe(100);
+    expect(after(blinkInput, [['print', 'sketch blink/input', 100], ['print', 'HIGH', 600], ['send', '500', 700]]).trace.since).toBe(100);
+  });
+
   it('keeps every line in the output, in order, as the board printed it', () => {
     const followed = after(blinkInput, [
       ['print', '', 0],

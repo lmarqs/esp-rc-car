@@ -62,7 +62,8 @@ export function receive<E, B>(
     board = model.answered?.(board, unanswered[0].text) ?? board;
     unanswered = unanswered.slice(1);
   }
-  const trace = recordLevel(recordEffects(followed.trace, effects, at), model.level(board), at);
+  const since = followed.trace.since ?? at;
+  const trace = recordLevel(recordEffects({ ...followed.trace, since }, effects, at), model.level(board), at);
   return { ...followed, board, arrow, arrowAt, unanswered, trace, output: keep(followed.output, { text }) };
 }
 

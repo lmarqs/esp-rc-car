@@ -114,6 +114,28 @@ describe('traceShape', () => {
     expect(traceShape(trace, 12_000, 100).level).toBe(`M0 ${LOW_Y}H0.0V${HIGH_Y}H100.0`);
   });
 
+  it('draws a dashed line where the trace’s source took the pane, and starts the level there', () => {
+    const shape = traceShape(emptyTrace(0, 4000), 10_000, 1000);
+    expect(shape.level).toBe(`M400.0 ${LOW_Y}H1000.0`);
+    expect(shape.source).toBe('M400.0 0V64');
+  });
+
+  it('draws no source line, and starts the level at the left edge, when the source took the pane before the window', () => {
+    const older = traceShape(emptyTrace(0, -1), 10_000, 1000);
+    expect(older.source).toBe('');
+    expect(older.level).toMatch(/^M0 /);
+    const unset = traceShape(emptyTrace(0), 10_000, 1000);
+    expect(unset.source).toBe('');
+    expect(unset.level).toMatch(/^M0 /);
+  });
+
+  it('keeps when the source took the pane as the window moves on', () => {
+    let trace = led(emptyTrace(0, 4000), true, 5000);
+    trace = led(trace, false, 8000);
+    expect(trace.since).toBe(4000);
+    expect(traceShape(trace, 12_000, 1000).source).toBe('M200.0 0V64');
+  });
+
   it('draws a sent mark and its applied mark where they happened, each in its own path', () => {
     let trace = recordEffects(emptyTrace(0), [sent(1)], 4000);
     trace = recordEffects(trace, [read(1)], 9000);

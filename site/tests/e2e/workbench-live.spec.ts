@@ -34,7 +34,7 @@ const tracePath = (page: Page, part: 'sent' | 'applied' | 'level') =>
 /** Lets the page paint once while its time is frozen. */
 const nextFrame = (page: Page) => page.clock.runFor(20);
 /** The level the trace draws at its right edge. */
-const levelNow = async (page: Page) => Number([...(await tracePath(page, 'level')).matchAll(/(?:^M0 |V)(\d+)/g)].at(-1)?.[1]);
+const levelNow = async (page: Page) => Number([...(await tracePath(page, 'level')).matchAll(/(?:^M[\d.]+ |V)(\d+)/g)].at(-1)?.[1]);
 
 /** Connects from the `name` tab to a board that prints `sketch <key>` first, then waits for the cell to read `word`. */
 async function connectTo(page: Page, fakeFlasher: FakeFlasher, key: string, name: string, word: string) {

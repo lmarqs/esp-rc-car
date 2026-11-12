@@ -70,7 +70,7 @@ const markXs = async (page: Page, kind: 'sent' | 'applied') => {
 /** The trace's level path: where the pin stands at the right edge, and where it last rose. */
 const levelPath = async (page: Page) => {
   const d = (await trace(page).locator('[data-trace-level]').getAttribute('d')) ?? '';
-  const ys = [...d.matchAll(/(?:^M0 |V)(\d+)/g)].map((match) => Number(match[1]));
+  const ys = [...d.matchAll(/(?:^M[\d.]+ |V)(\d+)/g)].map((match) => Number(match[1]));
   const rise = [...d.matchAll(/H([\d.]+)V(\d+)/g)].filter((match) => Number(match[2]) === HIGH_Y).at(-1);
   return { now: ys.at(-1), rise: rise === undefined ? undefined : Number(rise[1]) };
 };
