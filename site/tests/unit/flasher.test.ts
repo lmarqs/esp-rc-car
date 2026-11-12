@@ -9,6 +9,7 @@ const esptool = vi.hoisted(() => ({
   main: vi.fn(),
   writeFlash: vi.fn(),
   after: vi.fn(),
+  setRTS: vi.fn(),
   disconnect: vi.fn(),
   chipName: 'ESP32',
   loaderOptions: undefined as unknown,
@@ -19,6 +20,7 @@ function fakeEsptool() {
   return {
     Transport: class {
       disconnect = esptool.disconnect;
+      setRTS = esptool.setRTS;
     },
     ESPLoader: class {
       chip = { CHIP_NAME: esptool.chipName };
@@ -65,6 +67,7 @@ describe('EsptoolFlasher', () => {
     esptool.main.mockReset().mockResolvedValue('ESP32');
     esptool.writeFlash.mockReset().mockResolvedValue(undefined);
     esptool.after.mockReset().mockResolvedValue(undefined);
+    esptool.setRTS.mockReset().mockResolvedValue(undefined);
     esptool.disconnect.mockReset().mockResolvedValue(undefined);
     esptool.chipName = 'ESP32';
   });
@@ -195,6 +198,22 @@ describe('EsptoolFlasher', () => {
     await target.reset();
 
     expect(esptool.after).toHaveBeenCalledWith('hard_reset');
+  });
+
+  it('pulls RTS before the hard reset releases it, since esptool-js only releases it', async () => {
+    const order: string[] = [];
+    esptool.setRTS.mockImplementation(async (state: boolean) => {
+      order.push(`setRTS ${state}`);
+    });
+    esptool.after.mockImplementation(async () => {
+      order.push('after');
+    });
+    const target = flasher();
+    await target.connect();
+
+    await target.reset();
+
+    expect(order).toEqual(['setRTS true', 'after']);
   });
 
   it('never rejects when it disconnects', async () => {

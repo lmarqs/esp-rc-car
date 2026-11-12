@@ -121,7 +121,12 @@ export class EsptoolFlasher implements Flasher {
   }
 
   async reset(): Promise<void> {
-    await this.requireLoader().after('hard_reset');
+    const loader = this.requireLoader();
+    // esptool-js 0.7.1's hard reset only releases RTS (`setRTS(false)`) and never pulls it, so after the connect's reset
+    // sequence left RTS released it makes no edge on EN and the board keeps running whatever it ran. esptool.py pulses
+    // RTS first. DTR stays released, so IO0 stays high and the board restarts into the sketch, not the bootloader.
+    await this.transport!.setRTS(true);
+    await loader.after('hard_reset');
   }
 
   async monitor(baud: number, onLines: (lines: string[]) => void): Promise<void> {
