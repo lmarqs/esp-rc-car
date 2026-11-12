@@ -229,6 +229,8 @@ export function boardStatusText(status: BoardStatus, detached = false): { readon
   switch (status.kind) {
     case 'simulated':
       return { word: 'Simulated', title: 'Running in the browser' };
+    case 'connected':
+      return { word: 'Connected', title: 'Waiting for the board to name its sketch; flash a step to use it here' };
     case 'live':
       return {
         word: 'Live',

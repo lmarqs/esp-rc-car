@@ -101,14 +101,22 @@ test.describe('the Board cell', () => {
     await expect(boardButton(page)).toHaveAccessibleName('Flash step');
   });
 
-  test('stays Simulated and offers Flash step on a board that has not named its sketch', async ({ page, fakeFlasher }) => {
+  test('reads Connected in grey and offers Flash step on a board that has not named its sketch', async ({
+    page,
+    fakeFlasher,
+  }) => {
     await fakeFlasher.install({ lines: ['HIGH'] });
     await page.goto(BLINK);
 
     await connect(page);
 
     await expect(boardButton(page)).toHaveAccessibleName('Flash step');
-    await expect(status(page)).toHaveText('Simulated');
+    await expect(status(page)).toHaveText('Connected');
+    await expect(statusLine(page)).toHaveAttribute(
+      'title',
+      'Waiting for the board to name its sketch; flash a step to use it here',
+    );
+    await expectColour(page, { dot: GREY, core: GREY_CORE });
   });
 
   test('outlines the button in blue when it has the keyboard focus', async ({ page, fakeFlasher }) => {
@@ -331,6 +339,14 @@ test.describe('the rail', () => {
       reach: async (page) => {
         await connect(page);
         await expect(message(page)).toHaveText('Connecting to the board.');
+      },
+    },
+    {
+      name: 'Connected',
+      options: { lines: ['HIGH'] },
+      reach: async (page) => {
+        await connect(page);
+        await expect(status(page)).toHaveText('Connected');
       },
     },
     {

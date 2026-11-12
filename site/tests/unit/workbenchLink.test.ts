@@ -37,8 +37,8 @@ describe('boardStatus', () => {
     expect(boardStatus({ kind: 'unsupported' }, undefined, 'blink/simple', STEPS)).toEqual({ kind: 'simulated' });
   });
 
-  it('is Simulated on a connected board that has not named its sketch yet', () => {
-    expect(boardStatus(running, undefined, 'blink/simple', STEPS)).toEqual({ kind: 'simulated' });
+  it('is Connected on a connected board that has not named its sketch yet', () => {
+    expect(boardStatus(running, undefined, 'blink/simple', STEPS)).toEqual({ kind: 'connected' });
   });
 
   it('is Live when the board runs the selected step', () => {
@@ -121,6 +121,8 @@ describe('paneMode', () => {
   it('simulates while no board names its sketch', () => {
     expect(paneMode({ kind: 'simulated' }, false)).toBe('simulator');
     expect(paneMode({ kind: 'simulated' }, true)).toBe('simulator');
+    expect(paneMode({ kind: 'connected' }, false)).toBe('simulator');
+    expect(paneMode({ kind: 'connected' }, true)).toBe('simulator');
   });
 
   it('follows a board that runs the selected step, until the visitor hands the pane to the simulator', () => {
