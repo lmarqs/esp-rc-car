@@ -25,7 +25,7 @@ const [properties] = Object.values(
 );
 const version = properties?.match(/^version=(\S+)\s*$/m)?.[1];
 if (!version) throw new Error('No "version=" line found in lib/library.properties');
-const zip = `Robomania-${version}.zip`;
+const zip = `robomania-${version}.zip`;
 const zipUrl = `${github}/releases/download/lib-v${version}/${zip}`;
 ---
 

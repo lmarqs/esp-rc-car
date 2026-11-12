@@ -9,10 +9,10 @@ test.describe('the Library page download', () => {
     expect(version).toBeTruthy();
     await page.goto('/robomania/library/');
 
-    const link = page.getByRole('link', { name: `Download Robomania-${version}.zip` });
+    const link = page.getByRole('link', { name: `Download robomania-${version}.zip` });
     await expect(link).toHaveAttribute(
       'href',
-      `https://github.com/lmarqs/robomania/releases/download/lib-v${version}/Robomania-${version}.zip`,
+      `https://github.com/lmarqs/robomania/releases/download/lib-v${version}/robomania-${version}.zip`,
     );
   });
 
