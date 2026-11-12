@@ -1,8 +1,18 @@
 ---
-description: Maps the parts of the esp-rc-car firmware and its website, what each is for, and which way they depend on each other.
+description: Maps the parts of the esp-rc-car monorepo, firmware and website, what each is for, and which way they depend on each other.
 audience: Whoever adds a driver or a sketch, or changes how they connect; knows Arduino sketches and libraries
 ---
 # Architecture
+
+This repository is a monorepo: the firmware and Robomania, its website, live and change together in one history,
+and each takes the drivers in `lib/` straight from the working tree, never from a released package. A change to a
+driver reaches every sketch and the website's Library page in the same commit.
+
+The drivers ship as source in this repository and are listed on no library registry. The Arduino Library Manager
+indexes a library only when its `library.properties` sits at the root of its repository, and here the root holds
+the whole monorepo.
+
+## Firmware
 
 The firmware has four parts:
 
