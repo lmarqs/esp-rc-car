@@ -145,6 +145,8 @@ export interface RunnerView<S> {
    * cost, or at least {@link SLOW_LINE_MS} in slow mode. 0 once the program ended.
    */
   readonly duration: number;
+  /** The simulated milliseconds the line about to run adds to the clock when it finishes; 0 once the program ended. */
+  readonly cost: number;
   /** The simulated clock; it moves when a line finishes, by that line's cost. */
   readonly millis: number;
   /** The program's state, owned by the runner: read it, do not change it. */
@@ -263,20 +265,26 @@ export function createRunner<S>(sketch: Sketch<S>, options: RunnerOptions = {}):
     error = thrown;
   }
 
-  function realDuration(): number {
-    if (current === undefined || status === 'error') return 0;
-    let cost: number;
+  /** The simulated cost of the line about to run; 0 when there is none or its cost threw, which stops the run. */
+  function lineCost(): number | undefined {
+    if (current === undefined || status === 'error') return undefined;
     try {
-      cost = costOf(current);
+      return costOf(current);
     } catch (thrown) {
       fail(thrown);
-      return 0;
+      return undefined;
     }
+  }
+
+  function realDuration(): number {
+    const cost = lineCost();
+    if (cost === undefined) return 0;
     return slow ? Math.max(SLOW_LINE_MS, cost) : cost;
   }
 
   function view(): RunnerView<S> {
     // First, since a cost that throws turns the status to `error`.
+    const cost = lineCost() ?? 0;
     const duration = realDuration();
     return {
       status,
@@ -286,6 +294,7 @@ export function createRunner<S>(sketch: Sketch<S>, options: RunnerOptions = {}):
       occurrence: current?.occurrence ?? 1,
       wait: current?.wait ?? false,
       duration,
+      cost,
       millis,
       state,
       output,

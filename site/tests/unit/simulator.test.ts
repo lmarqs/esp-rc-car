@@ -156,6 +156,14 @@ describe('simulator runner', () => {
     runner.dispose();
   });
 
+  it('tells the simulated cost of the line about to run apart from the real time it lasts', () => {
+    const runner = createRunner(echo, { slow: true });
+    expect(runner.view()).toMatchObject({ line: PASS, cost: 250, duration: 500 });
+    runner.step();
+    expect(runner.view()).toMatchObject({ line: CHECK, cost: 0 });
+    runner.dispose();
+  });
+
   it('makes each line last at least 500 ms in slow mode, and a wait its full length', () => {
     const runner = createRunner(echo, { slow: true });
     runner.run();
