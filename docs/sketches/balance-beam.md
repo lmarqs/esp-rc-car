@@ -29,13 +29,16 @@ P, I and D by hand.
 ## Arming and safety
 
 - The board boots disarmed and drives no motor. Only the page arms and disarms it.
-- Past a tilt of 45° either way the motors stop and the board disarms; it stays so until armed again.
-- A fresh build cannot spin a motor: the throttle band is zero until `local.h` sets it.
+- Past the tilt limit, 45° by default, either way the motors stop and the board disarms; it stays so until armed again.
+- A fresh build cannot spin a motor: the throttle band is zero until `local.h` or a setting stored on the board
+  sets it.
 - Arming clears the PID's integral, so error gathered while disarmed does not kick the beam.
 
 ## Settings
 
-`sketches/balance-beam/local.h`, a file Git ignores, sets the rig's values as `#define` lines:
+`sketches/balance-beam/local.h`, a file Git ignores, sets the rig's default values as `#define` lines. A value stored
+on the board over the serial port, with `cfg set`, wins over its default, except `BALANCE_BEAM_BENCH_ENABLED`, which
+only `local.h` sets:
 
 | Name | Default | Sets |
 | --- | --- | --- |
@@ -59,14 +62,15 @@ is clamped to it. Whoever joins the hotspot can arm the motors, so change the de
 
 ## Serial commands
 
-At 115200 baud, one command per line. Every line the board prints goes through the core's log, so each starts with
-a time, a level and a source position.
+At 115200 baud, one command per line. Every line the board prints, except the answers to `cfg` lines, goes through
+the core's log, so each starts with a time, a level and a source position.
 
 | Command | Does |
 | --- | --- |
 | `kp <v>`, `ki <v>`, `kd <v>` | Sets a gain |
 | `sp <v>` | Sets the target tilt, in degrees |
 | `?` | Prints the state: tilt, correction, throttles and gains |
+| `cfg get`, `cfg set <key> <value>`, `cfg restart` | Reads and stores the settings above on the board, refused while armed; a new value takes effect after the restart |
 
 With `BALANCE_BEAM_BENCH_ENABLED` at 1, for work with the propellers off:
 
