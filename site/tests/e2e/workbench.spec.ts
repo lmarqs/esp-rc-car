@@ -455,7 +455,7 @@ test.describe('the Blink workbench', () => {
     page,
   }) => {
     await tab(page, '4 commands').click();
-    await expect(commandLine(page)).toHaveAttribute('placeholder', 'type a command and press Enter');
+    await expect(commandLine(page)).toHaveAttribute('placeholder', 'a command, then Enter');
     const term = bench(page).locator('.term');
     const output = await serial(page).boundingBox();
     const line = await commandLine(page).boundingBox();
@@ -478,6 +478,21 @@ test.describe('the Blink workbench', () => {
 
     await sendButton(page).click();
     await expect(sentLines(page)).toHaveCount(2);
+  });
+
+  test('fits the placeholder of each step in the command line at phone width', async ({ page }) => {
+    await page.setViewportSize({ width: 400, height: 800 });
+    for (const [index, step] of blinkSteps.entries()) {
+      await tab(page, `${index + 1} ${step.key.split('/')[1]}`).click();
+      const room = await commandLine(page).evaluate((input: HTMLInputElement) => {
+        const style = getComputedStyle(input);
+        const context = document.createElement('canvas').getContext('2d')!;
+        context.font = `${style.fontSize} ${style.fontFamily}`;
+        const free = input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+        return free - context.measureText(input.placeholder).width;
+      });
+      expect(room, step.placeholder).toBeGreaterThan(0);
+    }
   });
 
   test('gives each step the placeholder its sketch needs', async ({ page }) => {
