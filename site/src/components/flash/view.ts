@@ -1,6 +1,7 @@
 import type { ManifestImage, SettingField } from '../../lib/flash/manifest';
 import type { SessionEvent, SessionState } from '../../lib/flash/session';
 import type { FieldErrors, SettingValues } from '../../lib/flash/settings';
+import * as wording from '../../lib/flash/wording';
 
 /** The card's steps, in the order the visitor goes through them. */
 export const STEPS = ['connect', 'settings', 'flash', 'running'] as const;
@@ -137,11 +138,11 @@ export function viewFor(
         actions: [{ label: 'Connect board', event: 'connect' }],
       };
     case 'connecting':
-      return { step: 'connect', message: 'Connecting to the board.' };
+      return { step: 'connect', message: wording.CONNECTING };
     case 'settings':
       return settingsView(state, title, settings);
     case 'flashing':
-      return { step: 'flash', message: `Found ${state.chip}`, progress: state.pct };
+      return { step: 'flash', message: wording.found(state.chip), progress: state.pct };
     case 'reading':
       return { step: 'running', message: "Reading the board's settings." };
     case 'applying':
@@ -150,7 +151,7 @@ export function viewFor(
       if (state.lost) {
         return {
           step: 'running',
-          message: 'The board stopped talking to the page. Plug it back in and connect again.',
+          message: wording.LOST,
           notice: true,
           output: baud === undefined ? undefined : { label: `Board output, ${baud} baud`, lines: state.output },
           actions: [{ label: 'Connect again', event: 'connect' }],
@@ -169,34 +170,22 @@ export function viewFor(
     case 'unsupported':
       return {
         step: 'connect',
-        message: 'This browser cannot reach a USB board. Open this page in Chrome or Edge on a computer.',
+        message: wording.UNSUPPORTED,
         notice: true,
         links: [...imageLinks(images ?? [], firmwareUrl ?? '/firmware/'), { label: 'Run it on your board', href: detailsHref + BUILD_IT_YOURSELF }],
       };
     case 'noPort':
-      return failure('No board was chosen. Plug it in and try again.', 'Connect board');
+      return failure(wording.NO_PORT, 'Connect board');
     case 'portBusy':
-      return failure(
-        'Another program is using the board. Close the serial monitor or the Arduino IDE, then connect again.',
-        'Connect board',
-      );
+      return failure(wording.PORT_BUSY, 'Connect board');
     case 'noAnswer':
-      return failure(
-        'The board did not answer. Hold its BOOT button and connect again. On an ESP-01S, set the USB adapter to flash mode first.',
-        'Connect board',
-      );
+      return failure(wording.NO_ANSWER, 'Connect board');
     case 'noImage':
-      return failure(
-        `This board is an ${state.chip}. ${title} has images for: ${state.available.join(', ')}.`,
-        'Connect another board',
-      );
+      return failure(wording.noImage(state, title), 'Connect another board');
     case 'noDownload':
-      return failure('The image did not download. Check your internet connection and try again.', 'Flash again');
+      return failure(`${wording.NO_DOWNLOAD} and try again.`, 'Flash again');
     case 'dropped':
-      return failure(
-        `The connection dropped at ${state.pct}%. Nothing is broken. Plug the board back in and flash again.`,
-        'Flash again',
-      );
+      return failure(`${wording.droppedAt(state.pct)} Plug the board back in and flash again.`, 'Flash again');
   }
 }
 

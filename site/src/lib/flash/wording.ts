@@ -1,0 +1,30 @@
+import type { SessionState } from './session';
+
+/**
+ * The plain words for what a flash session is doing or why it stopped, which the flash card and the workbench both
+ * show. A sentence that tells the visitor which button to press next is left to each, since their buttons differ.
+ */
+export const CONNECTING = 'Connecting to the board.';
+export const UNSUPPORTED = 'This browser cannot reach a USB board. Open this page in Chrome or Edge on a computer.';
+export const NO_PORT = 'No board was chosen. Plug it in and try again.';
+export const PORT_BUSY =
+  'Another program is using the board. Close the serial monitor or the Arduino IDE, then connect again.';
+export const NO_ANSWER =
+  'The board did not answer. Hold its BOOT button and connect again. On an ESP-01S, set the USB adapter to flash mode first.';
+export const LOST = 'The board stopped talking to the page. Plug it back in and connect again.';
+/** The download failed; the caller ends the sentence with what to do. */
+export const NO_DOWNLOAD = 'The image did not download. Check your internet connection';
+
+export function found(chip: string): string {
+  return `Found ${chip}`;
+}
+
+/** `title` names what has no image for the chip: a project or a sketch's key. */
+export function noImage(state: Extract<SessionState, { kind: 'noImage' }>, title: string): string {
+  return `This board is an ${state.chip}. ${title} has images for: ${state.available.join(', ')}.`;
+}
+
+/** The flash dropped part way; the caller adds what to do. */
+export function droppedAt(pct: number): string {
+  return `The connection dropped at ${pct}%. Nothing is broken.`;
+}
