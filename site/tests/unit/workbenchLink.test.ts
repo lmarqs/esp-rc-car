@@ -64,56 +64,59 @@ describe('boardStatus', () => {
 });
 
 describe('boardAction', () => {
-  const connect = { label: 'Connect', icon: 'plug', event: 'connect', disabled: false };
+  const connect = { label: 'Connect my board', icon: 'plug', event: 'connect', disabled: false };
+  const input = { key: 'blink/input', number: 2 };
 
-  it('offers no button in a browser that cannot reach a board', () => {
-    expect(boardAction({ kind: 'unsupported' }, undefined, 'blink/simple')).toBeUndefined();
+  it('offers no board half in a browser that cannot reach a board', () => {
+    expect(boardAction({ kind: 'unsupported' }, undefined, input)).toBeUndefined();
   });
 
   it('connects with a plug from idle, a failure or a lost board', () => {
     const states: SessionState[] = [{ kind: 'idle' }, { kind: 'noAnswer' }, { kind: 'dropped', pct: 40 }, lost];
-    for (const state of states) expect(boardAction(state, undefined, 'blink/simple')).toEqual(connect);
+    for (const state of states) expect(boardAction(state, undefined, input)).toEqual(connect);
   });
 
-  it('flashes the step with a bolt on a board that runs another sketch or has not named one', () => {
-    const flashStep = { label: 'Flash step', icon: 'bolt', event: 'flash', disabled: false };
-    expect(boardAction(running, 'blink/simple', 'blink/input')).toEqual(flashStep);
-    expect(boardAction(running, undefined, 'blink/input')).toEqual(flashStep);
+  it('flashes the step, by its number, on a board that runs another sketch or has not named one', () => {
+    const flashStep = { label: 'Flash step 2 to board', icon: 'bolt', event: 'flash', disabled: false };
+    expect(boardAction(running, 'blink/simple', input)).toEqual(flashStep);
+    expect(boardAction(running, undefined, input)).toEqual(flashStep);
   });
 
-  it('flashes again on a board that runs the selected step', () => {
-    expect(boardAction(running, 'blink/input', 'blink/input')).toEqual({
-      label: 'Flash again',
-      icon: 'bolt',
-      event: 'flash',
-      disabled: false,
-    });
-  });
-
-  it('keeps the pressed action, disabled, while the session works', () => {
-    const pressed = { label: 'Flash again', icon: 'bolt', event: 'flash', disabled: false } as const;
-    expect(boardAction({ kind: 'flashing', chip: 'ESP32', pct: 40 }, undefined, 'blink/input', pressed)).toEqual({
-      ...pressed,
-      disabled: true,
-    });
-    expect(boardAction({ kind: 'connecting' }, undefined, 'blink/input')).toEqual({ ...connect, disabled: true });
-  });
-
-  it('goes back to live, with its own icon, while the simulator has the pane of a board that runs the selected step', () => {
-    expect(boardAction(running, 'blink/input', 'blink/input', undefined, true)).toEqual({
-      label: 'Back to live',
-      icon: 'back',
+  it('reads My board, live, on a board that runs the selected step', () => {
+    expect(boardAction(running, 'blink/input', input)).toEqual({
+      label: 'My board, live',
+      icon: 'dot',
       event: 'live',
       disabled: false,
     });
   });
 
-  it('flashes the step, not back to live, once the board runs another step', () => {
-    expect(boardAction(running, 'blink/simple', 'blink/input', undefined, true)).toMatchObject({ label: 'Flash step' });
+  it('says what the session works on, disabled, while it is busy', () => {
+    const flash = { label: 'Flash step 2 to board', icon: 'bolt', event: 'flash', disabled: false } as const;
+    expect(boardAction({ kind: 'flashing', chip: 'ESP32', pct: 40 }, undefined, input, flash)).toEqual({
+      label: 'Flashing…',
+      icon: 'bolt',
+      event: 'flash',
+      disabled: true,
+    });
+    expect(boardAction({ kind: 'connecting' }, undefined, input)).toEqual({ ...connect, label: 'Connecting…', disabled: true });
   });
 
-  it('connects again, not back to live, once the board is lost', () => {
-    expect(boardAction(lost, 'blink/input', 'blink/input', undefined, true)).toEqual(connect);
+  it('goes back to the board while the simulator has the pane of a board that runs the selected step', () => {
+    expect(boardAction(running, 'blink/input', input, undefined, true)).toEqual({
+      label: 'My board',
+      icon: 'dot',
+      event: 'live',
+      disabled: false,
+    });
+  });
+
+  it('flashes the step, not back to the board, once the board runs another step', () => {
+    expect(boardAction(running, 'blink/simple', input, undefined, true)).toMatchObject({ label: 'Flash step 2 to board' });
+  });
+
+  it('connects again, not back to the board, once the board is lost', () => {
+    expect(boardAction(lost, 'blink/input', input, undefined, true)).toEqual(connect);
   });
 });
 

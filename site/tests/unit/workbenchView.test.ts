@@ -139,7 +139,7 @@ describe('boardStatusText', () => {
   it('still reads Live while the simulator has the pane, and says so in the sentence', () => {
     expect(boardStatusText({ kind: 'live' }, true)).toEqual({
       word: 'Live',
-      title: 'Live — the pane shows the simulator until Back to live',
+      title: 'Live — the pane shows the simulator until My board',
     });
     expect(boardStatusText({ kind: 'simulated' }, true).title).toBe('Running in the browser');
   });

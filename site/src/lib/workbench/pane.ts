@@ -20,7 +20,7 @@ export interface PaneState<B> {
   /** The index of the selected step in rail order. */
   readonly selected: number;
   readonly mode: PaneMode;
-  /** Set when the visitor paused, stepped or restarted while live: the simulator keeps the pane until Back to live. */
+  /** Set when the visitor paused, stepped or restarted while live: the simulator keeps the pane until My board. */
   readonly detached: boolean;
   /** The sketch the connected board said it runs; unknown again from each connection until it says. */
   readonly heard?: string;
@@ -47,9 +47,9 @@ export type PaneEvent =
   | { readonly kind: 'session'; readonly state: SessionState }
   /** The board printed `text` at `at` milliseconds of the page's clock. */
   | { readonly kind: 'line'; readonly text: string; readonly at: number }
-  /** Pause, Step or Restart pressed while live: the simulator takes the pane, and the board keeps its port. */
+  /** Pause, Step, Restart or Simulator pressed while live: the simulator takes the pane, and the board keeps its port. */
   | { readonly kind: 'detach' }
-  /** Back to live: the pane follows the board again. */
+  /** My board pressed: the pane follows the board again. */
   | { readonly kind: 'live' }
   /** The visitor sent `text` to the board at `at`. */
   | { readonly kind: 'sent'; readonly text: string; readonly at: number }

@@ -4,83 +4,73 @@ import { expect, test, type FakeFlasherOptions } from './fake-flasher';
 const BLINK = '/robomania/projects/blink/';
 const bench = (page: Page) => page.getByRole('region', { name: 'Workbench' });
 const tab = (page: Page, name: string) => bench(page).getByRole('tab', { name });
-const cell = (page: Page) => bench(page).locator('[data-board-cell]');
-/** The word the Board cell shows. */
+/** The word the Board status, a live region for a screen reader, reads. */
 const status = (page: Page) => bench(page).locator('[data-board-word]');
-/** The status line: the dot, the word and, for a screen reader only, the sentence that names the board's sketch. */
+/** The Board status: the word and the sentence that names the board's sketch. */
 const statusLine = (page: Page) => bench(page).locator('[data-board-status]');
+const boardSwitch = (page: Page) => bench(page).getByRole('group', { name: 'What drives the board pane' });
 const boardButton = (page: Page) => bench(page).locator('[data-board-action]');
+const simulatorButton = (page: Page) => bench(page).locator('[data-pane-simulator]');
+const flashAgain = (page: Page) => bench(page).getByRole('button', { name: 'Flash again' });
 const message = (page: Page) => bench(page).locator('[data-board-message]');
 const picture = (page: Page) => bench(page).locator('[data-picture]');
 const serial = (page: Page) => bench(page).getByRole('log', { name: 'Serial output' });
 const card = (page: Page) => page.getByRole('region', { name: 'Put it on your board' });
 
-const GREY = 'rgb(154, 167, 179)';
-const GREY_CORE = 'rgb(201, 209, 216)';
-const GREEN = 'rgb(46, 158, 107)';
-const CORAL = 'rgb(226, 96, 58)';
-
-/** Waits for the status dot and the chip's centre to show `colour`; the centre fades to it. */
-async function expectColour(page: Page, colour: { dot: string; core: string }) {
-  await expect(cell(page).locator('.core')).toHaveCSS('fill', colour.core);
-  expect(await statusLine(page).evaluate((element) => getComputedStyle(element, '::before').backgroundColor)).toBe(colour.dot);
+/** The icon the board half shows: `plug`, `bolt` or `dot`. */
+async function icon(page: Page) {
+  for (const name of ['plug', 'bolt', 'dot']) {
+    if (await boardButton(page).locator(`.i-${name}`).isVisible()) return name;
+  }
+  return 'none';
 }
 
-/** The icon the button shows: `plug`, `bolt` or `back`. */
-async function icon(page: Page) {
-  if (await boardButton(page).locator('.i-plug').isVisible()) return 'plug';
-  if (await boardButton(page).locator('.i-bolt').isVisible()) return 'bolt';
-  if (await boardButton(page).locator('.i-back').isVisible()) return 'back';
-  return 'none';
+/** Which half of the switch drives the pane, as each reads it out. */
+async function pressed(page: Page) {
+  return [await simulatorButton(page).getAttribute('aria-pressed'), await boardButton(page).getAttribute('aria-pressed')];
 }
 
 async function connect(page: Page) {
   await boardButton(page).click();
 }
 
-test('marks the tab whose step the board runs, and no tab without a board', async ({ page, fakeFlasher }) => {
-  await fakeFlasher.install({ lines: ['sketch blink/commands'] });
-  await page.goto(BLINK);
-  const marks = page.getByRole('region', { name: 'Workbench' }).locator('[data-onboard]');
-  await expect(marks.filter({ visible: true })).toHaveCount(0);
-
-  await page.getByRole('region', { name: 'Workbench' }).locator('[data-board-action]').click();
-
-  await expect(marks.filter({ visible: true })).toHaveCount(1);
-  await expect(page.getByRole('tab', { name: /^4 commands/ }).locator('[data-onboard]')).toBeVisible();
-  await expect(page.getByRole('tab', { name: /^4 commands/ })).toHaveAccessibleName(/board$/);
-});
-
-test.describe('the Board cell', () => {
-  test('reads Simulated in grey with Connect and a plug before a board is connected', async ({ page, fakeFlasher }) => {
+test.describe('the Board switch', () => {
+  test('has the simulator pressed and offers to connect, with a plug, before a board is connected', async ({
+    page,
+    fakeFlasher,
+  }) => {
     await fakeFlasher.install();
     await page.goto(BLINK);
 
-    await expect(cell(page)).toContainText('Board');
-    await expect(status(page)).toHaveText('Simulated');
-    await expect(statusLine(page)).toHaveAttribute('title', 'Running in the browser');
-    await expectColour(page, { dot: GREY, core: GREY_CORE });
-    await expect(boardButton(page)).toHaveAccessibleName('Connect');
+    await expect(boardSwitch(page)).toBeVisible();
+    await expect(simulatorButton(page)).toHaveAccessibleName('Simulator');
+    await expect(boardButton(page)).toHaveAccessibleName('Connect my board');
     expect(await icon(page)).toBe('plug');
+    expect(await pressed(page)).toEqual(['true', 'false']);
+    await expect(status(page)).toHaveText('Simulated');
+    await expect(flashAgain(page)).toBeHidden();
     expect(await fakeFlasher.calls()).toEqual([]);
   });
 
-  test('reads Live in green and offers Flash again once the board names the selected step', async ({ page, fakeFlasher }) => {
+  test('presses My board, live, and offers Flash again in the pane once the board names the selected step', async ({
+    page,
+    fakeFlasher,
+  }) => {
     await fakeFlasher.install({ lines: ['sketch blink/simple'] });
     await page.goto(BLINK);
 
     await connect(page);
 
     await expect(status(page)).toHaveText('Live');
-    await expectColour(page, { dot: GREEN, core: GREEN });
-    await expect(statusLine(page)).toHaveCSS('color', 'rgb(31, 122, 81)');
-    await expect(boardButton(page)).toHaveAccessibleName('Flash again');
-    expect(await icon(page)).toBe('bolt');
+    await expect(boardButton(page)).toHaveAccessibleName('My board, live');
+    expect(await icon(page)).toBe('dot');
+    expect(await pressed(page)).toEqual(['false', 'true']);
+    await expect(flashAgain(page)).toBeVisible();
     // The workbench connects by restarting the board into what it holds: nothing is downloaded or written.
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
   });
 
-  test('reads Runs and the key in coral, and offers Flash step, when the board runs another step', async ({
+  test('keeps the simulator pressed and offers to flash the selected step when the board runs another step', async ({
     page,
     fakeFlasher,
   }) => {
@@ -90,15 +80,14 @@ test.describe('the Board cell', () => {
     await connect(page);
 
     await expect(status(page)).toHaveText('Runs step 4');
-    await expect(statusLine(page)).toHaveAttribute('title', 'Your board runs blink/commands');
     await expect(statusLine(page)).toHaveText('Runs step 4: Your board runs blink/commands');
-    await expectColour(page, { dot: CORAL, core: CORAL });
-    await expect(statusLine(page)).toHaveCSS('color', 'rgb(184, 67, 31)');
-    await expect(boardButton(page)).toHaveAccessibleName('Flash step');
+    await expect(boardButton(page)).toHaveAccessibleName('Flash step 1 to board');
     expect(await icon(page)).toBe('bolt');
+    expect(await pressed(page)).toEqual(['true', 'false']);
+    await expect(flashAgain(page)).toBeHidden();
   });
 
-  test('reads Other sketch in coral, with the key for a screen reader, when the board runs a sketch from outside the project', async ({
+  test('names a sketch from outside the project for a screen reader, and offers to flash the step', async ({
     page,
     fakeFlasher,
   }) => {
@@ -108,10 +97,8 @@ test.describe('the Board cell', () => {
     await connect(page);
 
     await expect(status(page)).toHaveText('Other sketch');
-    await expect(statusLine(page)).toHaveAttribute('title', 'Your board runs servo/sweep');
     await expect(statusLine(page)).toHaveText('Other sketch: Your board runs servo/sweep');
-    await expectColour(page, { dot: CORAL, core: CORAL });
-    await expect(boardButton(page)).toHaveAccessibleName('Flash step');
+    await expect(boardButton(page)).toHaveAccessibleName('Flash step 1 to board');
   });
 
   test('changes the status, a live region, in one change, so a screen reader announces it once', async ({
@@ -136,38 +123,67 @@ test.describe('the Board cell', () => {
     expect(changes.every((change) => change === 'childList')).toBe(true);
   });
 
-  test('reads Connected in grey and offers Flash step on a board that has not named its sketch', async ({
-    page,
-    fakeFlasher,
-  }) => {
+  test('offers to flash the step on a board that has not named its sketch', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['HIGH'] });
     await page.goto(BLINK);
 
     await connect(page);
 
-    await expect(boardButton(page)).toHaveAccessibleName('Flash step');
+    await expect(boardButton(page)).toHaveAccessibleName('Flash step 1 to board');
     await expect(status(page)).toHaveText('Connected');
-    await expect(statusLine(page)).toHaveAttribute(
-      'title',
-      'Waiting for the board to name its sketch; flash a step to use it here',
-    );
-    await expectColour(page, { dot: GREY, core: GREY_CORE });
+    expect(await pressed(page)).toEqual(['true', 'false']);
   });
 
-  test('outlines the button in blue when it has the keyboard focus', async ({ page, fakeFlasher }) => {
+  test('Simulator hands the pane to the simulator while the board keeps its step, and My board takes it back', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/simple'] });
+    await page.goto(BLINK);
+    await connect(page);
+    await expect(status(page)).toHaveText('Live');
+
+    await simulatorButton(page).click();
+
+    expect(await pressed(page)).toEqual(['true', 'false']);
+    await expect(boardButton(page)).toHaveAccessibleName('My board');
+    await expect(flashAgain(page)).toBeHidden();
+
+    await boardButton(page).click();
+
+    expect(await pressed(page)).toEqual(['false', 'true']);
+    await expect(boardButton(page)).toHaveAccessibleName('My board, live');
+    expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
+  });
+
+  test('Flash again flashes the step the board runs', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/simple'], announce: true });
+    await page.goto(BLINK);
+    await connect(page);
+    await expect(status(page)).toHaveText('Live');
+
+    await flashAgain(page).click();
+
+    await expect(status(page)).toHaveText('Live');
+    expect(await fakeFlasher.loaded()).toEqual([['blink/simple/esp32/simple.ino.bootloader.bin', 'blink/simple/esp32/simple.ino.bin']]);
+  });
+
+  test('outlines each half in blue when it has the keyboard focus', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install();
     await page.goto(BLINK);
 
     await tab(page, '4 commands').focus();
     await page.keyboard.press('Tab');
-
+    await expect(simulatorButton(page)).toBeFocused();
+    await expect(simulatorButton(page)).toHaveCSS('outline-color', 'rgb(59, 130, 196)');
+    await page.keyboard.press('Tab');
     await expect(boardButton(page)).toBeFocused();
     await expect(boardButton(page)).toHaveCSS('outline-color', 'rgb(59, 130, 196)');
   });
 });
 
 test.describe('flashing from the workbench', () => {
-  test("Flash step flashes the selected step's image on the open port and ends on Flash again", async ({
+  test("Flash step flashes the selected step's image on the open port and ends live", async ({
     page,
     fakeFlasher,
   }) => {
@@ -181,7 +197,8 @@ test.describe('flashing from the workbench', () => {
     await boardButton(page).click();
 
     await expect(status(page)).toHaveText('Live');
-    await expect(boardButton(page)).toHaveAccessibleName('Flash again');
+    await expect(boardButton(page)).toHaveAccessibleName('My board, live');
+    await expect(flashAgain(page)).toBeVisible();
     expect(await fakeFlasher.loaded()).toEqual([['blink/input/esp32/input.ino.bootloader.bin', 'blink/input/esp32/input.ino.bin']]);
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200', 'connect reuse', 'load', 'write', 'monitor 115200']);
   });
@@ -221,7 +238,7 @@ test.describe('flashing from the workbench', () => {
 
     await expect(message(page)).toHaveText('Connecting to the board.');
     await expect(picture(page)).toBeHidden();
-    await expect(boardButton(page)).toHaveAccessibleName('Connect');
+    await expect(boardButton(page)).toHaveAccessibleName('Connecting…');
     await expect(boardButton(page)).toHaveAttribute('aria-disabled', 'true');
     await fakeFlasher.release();
     await expect(picture(page)).toBeVisible();
@@ -241,11 +258,11 @@ test.describe('flashing from the workbench', () => {
     }
 
     expect(seen).toEqual([
-      ['Runs step 3', 'Flash step'],
-      ['Live', 'Flash again'],
-      ['Runs step 3', 'Flash step'],
-      ['Runs step 3', 'Flash step'],
-      ['Live', 'Flash again'],
+      ['Runs step 3', 'Flash step 2 to board'],
+      ['Live', 'My board, live'],
+      ['Runs step 3', 'Flash step 4 to board'],
+      ['Runs step 3', 'Flash step 1 to board'],
+      ['Live', 'My board, live'],
     ]);
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
   });
@@ -265,7 +282,7 @@ test.describe('flashing from the workbench', () => {
     await expect(message(page)).toHaveClass(/notice/);
     await expect(picture(page)).toBeHidden();
     await expect(status(page)).toHaveText('Simulated');
-    await expect(boardButton(page)).toHaveAccessibleName('Connect');
+    await expect(boardButton(page)).toHaveAccessibleName('Connect my board');
 
     await connect(page);
 
@@ -281,7 +298,7 @@ test.describe('flashing from the workbench', () => {
 
     await expect(message(page)).toHaveText('The board stopped talking to the page. Plug it back in and connect again.');
     await expect(status(page)).toHaveText('Simulated');
-    await expect(boardButton(page)).toHaveAccessibleName('Connect');
+    await expect(boardButton(page)).toHaveAccessibleName('Connect my board');
   });
 
   test('names the chips a step has images for when the board has none, until another step is picked', async ({
@@ -358,7 +375,7 @@ test.describe('the flash card', () => {
 
     await expect(bench(page)).toBeVisible();
     await expect(card(page)).toHaveCount(0);
-    await expect(boardButton(page)).toHaveAccessibleName('Connect');
+    await expect(boardButton(page)).toHaveAccessibleName('Connect my board');
   });
 
   test('stays on a single-sketch project', async ({ page, fakeFlasher }) => {
@@ -380,7 +397,8 @@ test.describe('the rail', () => {
   async function railBoxes(page: Page) {
     return {
       tabs: await Promise.all((await bench(page).getByRole('tab').all()).map(box)),
-      cell: await box(cell(page)),
+      board: await box(boardSwitch(page)),
+      simulator: await box(simulatorButton(page)),
       button: await box(boardButton(page)),
     };
   }
@@ -411,14 +429,23 @@ test.describe('the rail', () => {
       },
     },
     {
-      name: 'Back to live',
+      name: 'My board, after Pause',
       options: { lines: ['sketch blink/simple'] },
       reach: async (page) => {
         await connect(page);
         await expect(status(page)).toHaveText('Live');
         await bench(page).getByRole('toolbar', { name: 'Debugger' }).getByRole('button', { name: 'Pause' }).click();
-        await expect(boardButton(page)).toHaveAccessibleName('Back to live');
-        expect(await icon(page)).toBe('back');
+        await expect(boardButton(page)).toHaveAccessibleName('My board');
+        expect(await icon(page)).toBe('dot');
+      },
+    },
+    {
+      name: 'the longest label',
+      options: { lines: ['sketch blink/simple'] },
+      reach: async (page) => {
+        await connect(page);
+        await tab(page, '4 commands').click();
+        await expect(boardButton(page)).toHaveAccessibleName('Flash step 4 to board');
       },
     },
     {
@@ -442,7 +469,7 @@ test.describe('the rail', () => {
       options: { lines: ['sketch blink/commands'], progress: [40], hold: true },
       reach: async (page) => {
         await connect(page);
-        await expect(boardButton(page)).toHaveAccessibleName('Flash step');
+        await expect(boardButton(page)).toHaveAccessibleName('Flash step 1 to board');
         await boardButton(page).click();
         await expect(message(page)).toHaveText('Found ESP32');
       },
@@ -450,7 +477,7 @@ test.describe('the rail', () => {
   ];
 
   for (const state of states) {
-    test(`keeps every tab, the Board cell and the button where Simulated has them: ${state.name}`, async ({
+    test(`keeps every tab and both halves of the switch where Simulated has them: ${state.name}`, async ({
       page,
       fakeFlasher,
     }) => {
@@ -458,25 +485,20 @@ test.describe('the rail', () => {
       await page.goto(BLINK);
       await expect(status(page)).toHaveText('Simulated');
       const simulated = await railBoxes(page);
-      expect(await fits(statusLine(page))).toBe(true);
 
       await state.reach(page);
 
       expect(await railBoxes(page)).toEqual(simulated);
-      expect(await fits(statusLine(page))).toBe(true);
       expect(await fits(boardButton(page))).toBe(true);
     });
   }
 
-  test('centres the chip, the words, the button and the tabs on one line', async ({ page, fakeFlasher }) => {
+  test('centres the switch and the tabs on one line', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install();
     await page.goto(BLINK);
 
-    const words = [await box(cell(page).locator('.name')), await box(status(page))];
     const centres = [
-      middle(await box(cell(page).locator('.cpu'))),
-      (words[0].y + words[1].y + words[1].height) / 2,
-      middle(await box(boardButton(page))),
+      middle(await box(boardSwitch(page))),
       ...(await Promise.all((await bench(page).getByRole('tab').all()).map(async (each) => middle(await box(each))))),
     ];
 

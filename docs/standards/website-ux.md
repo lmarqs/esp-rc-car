@@ -13,23 +13,23 @@ connected, one running the shown step and one running another step.
 A MUST does not vary. A SHOULD yields only to a reason written beside the code. Rules are cited by number.
 
 1. **Nothing shifts.** A state change MUST NOT move or resize a neighbour, and anything whose text changes MUST
-   reserve the width of its longest text. A visitor aims at a control and presses it; if the control moves under
-   the pointer, the press lands on something else. Example: the board's button in the rail is 138 px wide whether it
-   reads Connect, Flash step or Flash again, and the debugger's Pause button keeps its width when it reads
-   Continue.
+   reserve the width of its longest text. A visitor aims at a control and presses it; if the control moves under the
+   pointer, the press lands on something else. Example: the board half of the rail's switch is 198 px wide whether it
+   reads Connect my board, Flash step 4 to board or My board, live, and the debugger's Pause button keeps its width
+   when it reads Continue.
 2. **Group by direction.** What the board reports MUST sit together, and what the visitor sends MUST sit together,
    next to where the reply appears. A visitor who sends a value looks for its effect, and the nearer the two are,
    the less they search. Example: the LED, the watch table and the 10-second trace of GPIO 2 form one block of
    reports; the serial output, the command line, the shortcut chips and the delay slider form one terminal, with
    the command line directly under the output the board answers in.
-3. **One meaning per colour.** Yellow means new or sent, coral means running or the main action, and green means
-   live or applied. A colour with two meanings teaches the visitor to ignore it. Example: a line new in this step
-   has a yellow background, and a line the visitor sent is yellow in the terminal; the line the board is about to
-   run is coral, like the Connect button; the Live state, the lit LED and the mark for what the board applied are
-   green.
+3. **One meaning per colour.** Yellow means new or sent, coral means running or the main action, and green means live
+   or applied. A colour with two meanings teaches the visitor to ignore it. Example: a line new in this step has a
+   yellow background, and a line the visitor sent is yellow in the terminal; the line the board is about to run is
+   coral; the board's dot in the switch, the mark on the tab the board runs, the Live state, the lit LED and the mark
+   for what the board applied are green.
 4. **Never colour alone.** A status MUST carry an icon or a word as well. A colour-blind visitor, or one in
-   bright light, cannot tell two hues apart. Example: the board's state reads Simulated, Connected, Live, Runs step 1
-   or Other sketch beside its dot, and the line being run has the arrow ▶ in its gutter as well as the coral background.
+   bright light, cannot tell two hues apart. Example: the switch's dark half names what drives the board pane,
+   Simulator or My board, and the line being run has the arrow ▶ in its gutter as well as the coral background.
 5. **Chrome is not content.** An editor, terminal or card MUST look separate from what it holds, and its lines MUST
    meet at its edges. A visitor then tells the sketch's text from the page's controls, and an unbroken row reads
    as one line. Example: the editor has a tab with the file name and a path of crumbs above the code, and the
@@ -37,7 +37,7 @@ A MUST does not vary. A SHOULD yields only to a reason written beside the code. 
    output.
 6. **Every state says what to do next, in plain words.** A state MUST NOT leave the visitor to guess the next step.
    Example: below the panes a hint says what the arrow is and that Step runs one line; when the board runs another
-   step, the Board cell says which one and its button offers to flash the step on screen.
+   step, its tab is marked "● board" and the switch offers "Flash step 3 to board" for the step on screen.
 7. **A control shows what it sent, and a slider sends on release.** After a control acts, the page MUST show what
    went out, and a slider MUST NOT send while it is dragged, since each intermediate value would reach the board.
    Example: in the commands step, dragging the delay slider updates its number and writes the line it would send,

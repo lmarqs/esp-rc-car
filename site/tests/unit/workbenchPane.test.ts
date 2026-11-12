@@ -105,7 +105,7 @@ describe('the board pane', () => {
       expect(wait(restarted)).toBe('1000');
     });
 
-    it('follows the board again on Back to live, from what the page knows', () => {
+    it('follows the board again on My board, from what the page knows', () => {
       const back = reducePane(blink, reducePane(blink, detached, line('delay 500')), { kind: 'live' });
       expect(back).toMatchObject({ mode: 'live', detached: false, following: live.following + 1 });
       expect(followedWait(back)).toBe('500');

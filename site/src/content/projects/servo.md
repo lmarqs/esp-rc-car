@@ -38,7 +38,7 @@ commands while the servo sweeps, and move it at a speed you choose.
 ## Run it on your board
 
 Wire the servo's signal to GPIO 13. The workbench above runs each step on a simulated servo until you connect your
-board. From Chrome or Edge on a computer, with no tools installed, its Board cell connects to your board and flashes
+board. From Chrome or Edge on a computer, with no tools installed, its Board switch connects to your board and flashes
 the step you picked. Once the board prints its `sketch <key>` line, the workbench follows your board, and what you
 send goes to it. To build and flash a step yourself, run from the repository's root:
 

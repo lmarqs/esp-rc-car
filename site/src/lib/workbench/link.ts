@@ -13,16 +13,19 @@ export type BoardStatus =
   | { kind: 'step'; key: string; number: number }
   | { kind: 'sketch'; key: string };
 
-/** What the Board cell's button does, and what it shows for it. */
+/**
+ * The board half of the Board switch: what pressing it does, and what it shows for it. The other half is the
+ * simulator, which drives the pane whenever the board does not.
+ */
 export interface BoardAction {
-  readonly label: 'Connect' | 'Flash step' | 'Flash again' | 'Back to live';
-  readonly icon: 'plug' | 'bolt' | 'back';
+  readonly label: string;
+  readonly icon: 'plug' | 'bolt' | 'dot';
   /**
-   * `connect` connects to a board; `flash` flashes the selected step onto the connected one; `live` brings the board
-   * pane back from the simulator to the board that runs the selected step.
+   * `connect` connects to a board; `flash` flashes the selected step onto the connected one; `live` hands the board
+   * pane to the board that runs the selected step, which it may already have.
    */
   readonly event: 'connect' | 'flash' | 'live';
-  /** Set while the session works on the last press, which the button then keeps showing. */
+  /** Set while the session works on the last press. */
   readonly disabled: boolean;
 }
 
@@ -55,23 +58,26 @@ export function boardStatus(
 }
 
 /**
- * The button for the session's `state`, or `undefined` in a browser that cannot reach a board. `pressed` is the action
- * the visitor last pressed, which the button keeps, disabled, while the session works on it. `detached` is set while
- * the visitor has the simulator in the board pane although the board runs the selected step.
+ * The board half of the Board switch for the session's `state`, or `undefined` in a browser that cannot reach a board.
+ * `step` is the selected step, its key and its number in the rail. `pressed` is the action the visitor last pressed,
+ * which names what the session works on while it is busy. `detached` is set while the visitor has the simulator in the
+ * board pane although the board runs the selected step.
  */
 export function boardAction(
   state: SessionState,
   heard: string | undefined,
-  selected: string,
+  step: { readonly key: string; readonly number: number },
   pressed?: BoardAction,
   detached = false,
 ): BoardAction | undefined {
   if (state.kind === 'unsupported') return undefined;
-  if (isBusy(state)) return { ...(pressed ?? CONNECT), disabled: true };
+  if (isBusy(state)) {
+    const label = pressed?.event === 'flash' ? 'Flashing…' : 'Connecting…';
+    return { label, icon: pressed?.icon ?? 'plug', event: pressed?.event ?? 'connect', disabled: true };
+  }
   if (!isConnected(state)) return CONNECT;
-  if (heard !== selected) return { label: 'Flash step', icon: 'bolt', event: 'flash', disabled: false };
-  if (detached) return { label: 'Back to live', icon: 'back', event: 'live', disabled: false };
-  return { label: 'Flash again', icon: 'bolt', event: 'flash', disabled: false };
+  if (heard !== step.key) return { label: `Flash step ${step.number} to board`, icon: 'bolt', event: 'flash', disabled: false };
+  return { label: detached ? 'My board' : 'My board, live', icon: 'dot', event: 'live', disabled: false };
 }
 
 /**
@@ -83,10 +89,10 @@ export type PaneMode = 'simulator' | 'live';
 /**
  * What drives the board pane for the board's `status`: the board only while it runs the selected step, so a step the
  * board does not run is simulated like any other. `detached` is set when the visitor paused, stepped or restarted
- * while live, which hands the pane to the simulator until they go back to live.
+ * while live, which hands the pane to the simulator until they press My board.
  */
 export function paneMode(status: BoardStatus, detached: boolean): PaneMode {
   return status.kind === 'live' && !detached ? 'live' : 'simulator';
 }
 
-const CONNECT: BoardAction = { label: 'Connect', icon: 'plug', event: 'connect', disabled: false };
+const CONNECT: BoardAction = { label: 'Connect my board', icon: 'plug', event: 'connect', disabled: false };

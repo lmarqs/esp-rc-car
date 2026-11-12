@@ -85,7 +85,7 @@ The site also puts the firmware on a board. Its parts:
   card and the workbench share.
 - **Workbench slice**: `site/src/components/workbench/` holds the component and its pictures, and
   `site/src/lib/workbench/` the logic. A project built as a ladder of step sketches, such as Blink and Servo, has a
-  workbench: step tabs and a Board cell, then the selected step's code in an editor with a debugger beside a board
+  workbench: step tabs and a Board switch, then the selected step's code in an editor with a debugger beside a board
   pane. Per project, the logic holds one definition per step, which has the step's simulated program, what each line
   the step prints means, and the controls that send a line; and a board model, which turns that meaning into the
   picture, the watch values and the trace. The slice depends on the flash slice, and on the images and the manifest
@@ -134,10 +134,11 @@ key ties a board to a step:
 - Until a connected board prints a key, the workbench goes on simulating.
 - When the key is the selected step's, the workbench follows the board, which is live mode: the pictures, the trace
   and the arrow are drawn from the lines the board prints, and what the visitor sends goes to the board.
-- When the key is another step's or another sketch's, the Board cell says which, the selected step is simulated
-  like any other, and the button flashes the selected step.
-- Pause, Step or Restart hands the pane back to the simulator with the port still open, and the Board cell's button
-  brings it back to the board.
+- When the key is another step's or another sketch's, the tab of the step it runs is marked, the selected step is
+  simulated like any other, and the switch's board half flashes the selected step.
+- Simulator, Pause, Step or Restart hands the pane back to the simulator with the port still open, and the switch's
+  board half, My board, brings it back to the board. Flash again, above the picture while live, flashes the step
+  the board runs.
 
 The tests, in `site/tests`, run the card and the workbench in a browser against a fake serial port.
 
