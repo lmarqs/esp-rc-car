@@ -12,12 +12,13 @@ export type SessionState =
   | { kind: 'portBusy' }
   | { kind: 'noAnswer' }
   | { kind: 'noImage'; chip: string; available: ChipFamily[] }
+  | { kind: 'noDownload' }
   | { kind: 'dropped'; pct: number };
 
 export type SessionEvent =
   /** From `idle` or a failure: asks for a port and connects to the board. */
   | { type: 'connect' }
-  /** From `settings`: flashes the board. */
+  /** From `settings`: downloads the image and flashes the board. */
   | { type: 'startFlash' }
   /** From a failure, `settings` or `running`: releases the port and returns to `idle`. */
   | { type: 'retry' };
@@ -44,6 +45,7 @@ const FAILURE_KINDS: ReadonlySet<SessionState['kind']> = new Set([
   'portBusy',
   'noAnswer',
   'noImage',
+  'noDownload',
   'dropped',
 ]);
 
@@ -64,11 +66,16 @@ function connectFailure(error: unknown): Failure {
   return 'noAnswer';
 }
 
+function isDownloadError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'name' in error && error.name === 'DownloadError';
+}
+
 export function createSession({ flasher, manifest, sketch }: SessionOptions): FlashSession {
   const listeners = new Set<(state: SessionState) => void>();
   let state: SessionState = flasher ? { kind: 'idle' } : { kind: 'unsupported' };
   let image: ManifestImage | undefined;
   let lastPct = 0;
+  let downloading = false;
 
   function enter(next: SessionState) {
     state = next;
@@ -81,6 +88,7 @@ export function createSession({ flasher, manifest, sketch }: SessionOptions): Fl
     try {
       chip = await active.connect();
     } catch (error) {
+      console.error(error);
       await active.disconnect();
       enter({ kind: connectFailure(error) });
       return;
@@ -102,6 +110,18 @@ export function createSession({ flasher, manifest, sketch }: SessionOptions): Fl
   }
 
   async function flash(active: Flasher, chip: string) {
+    downloading = true;
+    try {
+      await active.load(image!.parts);
+    } catch (error) {
+      console.error(error);
+      await active.disconnect();
+      enter(isDownloadError(error) ? { kind: 'noDownload' } : { kind: 'dropped', pct: 0 });
+      return;
+    } finally {
+      downloading = false;
+    }
+
     lastPct = 0;
     enter({ kind: 'flashing', chip, pct: 0 });
     try {
@@ -113,7 +133,8 @@ export function createSession({ flasher, manifest, sketch }: SessionOptions): Fl
         }
       });
       await active.reset();
-    } catch {
+    } catch (error) {
+      console.error(error);
       await active.disconnect();
       enter({ kind: 'dropped', pct: lastPct });
       return;
@@ -135,7 +156,7 @@ export function createSession({ flasher, manifest, sketch }: SessionOptions): Fl
       return () => listeners.delete(listener);
     },
     async send(event) {
-      if (!flasher) {
+      if (!flasher || downloading) {
         return;
       }
       const { kind } = state;

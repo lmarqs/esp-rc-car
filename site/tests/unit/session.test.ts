@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-import type { Flasher } from '../../src/lib/flash/flasher';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DownloadError, type Flasher } from '../../src/lib/flash/flasher';
 import type { Manifest } from '../../src/lib/flash/manifest';
 import { createSession, type SessionState } from '../../src/lib/flash/session';
 
@@ -25,11 +25,17 @@ interface FakeFlasher extends Flasher {
   calls: string[];
 }
 
+interface FakeFlasherOptions {
+  chip?: string;
+  progress?: number[];
+  failAt?: Partial<Record<'connect' | 'load' | 'write' | 'reset', unknown>>;
+  /** The write waits for this before it reports progress. */
+  writeGate?: Promise<void>;
+}
+
 /** A flasher that connects to `chip`, writes by reporting each of `progress`, and fails where `failAt` says. */
-function fakeFlasher(
-  options: { chip?: string; progress?: number[]; failAt?: Partial<Record<'connect' | 'write' | 'reset', unknown>> } = {},
-): FakeFlasher {
-  const { chip = 'ESP32', progress = [10, 50, 100], failAt = {} } = options;
+function fakeFlasher(options: FakeFlasherOptions = {}): FakeFlasher {
+  const { chip = 'ESP32', progress = [10, 50, 100], failAt = {}, writeGate } = options;
   const calls: string[] = [];
   return {
     calls,
@@ -40,8 +46,15 @@ function fakeFlasher(
       }
       return chip;
     },
+    async load() {
+      calls.push('load');
+      if ('load' in failAt) {
+        throw failAt.load;
+      }
+    },
     async write(written, onProgress) {
       calls.push(`write ${written.map((part) => part.offset).join(',')}`);
+      await writeGate;
       for (const pct of progress) {
         onProgress(pct);
       }
@@ -68,6 +81,14 @@ function record(session: ReturnType<typeof createSession>) {
 }
 
 const domError = (name: string) => new DOMException('refused', name);
+
+beforeEach(() => {
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('a session without Web Serial', () => {
   it('starts unsupported and ignores every event', async () => {
@@ -102,17 +123,7 @@ describe('a session for a sketch without settings', () => {
       { kind: 'flashing', chip: 'ESP32', pct: 100 },
       { kind: 'running', chip: 'ESP32' },
     ]);
-    expect(flasher.calls).toEqual(['connect', 'write 4096,65536', 'reset']);
-  });
-
-  it('writes the parts of the image built for the chip it found', async () => {
-    const flasher = fakeFlasher({ chip: 'ESP8266' });
-    const session = createSession({ flasher, manifest, sketch: 'web-relay' });
-
-    await session.send({ type: 'connect' });
-    await session.send({ type: 'startFlash' });
-
-    expect(flasher.calls).toContain('write 0');
+    expect(flasher.calls).toEqual(['connect', 'load', 'write 4096,65536', 'reset']);
   });
 
   it('reports only progress that moves forward, within 0 to 100', async () => {
@@ -192,7 +203,17 @@ describe('a session for a sketch with settings', () => {
       'flashing',
       'running',
     ]);
-    expect(flasher.calls).toEqual(['connect', 'write 4096,65536', 'reset']);
+    expect(flasher.calls).toEqual(['connect', 'load', 'write 4096,65536', 'reset']);
+  });
+
+  it('writes the parts of the image built for the chip it found', async () => {
+    const flasher = fakeFlasher({ chip: 'ESP8266' });
+    const session = createSession({ flasher, manifest, sketch: 'web-relay' });
+
+    await session.send({ type: 'connect' });
+    await session.send({ type: 'startFlash' });
+
+    expect(flasher.calls).toContain('write 0');
   });
 
   it('releases the port and returns to idle on retry from settings', async () => {
@@ -236,6 +257,103 @@ describe('failures', () => {
     expect(flasher.calls).toEqual(['connect', 'disconnect']);
   });
 
+  it('fetches the image after the chip matches and before flashing, and reports a failed download as noDownload', async () => {
+    const flasher = fakeFlasher({ failAt: { load: new DownloadError('Could not download servo.ino.bin: the server answered 404') } });
+    const session = createSession({ flasher, manifest, sketch: 'servo' });
+    const states = record(session);
+
+    await session.send({ type: 'connect' });
+
+    expect(states).toEqual([{ kind: 'connecting' }, { kind: 'noDownload' }]);
+    expect(flasher.calls).toEqual(['connect', 'load', 'disconnect']);
+  });
+
+  it('fetches the image only after the settings step', async () => {
+    const flasher = fakeFlasher({ failAt: { load: new DownloadError('offline') } });
+    const session = createSession({ flasher, manifest, sketch: 'web-relay' });
+
+    await session.send({ type: 'connect' });
+
+    expect(session.state).toEqual({ kind: 'settings', chip: 'ESP32' });
+    expect(flasher.calls).toEqual(['connect']);
+
+    await session.send({ type: 'startFlash' });
+
+    expect(session.state).toEqual({ kind: 'noDownload' });
+    expect(flasher.calls).toEqual(['connect', 'load', 'disconnect']);
+  });
+
+  it('reports a failed fetch that is not a DownloadError as a drop at 0', async () => {
+    const session = createSession({
+      flasher: fakeFlasher({ failAt: { load: new Error('boom') } }),
+      manifest,
+      sketch: 'servo',
+    });
+
+    await session.send({ type: 'connect' });
+
+    expect(session.state).toEqual({ kind: 'dropped', pct: 0 });
+  });
+
+  it('logs the error behind a failure', async () => {
+    const failure = new Error('Failed to connect with the device');
+    const session = createSession({ flasher: fakeFlasher({ failAt: { connect: failure } }), manifest, sketch: 'servo' });
+
+    await session.send({ type: 'connect' });
+
+    expect(console.error).toHaveBeenCalledWith(failure);
+  });
+
+  it('ignores connect, startFlash and retry during a flash', async () => {
+    let finish!: () => void;
+    const flasher = fakeFlasher({ writeGate: new Promise<void>((resolve) => (finish = resolve)) });
+    const session = createSession({ flasher, manifest, sketch: 'servo' });
+    const flashing = session.send({ type: 'connect' });
+    await vi.waitFor(() => expect(session.state.kind).toBe('flashing'));
+
+    await session.send({ type: 'connect' });
+    await session.send({ type: 'startFlash' });
+    await session.send({ type: 'retry' });
+
+    expect(session.state).toEqual({ kind: 'flashing', chip: 'ESP32', pct: 0 });
+    expect(flasher.calls).toEqual(['connect', 'load', 'write 4096,65536']);
+
+    finish();
+    await flashing;
+
+    expect(session.state).toEqual({ kind: 'running', chip: 'ESP32' });
+  });
+
+  it('ignores retry while idle', async () => {
+    const flasher = fakeFlasher();
+    const session = createSession({ flasher, manifest, sketch: 'servo' });
+    const states = record(session);
+
+    await session.send({ type: 'retry' });
+
+    expect(states).toEqual([]);
+    expect(flasher.calls).toEqual([]);
+  });
+
+  it('ignores retry while connecting', async () => {
+    let finish!: () => void;
+    const flasher = fakeFlasher({ progress: [] });
+    const connect = flasher.connect.bind(flasher);
+    flasher.connect = async () => {
+      await new Promise<void>((resolve) => (finish = resolve));
+      return connect();
+    };
+    const session = createSession({ flasher, manifest, sketch: 'servo' });
+    const connecting = session.send({ type: 'connect' });
+
+    await session.send({ type: 'retry' });
+
+    expect(session.state).toEqual({ kind: 'connecting' });
+    expect(flasher.calls).toEqual([]);
+    finish();
+    await connecting;
+  });
+
   it('reports the last progress when the write fails', async () => {
     const flasher = fakeFlasher({ progress: [10, 42], failAt: { write: domError('NetworkError') } });
     const session = createSession({ flasher, manifest, sketch: 'servo' });
@@ -243,7 +361,7 @@ describe('failures', () => {
     await session.send({ type: 'connect' });
 
     expect(session.state).toEqual({ kind: 'dropped', pct: 42 });
-    expect(flasher.calls).toEqual(['connect', 'write 4096,65536', 'disconnect']);
+    expect(flasher.calls).toEqual(['connect', 'load', 'write 4096,65536', 'disconnect']);
   });
 
   it('reports a drop at 0 when the write fails before any progress', async () => {
@@ -271,29 +389,43 @@ describe('failures', () => {
     ['noPort', { connect: domError('NotFoundError') }],
     ['portBusy', { connect: domError('InvalidStateError') }],
     ['noAnswer', { connect: new Error('no sync') }],
+    ['noDownload', { load: new DownloadError('404') }],
     ['dropped', { write: new Error('lost') }],
-  ] as const)('returns from %s to idle on retry', async (_kind, failAt) => {
-    const session = createSession({ flasher: fakeFlasher({ failAt }), manifest, sketch: 'servo' });
+  ] as const)('returns from %s to idle on retry', async (kind, failAt) => {
+    const flasher = fakeFlasher({ failAt });
+    const session = createSession({ flasher, manifest, sketch: 'servo' });
     await session.send({ type: 'connect' });
+    expect(session.state.kind).toBe(kind);
 
     await session.send({ type: 'retry' });
 
     expect(session.state).toEqual({ kind: 'idle' });
+    expect(flasher.calls.at(-1)).toBe('disconnect');
   });
 
   it('returns from noImage to idle on retry', async () => {
-    const session = createSession({ flasher: fakeFlasher({ chip: 'ESP32-S3' }), manifest, sketch: 'servo' });
+    const flasher = fakeFlasher({ chip: 'ESP32-S3' });
+    const session = createSession({ flasher, manifest, sketch: 'servo' });
     await session.send({ type: 'connect' });
+    expect(session.state.kind).toBe('noImage');
 
     await session.send({ type: 'retry' });
 
     expect(session.state).toEqual({ kind: 'idle' });
+    expect(flasher.calls.at(-1)).toBe('disconnect');
   });
 
-  it('connects again straight from a failure', async () => {
-    const flasher = fakeFlasher({ failAt: { connect: domError('NotFoundError') } });
+  it.each([
+    ['noPort', { failAt: { connect: domError('NotFoundError') } }],
+    ['noAnswer', { failAt: { connect: new Error('no sync') } }],
+    ['noImage', { chip: 'ESP32-S3' }],
+    ['noDownload', { failAt: { load: new DownloadError('404') } }],
+    ['dropped', { failAt: { write: new Error('lost') } }],
+  ] as [string, FakeFlasherOptions][])('connects again straight from %s', async (kind, options) => {
+    const flasher = fakeFlasher(options);
     const session = createSession({ flasher, manifest, sketch: 'servo' });
     await session.send({ type: 'connect' });
+    expect(session.state.kind).toBe(kind);
     const states = record(session);
 
     await session.send({ type: 'connect' });

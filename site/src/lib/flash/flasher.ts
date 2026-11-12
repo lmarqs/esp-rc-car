@@ -8,12 +8,22 @@ import type { ManifestPart } from './manifest';
 export interface Flasher {
   /** Asks the visitor for a port, opens it and reaches the board's ROM bootloader. Resolves with the chip's name. */
   connect(): Promise<string>;
-  /** Writes every part at its offset, reporting 0 to 100 as it goes. */
+  /**
+   * Downloads the parts, before the board is touched. Rejects with an error named `DownloadError` when a part does not
+   * arrive.
+   */
+  load(parts: readonly ManifestPart[]): Promise<void>;
+  /** Writes the parts that `load` downloaded, each at its offset, reporting 0 to 100 as it goes. */
   write(parts: readonly ManifestPart[], onProgress: (pct: number) => void): Promise<void>;
   /** Restarts the board into the sketch it now holds. */
   reset(): Promise<void>;
   /** Releases the port. Never rejects. */
   disconnect(): Promise<void>;
+}
+
+/** A part of the image did not download: the network failed or the server answered with an error. */
+export class DownloadError extends Error {
+  override name = 'DownloadError';
 }
 
 export interface EsptoolFlasherOptions {
@@ -35,14 +45,17 @@ const silentTerminal = { clean() {}, write() {}, writeLine() {} };
 export class EsptoolFlasher implements Flasher {
   private transport?: Transport;
   private loader?: ESPLoader;
+  private downloaded = new Map<string, Uint8Array>();
 
   constructor(private readonly options: EsptoolFlasherOptions) {}
 
   async connect(): Promise<string> {
+    await this.disconnect();
+    // First, while the click that started this is still fresh: requestPort needs that user activation, and the
+    // download of esptool-js below can outlast it.
+    const port = await navigator.serial.requestPort();
     // Loaded here so that a page that never flashes does not download esptool-js.
     const esptool = await import('esptool-js');
-    await this.disconnect();
-    const port = await navigator.serial.requestPort();
     this.transport = new esptool.Transport(port);
     this.loader = new esptool.ESPLoader({
       transport: this.transport,
@@ -59,11 +72,20 @@ export class EsptoolFlasher implements Flasher {
     return this.loader.chip.CHIP_NAME;
   }
 
+  async load(parts: readonly ManifestPart[]): Promise<void> {
+    const entries = await Promise.all(parts.map(async (part) => [part.path, await this.fetchPart(part.path)] as const));
+    this.downloaded = new Map(entries);
+  }
+
   async write(parts: readonly ManifestPart[], onProgress: (pct: number) => void): Promise<void> {
     const loader = this.requireLoader();
-    const fileArray = await Promise.all(
-      parts.map(async (part) => ({ data: await this.fetchPart(part.path), address: part.offset })),
-    );
+    const fileArray = parts.map((part) => {
+      const data = this.downloaded.get(part.path);
+      if (!data) {
+        throw new Error(`${part.path} was not downloaded.`);
+      }
+      return { data, address: part.offset };
+    });
     const totalBytes = fileArray.reduce((sum, file) => sum + file.data.length, 0);
     let bytesBefore = 0;
     const bytesBeforeFile = fileArray.map((file) => {
@@ -113,10 +135,14 @@ export class EsptoolFlasher implements Flasher {
   }
 
   private async fetchPart(path: string): Promise<Uint8Array> {
-    const response = await fetch(this.options.firmwareUrl + path);
-    if (!response.ok) {
-      throw new Error(`Could not load ${path}: ${response.status}`);
+    try {
+      const response = await fetch(this.options.firmwareUrl + path);
+      if (!response.ok) {
+        throw new Error(`the server answered ${response.status}`);
+      }
+      return new Uint8Array(await response.arrayBuffer());
+    } catch (error) {
+      throw new DownloadError(`Could not download ${path}: ${error instanceof Error ? error.message : error}`);
     }
-    return new Uint8Array(await response.arrayBuffer());
   }
 }

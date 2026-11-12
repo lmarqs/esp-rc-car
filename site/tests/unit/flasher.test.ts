@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CHIP_DEFS } from 'esptool-js/lib/targets/index.js';
-import { EsptoolFlasher } from '../../src/lib/flash/flasher';
+import { DownloadError, EsptoolFlasher } from '../../src/lib/flash/flasher';
 import type { ChipFamily } from '../../src/lib/flash/manifest';
 
 const esptool = vi.hoisted(() => ({
+  requestPort: vi.fn(),
+  requestPortCallsWhenLoaded: -1,
   main: vi.fn(),
   writeFlash: vi.fn(),
   after: vi.fn(),
@@ -12,20 +14,25 @@ const esptool = vi.hoisted(() => ({
   loaderOptions: undefined as unknown,
 }));
 
-vi.mock('esptool-js', () => ({
-  Transport: class {
-    disconnect = esptool.disconnect;
-  },
-  ESPLoader: class {
-    chip = { CHIP_NAME: esptool.chipName };
-    main = esptool.main;
-    writeFlash = esptool.writeFlash;
-    after = esptool.after;
-    constructor(options: unknown) {
-      esptool.loaderOptions = options;
-    }
-  },
-}));
+function fakeEsptool() {
+  esptool.requestPortCallsWhenLoaded = esptool.requestPort.mock.calls.length;
+  return {
+    Transport: class {
+      disconnect = esptool.disconnect;
+    },
+    ESPLoader: class {
+      chip = { CHIP_NAME: esptool.chipName };
+      main = esptool.main;
+      writeFlash = esptool.writeFlash;
+      after = esptool.after;
+      constructor(options: unknown) {
+        esptool.loaderOptions = options;
+      }
+    },
+  };
+}
+
+vi.mock('esptool-js', fakeEsptool);
 
 describe('the chip names of the manifest', () => {
   it('are the names esptool-js gives the chips arduino:firmware builds for', () => {
@@ -39,7 +46,7 @@ describe('the chip names of the manifest', () => {
 
 describe('EsptoolFlasher', () => {
   const port = {};
-  const requestPort = vi.fn(async () => port);
+  const requestPort = esptool.requestPort;
   const fetched = new Map<string, Uint8Array>([
     ['fw/boot.bin', new Uint8Array(100)],
     ['fw/app.bin', new Uint8Array(300)],
@@ -54,6 +61,7 @@ describe('EsptoolFlasher', () => {
         return data ? new Response(data.buffer as ArrayBuffer) : new Response(null, { status: 404 });
       }),
     );
+    requestPort.mockReset().mockResolvedValue(port);
     esptool.main.mockReset().mockResolvedValue('ESP32');
     esptool.writeFlash.mockReset().mockResolvedValue(undefined);
     esptool.after.mockReset().mockResolvedValue(undefined);
@@ -103,6 +111,7 @@ describe('EsptoolFlasher', () => {
   it('writes each part at its manifest offset and keeps the headers the image was built with', async () => {
     const target = flasher();
     await target.connect();
+    await target.load(parts);
 
     await target.write(parts, () => {});
 
@@ -128,6 +137,7 @@ describe('EsptoolFlasher', () => {
     const reported: number[] = [];
     const target = flasher();
     await target.connect();
+    await target.load(parts);
 
     await target.write(parts, (pct) => reported.push(pct));
 
@@ -135,13 +145,43 @@ describe('EsptoolFlasher', () => {
     expect(reported).toEqual([0, 0, 25, 25, 62, 100, 100]);
   });
 
-  it('rejects when a part cannot be fetched, without writing anything', async () => {
+  it('rejects with a DownloadError when the server answers with an error', async () => {
     const target = flasher();
     await target.connect();
 
-    await expect(target.write([{ path: 'fw/missing.bin', offset: 0 }], () => {})).rejects.toThrow('fw/missing.bin');
+    const result = target.load([{ path: 'fw/missing.bin', offset: 0 }]);
 
+    await expect(result).rejects.toBeInstanceOf(DownloadError);
+    await expect(result).rejects.toMatchObject({ name: 'DownloadError', message: expect.stringContaining('404') });
     expect(esptool.writeFlash).not.toHaveBeenCalled();
+  });
+
+  it('rejects with a DownloadError when the network fails', async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+    await expect(flasher().load(parts)).rejects.toMatchObject({
+      name: 'DownloadError',
+      message: expect.stringContaining('Failed to fetch'),
+    });
+  });
+
+  it('rejects a write of parts that were not downloaded', async () => {
+    const target = flasher();
+    await target.connect();
+
+    await expect(target.write(parts, () => {})).rejects.toThrow('was not downloaded');
+    expect(esptool.writeFlash).not.toHaveBeenCalled();
+  });
+
+  it('asks for the port before it loads esptool-js, while the click is still fresh', async () => {
+    vi.resetModules();
+    vi.doMock('esptool-js', fakeEsptool);
+    esptool.requestPortCallsWhenLoaded = -1;
+    const { EsptoolFlasher: Fresh } = await import('../../src/lib/flash/flasher');
+
+    await new Fresh({ firmwareUrl: '/robomania/firmware/' }).connect();
+
+    expect(esptool.requestPortCallsWhenLoaded).toBe(1);
   });
 
   it('rejects a write before a connect', async () => {
