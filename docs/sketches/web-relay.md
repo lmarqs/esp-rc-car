@@ -1,7 +1,7 @@
 ---
 description: Explains what the web-relay sketch does: an ESP-01S on a relay that blinks or holds a lamp, set from a page on its own hotspot.
 audience: Whoever wires the relay, sets the lamp from a phone, calls its HTTP API, or changes its sketch
-keywords: ESP-01S, ESP8266, relay, hotspot, 192.168.4.1, OTA, EEPROM, local.h
+keywords: ESP-01S, ESP8266, relay, hotspot, 192.168.4.1, OTA, EEPROM, local.h, cfg
 ---
 # Web relay
 
@@ -30,11 +30,10 @@ QIO mode and restarts in a loop when asked to.
 
 ## Hotspot and page
 
-- The board never joins a network. It opens a WPA2 hotspot, `web-relay` with password `web-relay-1234`, and serves
-  at <http://192.168.4.1>.
-- `sketches/web-relay/local.h`, a file Git ignores, sets `WEB_RELAY_AP_SSID`, `WEB_RELAY_AP_PASSWORD` and
-  `WEB_RELAY_OTA_PASSWORD`. The hotspot password is all that keeps a stranger in radio range from the lamp, so set
-  one of at least 8 characters.
+- The board never joins a network. It opens a WPA2 hotspot, `web-relay` with password `web-relay-1234` unless
+  [Settings](#settings) change them, and serves at <http://192.168.4.1>.
+- The hotspot password is all that keeps a stranger in radio range from the lamp, so set one of at least 8
+  characters.
 
 | Endpoint | Method | Parameter | Answer |
 | --- | --- | --- | --- |
@@ -45,9 +44,41 @@ QIO mode and restarts in a loop when asked to.
 
 An unknown mode or a period that is not a positive integer answers `400` with `{"error":"..."}`.
 
+## Settings
+
+The hotspot's name and password and the password for uploads over the hotspot have defaults in the sketch, which
+`sketches/web-relay/local.h`, a file Git ignores, overrides with `#define` lines, and which a value stored on the
+board overrides in turn:
+
+| Name | `cfg` key | Default | Sets |
+| --- | --- | --- | --- |
+| `WEB_RELAY_AP_SSID` | `ap_ssid` | `"web-relay"` | The hotspot's name, 1 to 32 characters. |
+| `WEB_RELAY_AP_PASSWORD` | `ap_password` | `"web-relay-1234"` | The hotspot's password, 8 to 63 characters. |
+| `WEB_RELAY_OTA_PASSWORD` | `ota_password` | `"web-relay-1234"` | The password the board asks for before it accepts an upload over the hotspot, 8 to 63 characters. |
+
+A value stored with `cfg set` wins over `local.h`, which wins over the built-in default. Nothing clears a stored value
+except erasing the board's flash: an empty value is refused. Stored values are read at boot, so a new one takes
+effect after `cfg restart`.
+
+At 115200 baud, one line per command, ended by CR, LF or both:
+
+| Command | Answers |
+| --- | --- |
+| `cfg get` | `cfg <key>=<value>` for each key, then `cfg end`. A password prints as `set` or `unset`, whether the board stores one. An SSID prints the value the next boot uses, so a name stored with `cfg set` shows before `cfg restart` applies it. |
+| `cfg set <key> <value>` | `cfg ok <key>`, or `cfg err <key> <reason>`. The value is the rest of the line and may hold spaces. |
+| `cfg restart` | Nothing, and the board restarts. |
+
+The reasons are `unknown` for a key the sketch lacks, `length` for an SSID that is not 1 to 32 characters, and
+`too short` or `too long` for a password outside 8 to 63. A line longer than 126 characters, or a `cfg` line of any
+other shape, answers `cfg err - syntax`. A refused value leaves what the board stored as it was.
+
+The website's flash card sends the same lines: it reads the board with `cfg get`, sends each value that differs, and
+restarts the board.
+
 ## Flashing
 
 The first upload to an ESP-01S goes through a USB serial adapter, with the module out of the relay carrier. The
+website's flash card puts the sketch on the module from Chrome or Edge on a computer, with no tools installed. The
 firmware then accepts uploads over the hotspot with ArduinoOTA, under the OTA password.
 
 ## Not handled
