@@ -3,7 +3,8 @@
 Firmware for a 1:10 RC car run by an ESP32, built with arduino-cli on the
 [Bluepad32](https://github.com/ricardoquesada/bluepad32) ESP32 core. The repository holds a library of drivers in
 `lib/` and the sketches that use it in `sketches/`. The car's own sketch is not written yet;
-[docs/sketches](docs/sketches/README.md) says what each sketch does, and `sketches/blink/simple` proves the toolchain works.
+[docs/sketches](docs/sketches/README.md) says what each sketch does, and `sketches/blink/simple` proves the toolchain
+works.
 Two sketches run on other boards, each on the core its `sketch.yaml` pins: `sketches/web-relay` on an ESP-01S and
 `sketches/usb-key` on a Digispark ATtiny85.
 
@@ -70,18 +71,18 @@ tools installed. With the tools, connect the board over USB and pass its serial 
 mise run arduino:run sketches/blink/simple --port /dev/ttyUSB0 --monitor --baudrate 115200
 ```
 
-The task compiles and uploads; `--monitor` then opens the serial monitor at the `--baudrate` you give, 9600 by default. Your user needs read and
-write access to the port: on Debian and Ubuntu, membership in the `dialout` group. A board that uploads through
-its own USB bootloader, such as the Digispark, takes no `--port`. Flashing has not been tried
-on a board yet; report what fails.
+The task compiles and uploads; `--monitor` then opens the serial monitor at the `--baudrate` you give, 9600 by
+default. Your user needs read and write access to the port: on Debian and Ubuntu, membership in the `dialout` group. A
+board that uploads through its own USB bootloader, such as the Digispark, takes no `--port`. Flashing has not been
+tried on a board yet; report what fails.
 
 ## Code layout
 
 Each sketch is a folder with a `sketch.yaml` that pins the board, the core version and the libraries, one or two
 levels under `sketches/`: `sketches/<name>/`, or `sketches/<project>/<variant>/` for a project whose variants are
 steps of one ladder. A sketch's path under `sketches/`, such as `blink/simple`, names it in the firmware manifest.
-`sketches/blink/simple/sketch.yaml` is the one to copy. A sketch uses the drivers by listing the path to `lib`, `../../lib`
-at one level and `../../../lib` at two, under `libraries`.
+`sketches/blink/simple/sketch.yaml` is the one to copy. A sketch uses the drivers by listing the path to `lib`,
+`../../lib` at one level and `../../../lib` at two, under `libraries`.
 
 The drivers in `lib/`:
 

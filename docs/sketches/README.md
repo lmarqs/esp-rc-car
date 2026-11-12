@@ -1,5 +1,5 @@
 ---
-description: Lists what each sketch in sketches/ does for whoever runs it, one page per sketch.
+description: Lists what each sketch in sketches/ does for whoever runs it, one page per sketch or per project of stepped sketches.
 audience: Whoever picks a sketch to flash, drives a robot, or changes a sketch's behavior
 ---
 # Sketches

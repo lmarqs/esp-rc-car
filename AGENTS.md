@@ -22,8 +22,7 @@ website: Astro 7 pinned in `site/package.json`, Node 24 in `mise.toml`, pnpm 12 
 - Lint or format one file: `mise exec -- clang-format -i <file>`; Python: `mise exec -- ruff format <file>`
 - Generate: `mise run arduino:hexdump <sketch>`, a C header per `<sketch>/data` file; the website's firmware images,
   gitignored in `site/public/firmware/`: `mise run arduino:firmware`
-- Worktrees: `git worktree add .worktrees/<branch> -b <branch> && (cd .worktrees/<branch> && .worktrees/setup)`;
-  to remove one, see `.worktrees/README.md`
+- Worktrees: `git worktree add .worktrees/<branch> -b <branch> && (cd .worktrees/<branch> && .worktrees/setup)`
 - Quick check: `mise exec -- clang-format --dry-run --Werror <file>` on each changed file,
   then the Build command for the sketch the change touches, or `mise run site:build` for a `site/` change
 - Done check:
@@ -57,7 +56,8 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 
 - New code: drivers in `lib/`, sketches in `sketches/<name>/` or `sketches/<project>/<variant>/`, laid out as
   [Code layout](README.md#code-layout) says; no design document; website pages in `site/src/content/projects/` and
-  `site/src/content/topics/`, one Markdown file each, and its playable examples in `site/src/components/examples/`
+  `site/src/content/topics/`, one Markdown file each; playable examples in `site/src/components/examples/`, a step
+  project's workbench in `site/src/components/workbench/`
 - Tests: `test/test_<header>.cpp`, only for `lib/` drivers needing no hardware; the website's in `site/tests`
   (Vitest `unit`, Playwright `e2e`)
 - Settings: `.env` (gitignored, loaded by mise), arduino-cli in `arduino-cli.yaml`, board profiles in `sketch.yaml`;

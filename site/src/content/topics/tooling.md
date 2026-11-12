@@ -36,8 +36,8 @@ port:
 mise run arduino:run sketches/blink/simple --port /dev/ttyUSB0 --monitor --baudrate 115200
 ```
 
-The task compiles and uploads; `--monitor` then opens the serial monitor at the `--baudrate` you give, 9600 by default. Your user needs read and
-write access to the port: on Debian and Ubuntu, membership in the `dialout` group.
+The task compiles and uploads; `--monitor` then opens the serial monitor at the `--baudrate` you give, 9600 by
+default. Your user needs read and write access to the port: on Debian and Ubuntu, membership in the `dialout` group.
 
 ## Build this website
 
