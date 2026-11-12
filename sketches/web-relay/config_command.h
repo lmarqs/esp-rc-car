@@ -55,8 +55,8 @@ const char* effectiveOtaPassword(const StoredConfig& config, const ConfigDefault
 
 /**
  * Runs one line of the serial protocol and writes the reply, each line ending in '\n', into reply, up to n bytes
- * (CONFIG_REPLY_MAX is enough). A line that does not start with "cfg " is not for this protocol: the reply is empty
- * and the action None.
+ * (CONFIG_REPLY_MAX is enough). A line whose first word is not "cfg" is not for this protocol: the reply is empty and
+ * the action None.
  *
  *   cfg set <key> <value>  ->  "cfg ok <key>" or "cfg err <key> <reason>"; the value is the rest of the line.
  *                              Save when the stored value changed, else None.
