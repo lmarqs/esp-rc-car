@@ -135,6 +135,14 @@ describe('changedRows', () => {
 });
 
 describe('boardStatusText', () => {
+  it('still reads Live while the simulator has the pane, and says so in the sentence', () => {
+    expect(boardStatusText({ kind: 'live' }, true)).toEqual({
+      word: 'Live',
+      title: 'Live — the pane shows the simulator until Back to live',
+    });
+    expect(boardStatusText({ kind: 'simulated' }, true).title).toBe('Running in the browser');
+  });
+
   it('reads Simulated, Live, Runs step <n> or Other sketch, with the full key in the sentence for the tooltip', () => {
     expect(boardStatusText({ kind: 'simulated' })).toEqual({ word: 'Simulated', title: 'Running in the browser' });
     expect(boardStatusText({ kind: 'live' })).toEqual({ word: 'Live', title: 'Your board runs this step' });

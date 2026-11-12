@@ -197,14 +197,18 @@ export function changedRows(
 
 /**
  * What the Board cell reads for a status, short enough for its fixed width, and the sentence that names the board's
- * sketch in full, for the tooltip and for a screen reader.
+ * sketch in full, for the tooltip and for a screen reader. `detached` is set while the board runs the selected step
+ * but the visitor handed the pane to the simulator.
  */
-export function boardStatusText(status: BoardStatus): { readonly word: string; readonly title: string } {
+export function boardStatusText(status: BoardStatus, detached = false): { readonly word: string; readonly title: string } {
   switch (status.kind) {
     case 'simulated':
       return { word: 'Simulated', title: 'Running in the browser' };
     case 'live':
-      return { word: 'Live', title: 'Your board runs this step' };
+      return {
+        word: 'Live',
+        title: detached ? 'Live — the pane shows the simulator until Back to live' : 'Your board runs this step',
+      };
     case 'step':
       return { word: `Runs step ${status.number}`, title: `Your board runs ${status.key}` };
     case 'sketch':

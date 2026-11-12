@@ -968,7 +968,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       const key = steps[selected].key;
       const status = boardStatus(state, heard, key, stepKeys);
       syncMode(status);
-      const text = boardStatusText(status);
+      const text = boardStatusText(status, detached);
       cell.dataset.status = status.kind;
       // Set only on a change, since the status is a live region.
       if (statusWord.textContent !== text.word) statusWord.textContent = text.word;

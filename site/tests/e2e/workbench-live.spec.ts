@@ -11,6 +11,7 @@ const source = (sketch: string) =>
 const bench = (page: Page) => page.getByRole('region', { name: 'Workbench' });
 const tab = (page: Page, name: string) => bench(page).getByRole('tab', { name });
 const status = (page: Page) => bench(page).locator('[data-board-word]');
+const statusLine = (page: Page) => bench(page).locator('[data-board-status]');
 const boardButton = (page: Page) => bench(page).locator('[data-board-action]');
 const picture = (page: Page) => bench(page).locator('[data-picture]');
 const watchValue = (page: Page, name: string) => bench(page).locator(`[data-watch-row="${name}"] dd`);
@@ -336,6 +337,9 @@ test.describe('back to live', () => {
       await expect(boardButton(page)).toHaveAccessibleName('Back to live');
       await expect(boardButton(page).locator('.i-back')).toBeVisible();
       await expect(status(page)).toHaveText('Live');
+      const sentence = 'Live — the pane shows the simulator until Back to live';
+      await expect(statusLine(page)).toHaveAttribute('title', sentence);
+      await expect(statusLine(page)).toHaveText(`Live: ${sentence}`);
       await expect(runningRow(page)).toHaveAttribute(
         'data-line',
         String(lineNumber(source('input'), 'Serial.begin(115200);')),
@@ -354,6 +358,7 @@ test.describe('back to live', () => {
       await nextFrame(page);
 
       await expect(boardButton(page)).toHaveAccessibleName('Flash again');
+      await expect(statusLine(page)).toHaveAttribute('title', 'Your board runs this step');
       await expect(debuggerButton(page, 'Slow')).toBeDisabled();
       await fakeFlasher.print('LOW', 'HIGH');
       await nextFrame(page);
