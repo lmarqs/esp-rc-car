@@ -48,10 +48,10 @@ flowchart TD
   tests[Tests] --> drivers
 ```
 
-Dependencies point one way: sketches depend on drivers, pin interfaces and the core, and drivers on pin interfaces
-and the core; nothing in `lib/` depends on a sketch or on a test. Drivers reach the hardware only through the pin interfaces, so a
-driver runs on any pin that gives the output it needs. A few drivers call ESP-IDF directly and build only for ESP32;
-the rest use only the Arduino API, and the ones under test use neither.
+Dependencies point one way: sketches depend on drivers, pin interfaces and the core, and drivers on pin interfaces and
+the core; nothing in `lib/` depends on a sketch or on a test. Drivers reach the hardware only through the pin
+interfaces, so a driver runs on any pin that gives the output it needs. A few drivers call ESP-IDF directly and build
+only for ESP32; the rest use only the Arduino API, and the ones under test use neither.
 
 A sketch takes the values that differ from one build of its robot to the next, such as a password or a throttle
 range, from a `local.h` in its folder. Git ignores the file, so a secret stays out of the history, and a sketch
@@ -80,22 +80,36 @@ The site also puts the firmware on a board. Its parts:
   rejects an entry the card cannot show.
 - **Flash slice**: `site/src/lib/flash/` holds the logic and `site/src/components/flash/` the card. The logic reads
   the manifest, talks to the board over Web Serial and walks one session through connecting, the settings form,
-  flashing and running. The rest of the site imports the card, `FlashCard`, the manifest reader, and
-  `site/src/lib/flash/index.ts`, which gives the workbench the session, `createFlasher` and the wording the card
-  and the workbench share.
+  flashing and running. The rest of the site takes from the slice the card, the manifest and its reader, and a
+  public module, `site/src/lib/flash/index.ts`, that gives the workbench the session, the flasher and the wording the
+  card and the workbench share.
+- **Workbench slice**: `site/src/components/workbench/` holds the component and its pictures, and
+  `site/src/lib/workbench/` the logic. A project built as a ladder of step sketches, such as Blink and Servo, has a
+  workbench: step tabs and a Board cell, then the selected step's code in an editor with a debugger beside a board
+  pane. Per project, the logic holds one definition per step, which has the step's simulated program, what each line
+  the step prints means, and the controls that send a line; and a board model, which turns that meaning into the
+  picture, the watch values and the trace. The slice depends on the flash slice, and on the images and the manifest
+  through it.
+- **Simulator**: the DOM-free part of the workbench slice that runs a step's program on a simulated board, one source
+  line at a time on a simulated clock, with Pause, Step and Restart. A program names the lines of the step's `.ino`
+  and does what each does to the board, and the editor shows the real source, read from `sketches/` at build time,
+  with the arrow on the line about to run. A test fails when a program names a line its `.ino` lacks or leaves a
+  statement unnamed, so the simulator and the sketch change together.
 - **Pages**: the `/flash/` page lists the projects that have an image and shows the card of the one picked, except a
-  project with a workbench, whose entry shows its chips (the chips of all its steps) and links to the `#workbench`
-  anchor of its page; each project page with a sketch shows the same card above its text, except a page with a
-  workbench, whose Board cell connects to the board and flashes the selected step. A project page keeps its own
-  section on building and flashing the sketch with the tools.
+  project with a workbench, whose entry shows the chips of all its steps and links to the `#workbench` anchor of its
+  page; each project page with a sketch shows the same card above its text, except a page with a workbench, which
+  shows the workbench there. A project page keeps its own section on building and flashing the sketch with the tools.
+  A page imports a slice only through the card or the workbench component and the manifest module and its reader.
 
 ```mermaid
 flowchart TD
   sketches[Sketches] -->|arduino:firmware| images[Images and manifest]
+  sketches -->|their .ino, at build| workbench
   images --> card[Flash card]
   images --> workbench
   pages[Flash and project pages] --> card
   pages --> workbench[Workbench]
+  workbench --> simulator[Simulator]
   card --> session[Flash session]
   workbench --> session
   session -->|Web Serial| board[Board]
@@ -105,13 +119,26 @@ The card reads the manifest at build time and flashes in the visitor's browser, 
 computer. It picks the image for the chip it finds on the port. For a sketch with settings and a baud, it asks for the
 values first, flashes the board, and once the board has reset reads its serial output at the sketch's baud. It sends
 `cfg get` until the board lists its values, `cfg set` for each one that differs, and `cfg restart` so the new values
-take effect. A sketch with no baud prints nothing, so its card flashes without settings. The session also serves a
-workbench that shares one connection for control and flashing: `connect` with `reset` restarts the board without
-flashing, `subscribeLines` delivers every line the board prints with its arrival time, `sendLine` writes a line, and
-the `flash` event flashes a manifest key on the open port and keeps reading. Once the board names the selected step,
-the workbench follows it: the board pane is drawn from the lines the board prints, and what the visitor sends goes
-to the board. Pause, Step or Restart hands the pane back to the simulator with the port still open. The tests, in `site/tests`,
-run the card in a browser against a fake serial port.
+take effect. A sketch with no baud prints nothing, so its card flashes without settings.
+
+The session also serves the workbench, which shares one connection for control and flashing. It can restart the board
+without flashing, hands every line the board prints, with its arrival time, to its listeners, writes a line, and
+flashes a manifest key onto the open port and keeps reading.
+
+The workbench shows a simulated board until it hears from a real one, and it hears from a real one through the
+`sketch <key>` line. Every step of a ladder prints a blank line and then `sketch <key>` first, where the key is the
+sketch's path under `sketches/`, such as `blink/simple`; the manifest names the step's image by the same key. The
+key ties a board to a step:
+
+- Until a connected board prints a key, the workbench goes on simulating.
+- When the key is the selected step's, the workbench follows the board, which is live mode: the pictures, the trace
+  and the arrow are drawn from the lines the board prints, and what the visitor sends goes to the board.
+- When the key is another step's or another sketch's, the Board cell says which, the pane takes no line from the
+  visitor, and the button flashes the selected step.
+- Pause, Step or Restart hands the pane back to the simulator with the port still open, and the Board cell's button
+  brings it back to the board.
+
+The tests, in `site/tests`, run the card and the workbench in a browser against a fake serial port.
 
 The workflow publishes a new site version to GitHub Pages, at <https://lmarqs.github.io/robomania/>, when a push to
 `main` includes a commit whose message contains `#site-release`, or when someone runs it by hand. Other pushes leave the
