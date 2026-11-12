@@ -237,13 +237,15 @@ describe('the card for the board the visitor picked', () => {
 
   it('says to set the adapter to flash mode before plugging in an ESP-01S', () => {
     expect(viewFor({ kind: 'idle' }, { title: 'Blink', board: esp01s }).message).toBe(
-      "Put the ESP-01S in its USB adapter, set the adapter's switch to PROG, then plug it in. This replaces whatever is on the board.",
+      "Put the ESP-01S in its USB adapter and set the adapter's switch to PROG, the flash position, or put its jumper " +
+        'on. Then plug the adapter in. This replaces whatever is on the board.',
     );
   });
 
   it('says how to make the picked board answer', () => {
     expect(viewFor({ kind: 'noAnswer' }, { title: 'Blink', board: esp01s }).message).toBe(
-      "The board did not answer. Set the adapter's switch to PROG, unplug the adapter, plug it back in and connect again.",
+      "The board did not answer. Set the adapter's switch to PROG, the flash position, or put its jumper on. " +
+        'Then unplug the adapter, plug the adapter back in and connect again.',
     );
     expect(viewFor({ kind: 'noAnswer' }, { title: 'Blink', board: esp32 }).message).toBe(
       'The board did not answer. Hold its BOOT button and connect again.',

@@ -20,7 +20,10 @@ export const NO_ANSWER =
 export function noAnswer(board: BoardModel | undefined): string {
   if (board === undefined) return NO_ANSWER;
   if (board.flashSwitch) {
-    return "The board did not answer. Set the adapter's switch to PROG, unplug the adapter, plug it back in and connect again.";
+    return (
+      "The board did not answer. Set the adapter's switch to PROG, the flash position, or put its jumper on. " +
+      'Then unplug the adapter, plug the adapter back in and connect again.'
+    );
   }
   return 'The board did not answer. Hold its BOOT button and connect again.';
 }
@@ -28,14 +31,17 @@ export function noAnswer(board: BoardModel | undefined): string {
 /** How to plug in the board the visitor picked, if any, so that it answers the page. */
 export function plugIn(board: BoardModel | undefined): string {
   if (board?.flashSwitch) {
-    return `Put the ${board.name} in its USB adapter, set the adapter's switch to PROG, then plug it in.`;
+    return (
+      `Put the ${board.name} in its USB adapter and set the adapter's switch to PROG, the flash position, or put its ` +
+      'jumper on. Then plug the adapter in.'
+    );
   }
   return 'Plug the board in over USB.';
 }
 /** An ESP8266 that its adapter keeps in flash mode after the write. */
 export const FLASH_MODE =
-  "The sketch is on the board, which is still in flash mode. Set the adapter's switch to UART, or take its jumper " +
-  'off, then unplug the adapter, plug it back in and connect again.';
+  'The sketch is on the board, but the board is still in flash mode. To start it, set the adapter\'s switch to UART, ' +
+  'the run position, or take its jumper off. Then unplug the adapter, plug the adapter back in and connect again.';
 /** What a board whose port was lost did, after its name, and what to do; `LOST` says it of `The board`. */
 export const STOPPED_TALKING = 'stopped talking to the page. Plug it back in and connect again.';
 export const LOST = `The board ${STOPPED_TALKING}`;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BOARD_MODELS, boardModel, correctionNotice, modelAnswering, modelsWithImages } from '../../src/lib/board/models';
+import { BOARD_MODELS, boardModel, boardsLine, correctionNotice, modelAnswering, modelsWithImages } from '../../src/lib/board/models';
 import { createPick, type PickStorage } from '../../src/lib/board/pick';
 
 function memoryStorage(start: Record<string, string> = {}): PickStorage & { values: Record<string, string> } {
@@ -42,7 +42,7 @@ describe('the board models', () => {
 
   it('says which board answered instead of the picked one', () => {
     expect(correctionNotice(boardModel('esp01s')!, boardModel('esp32')!)).toBe(
-      'You picked an ESP-01S, but an ESP32 answered. The site now follows the ESP32 dev board.',
+      'You picked an ESP-01S, but the board that answered is an ESP32. The site now gives the steps for an ESP32 dev board.',
     );
   });
 
@@ -96,5 +96,27 @@ describe('the board pick', () => {
     const pick = createPick(refusing);
     pick.choose('esp01s');
     expect(pick.model?.id).toBe('esp01s');
+  });
+});
+
+describe('the boards a project card names', () => {
+  const blink = [boardModel('esp32')!, boardModel('esp32c3')!, boardModel('esp01s')!];
+  const servo = [boardModel('esp32')!];
+
+  it('lists every board with no pick', () => {
+    expect(boardsLine(blink, undefined)).toEqual({ text: 'Runs on ESP32 dev board, ESP32-C3 and ESP-01S' });
+    expect(boardsLine(servo, undefined)).toEqual({ text: 'Runs on ESP32 dev board' });
+  });
+
+  it('says the project runs on the picked board', () => {
+    expect(boardsLine(blink, boardModel('esp01s'))).toEqual({ text: 'Runs on your ESP-01S', fits: true });
+  });
+
+  it('names the boards a project needs instead of the picked one', () => {
+    expect(boardsLine(servo, boardModel('esp01s'))).toEqual({ text: 'Needs an ESP32 dev board', fits: false });
+    expect(boardsLine(blink.slice(0, 2), boardModel('esp01s'))).toEqual({
+      text: 'Needs an ESP32 dev board or ESP32-C3',
+      fits: false,
+    });
   });
 });

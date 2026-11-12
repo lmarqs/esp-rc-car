@@ -85,7 +85,8 @@ The site also puts the firmware on a board. Its parts:
   workbench the wording the card and the workbench share.
 - **Board slice**: `site/src/lib/board/` holds the visitor's board, one for the whole site: the flash session that
   holds its port, which page owns it, and what the site knows of the board beyond the session's state: the sketch it
-  runs and the lines it printed and was sent. `site/src/components/board/` holds the dock, along the bottom of every
+  runs and the lines it printed and was sent. It also holds the board models the site has images for, one per chip,
+  and the visitor's pick of one, kept in the browser. `site/src/components/board/` holds the dock, along the bottom of every
   page, and the flashing picture that the card and the workbench share. The card and the workbench point the board at
   their own sketches instead of opening a session; the slice depends on the flash slice.
 - **Router**: the site swaps pages in place with Astro's client router, so the board keeps its port from page to page
@@ -146,12 +147,18 @@ while it owns it, from the visitor's press or because the board runs the card's 
 waits to be pressed as if no board were connected. Pointing the session at another sketch keeps the images it knew,
 so whatever the site flashed can be flashed again from any page, and is refused while the session is busy. The
 session can restart the board without flashing, hands every line the board prints, with its arrival time, to its
-listeners, writes a line, and flashes a manifest key onto the open port and keeps reading.
+listeners, writes a line, and flashes a manifest key onto the open port and keeps reading. After a write to an
+ESP8266 it waits 3 seconds for the `sketch <key>` line; without it, the board's adapter holds it in flash mode, which
+the port cannot undo, so the session releases the port and waits in `flashMode`. The next connect opens the port
+without the bootloader, reads the running board, and sends the settings the flash was asked with.
 
 The dock names the board's chip and the sketch it runs, by the `sketch <key>` line or the key the site last flashed,
 links the sketch's project, at the step's tab for a step, and shows the last line it printed in the Serial button that
 opens the rest. It connects a board, flashes the sketch it runs again, lets it go, and opens a serial monitor that
-shows the lines and sends one.
+shows the lines and sends one. It also holds the visitor's pick of board, which the card, the workbench and the project
+cards follow: the card and the workbench give that board's hints, such as the flash switch of an ESP-01S adapter, and
+each project card says whether the project runs on it. Once a board connects, its chip is certain, so the pick follows
+the chip and the dock says so when the visitor picked another board.
 Every page carries the names of every project's sketches and the whole manifest for it.
 
 The workbench shows a simulated board until it hears from a real one, and it hears from a real one through the

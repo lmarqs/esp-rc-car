@@ -41,5 +41,20 @@ export function modelsWithImages(chips: readonly string[]): BoardModel[] {
 
 /** What the site says when the chip that answered is not the picked board's, so it follows `answering` instead. */
 export function correctionNotice(picked: BoardModel, answering: BoardModel): string {
-  return `You picked an ${picked.name}, but an ${answering.chip} answered. The site now follows the ${answering.name}.`;
+  return (
+    `You picked an ${picked.name}, but the board that answered is an ${answering.chip}. ` +
+    `The site now gives the steps for an ${answering.name}.`
+  );
+}
+
+/** What a project's card says of the boards it runs on, `models`, for the board the visitor picked, if any. */
+export function boardsLine(models: readonly BoardModel[], picked: BoardModel | undefined): { text: string; fits?: boolean } {
+  const names = models.map((model) => model.name);
+  if (picked === undefined) return { text: `Runs on ${joinOr(names, 'and')}` };
+  if (models.includes(picked)) return { text: `Runs on your ${picked.name}`, fits: true };
+  return { text: `Needs an ${joinOr(names, 'or')}`, fits: false };
+}
+
+function joinOr(names: readonly string[], word: 'and' | 'or'): string {
+  return names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} ${word} ${names.at(-1)}`;
 }

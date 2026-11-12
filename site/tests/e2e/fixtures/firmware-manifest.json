@@ -9,6 +9,11 @@
             { "path": "blink/simple/esp32/simple.ino.bootloader.bin", "offset": 4096 },
             { "path": "blink/simple/esp32/simple.ino.bin", "offset": 65536 }
           ]
+        },
+        {
+          "profile": "esp01",
+          "chipFamily": "ESP8266",
+          "parts": [{ "path": "blink/simple/esp01/simple.ino.bin", "offset": 0 }]
         }
       ]
     },

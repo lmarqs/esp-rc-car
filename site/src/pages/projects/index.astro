@@ -3,9 +3,18 @@ import { getCollection } from 'astro:content';
 import Card from '../../components/Card.astro';
 import LevelFilter from '../../components/LevelFilter.astro';
 import Base from '../../layouts/Base.astro';
+import { modelsWithImages } from '../../lib/board/models';
+import { chipFamilies, sketchKey } from '../../lib/flash/manifest';
+import { readManifest } from '../../lib/flash/readManifest';
 import { href } from '../../lib/href';
 
 const projects = (await getCollection('projects')).sort((a, b) => a.data.order - b.data.order);
+const manifest = readManifest();
+/** The ids of the boards a project has an image for, through any of its sketches. */
+function boardsOf(data: { sketch?: string; steps?: readonly { sketch: string }[] }): string[] {
+  const sketches = data.steps?.map((step) => step.sketch) ?? (data.sketch ? [data.sketch] : []);
+  return modelsWithImages(chipFamilies(manifest, sketches.map(sketchKey))).map((model) => model.id);
+}
 ---
 
 <Base title="Projects" description="Working robotics projects, each with an example you can play with in the browser.">
@@ -26,6 +35,7 @@ const projects = (await getCollection('projects')).sort((a, b) => a.data.order -
           level={p.data.level}
           state={p.data.state}
           extra={p.data.example ? 'Playable' : undefined}
+          boards={boardsOf(p.data)}
         />
       ))
     }

@@ -91,7 +91,7 @@ export function dockView(
       shown: true,
       connected: false,
       chip: state.chip,
-      doing: 'is still in flash mode. Set the adapter to UART and plug it back in.',
+      doing: "is still in flash mode. Set the adapter's switch to UART, then unplug the adapter and plug the adapter back in.",
       ...NOTHING,
       connect: true,
     };

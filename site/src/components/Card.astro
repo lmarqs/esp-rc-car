@@ -1,4 +1,5 @@
 ---
+import { boardModel, boardsLine, type BoardModel } from '../lib/board/models';
 import Art from './Art.astro';
 import Meta from './Meta.astro';
 
@@ -10,9 +11,12 @@ interface Props {
   level: 'beginner' | 'intermediate' | 'advanced';
   state: 'done' | 'draft' | 'coming';
   extra?: string;
+  /** The ids of the boards the project has an image for; the card names them, and whether the picked one fits. */
+  boards?: readonly string[];
 }
 
-const { to, title, summary, art, level, state, extra } = Astro.props;
+const { to, title, summary, art, level, state, extra, boards = [] } = Astro.props;
+const models = boards.map(boardModel).filter((model): model is BoardModel => model !== undefined);
 ---
 
 <a class="card" href={to} data-level-item={level}>
@@ -20,4 +24,34 @@ const { to, title, summary, art, level, state, extra } = Astro.props;
   <Meta level={level} state={state} extra={extra} />
   <h3>{title}</h3>
   <p>{summary}</p>
+  {models.length > 0 && <p class="boards" data-boards={boards.join(' ')}>{boardsLine(models, undefined).text}</p>}
 </a>
+
+<style>
+  .card .boards { margin-top: auto; padding-top: 6px; font-size: 13px; font-weight: 700; color: var(--muted); }
+  .card .boards[data-fits='true'] { color: var(--green-text); }
+  .card .boards[data-fits='false'] { color: var(--coral-text); }
+</style>
+
+<script>
+  import { boardModel, boardsLine, type BoardModel } from '../lib/board/models';
+  import { thePick } from '../lib/board/pick';
+  import { onEveryPage } from '../lib/page';
+
+  onEveryPage((signal) => {
+    const lines = [...document.querySelectorAll<HTMLElement>('[data-boards]')];
+    if (lines.length === 0) return;
+    const pick = thePick();
+    function render() {
+      for (const line of lines) {
+        const models = line.dataset.boards!.split(' ').map(boardModel).filter((model): model is BoardModel => !!model);
+        const { text, fits } = boardsLine(models, pick.model);
+        line.textContent = text;
+        if (fits === undefined) delete line.dataset.fits;
+        else line.dataset.fits = String(fits);
+      }
+    }
+    signal.addEventListener('abort', pick.subscribe(render));
+    render();
+  });
+</script>

@@ -190,7 +190,7 @@ test.describe('the board pick', () => {
 
     await expect(pick(page)).toHaveValue('esp32');
     await expect(dock(page).getByRole('status')).toHaveText(
-      'You picked an ESP-01S, but an ESP32 answered. The site now follows the ESP32 dev board.',
+      'You picked an ESP-01S, but the board that answered is an ESP32. The site now gives the steps for an ESP32 dev board.',
     );
   });
 

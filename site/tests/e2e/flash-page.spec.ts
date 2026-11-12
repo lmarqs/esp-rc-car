@@ -29,7 +29,7 @@ test.describe('the Flash page', () => {
 
     const projects = page.getByRole('list', { name: 'Projects you can flash' });
     await expect(projects.getByRole('button')).toHaveText(['Omnidirectional robot', 'Balance beam']);
-    await expect(projects.getByRole('list', { name: 'Boards' })).toHaveText(['ESP32', 'ESP32', 'ESP32', 'ESP32']);
+    await expect(projects.getByRole('list', { name: 'Boards' })).toHaveText(['ESP32ESP8266', 'ESP32', 'ESP32', 'ESP32']);
     await expect(page.getByText(LOCKED)).toBeHidden();
     await expect(pick(page, 'Omnidirectional robot')).toHaveAttribute('aria-pressed', 'false');
     await expect(card(page)).toHaveCount(0);
@@ -231,8 +231,8 @@ test.describe('the Flash page', () => {
 });
 
 const ladders = [
-  { title: 'Blink', id: 'blink' },
-  { title: 'Servo', id: 'servo' },
+  { title: 'Blink', id: 'blink', chips: ['ESP32', 'ESP8266'] },
+  { title: 'Servo', id: 'servo', chips: ['ESP32'] },
 ];
 
 test.describe('a project with a workbench on the Flash page', () => {
@@ -241,13 +241,13 @@ test.describe('a project with a workbench on the Flash page', () => {
       has: page.getByRole('heading', { level: 3, name: title, exact: true }),
     });
 
-  for (const { title, id } of ladders) {
+  for (const { title, id, chips } of ladders) {
     test(`${title} has one card with its chips and a link to its workbench`, async ({ page }) => {
       await page.goto('/robomania/flash/');
 
       const item = projectCard(page, title);
       await expect(item).toHaveCount(1);
-      await expect(item.getByRole('list', { name: 'Boards' }).getByRole('listitem')).toHaveText(['ESP32']);
+      await expect(item.getByRole('list', { name: 'Boards' }).getByRole('listitem')).toHaveText(chips);
       await expect(item.getByRole('button')).toHaveCount(0);
       await expect(item.getByRole('link')).toHaveCount(1);
       await expect(item.getByRole('link', { name: `Open the workbench for ${title}` })).toHaveAttribute(
