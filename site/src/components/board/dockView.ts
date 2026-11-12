@@ -54,7 +54,7 @@ export function dockView(
     }
     const key = runs(record);
     const name = nameOf(names, key);
-    const last = [...record.lines].reverse().find((line) => !line.sent)?.text;
+    const last = record.lines.findLast((line) => !line.sent)?.text;
     return {
       shown: true,
       connected: true,
