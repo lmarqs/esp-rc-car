@@ -472,6 +472,50 @@ test.describe('back to the board', () => {
     });
   }
 
+  const waits = [
+    {
+      name: 'with no board',
+      async open(page: Page, fakeFlasher: FakeFlasher) {
+        await fakeFlasher.install();
+        await page.goto(BLINK);
+        await tab(page, '2 input').click();
+        await myBoardButton(page).click();
+        await expect(tag(page)).toHaveText('My board Not connected');
+      },
+    },
+    {
+      name: 'with the board on another step',
+      open: (page: Page, fakeFlasher: FakeFlasher) =>
+        connectTo(page, fakeFlasher, 'blink/commands', '2 input', 'Runs commands'),
+    },
+  ];
+  for (const pressed of ['Pause', 'Step', 'Restart'] as const) {
+    for (const waiting of waits) {
+      test(`${pressed} while My board waits ${waiting.name} presses Simulator, at the first line`, async ({
+        page,
+        fakeFlasher,
+      }) => {
+        await page.clock.install();
+        await waiting.open(page, fakeFlasher);
+        await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 500);
+
+        await debuggerButton(page, pressed).click();
+        await nextFrame(page);
+
+        await expect(simulatorButton(page)).toHaveAttribute('aria-pressed', 'true');
+        await expect(myBoardButton(page)).toHaveAttribute('aria-pressed', 'false');
+        await expect(tagWord(page)).toHaveText('Simulated');
+        await expect(picture(page)).toBeVisible();
+        await expect(runningRow(page)).toHaveAttribute(
+          'data-line',
+          String(lineNumber(source('input'), 'output.begin("blink/input");')),
+        );
+        await expect(debuggerButton(page, pressed === 'Restart' ? 'Pause' : 'Continue')).toBeVisible();
+        await expect(serial(page)).toHaveText('');
+      });
+    }
+  }
+
   test('a tab pick keeps the simulator the visitor chose, and My board follows the board again', async ({
     page,
     fakeFlasher,
