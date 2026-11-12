@@ -28,8 +28,6 @@ jobs:
           path: .arduino
           key: arduino-${{ hashFiles('sketches/*/sketch.yaml', 'arduino-cli.yaml') }}
       - run: mise run node:setup
-      - name: Install xxd, which arduino:hexdump uses
-        run: command -v xxd || (sudo apt-get update && sudo apt-get install -y xxd)
       - run: mise run arduino:firmware
       - run: mise run site:build
       - name: Fail when the build left no firmware manifest

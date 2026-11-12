@@ -1,9 +1,43 @@
-#!/usr/bin/env bash
-#MISE description="Convert files in <sketch>/data into C headers"
-#USAGE arg "<sketch>" help="Sketch folder"
-set -euo pipefail
+#!/usr/bin/env python3
+# [MISE] description="Convert files in <sketch>/data into C headers"
+# [USAGE] arg "<sketch>" help="Sketch folder"
+"""Writes each file in a sketch's `data/` as a C header next to it, in the layout `xxd --include` prints.
 
-cd "${usage_sketch}"
-if [ -d data ]; then
-  find data -type f -not -name '*.h' -exec sh -c 'xxd --include "$1" > "$1.h"' _ {} \;
-fi
+`data/index.html` becomes `data/index.html.h`, declaring `data_index_html[]` and `data_index_html_len`.
+"""
+
+import os
+import re
+from pathlib import Path
+
+BYTES_PER_LINE = 12
+
+
+def c_name(path: str) -> str:
+    """Turns a path into the C identifier xxd gives it."""
+    name = re.sub(r"[^0-9A-Za-z]", "_", path)
+    return f"__{name}" if name[0].isdigit() else name
+
+
+def header(path: str, content: bytes) -> str:
+    name = c_name(path)
+    lines = [
+        "  " + ", ".join(f"0x{byte:02x}" for byte in content[start : start + BYTES_PER_LINE])
+        for start in range(0, len(content), BYTES_PER_LINE)
+    ]
+    body = ",\n".join(lines) + "\n" if lines else ""
+    return f"unsigned char {name}[] = {{\n{body}}};\nunsigned int {name}_len = {len(content)};\n"
+
+
+def main() -> None:
+    os.chdir(os.environ["usage_sketch"])
+    data = Path("data")
+    if not data.is_dir():
+        return
+    for source in sorted(data.rglob("*")):
+        if source.is_file() and source.suffix != ".h":
+            Path(f"{source}.h").write_text(header(str(source), source.read_bytes()))
+
+
+if __name__ == "__main__":
+    main()
