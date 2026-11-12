@@ -1,5 +1,5 @@
 ---
-import { OPENING, workbenchFor } from '../../lib/workbench/projects';
+import { OPENING, railOf, workbenchFor } from '../../lib/workbench/projects';
 import { TRACE_HEIGHT, TRACE_WINDOW_MS } from '../../lib/workbench/trace';
 // Read here, at build time, only: a browser script that imported it would carry every sketch's source.
 import { readStepSource } from '../../lib/workbench/readSource';
@@ -25,9 +25,9 @@ const workbench = workbenchFor(project);
 if (workbench === undefined) throw new Error(`The project ${project} has no step definitions for the workbench.`);
 
 const sources = steps.map((step) => readStepSource(step.sketch));
+const definitions = railOf(workbench, steps.map((step) => step.sketch));
 const rail = steps.map((step, index) => {
-  const definition = workbench.steps.find((candidate) => candidate.sketch === step.sketch);
-  if (definition === undefined) throw new Error(`No step definition runs ${step.sketch} in the ${project} workbench.`);
+  const definition = definitions[index];
   return {
     ...step,
     number: index + 1,
@@ -43,7 +43,7 @@ const rail = steps.map((step, index) => {
 const first = rail[0];
 const openingRows = workbench.board.watch(first.key, workbench.board.initial(), 0);
 const valueOf = (name: string) => openingRows.find((row) => row.name === name)?.value;
-const stepData = JSON.stringify(rail.map((step, index) => ({ key: step.key, source: sources[index] })));
+const stepData = JSON.stringify(rail.map((step, index) => ({ sketch: step.sketch, source: sources[index] })));
 const id = (part: string) => `workbench-${project}-${part}`;
 const firmware = readManifest().sketches;
 // Only the steps' images, so the page does not carry the whole manifest. The manifest names a sketch by its path, and
@@ -489,7 +489,7 @@ const Picture = { led: Led, servo: Servo }[workbench.picture];
 </style>
 
 <script>
-  import { OPENING, workbenchFor, openRunner } from '../../lib/workbench/projects';
+  import { OPENING, openRunner, railOf, workbenchFor, type WorkbenchProject } from '../../lib/workbench/projects';
   import type { Runner, RunnerView } from '../../lib/workbench/simulator';
   import { lineNumber } from '../../lib/workbench/source';
   import { tabAfterKey } from '../../lib/workbench/tabs';
@@ -525,15 +525,16 @@ const Picture = { led: Led, servo: Servo }[workbench.picture];
   const HIGHLIGHT_MS = 900;
 
   interface StepData {
-    key: string;
+    sketch: string;
     source: string;
   }
 
-  for (const root of document.querySelectorAll<HTMLElement>('[data-workbench]')) mount(root);
-
-  function mount(root: HTMLElement) {
+  for (const root of document.querySelectorAll<HTMLElement>('[data-workbench]')) {
     const project = workbenchFor(root.dataset.project ?? '');
-    if (project === undefined) return;
+    if (project !== undefined) mount(root, project);
+  }
+
+  function mount(root: HTMLElement, project: WorkbenchProject<unknown, unknown, unknown>) {
     const steps: StepData[] = JSON.parse(root.dataset.steps ?? '[]');
     const tabs = [...root.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
     const panel = root.querySelector<HTMLElement>('[role="tabpanel"]')!;
@@ -586,7 +587,7 @@ const Picture = { led: Led, servo: Servo }[workbench.picture];
 
     // The project's steps in rail order, as the pane numbers them.
     const paneProject: PaneProject<unknown> = {
-      steps: steps.map((step) => project.steps.find((candidate) => candidate.key === step.key)!),
+      steps: railOf(project, steps.map((step) => step.sketch)),
       board: project.board,
     };
     // The watch panel as last painted; undefined after a reset, so the values it starts with are not highlighted.
@@ -636,18 +637,18 @@ const Picture = { led: Led, servo: Servo }[workbench.picture];
       resetWatch();
 
       runner?.dispose();
-      board = project!.board.initial();
-      trace = emptyTrace(project!.board.level(board));
+      board = project.board.initial();
+      trace = emptyTrace(project.board.level(board));
       keepRunning = OPENING.running;
       runner = openRunner(
         chosen,
         (next, effects) => {
           // While the pane follows the board, the simulator waits, paused, and its notices are not the pane's.
           if (pane.mode !== 'simulator') return;
-          board = project!.board.simulate(board, next.state, effects, next.millis);
+          board = project.board.simulate(board, next.state, effects, next.millis);
           // A line is sent between two lines of the program, part way through the one under way.
           const sentAt = traceTime(next, runner?.progress() ?? 0, reducedMotion.matches);
-          trace = recordLevel(recordEffects(trace, effects, next.millis, sentAt), project!.board.level(board), next.millis);
+          trace = recordLevel(recordEffects(trace, effects, next.millis, sentAt), project.board.level(board), next.millis);
           view = next;
           draw();
         },
@@ -658,8 +659,8 @@ const Picture = { led: Led, servo: Servo }[workbench.picture];
 
     /** Starts the simulator again at the sketch's first line, running if the visitor wants it running. */
     function startSimulator() {
-      board = project!.board.initial();
-      trace = emptyTrace(project!.board.level(board));
+      board = project.board.initial();
+      trace = emptyTrace(project.board.level(board));
       resetWatch();
       runner?.restart();
       if (keepRunning) runner?.run();
@@ -678,16 +679,16 @@ const Picture = { led: Led, servo: Servo }[workbench.picture];
       const step = steps[pane.selected];
       const shown = pane.mode === 'simulator' ? undefined : pane.followed;
       const shownBoard = shown?.board ?? board;
-      paintPicture(project!.board.picture(step.key, shownBoard));
+      paintPicture(project.board.picture(definition().key, shownBoard));
       followSliders(shownBoard);
       // A real board's clock is unknown: it prints no time.
-      const rows = project!.board.watch(step.key, shownBoard, shown === undefined ? view.millis : undefined);
+      const rows = project.board.watch(definition().key, shownBoard, shown === undefined ? view.millis : undefined);
       for (const [name, element] of watchRows) {
         const row = rows.find((candidate) => candidate.name === name);
         element.hidden = row === undefined;
         if (row !== undefined) element.querySelector('dd')!.textContent = row.value;
       }
-      for (const name of changedRows(shownRows, rows, project!.board.steady)) highlight(name);
+      for (const name of changedRows(shownRows, rows, project.board.steady)) highlight(name);
       shownRows = rows;
       const serialText = serialRows(shown?.output ?? view.output);
       serialLines.forEach((element, at) => {
@@ -715,7 +716,7 @@ const Picture = { led: Led, servo: Servo }[workbench.picture];
       const liveValue = definition().live;
       if (live !== null && liveValue !== undefined) {
         const value =
-          shown === undefined ? liveValue.value(view.state) : project!.board.variable(shown.board, liveValue.name);
+          shown === undefined ? liveValue.value(view.state) : project.board.variable(shown.board, liveValue.name);
         // A value the board has not told yet shows as unknown rather than as the number in the source.
         live.textContent = value ?? '…';
       }
@@ -744,7 +745,7 @@ const Picture = { led: Led, servo: Servo }[workbench.picture];
           ? clockFace(view, progress, reducedMotion.matches)
           : liveClockFace(
               pane.mode === 'live' ? shown.arrowAt : undefined,
-              project!.board.wait(shown.board),
+              project.board.wait(shown.board),
               Date.now(),
               reducedMotion.matches,
             );
@@ -781,7 +782,7 @@ const Picture = { led: Led, servo: Servo }[workbench.picture];
         if (slider.closest<HTMLElement>('[data-for-step]')!.hidden) continue;
         const shortcut = shortcutOf(slider);
         if (shortcut?.kind !== 'slider' || shortcut.follows === undefined) continue;
-        const reported = followedSliderValue(shortcut, project!.board.variable(shownBoard, shortcut.follows));
+        const reported = followedSliderValue(shortcut, project.board.variable(shownBoard, shortcut.follows));
         const next = followSlider(seenBySlider.get(slider), reported, typing || slider === pressedSlider);
         seenBySlider.set(slider, next.remembered);
         if (next.move === undefined || slider.value === String(next.move)) continue;
@@ -953,8 +954,8 @@ const Picture = { led: Led, servo: Servo }[workbench.picture];
     restartButton.addEventListener('click', () => {
       if (pane.mode === 'live') return dispatch({ kind: 'detach' });
       if (runner === undefined) return;
-      board = project!.board.initial();
-      trace = emptyTrace(project!.board.level(board));
+      board = project.board.initial();
+      trace = emptyTrace(project.board.level(board));
       resetWatch();
       clearCommandLine();
       runner.restart();
@@ -969,12 +970,12 @@ const Picture = { led: Led, servo: Servo }[workbench.picture];
     const session = createSession({
       flasher: createFlasher(),
       manifest: JSON.parse(root.dataset.manifest ?? '{"sketches":{}}') as Manifest,
-      sketch: steps[0].key,
+      sketch: paneProject.steps[0].key,
       baud: root.dataset.baud ? Number(root.dataset.baud) : undefined,
     });
     let pane: PaneState<unknown> = initialPane(session.state);
     let pressed: BoardAction | undefined;
-    let flashedKey = steps[0].key;
+    let flashedKey = paneProject.steps[0].key;
     // The refusal the visitor moved on from by picking another step.
     let dismissedRefusal: unknown;
 
@@ -986,7 +987,7 @@ const Picture = { led: Led, servo: Servo }[workbench.picture];
       cell.dataset.status = status.kind;
       const onBoard = status.kind === 'live' || status.kind === 'step' ? pane.heard : undefined;
       tabs.forEach((tab, at) => {
-        tab.querySelector<HTMLElement>('[data-onboard]')!.hidden = steps[at].key !== onBoard;
+        tab.querySelector<HTMLElement>('[data-onboard]')!.hidden = paneProject.steps[at].key !== onBoard;
       });
       // Set only on a change, and in one, since the status is a live region: two would be announced twice.
       if (statusWord.textContent !== text.word || statusSentence.textContent !== `: ${text.title}`) {
@@ -1057,13 +1058,13 @@ const Picture = { led: Led, servo: Servo }[workbench.picture];
     });
 
     function flashSelected() {
-      flashedKey = steps[pane.selected].key;
+      flashedKey = definition().key;
       void session.send({ type: 'flash', key: flashedKey });
     }
 
     /** The selected step's key and its number in the rail. */
     function selectedStep() {
-      return { key: steps[pane.selected].key, number: pane.selected + 1 };
+      return { key: definition().key, number: pane.selected + 1 };
     }
 
     tabs.forEach((tab, index) => {

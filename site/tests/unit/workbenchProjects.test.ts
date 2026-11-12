@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { blinkWorkbench, OPENING, openRunner, servoWorkbench, workbenchFor } from '../../src/lib/workbench/projects';
+import { blinkWorkbench, OPENING, openRunner, railOf, servoWorkbench, workbenchFor } from '../../src/lib/workbench/projects';
 import type { Effect, RealClock } from '../../src/lib/workbench/simulator';
 import { blinkSimple } from '../../src/lib/workbench/steps/blink';
 
@@ -38,6 +38,17 @@ describe('workbenchFor', () => {
     expect(workbenchFor('servo')).toBe(servoWorkbench);
     expect(workbenchFor('balance-beam')).toBeUndefined();
     expect(workbenchFor('toString')).toBeUndefined();
+  });
+});
+
+describe('railOf', () => {
+  it('lists the step definitions in the order the rail names their sketches', () => {
+    const [first, second] = blinkWorkbench.steps;
+    expect(railOf(blinkWorkbench, [second.sketch, first.sketch])).toEqual([second, first]);
+  });
+
+  it('throws for a sketch no step definition runs', () => {
+    expect(() => railOf(blinkWorkbench, ['sketches/blink/missing'])).toThrow('sketches/blink/missing');
   });
 });
 

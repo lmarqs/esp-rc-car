@@ -323,9 +323,13 @@ test.describe('the links of the Flash page', () => {
     expect(pages).toHaveLength(2);
     for (const href of pages) {
       await page.goto(href);
-      const steps = await page.locator('[data-workbench]').getAttribute('data-steps');
-      const keys = (JSON.parse(steps!) as { key: string }[]).map((step) => step.key);
-      expect(keys.length, href).toBeGreaterThan(1);
+      const workbench = page.locator('[data-workbench]');
+      const steps = JSON.parse((await workbench.getAttribute('data-steps'))!) as unknown[];
+      // The page's manifest names each step's images by the key the session flashes.
+      const flashed = JSON.parse((await workbench.getAttribute('data-manifest'))!) as { sketches: object };
+      const keys = Object.keys(flashed.sketches);
+      expect(steps.length, href).toBeGreaterThan(1);
+      expect(keys, href).toHaveLength(steps.length);
       for (const key of keys) expect(manifestKeys, `${href} ${key}`).toContain(key);
     }
   });

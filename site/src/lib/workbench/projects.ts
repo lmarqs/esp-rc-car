@@ -44,6 +44,18 @@ export function workbenchFor(id: string): AnyWorkbenchProject | undefined {
   return Object.hasOwn(projects, id) ? projects[id] : undefined;
 }
 
+/**
+ * The step definitions of `project` in the order of the rail, which lists the steps by their sketch folders, such as
+ * `sketches/blink/simple`. Throws for a sketch that no step definition runs.
+ */
+export function railOf<S, E, B>(project: WorkbenchProject<S, E, B>, sketches: readonly string[]): StepDefinition<S, E>[] {
+  return sketches.map((sketch) => {
+    const step = project.steps.find((candidate) => candidate.sketch === sketch);
+    if (step === undefined) throw new Error(`No step definition of the workbench runs ${sketch}.`);
+    return step;
+  });
+}
+
 /** How a step's simulator starts when the page opens it or the visitor picks its tab. */
 export const OPENING = { slow: true, running: true } as const;
 
