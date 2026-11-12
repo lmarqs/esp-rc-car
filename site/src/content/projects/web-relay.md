@@ -49,8 +49,8 @@ mise run arduino:run sketches/web-relay --port /dev/ttyUSB0
 
 Then move the ESP-01S to the relay carrier and power the carrier with 5 V.
 
-The hotspot's password is `web-relay-1234` until you set your own in `sketches/web-relay/local.h`, a file Git
-ignores:
+The hotspot's password is `web-relay-1234` until you set your own: in the card's Settings step, or, when you build
+it yourself, in `sketches/web-relay/local.h`, a file Git ignores:
 
 ```cpp
 #define WEB_RELAY_AP_PASSWORD "at-least-8-characters"
