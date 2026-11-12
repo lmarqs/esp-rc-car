@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { imageFor, isMissing, sketchKey, type Manifest } from '../../src/lib/flash/manifest';
+import { chipFamilies, imageFor, isMissing, sketchKey, type Manifest } from '../../src/lib/flash/manifest';
 
 // The shape `mise run arduino:firmware` writes, with the offsets of its ESP32 and ESP32-C3 images.
 const manifest: Manifest = {
@@ -81,5 +81,24 @@ describe('imageFor', () => {
 
   it('does not match a chip by prefix', () => {
     expect(isMissing(imageFor(manifest, 'servo', 'ESP32-C3'))).toBe(true);
+  });
+});
+
+describe('chipFamilies', () => {
+  const image = (chipFamily: 'ESP32' | 'ESP8266') => ({ profile: chipFamily, chipFamily, parts: [] });
+  const ladder: Manifest = {
+    sketches: {
+      'blink/simple': { images: [image('ESP32')] },
+      'blink/input': { images: [image('ESP32'), image('ESP8266')] },
+    },
+  };
+
+  it('joins the chips of every sketch once, in manifest order', () => {
+    expect(chipFamilies(ladder, ['blink/simple', 'blink/input'])).toEqual(['ESP32', 'ESP8266']);
+  });
+
+  it('leaves out a sketch the manifest lacks', () => {
+    expect(chipFamilies(ladder, ['blink/timer', 'blink/simple'])).toEqual(['ESP32']);
+    expect(chipFamilies(ladder, ['blink/timer'])).toEqual([]);
   });
 });

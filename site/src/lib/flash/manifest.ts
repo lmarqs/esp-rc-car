@@ -81,6 +81,12 @@ export function imageFor(manifest: Manifest, sketch: string, chip: string): Mani
   return { missing: true, available: [...new Set(images.map((candidate) => candidate.chipFamily))] };
 }
 
+/** The chips with an image of at least one of `sketches`, in manifest order; a sketch the manifest lacks adds none. */
+export function chipFamilies(manifest: Manifest, sketches: readonly string[]): ChipFamily[] {
+  const families = sketches.flatMap((sketch) => manifest.sketches[sketch]?.images.map((image) => image.chipFamily) ?? []);
+  return [...new Set(families)];
+}
+
 export function isMissing(result: ManifestImage | MissingImage): result is MissingImage {
   return 'missing' in result;
 }
