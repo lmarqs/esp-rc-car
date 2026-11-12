@@ -851,4 +851,33 @@ test.describe('the finish of the switch and the frame', () => {
     const button = (await boardButton(page).boundingBox())!;
     expect(button.x).toBeGreaterThan(words.x + words.width);
   });
+
+  for (const width of [380, 1100]) {
+    test(`keeps the button where it is as the message grows from one line to more at ${width} px`, async ({
+      page,
+      fakeFlasher,
+    }) => {
+      await fakeFlasher.install({ holdConnect: true });
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(BLINK);
+      // Relative to the frame, since the page scrolls the button into view as it is pressed.
+      const buttonInFrame = () =>
+        boardButton(page).evaluate((button) => {
+          const frame = button.closest('[data-frame]')!.getBoundingClientRect();
+          return button.getBoundingClientRect().y - frame.y;
+        });
+      const lines = () => message(page).evaluate((text) => text.getBoundingClientRect().height / 21);
+
+      await myBoardButton(page).click();
+      await expect(message(page)).toHaveText('No board connected. Plug it in with a USB cable, then connect.');
+      const manyLines = await lines();
+      const before = await buttonInFrame();
+
+      await boardButton(page).click();
+
+      await expect(message(page)).toHaveText('Connecting to the board.');
+      expect(await lines()).toBeLessThan(manyLines);
+      expect(await buttonInFrame()).toBe(before);
+    });
+  }
 });

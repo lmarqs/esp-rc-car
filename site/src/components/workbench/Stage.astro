@@ -64,8 +64,9 @@ const Picture = { led: Led, servo: Servo }[picture];
   .stage > * { grid-area: 1 / 1; }
   .link { --lines-height: calc(var(--link-lines) * var(--link-size) * var(--link-line)); visibility: hidden; align-self: center; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; align-content: center; gap: var(--link-gap) 16px; min-height: var(--lines-height); font-size: var(--link-size); line-height: var(--link-line); }
   /* Above the button, from the width where the notice has no longer 244 px beside the button's 164 and the gap. */
-  @container (max-width: 423px) { .link { grid-template-columns: minmax(0, 1fr); justify-items: start; min-height: calc(var(--lines-height) + var(--link-gap) + var(--action-height)); } }
-  @media (max-width: 480px) { .link { grid-template-columns: minmax(0, 1fr); justify-items: start; min-height: calc(var(--lines-height) + var(--link-gap) + var(--action-height)); } }
+  @container (max-width: 423px) { .link { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(var(--lines-height), auto) auto; justify-items: start; min-height: calc(var(--lines-height) + var(--link-gap) + var(--action-height)); } }
+  @media (max-width: 480px) { .link { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(var(--lines-height), auto) auto; justify-items: start; min-height: calc(var(--lines-height) + var(--link-gap) + var(--action-height)); } }
+  /* Stacked, the words have a row of their own as tall as the longest notice, so the button stays put as they change. */
   .words { display: grid; gap: var(--link-gap); }
   .stage[data-message] .led-row { visibility: hidden; }
   .stage[data-message] .link { visibility: visible; }
