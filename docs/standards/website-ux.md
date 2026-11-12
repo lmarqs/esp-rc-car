@@ -28,8 +28,8 @@ A MUST does not vary. A SHOULD yields only to a reason written beside the code. 
    run is coral, like the Connect button; the Live state, the lit LED and the mark for what the board applied are
    green.
 4. **Never colour alone.** A status MUST carry an icon or a word as well. A colour-blind visitor, or one in
-   bright light, cannot tell two hues apart. Example: the board's state reads Live, Simulated or Runs blink/simple
-   beside its dot, and the line being run has the arrow ▶ in its gutter as well as the coral background.
+   bright light, cannot tell two hues apart. Example: the board's state reads Live, Simulated, Runs step 1 or Other
+   sketch beside its dot, and the line being run has the arrow ▶ in its gutter as well as the coral background.
 5. **Chrome is not content.** An editor, terminal or card MUST look separate from what it holds, and its lines MUST
    meet at its edges. A visitor then tells the sketch's text from the page's controls, and an unbroken row reads
    as one line. Example: the editor has a tab with the file name and a path of crumbs above the code, and the
