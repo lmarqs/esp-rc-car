@@ -108,8 +108,7 @@ The drivers in `lib/`:
 Another sketch uses the drivers through the Robomania library: download `robomania-<version>.zip` from a
 [`lib-v` release](https://github.com/lmarqs/robomania/releases) and install it with
 `ARDUINO_LIBRARY_ENABLE_UNSAFE_INSTALL=true arduino-cli lib install --zip-path robomania-<version>.zip`, or in the
-Arduino IDE with Sketch > Include Library > Add .ZIP Library. It builds for ESP32 and ESP8266 boards; the camera, LEDC
-and web server drivers build only for ESP32.
+Arduino IDE with Sketch > Include Library > Add .ZIP Library. It builds for ESP boards.
 
 [docs/](docs/README.md) explains [how the parts fit](docs/architecture.md) and the [standards](docs/standards/README.md)
 the code follows. `.clang-format` sets the layout; apply it with `mise exec -- clang-format -i <file>`.
