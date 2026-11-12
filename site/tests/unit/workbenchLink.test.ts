@@ -66,7 +66,7 @@ describe('boardStatus', () => {
 
 describe('boardAction', () => {
   const connect = { label: 'Connect my board', icon: 'plug', event: 'connect', disabled: false };
-  const input = { key: 'blink/input', number: 2 };
+  const input = { key: 'blink/input', id: 'input' };
 
   it('offers no board half in a browser that cannot reach a board', () => {
     expect(boardAction({ kind: 'unsupported' }, undefined, input)).toBeUndefined();
@@ -77,8 +77,8 @@ describe('boardAction', () => {
     for (const state of states) expect(boardAction(state, undefined, input)).toEqual(connect);
   });
 
-  it('flashes the step, by its number, on a board that runs another sketch or has not named one', () => {
-    const flashStep = { label: 'Flash step 2 to board', short: 'Flash step 2', icon: 'bolt', event: 'flash', disabled: false };
+  it('flashes the step, by the id its tab names it by, on a board that runs another sketch or has not named one', () => {
+    const flashStep = { label: 'Flash input to board', short: 'Flash input', icon: 'bolt', event: 'flash', disabled: false };
     expect(boardAction(running, 'blink/simple', input)).toEqual(flashStep);
     expect(boardAction(running, undefined, input)).toEqual(flashStep);
   });
@@ -120,7 +120,7 @@ describe('boardAction', () => {
   });
 
   it('flashes the step, not back to the board, once the board runs another step', () => {
-    expect(boardAction(running, 'blink/simple', input, undefined, true)).toMatchObject({ label: 'Flash step 2 to board' });
+    expect(boardAction(running, 'blink/simple', input, undefined, true)).toMatchObject({ label: 'Flash input to board' });
   });
 
   it('connects again, not back to the board, once the board is lost', () => {

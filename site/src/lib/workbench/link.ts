@@ -58,14 +58,14 @@ export function boardStatus(
 
 /**
  * The board half of the Board switch for the session's `state`, or `undefined` in a browser that cannot reach a board.
- * `step` is the selected step, its key and its number in the rail. `pressed` is what the visitor last pressed, which
+ * `step` is the selected step: its key and its id, such as `simple`, as its tab names it. `pressed` is what the visitor last pressed, which
  * names what the session works on while it is busy. `detached` is set while the visitor has the simulator in the
  * board pane although the board runs the selected step.
  */
 export function boardAction(
   state: SessionState,
   heard: string | undefined,
-  step: { readonly key: string; readonly number: number },
+  step: { readonly key: string; readonly id: string },
   pressed?: BoardAction['event'],
   detached = false,
 ): BoardAction | undefined {
@@ -77,7 +77,7 @@ export function boardAction(
   }
   if (!isConnected(state)) return CONNECT;
   if (heard !== step.key) {
-    const short = `Flash step ${step.number}`;
+    const short = `Flash ${step.id}`;
     return { label: `${short} to board`, short, icon: 'bolt', event: 'flash', disabled: false };
   }
   return { label: detached ? 'My board' : 'My board, live', icon: 'dot', event: 'live', disabled: false };

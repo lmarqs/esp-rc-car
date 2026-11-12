@@ -14,8 +14,8 @@ A MUST does not vary. A SHOULD yields only to a reason written beside the code. 
 
 1. **Nothing shifts.** A state change MUST NOT move or resize a neighbour, and anything whose text changes MUST
    reserve the width of its longest text. A visitor aims at a control and presses it; if the control moves under the
-   pointer, the press lands on something else. Example: the board half of the rail's switch is 198 px wide whether it
-   reads Connect my board, Flash step 4 to board or My board, live, and the debugger's Pause button keeps its width
+   pointer, the press lands on something else. Example: the board half of the rail's switch is 164 px wide whether it
+   reads Connect my board, Flash commands to board or My board, live, and the debugger's Pause button keeps its width
    when it reads Continue.
 2. **Group by direction.** What the board reports MUST sit together, and what the visitor sends MUST sit together,
    next to where the reply appears. A visitor who sends a value looks for its effect, and the nearer the two are,
@@ -37,7 +37,7 @@ A MUST does not vary. A SHOULD yields only to a reason written beside the code. 
    output.
 6. **Every state says what to do next, in plain words.** A state MUST NOT leave the visitor to guess the next step.
    Example: below the panes a hint says what the arrow is and that Step runs one line; when the board runs another
-   step, its tab is marked "● board" and the switch offers "Flash step 3 to board" for the step on screen.
+   step, its tab is marked "● board" and the switch offers "Flash timer to board" for the step on screen.
 7. **A control shows what it sent, and a slider sends on release.** After a control acts, the page MUST show what
    went out, and a slider MUST NOT send while it is dragged, since each intermediate value would reach the board.
    Example: in the commands step, dragging the delay slider updates its number and writes the line it would send,

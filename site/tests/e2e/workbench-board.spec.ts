@@ -81,7 +81,7 @@ test.describe('the Board switch', () => {
 
     await expect(status(page)).toHaveText('Runs step 4');
     await expect(statusLine(page)).toHaveText('Runs step 4: Your board runs blink/commands');
-    await expect(boardButton(page)).toHaveAccessibleName('Flash step 1 to board');
+    await expect(boardButton(page)).toHaveAccessibleName('Flash simple to board');
     expect(await icon(page)).toBe('bolt');
     expect(await pressed(page)).toEqual(['true', 'false']);
     await expect(flashAgain(page)).toHaveAttribute('aria-disabled', 'true');
@@ -98,7 +98,7 @@ test.describe('the Board switch', () => {
 
     await expect(status(page)).toHaveText('Other sketch');
     await expect(statusLine(page)).toHaveText('Other sketch: Your board runs servo/sweep');
-    await expect(boardButton(page)).toHaveAccessibleName('Flash step 1 to board');
+    await expect(boardButton(page)).toHaveAccessibleName('Flash simple to board');
   });
 
   test('changes the status, a live region, in one change, so a screen reader announces it once', async ({
@@ -129,7 +129,7 @@ test.describe('the Board switch', () => {
 
     await connect(page);
 
-    await expect(boardButton(page)).toHaveAccessibleName('Flash step 1 to board');
+    await expect(boardButton(page)).toHaveAccessibleName('Flash simple to board');
     await expect(status(page)).toHaveText('Connected');
     expect(await pressed(page)).toEqual(['true', 'false']);
   });
@@ -259,10 +259,10 @@ test.describe('flashing from the workbench', () => {
 
     // The switch shows the short label; the button's name, read out, ends in "to board".
     expect(seen).toEqual([
-      ['Runs step 3', 'Flash step 2'],
+      ['Runs step 3', 'Flash input'],
       ['Live', 'My board, live'],
-      ['Runs step 3', 'Flash step 4'],
-      ['Runs step 3', 'Flash step 1'],
+      ['Runs step 3', 'Flash commands'],
+      ['Runs step 3', 'Flash simple'],
       ['Live', 'My board, live'],
     ]);
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
@@ -446,7 +446,7 @@ test.describe('the rail', () => {
       reach: async (page) => {
         await connect(page);
         await tab(page, '4 commands').click();
-        await expect(boardButton(page)).toHaveAccessibleName('Flash step 4 to board');
+        await expect(boardButton(page)).toHaveAccessibleName('Flash commands to board');
       },
     },
     {
@@ -470,7 +470,7 @@ test.describe('the rail', () => {
       options: { lines: ['sketch blink/commands'], progress: [40], hold: true },
       reach: async (page) => {
         await connect(page);
-        await expect(boardButton(page)).toHaveAccessibleName('Flash step 1 to board');
+        await expect(boardButton(page)).toHaveAccessibleName('Flash simple to board');
         await boardButton(page).click();
         await expect(message(page)).toHaveText('Found ESP32');
       },

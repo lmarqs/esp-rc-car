@@ -8,7 +8,7 @@ import { createSimulation, type Snapshot } from '../../src/lib/workbench/simulat
 import { readStepSource } from '../../src/lib/workbench/readSource';
 import { fakeClock } from './fakeClock';
 
-const blink = blinkWorkbench as unknown as PaneProject<BlinkBoard>;
+const blink = { ...blinkWorkbench, ids: ['simple', 'input', 'timer', 'commands'] } as unknown as PaneProject<BlinkBoard>;
 const SIMPLE = 0;
 const INPUT = 1;
 const idle: SessionState = { kind: 'idle' };

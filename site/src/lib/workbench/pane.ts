@@ -8,6 +8,8 @@ import type { StepDefinition } from './step';
 /** The project a workbench's board pane shows: its steps in rail order and its board. */
 export interface PaneProject<B> {
   readonly steps: readonly StepDefinition<unknown, unknown>[];
+  /** Each step's id, such as `simple`, as its tab names it, in rail order. */
+  readonly ids: readonly string[];
   readonly board: BoardModel<unknown, B, unknown>;
 }
 
@@ -87,7 +89,7 @@ export function paneStatus<B>(project: PaneProject<B>, state: PaneState<B>): Boa
 
 /** The board half of the Board switch for the pane; `undefined` in a browser that cannot reach a board. */
 export function paneAction<B>(project: PaneProject<B>, state: PaneState<B>): BoardAction | undefined {
-  const step = { key: selectedStep(project, state).key, number: state.selected + 1 };
+  const step = { key: selectedStep(project, state).key, id: project.ids[state.selected] };
   return boardAction(state.session, state.heard, step, state.pressed, state.detached);
 }
 

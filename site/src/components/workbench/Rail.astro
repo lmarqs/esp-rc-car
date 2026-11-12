@@ -98,12 +98,12 @@ const simulated = boardStatusText({ kind: 'simulated' });
   .tab:focus-visible { outline: 3px solid var(--blue); outline-offset: -3px; }
 
   /* A fixed width, so no label moves the tabs or the switch. */
-  .railend { flex: 0 0 310px; display: flex; align-items: center; justify-content: flex-end; padding: 10px; min-width: 0; }
+  .railend { flex: 0 0 312px; display: flex; align-items: center; justify-content: flex-end; padding: 10px; min-width: 0; }
   .switch { display: flex; height: 38px; border: 2px solid var(--ink); border-radius: 999px; overflow: hidden; background: var(--card); box-shadow: 0 3px 0 var(--ink); }
   .half { overflow: hidden; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font: inherit; font-size: 13px; font-weight: 700; line-height: 1.5; white-space: nowrap; color: var(--ink); background: transparent; border: 0; padding: 0 10px; cursor: pointer; }
   .half:first-child { width: 88px; }
-  /* As wide as its longest label, Connect my board, so the switch keeps its width. */
-  .board-half, .needs { width: 162px; border-left: 2px solid var(--ink); }
+  /* As wide as its longest label, Flash commands, so the switch keeps its width. */
+  .board-half, .needs { width: 164px; border-left: 2px solid var(--ink); }
   .half[aria-pressed="true"] { color: var(--card); background: var(--ink); cursor: default; }
   .half:hover:not([aria-pressed="true"], [aria-disabled="true"]) { background: var(--wash-yellow); }
   .half[aria-disabled="true"] { opacity: .6; cursor: default; }

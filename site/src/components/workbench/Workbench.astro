@@ -45,7 +45,7 @@ const rail: RailStep[] = steps.map((step, index) => {
   };
 });
 const first = rail[0];
-const stepData = JSON.stringify(rail.map((step, index) => ({ sketch: step.sketch, source: sources[index] })));
+const stepData = JSON.stringify(rail.map((step, index) => ({ sketch: step.sketch, id: step.id, source: sources[index] })));
 const id = (part: string) => elementId(project, part);
 const firmware = readManifest().sketches;
 // Only the steps' images, so the page does not carry the whole manifest. The manifest names a sketch by its path, and
@@ -111,6 +111,8 @@ const flashable = Object.keys(manifest.sketches).length > 0;
 
   interface StepData {
     sketch: string;
+    /** The step's id, such as `simple`, as its tab names it. */
+    id: string;
     source: string;
   }
 
@@ -157,6 +159,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     // The project's steps in rail order, as the pane numbers them.
     const paneProject: PaneProject<unknown> = {
       steps: railOf(project, steps.map((step) => step.sketch)),
+      ids: steps.map((step) => step.id),
       board: project.board,
     };
     const watch = mountWatchPanel(root, project.board.steady);

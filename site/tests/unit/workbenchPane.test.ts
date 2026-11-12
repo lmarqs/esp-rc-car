@@ -13,7 +13,7 @@ import {
 } from '../../src/lib/workbench/pane';
 import { blinkWorkbench } from '../../src/lib/workbench/projects';
 
-const blink = blinkWorkbench as unknown as PaneProject<BlinkBoard>;
+const blink = { ...blinkWorkbench, ids: ['simple', 'input', 'timer', 'commands'] } as unknown as PaneProject<BlinkBoard>;
 const idle: SessionState = { kind: 'idle' };
 const running: SessionState = { kind: 'running', chip: 'ESP32', output: [] };
 const SIMPLE = 0;
@@ -172,7 +172,7 @@ describe('the board pane', () => {
       const flashing: SessionState = { kind: 'flashing', chip: 'ESP32', pct: 10 };
       const pressed = after(connected, { kind: 'press', action: 'flash' }, { kind: 'session', state: flashing });
       expect(paneAction(blink, pressed)).toEqual({ label: 'Flashing…', icon: 'bolt', event: 'flash', disabled: true });
-      expect(paneAction(blink, after(connected))).toMatchObject({ label: 'Flash step 1 to board', disabled: false });
+      expect(paneAction(blink, after(connected))).toMatchObject({ label: 'Flash simple to board', disabled: false });
     });
 
     it('shows a refused flash until the visitor picks another step', () => {
