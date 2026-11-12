@@ -27,16 +27,16 @@ The firmware has five parts:
   control logic. Its path under `sketches/` names it in the firmware manifest and its image folder.
 - **Pin interfaces**, in `lib/`: the kinds of pin output a driver can ask for, such as a level or a PWM signal, each
   with a class per way the ESP32 produces it.
-- **Drivers**, in `lib/`: one library that the ESP32 sketches build with. Each driver runs one sort of device, such
-  as a motor, a servo or a camera, serves one protocol, or does one control calculation, such as a PID controller.
-  The [README](../README.md#code-layout) lists them.
+- **Drivers**, in `lib/`: one library that the ESP32 and ESP8266 sketches build with. Each driver runs one sort of
+  device, such as a motor, a servo or a camera, serves one protocol, or does one control calculation, such as a PID
+  controller. The [README](../README.md#code-layout) lists them.
 - **Tests**, in `test/`: programs that run the drivers on the developer's machine, with no board. Automated tests
   cover only `lib/`, and of it the drivers that compute without touching hardware. A sketch is checked by compiling
   it and by running it on its board.
 - **Core**: the Arduino core that each sketch's `sketch.yaml` pins for its board. The ESP32 sketches pin the
   Bluepad32 ESP32 core, which gives the Arduino API, ESP-IDF and the Bluetooth gamepad stack. `sketches/web-relay`
-  pins the ESP8266 core for the ESP-01S, and `sketches/usb-key` the Digistump AVR core for the Digispark; these two
-  build without `lib/`.
+  pins the ESP8266 core for the ESP-01S, and `sketches/usb-key` the Digistump AVR core for the Digispark, which builds
+  without `lib/`.
 
 ```mermaid
 flowchart TD
