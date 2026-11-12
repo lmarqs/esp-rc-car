@@ -227,6 +227,41 @@ test.describe('live mode', () => {
     });
   }
 
+  test('drops a line a chip is typing when the board turns out to run another step', async ({ page, fakeFlasher }) => {
+    await page.clock.install();
+    await connectTo(page, fakeFlasher, 'blink/commands', '4 commands', 'Live');
+    await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 500);
+
+    await bench(page).getByRole('button', { name: 'pause', exact: true }).click();
+    await page.clock.runFor(60);
+    await expect(commandLine(page)).toHaveAttribute('data-typing', '');
+    await fakeFlasher.print('', 'sketch blink/simple');
+    await expect(status(page)).toHaveText('Runs step 1');
+    await page.clock.runFor(2000);
+
+    await expect(commandLine(page)).toHaveValue('');
+    expect(await fakeFlasher.calls()).not.toContain('send pause');
+    await expect(serial(page).locator('[data-sent]')).toHaveCount(0);
+  });
+
+  test('drops a line a chip is typing when the visitor pauses, rather than sending it to the simulator', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await page.clock.install();
+    await connectTo(page, fakeFlasher, 'blink/commands', '4 commands', 'Live');
+    await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 500);
+
+    await bench(page).getByRole('button', { name: 'pause', exact: true }).click();
+    await page.clock.runFor(60);
+    await debuggerButton(page, 'Pause').click();
+    await page.clock.runFor(2000);
+
+    await expect(commandLine(page)).toHaveValue('');
+    await expect(serial(page).locator('[data-sent]')).toHaveCount(0);
+    expect(await fakeFlasher.calls()).not.toContain('send pause');
+  });
+
   test('turns Slow off and disables it, and gives the simulator its Slow back after the visitor pauses', async ({
     page,
     fakeFlasher,

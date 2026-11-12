@@ -689,6 +689,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
       if (next === mode) return;
       const was = mode;
       mode = next;
+      dropTyping();
       if (next === 'simulator') startSimulator();
       else if (was === 'simulator') startFollowing();
       draw();
@@ -698,6 +699,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     function detach() {
       detached = true;
       mode = 'simulator';
+      dropTyping();
       startSimulator();
       showLink();
     }
@@ -841,6 +843,17 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     function showTyped(text: string) {
       commandLine.value = text;
       commandLine.setAttribute('data-typing', '');
+    }
+
+    /**
+     * Drops the line a shortcut is typing, unsent, when the pane changes hands: it was meant for the board or the
+     * simulator the visitor saw, not for the one that takes over.
+     */
+    function dropTyping() {
+      typist.stop();
+      if (!commandLine.hasAttribute('data-typing')) return;
+      commandLine.value = '';
+      commandLine.removeAttribute('data-typing');
     }
 
     /** Empties the command line and drops the line a shortcut was typing, unsent; resets the sliders. */
