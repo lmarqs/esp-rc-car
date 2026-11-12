@@ -54,6 +54,10 @@ describe('the board dock', () => {
     expect(view.path).toBeUndefined();
   });
 
+  it('names a sketch whose key is a property every object has by its key, not by what the object holds', () => {
+    expect(dockView(running, { heard: 'constructor', lines: [] }, names, flashable).doing).toBe('constructor');
+  });
+
   it('says a board running an unnamed sketch runs a sketch', () => {
     expect(dockView(running, EMPTY_RECORD, names, flashable).doing).toBe('Running a sketch');
   });

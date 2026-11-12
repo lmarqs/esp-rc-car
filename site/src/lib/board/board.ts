@@ -33,6 +33,16 @@ export interface Board {
   know(manifest: Manifest): void;
 }
 
+/**
+ * The key `event` flashes onto the board: a flash's own, or `sketch` for a connection that is not a restart, which
+ * flashes the session's sketch after its settings if it has any; `undefined` for any other event.
+ */
+export function keyFlashedBy(event: SessionEvent, sketch: string): string | undefined {
+  if (event.type === 'flash') return event.key;
+  if (event.type === 'connect' && !event.reset) return sketch;
+  return undefined;
+}
+
 /** Creates a board; the site holds one, from {@link theBoard}. */
 export function createBoard(session: FlashSession): Board {
   const listeners = new Set<() => void>();
@@ -82,8 +92,7 @@ export function createBoard(session: FlashSession): Board {
       return true;
     },
     send(event) {
-      // A connection that is not a reset flashes the session's sketch, after its settings if it has any.
-      const key = event.type === 'flash' ? event.key : event.type === 'connect' && !event.reset ? current.sketch : undefined;
+      const key = keyFlashedBy(event, current.sketch);
       if (key !== undefined) change({ kind: 'flash', key });
       return session.send(event);
     },

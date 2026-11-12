@@ -31,7 +31,8 @@ const NOTHING = { connect: false, flashAgain: false, disconnect: false, canSend:
 /** The name of the sketch `key`, or a plain one for a sketch outside the site. */
 function nameOf(names: Readonly<Record<string, SketchName>>, key: string | undefined): SketchName | undefined {
   if (key === undefined) return undefined;
-  return names[key] ?? { title: key, path: '' };
+  // The key is whatever the board printed, so a key such as `constructor` must not reach the object's prototype.
+  return Object.hasOwn(names, key) ? names[key] : { title: key, path: '' };
 }
 
 /**

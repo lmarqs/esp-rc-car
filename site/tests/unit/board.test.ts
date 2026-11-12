@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createBoard } from '../../src/lib/board/board';
+import { createBoard, keyFlashedBy } from '../../src/lib/board/board';
 import type { BoardLine, FlashSession, SessionState } from '../../src/lib/flash';
 import type { SessionEvent, SessionOptions } from '../../src/lib/flash/session';
 
@@ -121,5 +121,14 @@ describe('the site board', () => {
     fake.print('HIGH');
 
     expect(calls).toBe(3);
+  });
+});
+
+describe('the key a press flashes', () => {
+  it("is a flash's own key, the sketch for a connection that flashes, and none for a restart or anything else", () => {
+    expect(keyFlashedBy({ type: 'flash', key: 'blink/input' }, 'servo')).toBe('blink/input');
+    expect(keyFlashedBy({ type: 'connect' }, 'servo')).toBe('servo');
+    expect(keyFlashedBy({ type: 'connect', reset: true }, 'servo')).toBeUndefined();
+    expect(keyFlashedBy({ type: 'disconnect' }, 'servo')).toBeUndefined();
   });
 });

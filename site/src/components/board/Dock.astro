@@ -117,9 +117,9 @@ const manifest = readManifest();
 <script>
   import { theBoard } from '../../lib/board/board';
   import type { SketchName } from '../../lib/board/names';
-  import type { KeptLine } from '../../lib/board/record';
   import type { Manifest } from '../../lib/flash';
   import { runs } from '../../lib/board/record';
+  import { mountDockMonitor } from './dockMonitor';
   import { dockView } from './dockView';
 
   // The dock persists from page to page, so this runs once, on the first page the visitor opens.
@@ -138,12 +138,7 @@ const manifest = readManifest();
     board.know(manifest);
 
     const find = <E extends Element>(name: string) => dock.querySelector<E>(`[data-dock-${name}]`)!;
-    const monitor = find<HTMLElement>('monitor');
-    const lines = find<HTMLElement>('lines');
-    const form = find<HTMLFormElement>('send');
-    const input = find<HTMLInputElement>('line');
-    const send = form.querySelector<HTMLButtonElement>('button')!;
-    const problem = find<HTMLElement>('problem');
+    const monitor = mountDockMonitor(dock, board);
     const dot = find<HTMLElement>('dot');
     const chip = find<HTMLElement>('chip');
     const link = find<HTMLAnchorElement>('link');
@@ -153,36 +148,15 @@ const manifest = readManifest();
     const fill = find<HTMLElement>('fill');
     const pct = find<HTMLElement>('pct');
     const last = find<HTMLElement>('last');
-    const serial = find<HTMLButtonElement>('serial');
     const again = find<HTMLButtonElement>('again');
     const disconnect = find<HTMLButtonElement>('disconnect');
     const connect = find<HTMLButtonElement>('connect');
-    let shownLines: readonly KeptLine[] | undefined;
 
-    serial.addEventListener('click', () => {
-      const open = monitor.hidden;
-      monitor.hidden = !open;
-      serial.setAttribute('aria-expanded', String(open));
-      shownLines = undefined;
-      render();
-      if (open) input.focus();
-    });
     connect.addEventListener('click', () => void board.send({ type: 'connect', reset: true }));
     disconnect.addEventListener('click', () => void board.send({ type: 'disconnect' }));
     again.addEventListener('click', () => {
       const key = runs(board.record);
       if (key !== undefined) void board.send({ type: 'flash', key });
-    });
-    form.addEventListener('submit', (event) => {
-      event.preventDefault();
-      const text = input.value;
-      if (text === '') return;
-      input.value = '';
-      problem.hidden = true;
-      board.sendLine(text).catch(() => {
-        problem.textContent = `The board did not get ${text}. Check that it is still plugged in, then send it again.`;
-        problem.hidden = false;
-      });
     });
 
     function render() {
@@ -215,26 +189,7 @@ const manifest = readManifest();
         if (!shown && document.activeElement === button) dock.focus();
         button.hidden = !shown;
       }
-      input.disabled = !view.canSend;
-      send.disabled = !view.canSend;
-      if (!monitor.hidden) paintLines();
-    }
-
-    /** Writes the kept lines into the monitor, following the newest unless the visitor scrolled up to read. */
-    function paintLines() {
-      const kept = board.record.lines;
-      if (kept === shownLines) return;
-      shownLines = kept;
-      const following = lines.scrollHeight - lines.scrollTop - lines.clientHeight < 8;
-      lines.replaceChildren(
-        ...kept.map((line, at) => {
-          const row = document.createElement('span');
-          row.textContent = (at > 0 ? '\n' : '') + (line.sent ? `› ${line.text}` : line.text);
-          if (line.sent) row.dataset.sent = '';
-          return row;
-        }),
-      );
-      if (following) lines.scrollTop = lines.scrollHeight;
+      monitor.show(view.canSend);
     }
 
     board.subscribe(render);
