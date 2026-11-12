@@ -391,6 +391,8 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
         case 'connect':
           if (state.kind === 'running' && state.lost) {
             reading++;
+            // Ignores a second click while the old port is released.
+            enter({ kind: 'connecting' });
             await flasher.disconnect();
             await connect(flasher);
           } else if (kind === 'idle' || FAILURE_KINDS.has(kind)) {

@@ -944,6 +944,18 @@ describe('a session with a baud rate', () => {
     ]);
   });
 
+  it('connects once when the visitor clicks connect twice on a lost board', async () => {
+    const { flasher, session } = await running();
+    flasher.endMonitor();
+    await vi.waitFor(() => expect(session.state).toMatchObject({ lost: true }));
+    flasher.calls.length = 0;
+
+    await Promise.all([session.send({ type: 'connect' }), session.send({ type: 'connect' })]);
+
+    expect(flasher.calls.filter((call) => call === 'connect')).toHaveLength(1);
+    expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [] });
+  });
+
   it('ignores the end of an old monitor once the board is flashed again', async () => {
     const { flasher, session } = await running();
     flasher.endMonitor();
