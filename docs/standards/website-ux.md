@@ -52,7 +52,7 @@ A MUST does not vary. A SHOULD yields only to a reason written beside the code. 
    code and the board stack, and the code pane scrolls on its own.
 10. **Keyboard and labels.** Every control MUST be reachable by keyboard, show a visible focus and have a label that
     names it, since a keyboard user follows the focus and a screen reader reads the label. Example: the debugger
-    buttons sit in a toolbar labelled Debugger and outline in coral when focused, and the command line is labelled
+    buttons sit in a toolbar labelled Debugger and outline in blue when focused, and the command line is labelled
     Line to send to the board although it shows only a placeholder.
 11. **Motion is optional.** An animation MUST be skipped when the visitor's system asks for reduced motion, and
     what it showed MUST still appear without it. Example: a shortcut types its text into the command line one
