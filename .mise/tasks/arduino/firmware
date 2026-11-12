@@ -5,6 +5,9 @@
 
 Run it from the repository's root: `mise run arduino:firmware`.
 
+A sketch is a folder with a `sketch.yaml` at `sketches/<name>/` or `sketches/<project>/<variant>/`. Its path under
+`sketches/`, such as `blink/simple`, names it in the manifest and its image folder.
+
 The parts of an image and their offsets are the ones the core's own upload recipe writes, read from
 `tools.esptool_py.upload.pattern_args` (ESP32) or `tools.esptool.upload.pattern` (ESP8266) in
 `arduino-cli compile --show-properties`.
@@ -30,6 +33,22 @@ PROFILE = re.compile(r"^  (\w[\w-]*):\s*$")
 PLATFORM = re.compile(r"^\s+- platform:\s*(\S+)")
 HEX_OFFSET = re.compile(r"^0x[0-9a-fA-F]+$")
 SETTING_TYPES = ("text", "password", "number")
+
+
+def sketch_folders() -> list[Path]:
+    """Finds the folders with a `sketch.yaml` one or two levels under `sketches/`; a folder without one is searched a level down."""
+    found: list[Path] = []
+    for folder in sorted(path for path in SKETCHES.iterdir() if path.is_dir()):
+        if (folder / "sketch.yaml").exists():
+            found.append(folder)
+        else:
+            found.extend(variant for variant in sorted(folder.iterdir()) if (variant / "sketch.yaml").exists())
+    return found
+
+
+def sketch_key(sketch: Path) -> str:
+    """The sketch's path under `sketches/`, which names it in the manifest and its image folder."""
+    return sketch.relative_to(SKETCHES).as_posix()
 
 
 def esp_profiles(sketch: Path) -> list[str]:
@@ -83,7 +102,7 @@ def flash_parts(arguments: list[str]) -> list[tuple[int, Path]]:
 
 
 def publish(sketch: Path, profile: str) -> dict:
-    build_path = BUILD / sketch.name / profile
+    build_path = BUILD / sketch_key(sketch) / profile
     subprocess.run(
         ["arduino-cli", "compile", str(sketch), "--profile", profile, "--build-path", str(build_path)], check=True
     )
@@ -92,7 +111,7 @@ def publish(sketch: Path, profile: str) -> dict:
     app = f"{sketch.name}.ino.bin"
     if not any(file.name == app for _, file in files):
         raise SystemExit(f"{sketch}/{profile}: the core's upload recipe writes no {app}: {shlex.join(arguments)}")
-    target = OUTPUT / sketch.name / profile
+    target = OUTPUT / sketch_key(sketch) / profile
     target.mkdir(parents=True)
     parts = []
     for offset, file in files:
@@ -146,7 +165,7 @@ def settings(sketch: Path) -> list | None:
 
 def main() -> int:
     allow_local = os.environ.get("usage_allow_local") == "true"
-    selected = {sketch: profiles for sketch in sorted(SKETCHES.iterdir()) if (profiles := esp_profiles(sketch))}
+    selected = {sketch: profiles for sketch in sketch_folders() if (profiles := esp_profiles(sketch))}
 
     baked = [sketch for sketch in selected if (sketch / "local.h").exists()]
     if baked and not allow_local:
@@ -166,7 +185,7 @@ def main() -> int:
         entry: dict = {"images": [publish(sketch, profile) for profile in profiles]}
         if fields[sketch] is not None:
             entry["settings"] = fields[sketch]
-        manifest["sketches"][sketch.name] = entry
+        manifest["sketches"][sketch_key(sketch)] = entry
 
     (OUTPUT / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return 0

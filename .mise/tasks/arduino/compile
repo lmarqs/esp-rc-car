@@ -5,4 +5,7 @@ set -euo pipefail
 
 mise run arduino:hexdump "${usage_sketch}"
 arduino-cli compile "${usage_sketch}" --build-path ".build/${usage_sketch}"
-python3 .vscode/merge_compile_commands.py .build/compile_commands.json .build/sketches/*/compile_commands.json
+# Sketches sit at sketches/<name> or sketches/<project>/<variant>; a pattern that matches nothing expands to nothing.
+shopt -s nullglob
+python3 .vscode/merge_compile_commands.py .build/compile_commands.json \
+  .build/sketches/*/compile_commands.json .build/sketches/*/*/compile_commands.json

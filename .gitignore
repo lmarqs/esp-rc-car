@@ -3,7 +3,9 @@
 .arduino/
 .build/
 /sketches/*/local.h
+/sketches/*/*/local.h
 /sketches/*/data/*.h
+/sketches/*/*/data/*.h
 # cook:begin io.github.lmarqs.cookbook:git#worktrees/worktrees
 # io.github.lmarqs.cookbook:git#worktrees --instructions=AGENTS.md --instructions=README.md
 /.worktrees/*

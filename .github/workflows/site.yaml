@@ -26,7 +26,7 @@ jobs:
       - uses: actions/cache@v6
         with:
           path: .arduino
-          key: arduino-${{ hashFiles('sketches/*/sketch.yaml', 'arduino-cli.yaml') }}
+          key: arduino-${{ hashFiles('sketches/*/sketch.yaml', 'sketches/*/*/sketch.yaml', 'arduino-cli.yaml') }}
           restore-keys: arduino-
       - run: mise run node:setup
       - run: mise run python:setup
