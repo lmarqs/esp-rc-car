@@ -59,11 +59,13 @@ line the board is about to run.
 A servo reads the *width* of a pulse it gets 50 times a second, every 20 ms. `EspLedcOutPin(13, 50, 16)` asks the
 ESP32's LEDC hardware for a 50 Hz signal on GPIO 13 with 16 bits of resolution. `PositionalServo` turns an angle into
 a pulse width: 0° becomes 544 µs and 180° becomes 2400 µs, with the angles in between spread evenly. Two `for` loops
-walk the angle up and down, with `delay(15)` between degrees, and print `angle <n>` for each.
+walk the angle up and down, with `delay(15)` between degrees, and print `angle <n>` for each through `output`, the
+library's `SerialOutput`.
 
 ### 2. angle: check the number
 
-The servo starts at 90°, and a number you send turns it there. The sketch accepts only whole numbers from 0 to 180,
+The servo starts at 90°, and a number you send turns it there. `input`, the library's `SerialInput`, hands the sketch
+each line you send once it has arrived whole. The sketch accepts only whole numbers from 0 to 180,
 and any other line gets `error angle must be 0-180` and moves nothing, so a typo never drives the servo past its
 range.
 

@@ -61,13 +61,16 @@ line the board is about to run.
 
 The whole sketch is one LED and a loop. `setup()` runs once when the board starts; `loop()` runs over and over after
 it. `DigitalOutPin` comes from the project's [library](../../library/): it wraps a GPIO pin so the sketch says *what*
-it drives, and the driver knows *how*. `delay(1000)` waits a thousand milliseconds, which is why the LED changes once
-a second. While it waits, the board does nothing else.
+it drives, and the driver knows *how*. `SerialOutput` comes from the same library: `output.begin("blink/simple")`
+opens the serial port and prints the sketch's name, which is how the workbench tells which step your board runs, and
+`output.println` prints a line. `delay(1000)` waits a thousand milliseconds, which is why the LED changes once a
+second. While it waits, the board does nothing else.
 
 ### 2. input: set the delay from serial
 
-The delay becomes a variable, `blinkDelay`. When a line arrives on the serial port, a number in it sets the delay,
-kept between 100 ms and 2000 ms, and the board answers `delay <ms>`. The board looks for a line once per pass of
+The delay becomes a variable, `blinkDelay`. `SerialInput`, also from the library, gathers what arrives on the serial
+port into lines: `input.ready()` says a whole line is waiting, and `input.take()` hands it over. A number in the line
+sets the delay, kept between 100 ms and 2000 ms, and the board answers `delay <ms>`. The board looks for a line once per pass of
 `loop()`, so the sketch still sits in `delay()` most of the time: a number you send is read only after both waits,
 and the blink under way keeps the old pace.
 
@@ -79,7 +82,8 @@ time, so the sketch reads the serial port on every pass, and a number you send a
 
 ### 4. commands: pause and run by name
 
-Because the loop never waits, it can take more than one kind of line. `pause` holds the LED, `run` lets it blink
+Because the loop never waits, it can take more than one kind of line. Each line goes to `runCommand()`, which picks
+what to do with it: `pause` holds the LED, `run` lets it blink
 again, and `delay 500` sets the delay, as the number did before. The board answers every line: `paused`, `running`,
 `delay <ms>`, or `? <line>` for one it does not know. The same words work in any serial monitor.
 

@@ -12,12 +12,12 @@ board that runs each step's code.
 All four steps:
 
 - Drive the LED on GPIO 2.
-- Use the serial port at 115200 baud, and print a blank line and `sketch blink/<step>` once at start. The website
-  reads that line to tell which step a connected board runs.
+- Open the serial port with `output.begin("blink/<step>")` from `lib/serial_io.h`, which sets 115200 baud and prints
+  a blank line and `sketch blink/<step>`. The website reads that line to tell which step a connected board runs.
 - Print `HIGH` or `LOW` as the LED changes.
 
-End each line sent to a step with a newline. `blink/input` waits up to a second for the newline and then takes what
-has arrived; `blink/timer` and `blink/commands` keep the part of a line that has arrived until the newline comes.
+End each line sent to a step with a newline. Every step reads through `SerialInput`, which keeps the part of a line
+that has arrived until the newline comes.
 
 ## The steps
 
@@ -38,15 +38,13 @@ changes the LED.
 The interval starts at 1000 ms. A line that starts with a digit sets it, clamped to 100 ms to 2000 ms, and the sketch
 prints `delay <ms>` with the value it took. A line that starts with anything else is ignored with no reply. The
 sketch reads a line once per pass of `loop()`, between two `delay()` calls, so a line sent during a pass is read after
-both waits, up to 4 seconds at the longest interval, and the pass under way keeps the old interval. When no newline
-has arrived, the read waits up to the serial timeout, one second by default, before it gives up.
+both waits, up to 4 seconds at the longest interval, and the pass under way keeps the old interval.
 
 ### timer
 
 The same numbers set the interval, and `delay <ms>` is the reply, but the sketch toggles the LED when `millis()` shows
 the interval has passed, so `loop()` never waits and a line is read on the next pass. A shorter interval applies at
-once, since the sketch compares the time since the last toggle with the new interval. The sketch collects characters
-until a newline, so a half-sent line is kept for the next pass.
+once, since the sketch compares the time since the last toggle with the new interval.
 
 ### commands
 
