@@ -8,7 +8,7 @@ order: 6
 sketch: sketches/balance-beam
 flash:
   baud: 115200
-  next: "Join the balance-beam WiFi hotspot with the password thebalancebot, then open http://192.168.4.1. The motors stay off until you set the throttle band in local.h and build the sketch yourself."
+  next: "Join the WiFi hotspot named in the settings, balance-beam with the password thebalancebot by default, then open http://192.168.4.1. The motors stay off until you set the throttle band in the Settings step, which Change settings reopens."
 topics: [pid, brushless-and-esc, imu, dual-core]
 ---
 
