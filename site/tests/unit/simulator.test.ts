@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createRunner,
+  nth,
   op,
   waitOp,
   type Effect,
@@ -39,14 +40,14 @@ const echo: Sketch<Echo> = {
   },
 };
 
-interface Recorded {
-  views: RunnerView<Echo>[];
+interface Recorded<S> {
+  views: RunnerView<S>[];
   effects: Effect[];
   lines(): (string | undefined)[];
 }
 
-function record(runner: Runner<Echo>): Recorded {
-  const views: RunnerView<Echo>[] = [];
+function record<S>(runner: Runner<S>): Recorded<S> {
+  const views: RunnerView<S>[] = [];
   const effects: Effect[] = [];
   runner.subscribe((view, happened) => {
     views.push(view);
@@ -282,6 +283,113 @@ describe('simulator runner', () => {
 
     runner.restart();
     expect(runner.view()).toMatchObject({ status: 'paused', line: 'setup();' });
+  });
+
+  it('stops for good when a listener disposes it while running', () => {
+    const runner = createRunner(echo);
+    let lines = 0;
+    runner.subscribe((view) => {
+      if (view.line === CHECK) runner.dispose();
+      lines++;
+    });
+    runner.run();
+    vi.advanceTimersByTime(25);
+    expect(runner.view().status).toBe('disposed');
+    const seen = lines;
+    vi.advanceTimersByTime(10_000);
+    expect(lines).toBe(seen);
+    expect(runner.view().line).toBe(CHECK);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('stops in error when the program throws, with no next line, until a restart', () => {
+    let throws = true;
+    const broken: Sketch<null> = {
+      init: () => null,
+      *program() {
+        yield op('first();', undefined, 10);
+        if (throws) throw new Error('bad program');
+        yield op('second();');
+      },
+    };
+    const runner = createRunner(broken);
+    runner.run();
+    vi.advanceTimersByTime(10);
+    expect(runner.view()).toMatchObject({ status: 'error', line: undefined, millis: 10 });
+    expect((runner.view().error as Error).message).toBe('bad program');
+    expect(vi.getTimerCount()).toBe(0);
+
+    runner.run();
+    runner.step();
+    expect(runner.view().status).toBe('error');
+
+    throws = false;
+    runner.restart();
+    expect(runner.view()).toMatchObject({ status: 'paused', line: 'first();', millis: 0 });
+    expect(runner.view().error).toBeUndefined();
+  });
+
+  it('stops in error on a line whose effect throws, its cost not on the clock', () => {
+    const broken: Sketch<null> = {
+      init: () => null,
+      *program(board) {
+        yield op('setup();', undefined, 100);
+        yield op(
+          'fail();',
+          () => {
+            board.print('before');
+            throw new Error('bad effect');
+          },
+          50,
+        );
+      },
+    };
+    const runner = createRunner(broken);
+    const seen = record(runner);
+    runner.step();
+    runner.step();
+    expect(runner.view()).toMatchObject({ status: 'error', line: 'fail();', millis: 100 });
+    expect((runner.view().error as Error).message).toBe('bad effect');
+    expect(runner.view().output).toEqual([{ text: 'before' }]);
+    expect(seen.effects).toEqual([{ kind: 'print', text: 'before' }]);
+
+    runner.step();
+    expect(runner.view().millis).toBe(100);
+  });
+
+  it('reports which occurrence of a repeated line is about to run', () => {
+    const twice: Sketch<null> = {
+      init: () => null,
+      *program() {
+        for (;;) {
+          yield waitOp('delay(wait);', 10);
+          yield waitOp(nth('delay(wait);', 2), 10);
+        }
+      },
+    };
+    const runner = createRunner(twice);
+    expect(runner.view()).toMatchObject({ line: 'delay(wait);', occurrence: 1 });
+    runner.step();
+    expect(runner.view()).toMatchObject({ line: 'delay(wait);', occurrence: 2 });
+  });
+
+  it('lets the page handle its events after 1000 lines of no cost in a row, and pauses there', () => {
+    const spin: Sketch<{ lines: number }> = {
+      init: () => ({ lines: 0 }),
+      *program(board) {
+        for (;;) yield op('spin();', () => board.state.lines++);
+      },
+    };
+    const runner = createRunner(spin);
+    runner.run();
+    vi.advanceTimersToNextTimer();
+    expect(runner.view().state.lines).toBe(1001);
+    expect(vi.getTimerCount()).toBe(1);
+
+    runner.pause();
+    expect(vi.getTimerCount()).toBe(0);
+    vi.advanceTimersByTime(1000);
+    expect(runner.view().state.lines).toBe(1001);
   });
 
   it('takes real time from an injected clock', () => {
