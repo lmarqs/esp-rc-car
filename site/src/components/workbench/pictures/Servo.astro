@@ -1,0 +1,46 @@
+---
+/**
+ * The board pane's picture for Servo: a hobby servo seen from above, its horn turned to `--angle` degrees, 0° to the
+ * right and 180° to the left. With the class `aiming`, a dashed outline of the horn shows `--target`; without the class
+ * `known`, only the hub shows, since the angle is not known yet.
+ */
+---
+
+<svg class="servo" viewBox="0 0 140 150" role="img" aria-label="A servo on GPIO 13, its angle not known yet" data-picture>
+  <path class="scale" d="M10 84 a60 60 0 0 1 120 0" />
+  <path class="tick" d="M130 84 h6 M70 24 v-6 M10 84 h-6" />
+  <text class="end" x="136" y="100" text-anchor="end">0°</text>
+  <text class="end" x="4" y="100">180°</text>
+  <rect class="tab ink" x="30" y="104" width="80" height="12" rx="3" />
+  <rect class="body ink" x="40" y="84" width="60" height="58" rx="7" />
+  <g class="arm aim" aria-hidden="true">
+    <path d="M70 77 L122 80 a4 4 0 0 1 0 8 L70 91 Z" />
+  </g>
+  <g class="arm horn">
+    <path class="ink" d="M70 77 L122 80 a4 4 0 0 1 0 8 L70 91 Z" />
+  </g>
+  <circle class="hub ink" cx="70" cy="84" r="11" />
+  <circle class="screw" cx="70" cy="84" r="3.5" />
+  <text class="unknown" x="70" y="62" text-anchor="middle">?</text>
+</svg>
+
+<style>
+  .servo { width: 100%; }
+  .scale { fill: none; stroke: var(--faint); stroke-width: 1.8; stroke-dasharray: 3 5; }
+  .tick { stroke: var(--muted); stroke-width: 2; stroke-linecap: round; }
+  .end { font-family: var(--mono); font-size: 14px; fill: var(--muted); }
+  .tab { fill: var(--chrome); }
+  .body { fill: var(--chrome); }
+  .hub { fill: var(--card); }
+  .screw { fill: var(--ink); }
+  /* Drawn pointing at 0°, then turned about the hub; a larger angle turns it anticlockwise. */
+  .arm { transform-box: view-box; transform-origin: 70px 84px; }
+  .horn { transform: rotate(calc(var(--angle, 90) * -1deg)); }
+  .horn path { fill: var(--card); }
+  .aim { transform: rotate(calc(var(--target, 90) * -1deg)); visibility: hidden; }
+  .aim path { fill: none; stroke: var(--ink); stroke-width: 1.8; stroke-dasharray: 4 3; stroke-linejoin: round; }
+  .servo.aiming .aim { visibility: visible; }
+  .servo:not(.known) .horn { visibility: hidden; }
+  .unknown { font-family: var(--mono); font-size: 20px; font-weight: 700; fill: var(--muted); visibility: hidden; }
+  .servo:not(.known) .unknown { visibility: visible; }
+</style>

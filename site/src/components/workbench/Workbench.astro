@@ -8,6 +8,7 @@ import { readManifest } from '../../lib/flash/readManifest';
 import { wording } from '../../lib/flash';
 import { boardStatusText, CLOCK_DASH, codeRows, crumbs, fileName, SERIAL_LINES } from './view';
 import Led from './pictures/Led.astro';
+import Servo from './pictures/Servo.astro';
 
 interface Props {
   /** The project's page id, such as `blink`; the project must have step definitions. */
@@ -51,7 +52,7 @@ const manifest = {
 const flashable = Object.keys(manifest.sketches).length > 0;
 const simulated = boardStatusText({ kind: 'simulated' });
 // The notice is drawn with the longest keys while hidden, so it holds its height whichever keys it names.
-const Picture = { led: Led }[workbench.picture];
+const Picture = { led: Led, servo: Servo }[workbench.picture];
 const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.length > longest.length ? key : longest));
 ---
 
