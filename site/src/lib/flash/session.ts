@@ -2,7 +2,9 @@ import type { Flasher } from './flasher';
 import { keepLast } from './lines';
 import { imageFor, isMissing, type ChipFamily, type Manifest, type ManifestImage } from './manifest';
 import {
+  boardValues,
   changedValues,
+  defaultValues,
   NO_ANSWER,
   parseCfgLine,
   refusalText,
@@ -20,17 +22,27 @@ export type SessionState =
   | { kind: 'idle'; released?: true }
   | { kind: 'connecting' }
   /**
-   * The form of the sketch's settings. `flashed` is set once the board runs the sketch, so submitting it sends the
-   * values without flashing. `errors` holds what is wrong with each value, found by the page or refused by the board;
-   * `noAnswer` is set when the board did not list its settings.
+   * The form of the sketch's settings. `opened` holds the values it opened with: the defaults before a flash, and what
+   * the board lists once it runs the sketch. `flashed` is set once the board runs the sketch, so submitting it sends
+   * the values without flashing. `errors` holds what is wrong with each value, found by the page or refused by the
+   * board; `noAnswer` is set when the board did not list its settings.
    */
-  | { kind: 'settings'; chip: string; flashed?: true; errors?: FieldErrors; noAnswer?: true }
+  | {
+      kind: 'settings';
+      chip: string;
+      opened: SettingValues;
+      flashed?: true;
+      errors?: FieldErrors;
+      noAnswer?: true;
+    }
   | { kind: 'flashing'; chip: string; pct: number }
   /**
    * `output` is the last lines the board printed, which stay empty when the session has no baud to read at. `lost`
    * is set when the port stopped answering without the visitor disconnecting it.
    */
   | { kind: 'running'; chip: string; output: readonly string[]; lost?: true }
+  /** Asking the board that runs the sketch for its settings, to open the form at them. */
+  | { kind: 'reading'; chip: string }
   /** Sending the settings to the board that runs the sketch, one `cfg` line at a time. */
   | { kind: 'applying'; chip: string }
   | { kind: 'noPort' }
@@ -48,11 +60,15 @@ export type SessionEvent =
   | { type: 'connect' }
   /**
    * From `settings`: checks the values against their limits, flashes the board unless it already runs the sketch,
-   * then sends the board each value that differs from what it holds. `restoreDefaults`, from "Use the defaults", also
-   * puts the default back over each password the board stores.
+   * then sends the board each value the visitor changed that differs from what it holds. `restoreDefaults`, from "Use
+   * the defaults", sends every default that differs from what the board holds, and puts the default back over each
+   * password the board stores.
    */
   | { type: 'submitSettings'; values: SettingValues; restoreDefaults?: boolean }
-  /** From `running`, for a sketch with settings: reopens the form, to send values without flashing. */
+  /**
+   * From `running`, for a sketch with settings: asks the board for its settings and reopens the form at them, to send
+   * values without flashing.
+   */
   | { type: 'changeSettings' }
   /** From the form a running board reopened: returns to `running` and sends nothing. */
   | { type: 'closeSettings' }
@@ -81,7 +97,7 @@ export interface FlashSession {
   send(event: SessionEvent): Promise<void>;
 }
 
-type SettingsRequest = Omit<Extract<SessionEvent, { type: 'submitSettings' }>, 'type'>;
+type SettingsRequest = Omit<Extract<SessionEvent, { type: 'submitSettings' }>, 'type'> & { opened: SettingValues };
 
 type Failure = Extract<SessionState['kind'], 'noPort' | 'portBusy' | 'noAnswer'>;
 
@@ -111,7 +127,13 @@ function connectFailure(error: unknown): Failure {
   return 'noAnswer';
 }
 
-const BUSY_KINDS: ReadonlySet<SessionState['kind']> = new Set(['connecting', 'settings', 'flashing', 'applying']);
+const BUSY_KINDS: ReadonlySet<SessionState['kind']> = new Set([
+  'connecting',
+  'settings',
+  'flashing',
+  'reading',
+  'applying',
+]);
 
 /** `cfg get` is sent this often, as many times, until the board lists its settings; it may still be starting. */
 const GET_INTERVAL_MS = 1000;
@@ -166,7 +188,7 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
     image = found;
 
     if (fields.length > 0) {
-      enter({ kind: 'settings', chip });
+      enter({ kind: 'settings', chip, opened: defaultValues(fields) });
       return;
     }
     await flash(active, chip);
@@ -221,16 +243,34 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
     }
   }
 
-  async function submit(active: Flasher, form: Extract<SessionState, { kind: 'settings' }>, request: SettingsRequest) {
-    const errors = validate(fields, request.values);
+  async function submit(
+    active: Flasher,
+    form: Extract<SessionState, { kind: 'settings' }>,
+    event: Omit<SettingsRequest, 'opened'>,
+  ) {
+    const errors = validate(fields, event.values);
     if (Object.keys(errors).length > 0) {
-      enter({ kind: 'settings', chip: form.chip, ...(form.flashed && { flashed: true }), errors });
+      enter({ kind: 'settings', chip: form.chip, opened: form.opened, ...(form.flashed && { flashed: true }), errors });
       return;
     }
+    const request = { ...event, opened: form.opened };
     if (form.flashed) {
       await apply(active, form.chip, request);
     } else {
       await flash(active, form.chip, request);
+    }
+  }
+
+  /** Opens the form of a board that runs the sketch at the values it lists. */
+  async function reopen(active: Flasher, chip: string) {
+    enter({ kind: 'reading', chip });
+    const board = await readBoard(active);
+    if (lost) {
+      enter({ kind: 'running', chip, output, lost: true });
+    } else if (!board) {
+      enter({ kind: 'settings', chip, opened: defaultValues(fields), flashed: true, noAnswer: true });
+    } else {
+      enter({ kind: 'settings', chip, opened: boardValues(fields, board), flashed: true });
     }
   }
 
@@ -278,10 +318,10 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
   }
 
   /**
-   * Sends the board each value that differs from what it holds, one line at a time, and restarts it once every one
-   * is accepted. A refused value keeps the visitor on the form, with the board not restarted.
+   * Sends the board each value `changedValues` picks, one line at a time, and restarts it once every one is
+   * accepted. A refused value keeps the visitor on the form, with the board not restarted.
    */
-  async function apply(active: Flasher, chip: string, { values, restoreDefaults }: SettingsRequest) {
+  async function apply(active: Flasher, chip: string, { values, opened, restoreDefaults }: SettingsRequest) {
     enter({ kind: 'applying', chip });
     const board = await readBoard(active);
     if (lost) {
@@ -289,14 +329,14 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
       return;
     }
     if (!board) {
-      enter({ kind: 'settings', chip, flashed: true, noAnswer: true });
+      enter({ kind: 'settings', chip, opened, flashed: true, noAnswer: true });
       return;
     }
 
     const errors: Record<string, string> = {};
     // The order assumed every value of a group is accepted, so after a refusal the rest of the group waits in the form.
     const refusedGroups = new Set<string>();
-    const order = sendOrder(fields, changedValues(fields, values, board, restoreDefaults), board);
+    const order = sendOrder(fields, changedValues(fields, values, opened, board, restoreDefaults), board);
     for (const [key, value] of order) {
       const field = fields.find((candidate) => candidate.key === key)!;
       if (field.group && refusedGroups.has(field.group)) {
@@ -318,7 +358,7 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
       }
     }
     if (Object.keys(errors).length > 0) {
-      enter({ kind: 'settings', chip, flashed: true, errors });
+      enter({ kind: 'settings', chip, opened, flashed: true, errors });
       return;
     }
     if (order.length > 0) {
@@ -409,7 +449,7 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
           break;
         case 'changeSettings':
           if (state.kind === 'running' && !state.lost && fields.length > 0) {
-            enter({ kind: 'settings', chip: state.chip, flashed: true });
+            await reopen(flasher, state.chip);
           }
           break;
         case 'closeSettings':

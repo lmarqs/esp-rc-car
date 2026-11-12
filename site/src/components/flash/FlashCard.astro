@@ -100,6 +100,7 @@ const helpOf = (field: (typeof fields)[number]) =>
                   )}
                 </div>
               ))}
+              <p class="help" data-form-help hidden />
               <div class="actions">
                 <button class="btn" type="submit" data-submit />
                 <button class="btn ghost" type="button" data-defaults>
@@ -198,7 +199,9 @@ const helpOf = (field: (typeof fields)[number]) =>
     const steps = [...card.querySelectorAll<HTMLElement>('[data-step]')];
     const form = card.querySelector<HTMLFormElement>('[data-settings]');
     const inputs = [...card.querySelectorAll<HTMLInputElement>('[data-settings] input[data-key]')];
+    const formHelp = card.querySelector<HTMLElement>('[data-form-help]');
     const formValues = () => Object.fromEntries(inputs.map((input) => [input.dataset.key!, input.value]));
+    let filledWith: Readonly<Record<string, string>> | undefined;
 
     async function submitSettings(restoreDefaults = false) {
       await session.send({ type: 'submitSettings', values: formValues(), restoreDefaults });
@@ -277,6 +280,13 @@ const helpOf = (field: (typeof fields)[number]) =>
         if (!view.form && form.contains(document.activeElement)) message.focus();
         form.hidden = !view.form;
         if (view.form) {
+          // Fills the inputs once per opening, so a re-render after an error keeps what the visitor typed.
+          if (view.form.values !== filledWith) {
+            filledWith = view.form.values;
+            for (const input of inputs) input.value = filledWith[input.dataset.key!] ?? '';
+          }
+          formHelp!.textContent = view.form.help ?? '';
+          formHelp!.hidden = !view.form.help;
           form.querySelector('[data-submit]')!.textContent = view.form.submit;
           for (const input of inputs) {
             const key = input.dataset.key!;

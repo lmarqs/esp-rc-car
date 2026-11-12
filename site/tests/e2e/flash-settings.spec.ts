@@ -14,6 +14,7 @@ const DEFAULTS = {
   tilt_limit_deg: '45',
 };
 const FLASHED = ['connect', 'load', 'write', 'reset', 'monitor 115200'];
+const KEEPS = 'Values the board already stores stay unless you change them here.';
 
 test.describe('a project whose sketch has settings', () => {
   test('asks for them between Connect and Flash, filled with the defaults', async ({ page, fakeFlasher }) => {
@@ -35,7 +36,25 @@ test.describe('a project whose sketch has settings', () => {
     await expect(field(page, 'Tilt limit (degrees)')).toHaveValue('45');
     await expect(card(page).getByRole('button', { name: 'Flash with these settings' })).toBeVisible();
     await expect(card(page).getByRole('button', { name: 'Use the defaults' })).toBeVisible();
+    await expect(card(page).locator('[data-form-help]')).toHaveText(KEEPS);
     expect(await fakeFlasher.calls()).toEqual(['connect']);
+  });
+
+  test('keeps what the board stores in each field the visitor left as it opened', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ board: { values: { ...DEFAULTS, ap_ssid: 'old-name', throttle_max: '0.09' } } });
+    await page.goto('/robomania/projects/balance-beam/');
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+    await field(page, 'Tilt limit (degrees)').fill('30');
+
+    await card(page).getByRole('button', { name: 'Flash with these settings' }).click();
+
+    await expect(card(page).locator('[data-message]')).toContainText('Done. Your board is running Balance beam.');
+    expect(await fakeFlasher.calls()).toEqual([
+      ...FLASHED,
+      'send cfg get',
+      'send cfg set tilt_limit_deg 30',
+      'send cfg restart',
+    ]);
   });
 
   test('Use the defaults flashes, then sends nothing the board already holds', async ({ page, fakeFlasher }) => {
@@ -51,7 +70,10 @@ test.describe('a project whose sketch has settings', () => {
     expect(await fakeFlasher.calls()).toEqual([...FLASHED, 'send cfg get']);
   });
 
-  test('sends a default the board holds another value for, then restarts it', async ({ page, fakeFlasher }) => {
+  test('Use the defaults sends a default the board holds another value for, then restarts it', async ({
+    page,
+    fakeFlasher,
+  }) => {
     await fakeFlasher.install({ board: { values: { ...DEFAULTS, ap_ssid: 'old-name', throttle_max: '0.09' } } });
     await page.goto('/robomania/projects/balance-beam/');
     await card(page).getByRole('button', { name: 'Connect board' }).click();
@@ -172,8 +194,35 @@ test.describe('a project whose sketch has settings', () => {
       ...FLASHED,
       'send cfg get',
       'send cfg get',
+      'send cfg get',
       'send cfg set ap_ssid beam-2',
       'send cfg set ap_password a-new-secret',
+      'send cfg restart',
+    ]);
+  });
+
+  test('Change settings opens the form at the values the board stores', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ board: { values: { ...DEFAULTS, ap_ssid: 'old-name', throttle_max: '0.09' } } });
+    await page.goto('/robomania/projects/balance-beam/');
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+    await card(page).getByRole('button', { name: 'Flash with these settings' }).click();
+
+    await card(page).getByRole('button', { name: 'Change settings' }).click();
+
+    await expect(field(page, 'Hotspot name')).toHaveValue('old-name');
+    await expect(field(page, 'Throttle max')).toHaveValue('0.09');
+    await expect(field(page, 'Hotspot password')).toHaveValue('');
+    await expect(card(page).locator('[data-form-help]')).toBeHidden();
+    await field(page, 'Throttle mid').fill('0.085');
+    await card(page).getByRole('button', { name: 'Send these settings' }).click();
+
+    await expect(card(page).locator('[data-message]')).toContainText('Done. Your board is running Balance beam.');
+    expect(await fakeFlasher.calls()).toEqual([
+      ...FLASHED,
+      'send cfg get',
+      'send cfg get',
+      'send cfg get',
+      'send cfg set throttle_mid 0.085',
       'send cfg restart',
     ]);
   });
@@ -193,6 +242,7 @@ test.describe('a project whose sketch has settings', () => {
       ...FLASHED,
       'send cfg get',
       'send cfg get',
+      'send cfg get',
       'send cfg set ap_ssid beam-2',
       'send cfg restart',
     ]);
@@ -209,7 +259,7 @@ test.describe('a project whose sketch has settings', () => {
 
     await expect(card(page).locator('[data-message]')).toContainText('Done. Your board is running Balance beam.');
     await expect(field(page, 'Hotspot name')).toBeHidden();
-    expect(await fakeFlasher.calls()).toEqual([...FLASHED, 'send cfg get']);
+    expect(await fakeFlasher.calls()).toEqual([...FLASHED, 'send cfg get', 'send cfg get']);
   });
 
   test('masks a password until its toggle shows it', async ({ page, fakeFlasher }) => {

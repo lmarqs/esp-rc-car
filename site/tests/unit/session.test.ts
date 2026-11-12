@@ -275,7 +275,7 @@ describe('a session for a sketch with settings', () => {
   it('waits in settings after connecting, then flashes and reads what the board holds', async () => {
     const { flasher, session, states } = await connected();
 
-    expect(session.state).toEqual({ kind: 'settings', chip: 'ESP32' });
+    expect(session.state).toEqual({ kind: 'settings', chip: 'ESP32', opened: DEFAULTS });
     expect(flasher.calls).toEqual(['connect']);
 
     await session.send({ type: 'submitSettings', values: DEFAULTS });
@@ -317,10 +317,19 @@ describe('a session for a sketch with settings', () => {
     expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [] });
   });
 
-  it('sends a default the board holds another value for, since flashing keeps what it stored', async () => {
+  it('keeps a value the board stores when the visitor left its field as the form opened', async () => {
     const { flasher, session } = await connected({ answer: board({ ...BOARD, ap_ssid: 'old' }) });
 
     await session.send({ type: 'submitSettings', values: DEFAULTS });
+
+    expect(sent(flasher)).toEqual(['send cfg get']);
+    expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [] });
+  });
+
+  it('sends a default the board holds another value for when restoring the defaults', async () => {
+    const { flasher, session } = await connected({ answer: board({ ...BOARD, ap_ssid: 'old' }) });
+
+    await session.send({ type: 'submitSettings', values: DEFAULTS, restoreDefaults: true });
 
     expect(sent(flasher)).toEqual(['send cfg get', 'send cfg set ap_ssid web-relay', 'send cfg restart']);
   });
@@ -333,6 +342,7 @@ describe('a session for a sketch with settings', () => {
     expect(session.state).toEqual({
       kind: 'settings',
       chip: 'ESP32',
+      opened: DEFAULTS,
       errors: { ap_password: 'Use at least 8 characters.', low: 'Use a number from 0 to 1.' },
     });
     expect(flasher.calls).toEqual(['connect']);
@@ -346,6 +356,7 @@ describe('a session for a sketch with settings', () => {
     expect(session.state).toEqual({
       kind: 'settings',
       chip: 'ESP32',
+      opened: DEFAULTS,
       flashed: true,
       errors: { high: 'The board is armed. Disarm it, then send the settings again.' },
     });
@@ -385,6 +396,7 @@ describe('a session for a sketch with settings', () => {
       expect(session.state).toEqual({
         kind: 'settings',
         chip: 'ESP32',
+        opened: DEFAULTS,
         flashed: true,
         errors: { ap_ssid: 'The board did not answer.' },
       });
@@ -424,7 +436,13 @@ describe('a session for a sketch with settings', () => {
       await applying;
 
       expect(sent(flasher)).toEqual(Array(10).fill('send cfg get'));
-      expect(session.state).toEqual({ kind: 'settings', chip: 'ESP32', flashed: true, noAnswer: true });
+      expect(session.state).toEqual({
+        kind: 'settings',
+        chip: 'ESP32',
+        opened: DEFAULTS,
+        flashed: true,
+        noAnswer: true,
+      });
     } finally {
       vi.useRealTimers();
     }
@@ -511,6 +529,7 @@ describe('a session for a sketch with settings', () => {
     expect(session.state).toEqual({
       kind: 'settings',
       chip: 'ESP32',
+      opened: DEFAULTS,
       flashed: true,
       errors: { high: 'The board is armed. Disarm it, then send the settings again.' },
     });
@@ -556,19 +575,86 @@ describe('a session for a sketch with settings', () => {
     expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: ['HIGH'] });
   });
 
-  it('reopens the form from running, and sends the values without flashing', async () => {
-    const { flasher, session } = await connected();
+  it('reopens the form from running at the values the board lists, and sends the values without flashing', async () => {
+    const { flasher, session } = await connected({ answer: board({ ...BOARD, ap_password: 'set', high: '0.4' }) });
     await session.send({ type: 'submitSettings', values: DEFAULTS });
     flasher.calls.length = 0;
 
     await session.send({ type: 'changeSettings' });
 
-    expect(session.state).toEqual({ kind: 'settings', chip: 'ESP32', flashed: true });
+    expect(session.state).toEqual({
+      kind: 'settings',
+      chip: 'ESP32',
+      opened: { ...DEFAULTS, high: '0.4' },
+      flashed: true,
+    });
+    expect(flasher.calls).toEqual(['send cfg get']);
 
-    await session.send({ type: 'submitSettings', values: { ...DEFAULTS, ap_password: 'a-new-secret' } });
+    await session.send({ type: 'submitSettings', values: { ...DEFAULTS, high: '0.4', ap_password: 'a-new-secret' } });
 
-    expect(flasher.calls).toEqual(['send cfg get', 'send cfg set ap_password a-new-secret', 'send cfg restart']);
+    expect(flasher.calls).toEqual([
+      'send cfg get',
+      'send cfg get',
+      'send cfg set ap_password a-new-secret',
+      'send cfg restart',
+    ]);
     expect(session.state.kind).toBe('running');
+  });
+
+  it('reads the board before it reopens the form, and is busy meanwhile', async () => {
+    const { session, states } = await connected();
+    await session.send({ type: 'submitSettings', values: DEFAULTS });
+
+    await session.send({ type: 'changeSettings' });
+
+    expect(states.slice(-2).map((state) => state.kind)).toEqual(['reading', 'settings']);
+    expect(isBusy({ kind: 'reading', chip: 'ESP32' })).toBe(true);
+  });
+
+  it('reopens the form at the defaults, saying the board did not answer, when it lists no settings', async () => {
+    vi.useFakeTimers();
+    try {
+      let listing = true;
+      const answer = board();
+      const { session } = await connected({ answer: (line) => (listing ? answer(line) : []) });
+      await session.send({ type: 'submitSettings', values: DEFAULTS });
+      listing = false;
+
+      const reopening = session.send({ type: 'changeSettings' });
+      await vi.advanceTimersByTimeAsync(10_000);
+      await reopening;
+
+      expect(session.state).toEqual({
+        kind: 'settings',
+        chip: 'ESP32',
+        opened: DEFAULTS,
+        flashed: true,
+        noAnswer: true,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('marks the board lost when the port goes while it reads the settings to reopen the form', async () => {
+    vi.useFakeTimers();
+    try {
+      let listing = true;
+      const answer = board();
+      const { flasher, session } = await connected({ answer: (line) => (listing ? answer(line) : []) });
+      await session.send({ type: 'submitSettings', values: DEFAULTS });
+      listing = false;
+
+      const reopening = session.send({ type: 'changeSettings' });
+      await vi.advanceTimersByTimeAsync(0);
+      flasher.endMonitor();
+      await vi.advanceTimersByTimeAsync(1000);
+      await reopening;
+
+      expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [], lost: true });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('returns to running with its lines when the visitor closes the reopened form', async () => {
@@ -588,7 +674,7 @@ describe('a session for a sketch with settings', () => {
 
     await session.send({ type: 'closeSettings' });
 
-    expect(session.state).toEqual({ kind: 'settings', chip: 'ESP32' });
+    expect(session.state).toEqual({ kind: 'settings', chip: 'ESP32', opened: DEFAULTS });
   });
 
   it('ignores changeSettings for a sketch without settings', async () => {
@@ -612,7 +698,7 @@ describe('a session for a sketch with settings', () => {
 
   it('is busy while it sends the settings', () => {
     expect(isBusy({ kind: 'applying', chip: 'ESP32' })).toBe(true);
-    expect(isBusy({ kind: 'settings', chip: 'ESP32', flashed: true })).toBe(true);
+    expect(isBusy({ kind: 'settings', chip: 'ESP32', opened: DEFAULTS, flashed: true })).toBe(true);
     expect(isBusy({ kind: 'running', chip: 'ESP32', output: [] })).toBe(false);
   });
 
@@ -673,7 +759,7 @@ describe('failures', () => {
 
     await session.send({ type: 'connect' });
 
-    expect(session.state).toEqual({ kind: 'settings', chip: 'ESP32' });
+    expect(session.state).toEqual({ kind: 'settings', chip: 'ESP32', opened: DEFAULTS });
     expect(flasher.calls).toEqual(['connect']);
 
     await session.send({ type: 'submitSettings', values: DEFAULTS });

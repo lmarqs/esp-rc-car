@@ -22,11 +22,21 @@ export function settingsOf(manifest: Manifest, sketch: string, baud: number | un
 }
 
 /**
- * The form as it opens: each field at its default, and each password empty, which keeps the password the board
- * holds.
+ * The form as it opens before a flash: each field at its default, and each password empty, which keeps the password
+ * the board holds.
  */
 export function defaultValues(fields: readonly SettingField[]): Record<string, string> {
   return Object.fromEntries(fields.map((field) => [field.key, field.type === 'password' ? '' : String(field.default)]));
+}
+
+/**
+ * The form as it opens on a board that runs the sketch: each field at the value `board` lists, or its default when it
+ * lists none, and each password empty, since the board reports one only as `set` or `unset`.
+ */
+export function boardValues(fields: readonly SettingField[], board: SettingValues): Record<string, string> {
+  return Object.fromEntries(
+    fields.map((field) => [field.key, field.type === 'password' ? '' : (board[field.key] ?? String(field.default))]),
+  );
 }
 
 /** What the form says under a password field, after its own help: what leaving it empty does. */
@@ -125,13 +135,16 @@ function sameValue(field: SettingField, a: string, b: string | undefined): boole
 }
 
 /**
- * The values to send, by key, in field order: each value that differs from what the board reported, and each
- * password the visitor typed. The board reports a password only as `set` when it stores one, or `unset`, so an empty
- * one is not sent, except with `restoreDefaults`, which sends the default over a password the board stores.
+ * The values to send, by key, in field order: each value the visitor changed from `opened`, the values the form
+ * opened with, that differs from what the board reported, and each password the visitor typed. A value the visitor
+ * left as it opened is not sent, so the board keeps what it stores. `restoreDefaults` sends every value that differs
+ * from the board's, edited or not. The board reports a password only as `set` when it stores one, or `unset`, so an
+ * empty one is not sent, except with `restoreDefaults`, which sends the default over a password the board stores.
  */
 export function changedValues(
   fields: readonly SettingField[],
   values: SettingValues,
+  opened: SettingValues,
   board: SettingValues,
   restoreDefaults = false,
 ): Record<string, string> {
@@ -139,7 +152,8 @@ export function changedValues(
   for (const field of fields) {
     const value = values[field.key] ?? '';
     if (field.type !== 'password') {
-      if (!sameValue(field, value, board[field.key])) changed[field.key] = value;
+      const edited = restoreDefaults || !sameValue(field, value, opened[field.key]);
+      if (edited && !sameValue(field, value, board[field.key])) changed[field.key] = value;
     } else if (value !== '') {
       changed[field.key] = value;
     } else if (restoreDefaults && board[field.key] === 'set') {

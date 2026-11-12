@@ -1,6 +1,6 @@
 import type { ManifestImage, SettingField } from '../../lib/flash/manifest';
 import type { SessionEvent, SessionState } from '../../lib/flash/session';
-import type { FieldErrors } from '../../lib/flash/settings';
+import type { FieldErrors, SettingValues } from '../../lib/flash/settings';
 
 /** The card's steps, in the order the visitor goes through them. */
 export const STEPS = ['connect', 'settings', 'flash', 'running'] as const;
@@ -35,6 +35,10 @@ export interface ViewForm {
   submit: string;
   /** What to show beside each field that is wrong, by key. */
   errors: FieldErrors;
+  /** The values the form opens with, by key; a new object each time it opens, so the card fills it once. */
+  values: SettingValues;
+  /** What the form says under its fields about the values it leaves out. */
+  help?: string;
 }
 
 export interface ViewAction {
@@ -90,7 +94,14 @@ function firstError(errors: FieldErrors, settings: readonly SettingField[]): str
 
 function settingsView(state: Extract<SessionState, { kind: 'settings' }>, title: string, settings: readonly SettingField[]): View {
   const actions: ViewAction[] = [{ label: 'Cancel', event: state.flashed ? 'closeSettings' : 'retry' }];
-  const form = { submit: state.flashed ? 'Send these settings' : 'Flash with these settings', errors: state.errors ?? {} };
+  const form: ViewForm = state.flashed
+    ? { submit: 'Send these settings', errors: state.errors ?? {}, values: state.opened }
+    : {
+        submit: 'Flash with these settings',
+        errors: state.errors ?? {},
+        values: state.opened,
+        help: 'Values the board already stores stay unless you change them here.',
+      };
   const step = state.flashed ? 'running' : 'settings';
   const error = firstError(form.errors, settings);
   if (error) {
@@ -131,6 +142,8 @@ export function viewFor(
       return settingsView(state, title, settings);
     case 'flashing':
       return { step: 'flash', message: `Found ${state.chip}`, progress: state.pct };
+    case 'reading':
+      return { step: 'running', message: "Reading the board's settings." };
     case 'applying':
       return { step: 'running', message: 'Sending the settings to the board.' };
     case 'running':

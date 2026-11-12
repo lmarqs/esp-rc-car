@@ -4,6 +4,7 @@ import webRelay from '../../../sketches/web-relay/settings.json';
 import fixture from '../e2e/fixtures/firmware-manifest.json';
 import type { Manifest, SettingField } from '../../src/lib/flash/manifest';
 import {
+  boardValues,
   changedValues,
   defaultValues,
   NO_ANSWER,
@@ -138,49 +139,75 @@ describe('parseCfgLine', () => {
   });
 });
 
+describe('boardValues', () => {
+  it('gives what the board lists, each password empty, and the default of a value it does not list', () => {
+    const listed = { ...BEAM_BOARD, ap_ssid: 'beam-2', ap_password: 'set', throttle_max: '0.09' };
+    const { tilt_limit_deg: _, ...board } = listed;
+
+    expect(boardValues(beam, board)).toEqual({
+      ap_ssid: 'beam-2',
+      ap_password: '',
+      angle_offset_deg: '0',
+      throttle_min: '0',
+      throttle_mid: '0',
+      throttle_max: '0.09',
+      tilt_limit_deg: '45',
+    });
+  });
+});
+
 describe('changedValues', () => {
+  const opened = defaultValues(beam);
+
   it('compares numbers as numbers, since the board prints them with %g', () => {
-    const values = { ...defaultValues(beam), throttle_mid: '0.0850', tilt_limit_deg: '45.0' };
+    const values = { ...opened, throttle_mid: '0.0850', tilt_limit_deg: '45.0' };
 
-    expect(changedValues(beam, values, { ...BEAM_BOARD, throttle_mid: '0.085' })).toEqual({});
+    expect(changedValues(beam, values, opened, { ...BEAM_BOARD, throttle_mid: '0.085' })).toEqual({});
   });
 
-  it('sends the values that differ from what the board reported', () => {
-    const values = { ...defaultValues(beam), ap_ssid: 'beam-2', tilt_limit_deg: '30' };
+  it('sends the values the visitor changed that differ from what the board reported', () => {
+    const values = { ...opened, ap_ssid: 'beam-2', tilt_limit_deg: '30' };
 
-    expect(changedValues(beam, values, BEAM_BOARD)).toEqual({ ap_ssid: 'beam-2', tilt_limit_deg: '30' });
+    expect(changedValues(beam, values, opened, BEAM_BOARD)).toEqual({ ap_ssid: 'beam-2', tilt_limit_deg: '30' });
   });
 
-  it('sends the defaults the board holds other values for, since flashing keeps what it stored', () => {
+  it('keeps each value the board stores when the visitor left its field as the form opened', () => {
     const board = { ...BEAM_BOARD, ap_ssid: 'old-name', throttle_max: '0.09' };
 
-    expect(changedValues(beam, defaultValues(beam), board)).toEqual({ ap_ssid: 'balance-beam', throttle_max: '0' });
+    expect(changedValues(beam, opened, opened, board)).toEqual({});
+  });
+
+  it('restoring the defaults sends each default the board holds another value for', () => {
+    const board = { ...BEAM_BOARD, ap_ssid: 'old-name', throttle_max: '0.09' };
+
+    expect(changedValues(beam, opened, opened, board, true)).toEqual({ ap_ssid: 'balance-beam', throttle_max: '0' });
   });
 
   it('sends no password the visitor left empty, so the board keeps the one it holds', () => {
     const board = { ap_ssid: 'web-relay', ap_password: 'set', ota_password: 'unset' };
 
-    expect(changedValues(relay, defaultValues(relay), board)).toEqual({});
+    expect(changedValues(relay, defaultValues(relay), defaultValues(relay), board)).toEqual({});
   });
 
   it('sends a password the visitor typed', () => {
     const board = { ap_ssid: 'web-relay', ap_password: 'set', ota_password: 'unset' };
+    const values = { ...defaultValues(relay), ota_password: 'web-relay-1234' };
 
-    expect(changedValues(relay, { ...defaultValues(relay), ota_password: 'web-relay-1234' }, board)).toEqual({
-      ota_password: 'web-relay-1234',
-    });
+    expect(changedValues(relay, values, defaultValues(relay), board)).toEqual({ ota_password: 'web-relay-1234' });
   });
 
   it('restoring the defaults sends the default over each password the board stores, and none over an unset one', () => {
     const board = { ap_ssid: 'web-relay', ap_password: 'set', ota_password: 'unset' };
 
-    expect(changedValues(relay, defaultValues(relay), board, true)).toEqual({ ap_password: 'web-relay-1234' });
+    expect(changedValues(relay, defaultValues(relay), defaultValues(relay), board, true)).toEqual({
+      ap_password: 'web-relay-1234',
+    });
   });
 
-  it('sends a value the board did not report', () => {
+  it('sends a changed value the board did not report', () => {
     const { tilt_limit_deg: _, ...board } = BEAM_BOARD;
 
-    expect(changedValues(beam, defaultValues(beam), board)).toEqual({ tilt_limit_deg: '45' });
+    expect(changedValues(beam, { ...opened, tilt_limit_deg: '30' }, opened, board)).toEqual({ tilt_limit_deg: '30' });
   });
 });
 
