@@ -96,11 +96,12 @@ The site also puts the firmware on a board. Its parts:
 - **Workbench slice**: `site/src/components/workbench/` holds the component, one Astro component for each part of it
   (`Rail`, `Editor`, `Board` with its `Stage`, `Scope` and `Terminal`) and its pictures, and `site/src/lib/workbench/`
   the logic. A project built as a ladder of step sketches, such as Blink and Servo, has a workbench: step tabs and a
-  Board switch, then the selected step's code in an editor with a debugger beside a board pane. The address names the
-  selected step by its id, such as `#input`, so a link opens that step. Per project, the logic holds one definition per
-  step, which has the step's simulated program, what each line the step prints means, and the controls that send a line;
-  and a board model, which turns that meaning into the picture, the watch values and the trace. The slice depends on the
-  board slice and the flash slice, and on the images and the manifest through them.
+  switch between Simulator and My board, then the selected step's code in an editor with a debugger beside a board
+  pane. The address names the selected step by its id, such as `#input`, so a link opens that step. Per project, the
+  logic holds one definition per step, which has the step's simulated program, what each line the step prints means,
+  and the controls that send a line; and a board model, which turns that meaning into the picture, the watch values
+  and the trace. The slice depends on the board slice and the flash slice, and on the images and the manifest through
+  them.
 - **Simulator**: the DOM-free part of the workbench slice that runs a step's program on a simulated board, one source
   line at a time on a simulated clock, with Pause, Step and Restart. A program names the lines of the step's `.ino`
   and does what each does to the board, and the editor shows the real source, read from `sketches/` at build time,
@@ -161,21 +162,34 @@ each project card says whether the project runs on it. Once a board connects, it
 the chip and the dock says so when the visitor picked another board.
 Every page carries the names of every project's sketches and the whole manifest for it.
 
-The workbench shows a simulated board until it hears from a real one, and it hears from a real one through the
-`sketch <key>` line. Every step of a ladder prints a blank line and then `sketch <key>` first, where the key is the
-sketch's path under `sketches/`, such as `blink/simple`; the manifest names the step's image by the same key. The
-key ties a board to a step:
+The workbench has a simulated board, and it hears from a real one through the `sketch <key>` line. Every step of a
+ladder prints a blank line and then `sketch <key>` first, where the key is the sketch's path under `sketches/`, such
+as `blink/simple`; the manifest names the step's image by the same key. The visitor's choice, `chosen`, is one half of
+the rail's switch, Simulator or My board, and only picks what the board pane shows. The pane is in one of three
+modes: `simulator` when Simulator is chosen, `live` when My board is chosen and the key the board printed is the
+selected step's, and `waiting` when My board is chosen otherwise. The choice holds across tabs. The key ties a board
+to a step:
 
-- Until a connected board prints a key, the workbench goes on simulating.
-- When the key is the selected step's, the workbench follows the board, which is live mode: the pictures, the trace
+- Until a connected board prints a key, the board is only connected, and under My board the pane waits.
+- When the key is the selected step's and My board is chosen, the pane follows the board: the pictures, the trace
   and the arrow are drawn from the lines the board prints, and what the visitor sends goes to the board.
-- When the key is another step's or another sketch's, the tab of the step it runs is marked, the selected step is
-  simulated like any other, and the switch's board half flashes the selected step.
-- Simulator, Pause, Step or Restart hands the pane back to the simulator with the port still open, and the switch's
-  board half, My board, brings it back to the board. Flash again, the switch's third segment, flashes the step the
-  board runs; it is dimmed until the board runs the selected step, so the switch keeps its width.
-- A workbench opened on a board that the site kept connected from another page follows it at once when it runs the
-  first step.
+- When the key is another step's or another sketch's, the tab of the step it runs is marked, and under My board the
+  pane waits.
+- Waiting, the stage says what the board runs and what to do in the picture's place, with one action: Connect my
+  board, Flash the selected step, or, while the session works, Connecting… or Flashing…, with the flash picture
+  for progress. The terminal is inert. What the session says of the board, such as a failed flash, shows only under
+  My board, so pressing Simulator leaves it.
+- Pause, Step or Restart outside the simulator hands the pane to a fresh simulator with the port still open, and
+  choosing My board brings the pane back to the board.
+- Flash again is a small button on the Live frame, which flashes the step the board runs; a flash the session
+  refuses shows its notice over the live board.
+- The frame names its source with a tag, Simulated, Live or My board, and a sentence; its border is dashed for
+  simulated and waiting and solid green for live. The switch's dark pill slides between its halves, which are 104 px
+  wide each, and the My board half has a dot: hollow with no board, pulsing while the session works, green once a
+  board is connected. A browser without Web Serial has a note in the My board half's place.
+- The trace draws a dashed line where its source, the simulator or the board, took the pane.
+- A workbench opened on a board that the site kept connected from another page opens on My board, live, when the board
+  runs the first step.
 
 The tests, in `site/tests`, run the card, the workbench and the dock in a browser against a fake serial port.
 
