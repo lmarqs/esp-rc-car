@@ -1,5 +1,6 @@
 <div class="scene">
-  <svg class="scene-art" viewBox="0 0 600 360" role="img" aria-label="A small robot car on a workbench, with a gamepad, a pegboard of tools and loose parts">
+  <svg class="scene-art" viewBox="0 0 600 525" role="group" aria-label="A small robot car on a workbench, driven by the gamepad below it">
+    <g role="img" aria-label="A small robot car on a workbench, with a pegboard of tools and loose parts">
       <!-- backdrop -->
       <circle cx="320" cy="170" r="150" fill="#fbe7b0"/>
       <path class="thin" d="M20 292 H580"/>
@@ -11,16 +12,6 @@
         <g fill="#1f2d3a" opacity=".22"><circle cx="16" cy="16" r="2.4"/><circle cx="40" cy="16" r="2.4"/><circle cx="64" cy="16" r="2.4"/><circle cx="88" cy="16" r="2.4"/><circle cx="104" cy="16" r="2.4"/><circle cx="16" cy="76" r="2.4"/><circle cx="104" cy="76" r="2.4"/></g>
         <g transform="translate(30 26) rotate(18)"><rect x="-5" y="0" width="10" height="26" rx="5" fill="#e2603a" class="ink"/><path class="ink" d="M0 26 V52" fill="none"/></g>
         <g transform="translate(78 28)"><path d="M-10 0 a10 10 0 1 1 20 0 L5 12 V46 a5 5 0 0 1 -10 0 V12 Z" fill="#3b82c4" class="ink"/><circle cy="-1" r="4" fill="#fff" class="ink"/></g>
-      </g>
-
-      <!-- gamepad with signal -->
-      <g transform="translate(455 96)">
-        <g fill="none" class="ink" stroke="#3b82c4">
-          <path class="arc1" d="M-34 -6 a22 22 0 0 0 -14 20"/><path class="arc2" d="M-48 -18 a40 40 0 0 0 -22 34"/><path class="arc3" d="M-62 -30 a58 58 0 0 0 -30 48"/>
-        </g>
-        <path d="M-30 0 h60 a24 24 0 0 1 24 24 v18 a14 14 0 0 1 -26 6 l-6 -10 h-44 l-6 10 a14 14 0 0 1 -26 -6 v-18 a24 24 0 0 1 24 -24 Z" fill="#fff" class="ink"/>
-        <path class="ink" d="M-28 24 h16 M-20 16 v16" fill="none"/>
-        <circle cx="20" cy="18" r="5" fill="#e2603a" class="ink"/><circle cx="34" cy="30" r="5" fill="#2e9e6b" class="ink"/>
       </g>
 
       <!-- sideways arrows -->
@@ -59,78 +50,133 @@
       <g transform="translate(60 268)"><rect width="16" height="24" rx="4" fill="#f7c948" class="ink"/><path class="thin" d="M4 24 v10 M12 24 v10"/></g>
       <g transform="translate(520 270)"><circle r="12" cy="10" fill="#fff" class="ink"/><circle r="4" cy="10" fill="#1f2d3a"/></g>
       <path class="ink" fill="none" stroke="#2e9e6b" d="M452 290 q16 -26 34 -6 t30 2"/>
-    </svg>
-  <div class="pad">
-    <span>drag me<br />or use ← ↑ →</span>
-    <div class="stick" id="stick" role="application" aria-label="Joystick: drag, or use the arrow keys, to drive the car"><div class="knob" id="knob"></div></div>
-  </div>
+    </g>
+
+    <!-- The gamepad drives the car: its thumbstick steers and jumps, its buttons jump and switch the LED. -->
+    <g class="pad-zoom"><g id="pad" transform="translate(300 350) scale(1.5)">
+      <g fill="none" class="ink" stroke="#3b82c4" aria-hidden="true">
+        <path class="arc1" d="M-10 -8 a16 16 0 0 1 20 0"/><path class="arc2" d="M-20 -15 a30 30 0 0 1 40 0"/><path class="arc3" d="M-30 -22 a44 44 0 0 1 60 0"/>
+      </g>
+      <path d="M-60 0 h120 a48 48 0 0 1 48 48 v36 a28 28 0 0 1 -52 12 l-12 -20 h-88 l-12 20 a28 28 0 0 1 -52 -12 v-36 a48 48 0 0 1 48 -48 Z" fill="#fff" class="ink" aria-hidden="true"/>
+      <g class="ctl" id="stick" tabindex="0" role="application" aria-label="Joystick: drag, or use the arrow keys, to drive the car">
+        <circle class="ring" cx="-48" cy="44" r="35"/>
+        <circle cx="-48" cy="44" r="30" fill="#f6f4ee" class="ink"/>
+        <circle cx="-48" cy="44" r="21" fill="none" stroke="#c9d3da" stroke-width="2" stroke-dasharray="5 5"/>
+        <circle id="knob" cx="-48" cy="44" r="16" fill="#e2603a" class="ink"/>
+      </g>
+      <g class="ctl" id="jump" tabindex="0" role="button" aria-label="Jump">
+        <circle class="ring" cx="38" cy="32" r="19"/>
+        <circle class="cap ink" cx="38" cy="32" r="14" fill="#e2603a"/>
+        <path class="ink" fill="none" style="stroke: #fff" d="M38 39 V26 M32 31 L38 25 L44 31"/>
+        <text class="word" x="38" y="60" text-anchor="middle">jump</text>
+      </g>
+      <g class="ctl" id="light" tabindex="0" role="button" aria-pressed="true" aria-label="LED: blinking. Press to switch it off">
+        <circle class="ring" cx="76" cy="52" r="19"/>
+        <circle class="cap ink" cx="76" cy="52" r="14" fill="#fff"/>
+        <g class="led" id="light-icon"><circle cx="76" cy="56" r="4.5" fill="#e2603a"/><path d="M76 47 v-4 M83 50 l3 -3 M69 50 l-3 -3" stroke="#e2603a" stroke-width="2.2" stroke-linecap="round"/></g>
+        <text class="word" x="76" y="80" text-anchor="middle">LED</text>
+      </g>
+    </g></g>
+  </svg>
+  <p class="hint">drag the stick<span class="keys"><br />or use ← ↑ →</span></p>
 </div>
 
 <style>
   .scene { position: relative; }
   .scene-art { width: 100%; height: auto; display: block; }
-  .pad { position: absolute; right: 4px; bottom: 0; display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 700; color: var(--muted); }
-  .stick { width: 92px; height: 92px; border-radius: 50%; background: #fff; border: 2.6px solid var(--ink); position: relative; touch-action: none; cursor: grab; box-shadow: 0 5px 0 rgba(31,45,58,.15); }
-  .stick::before { content: ""; position: absolute; inset: 14px; border-radius: 50%; border: 2px dashed #c9d3da; }
-  .knob { position: absolute; left: 50%; top: 50%; width: 42px; height: 42px; margin: -21px; border-radius: 50%; background: var(--coral); border: 2.6px solid var(--ink); pointer-events: none; }
-  @media (max-width: 560px) { .pad span { display: none; } .stick { width: 72px; height: 72px; } .knob { width: 34px; height: 34px; margin: -17px; } }
+  .scene-art { overflow: visible; }
+  .hint { position: absolute; left: 79%; top: 75%; margin: 0; white-space: nowrap; font-size: 13px; line-height: 1.35; font-weight: 700; color: var(--muted); }
+  .word { font: 800 9px var(--sans); fill: var(--ink); }
+  .ctl { cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent; }
+  #stick { cursor: grab; touch-action: none; }
+  #stick.dragging { cursor: grabbing; }
+  #pad .ink { stroke-width: 1.75; }
+  .ring { fill: none; stroke: var(--blue); stroke-width: 2; opacity: 0; pointer-events: all; }
+  .ctl:focus-visible .ring { opacity: 1; }
+  .ctl:active .cap { transform: translateY(1.5px); }
+  @media (max-width: 560px) {
+    .scene-art { margin-bottom: 9%; }
+    .hint { position: static; text-align: center; margin-top: 6px; }
+    .hint .keys { display: none; }
+    .pad-zoom { transform: scale(1.25); transform-origin: 300px 350px; }
+  }
   @keyframes blink { 0%, 55% { opacity: 1; } 60%, 95% { opacity: .15; } 100% { opacity: 1; } }
   @keyframes ping { 0% { opacity: 0; } 30% { opacity: 1; } 100% { opacity: 0; } }
   :global(.scene .led) { animation: blink 1.4s infinite; }
-  :global(.scene #led.off) { animation: none; opacity: .18; }
+  :global(.scene .led.off) { animation: none; opacity: .18; }
   :global(.scene .arc1) { animation: ping 1.8s infinite; }
   :global(.scene .arc2) { animation: ping 1.8s .25s infinite; }
   :global(.scene .arc3) { animation: ping 1.8s .5s infinite; }
+  :global(.scene .sending :is(.arc1, .arc2, .arc3)) { animation-duration: .6s; }
 </style>
 
 <script>
-  import { onEveryPage } from '../../lib/page';
+  const $ = (id: string) => document.getElementById(id)!;
+  const car = $('car');
+  const pad = $('pad');
+  const stick = $('stick') as unknown as SVGGraphicsElement;
+  const knob = $('knob');
+  const led = $('led');
+  const light = $('light');
+  const STICK_CENTRE = { x: -48, y: 44 };
+  const REACH = 14;
+  const keys: Record<string, boolean> = {};
+  let ax = 0, ay = 0, x = 0, y = 0, vx = 0, vy = 0, dragging = false, hop = false;
 
-  onEveryPage((signal) => {
-    const found = document.getElementById('car');
-    // The router runs this on every page; only the home page has the car.
-    if (found === null) return;
-    const car = found;
-    const stick = document.getElementById('stick')!;
-    const knob = document.getElementById('knob')!;
-    const led = document.getElementById('led')!;
-    const R = 26;
-    const keys: Record<string, boolean> = {};
-    let ax = 0, ay = 0, x = 0, y = 0, vx = 0, vy = 0, dragging = false;
+  function setKnob(dx: number, dy: number) {
+    const m = Math.hypot(dx, dy);
+    if (m > REACH) { dx *= REACH / m; dy *= REACH / m; }
+    ax = dx / REACH; ay = dy / REACH;
+    knob.setAttribute('transform', `translate(${dx.toFixed(1)} ${dy.toFixed(1)})`);
+  }
+  function fromEvent(e: PointerEvent) {
+    const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(stick.getScreenCTM()!.inverse());
+    setKnob(p.x - STICK_CENTRE.x, p.y - STICK_CENTRE.y);
+  }
+  stick.addEventListener('pointerdown', (e) => { dragging = true; stick.classList.add('dragging'); stick.setPointerCapture(e.pointerId); fromEvent(e); });
+  stick.addEventListener('pointermove', (e) => { if (dragging) fromEvent(e); });
+  const release = () => { dragging = false; stick.classList.remove('dragging'); setKnob(0, 0); };
+  stick.addEventListener('pointerup', release);
+  stick.addEventListener('pointercancel', release);
 
-    function setKnob(dx: number, dy: number) {
-      const m = Math.hypot(dx, dy);
-      if (m > R) { dx *= R / m; dy *= R / m; }
-      ax = dx / R; ay = dy / R;
-      knob.style.transform = `translate(${dx}px,${dy}px)`;
-    }
-    function fromEvent(e: PointerEvent) {
-      const r = stick.getBoundingClientRect();
-      setKnob(e.clientX - r.left - r.width / 2, e.clientY - r.top - r.height / 2);
-    }
-    stick.addEventListener('pointerdown', (e) => { dragging = true; stick.setPointerCapture(e.pointerId); fromEvent(e); });
-    stick.addEventListener('pointermove', (e) => { if (dragging) fromEvent(e); });
-    const release = () => { dragging = false; setKnob(0, 0); };
-    stick.addEventListener('pointerup', release);
-    stick.addEventListener('pointercancel', release);
-    // Arrow keys drive only while the page itself has focus, so they never hijack a form field.
-    addEventListener('keydown', (e) => {
-      if (e.key.startsWith('Arrow') && (document.activeElement === document.body || document.activeElement === stick)) { keys[e.key] = true; e.preventDefault(); }
-    }, { signal });
-    addEventListener('keyup', (e) => { keys[e.key] = false; }, { signal });
-    led.addEventListener('click', () => led.classList.toggle('off'));
-
-    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    function frame() {
-      const ix = dragging ? ax : (keys.ArrowRight ? 1 : 0) - (keys.ArrowLeft ? 1 : 0);
-      const up = dragging ? ay < -0.6 : keys.ArrowUp;
-      vx += (ix * 5 - vx) * (still ? 1 : 0.12);
-      x = Math.max(-150, Math.min(120, x + vx));
-      if (up && y === 0 && !still) vy = -8.5;
-      vy += 0.55; y = Math.min(0, y + vy); if (y === 0) vy = 0;
-      car.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${(still ? 0 : vx * 0.9).toFixed(2)} 305 290)`);
-      if (!signal.aborted) requestAnimationFrame(frame);
-    }
-    frame();
+  // Arrow keys drive only while the page itself or the stick has focus, so they never hijack a form field;
+  // ArrowDown has no meaning here and is left to scroll the page.
+  const driving = ['ArrowLeft', 'ArrowRight', 'ArrowUp'];
+  addEventListener('keydown', (e) => {
+    if (driving.includes(e.key) && (document.activeElement === document.body || document.activeElement === stick)) { keys[e.key] = true; e.preventDefault(); }
   });
+  addEventListener('keyup', (e) => { keys[e.key] = false; });
+  addEventListener('blur', () => { for (const k of driving) keys[k] = false; });
+
+  function onPress(el: Element, act: () => void) {
+    el.addEventListener('click', act);
+    el.addEventListener('keydown', (e) => {
+      const key = (e as KeyboardEvent).key;
+      if (key === 'Enter' || key === ' ') { e.preventDefault(); act(); }
+    });
+  }
+  function toggleLed() {
+    const off = led.classList.toggle('off');
+    $('light-icon').classList.toggle('off', off);
+    light.setAttribute('aria-pressed', String(!off));
+    light.setAttribute('aria-label', off ? 'LED: off. Press to make it blink' : 'LED: blinking. Press to switch it off');
+  }
+  onPress($('jump'), () => { hop = true; });
+  onPress(light, toggleLed);
+  led.addEventListener('click', toggleLed);
+
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function frame() {
+    const ix = dragging ? ax : (keys.ArrowRight ? 1 : 0) - (keys.ArrowLeft ? 1 : 0);
+    const up = hop || (dragging ? ay < -0.6 : keys.ArrowUp);
+    hop = false;
+    pad.classList.toggle('sending', ix !== 0 || up);
+    vx += (ix * 5 - vx) * (still ? 1 : 0.12);
+    x = Math.max(-150, Math.min(120, x + vx));
+    if (up && y === 0 && !still) vy = -8.5;
+    vy += 0.55; y = Math.min(0, y + vy); if (y === 0) vy = 0;
+    car.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${(still ? 0 : vx * 0.9).toFixed(2)} 305 290)`);
+    requestAnimationFrame(frame);
+  }
+  frame();
 </script>
