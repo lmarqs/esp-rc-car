@@ -120,13 +120,15 @@ bool isConfigLine(const char* line);
  *   order    the throttle would break min <= mid <= max against the other two's current values
  *
  * A refused set leaves the stored value as it was. The values take effect at the next boot, so a client follows its
- * sets with "cfg restart". Numbers print with %g, which round-trips a value typed with three decimals.
+ * sets with "cfg restart". "cfg get" shows the values the next boot uses: stored, else default. When those throttles
+ * break the order, which only a changed default can cause, activeSettings gives the board a band of 0 and the sketch
+ * logs it at boot. Numbers print with %g, which round-trips a value typed with three decimals.
  *
  * The order check makes the sequence of sets matter when a client changes more than one throttle: it sends, each
- * time, one whose new value keeps min <= mid <= max against the other two's current values. While the band differs
- * from an ordered target such a throttle always exists: when the new mid lies above the current max, the new max
- * is at least the new mid and is accepted, and symmetrically for the min. So the band widens or narrows to
- * the target without a refusal.
+ * time, one whose new value keeps min <= mid <= max against the other two's current values. From an ordered band
+ * that differs from an ordered target such a throttle always exists: when the new mid lies above the current max, the
+ * new max is at least the new mid and is accepted, and symmetrically for the min. So the band widens or narrows to the
+ * target without a refusal.
  */
 ConfigResult handleConfigLine(const char* line, StoredConfig& config, const ConfigDefaults& defaults, bool armed,
                               char* reply, size_t n);
