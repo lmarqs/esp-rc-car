@@ -3,5 +3,4 @@
 #MISE depends=["site:build"]
 set -euo pipefail
 
-pnpm exec vitest run
-pnpm exec playwright test
+pnpm --filter @robomania/site run test

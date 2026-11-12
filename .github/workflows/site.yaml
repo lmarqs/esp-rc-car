@@ -23,9 +23,9 @@ jobs:
       - uses: jdx/mise-action@v5
         with:
           install_args: node pnpm
-      - run: mise run site:setup
+      - run: mise run node:setup
       - run: mise run site:build
-      - run: mise exec -- pnpm exec playwright install-deps chromium
+      - run: mise exec -- pnpm --filter @robomania/site exec playwright install-deps chromium
       - run: mise run site:test
       - uses: actions/upload-pages-artifact@v5
         with:

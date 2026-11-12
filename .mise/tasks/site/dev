@@ -2,4 +2,4 @@
 #MISE description="Serve the website locally with live reload"
 set -euo pipefail
 
-pnpm run site:dev
+pnpm --filter @robomania/site run dev

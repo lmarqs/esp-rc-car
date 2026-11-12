@@ -2,4 +2,4 @@
 #MISE description="Build the website into site/dist"
 set -euo pipefail
 
-pnpm run site:build
+pnpm --filter @robomania/site run build

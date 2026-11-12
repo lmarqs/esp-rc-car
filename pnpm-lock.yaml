@@ -164,7 +164,9 @@ settings:
 
 importers:
 
-  .:
+  .: {}
+
+  site:
     dependencies:
       astro:
         specifier: 7.4.6

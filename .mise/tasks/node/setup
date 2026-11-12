@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Install the Node workspace's dependencies from the lockfile, and the browser the website's tests use"
+set -euo pipefail
+
+pnpm install --frozen-lockfile
+pnpm --filter @robomania/site exec playwright install chromium
