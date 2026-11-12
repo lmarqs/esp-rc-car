@@ -38,6 +38,19 @@ async function connect(page: Page) {
   await boardButton(page).click();
 }
 
+test('marks the tab whose step the board runs, and no tab without a board', async ({ page, fakeFlasher }) => {
+  await fakeFlasher.install({ lines: ['sketch blink/commands'] });
+  await page.goto(BLINK);
+  const marks = page.getByRole('region', { name: 'Workbench' }).locator('[data-onboard]');
+  await expect(marks.filter({ visible: true })).toHaveCount(0);
+
+  await page.getByRole('region', { name: 'Workbench' }).locator('[data-board-action]').click();
+
+  await expect(marks.filter({ visible: true })).toHaveCount(1);
+  await expect(page.getByRole('tab', { name: /^4 commands/ }).locator('[data-onboard]')).toBeVisible();
+  await expect(page.getByRole('tab', { name: /^4 commands/ })).toHaveAccessibleName(/board$/);
+});
+
 test.describe('the Board cell', () => {
   test('reads Simulated in grey with Connect and a plug before a board is connected', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install();
