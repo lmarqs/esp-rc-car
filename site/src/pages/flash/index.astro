@@ -5,13 +5,14 @@ import FlashCard from '../../components/flash/FlashCard.astro';
 import Meta from '../../components/Meta.astro';
 import Base from '../../layouts/Base.astro';
 import { href } from '../../lib/href';
+import { sketchKey } from '../../lib/flash/manifest';
 import { readManifest } from '../../lib/flash/readManifest';
 
 const manifest = readManifest();
 const withSketch = (await getCollection('projects'))
   .filter((p) => p.data.sketch)
   .sort((a, b) => a.data.order - b.data.order)
-  .map((project) => ({ project, entry: manifest.sketches[project.data.sketch!.split('/').pop()!] }));
+  .map((project) => ({ project, entry: manifest.sketches[sketchKey(project.data.sketch!)] }));
 const flashable = withSketch.flatMap(({ project, entry }) =>
   entry ? [{ project, chips: [...new Set(entry.images.map((image) => image.chipFamily))] }] : [],
 );

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { imageFor, isMissing, type Manifest } from '../../src/lib/flash/manifest';
+import { imageFor, isMissing, sketchKey, type Manifest } from '../../src/lib/flash/manifest';
 
 // The shape `mise run arduino:firmware` writes, with the offsets of its ESP32 and ESP32-C3 images.
 const manifest: Manifest = {
@@ -33,12 +33,39 @@ const manifest: Manifest = {
         },
       ],
     },
+    'blink/simple': {
+      images: [
+        {
+          profile: 'bluepad32',
+          chipFamily: 'ESP32',
+          parts: [{ path: 'blink/simple/bluepad32/simple.ino.bin', offset: 65536 }],
+        },
+      ],
+    },
   },
 };
+
+describe('sketchKey', () => {
+  it('drops the sketches folder from a sketch at one level', () => {
+    expect(sketchKey('sketches/web-relay')).toBe('web-relay');
+  });
+
+  it('keeps the project and the variant of a sketch at two levels', () => {
+    expect(sketchKey('sketches/blink/simple')).toBe('blink/simple');
+  });
+});
 
 describe('imageFor', () => {
   it('returns the image built for the chip', () => {
     expect(imageFor(manifest, 'balance-beam', 'ESP32-C3')).toBe(manifest.sketches['balance-beam']!.images[1]);
+  });
+
+  it('finds the image of a sketch at two levels by its path key', () => {
+    expect(imageFor(manifest, sketchKey('sketches/blink/simple'), 'ESP32')).toBe(manifest.sketches['blink/simple']!.images[0]);
+  });
+
+  it('does not find a sketch at two levels by its last path segment', () => {
+    expect(imageFor(manifest, 'simple', 'ESP32')).toEqual({ missing: true, available: [] });
   });
 
   it('lists the chips the sketch has images for when the chip has none', () => {

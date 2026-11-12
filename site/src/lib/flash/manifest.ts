@@ -44,7 +44,10 @@ export interface ManifestSketch {
   settings?: readonly SettingField[];
 }
 
-/** The shape of `firmware/manifest.json`, which `mise run arduino:firmware` writes. */
+/**
+ * The shape of `firmware/manifest.json`, which `mise run arduino:firmware` writes. A sketch is keyed by its path under
+ * `sketches/`, such as `web-relay` or `blink/simple`.
+ */
 export interface Manifest {
   sketches: Record<string, ManifestSketch>;
 }
@@ -53,6 +56,16 @@ export interface MissingImage {
   missing: true;
   /** The chips the sketch has an image for, in manifest order. */
   available: ChipFamily[];
+}
+
+const SKETCHES_FOLDER = 'sketches/';
+
+/**
+ * The key of a project's `sketch` field in the manifest: the sketch's path under `sketches/`, such as `blink` for
+ * `sketches/blink` and `blink/simple` for `sketches/blink/simple`.
+ */
+export function sketchKey(sketchPath: string): string {
+  return sketchPath.startsWith(SKETCHES_FOLDER) ? sketchPath.slice(SKETCHES_FOLDER.length) : sketchPath;
 }
 
 /**

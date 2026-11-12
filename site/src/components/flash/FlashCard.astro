@@ -1,10 +1,11 @@
 ---
+import { sketchKey } from '../../lib/flash/manifest';
 import { readManifest } from '../../lib/flash/readManifest';
 import { defaultValues, passwordHelp, settingsOf } from '../../lib/flash/settings';
 import { stepsFor, type Step } from './view';
 
 interface Props {
-  /** The project's `sketch` field, such as `sketches/blink`; the manifest names a sketch by its folder. */
+  /** The project's `sketch` field, such as `sketches/blink`; the manifest names a sketch by its path under `sketches/`. */
   sketch: string;
   title: string;
   /** Speed the sketch prints at; absent for a sketch that prints nothing, which gets no board output. */
@@ -16,7 +17,7 @@ interface Props {
 }
 
 const { sketch, title, baud, next, detailsHref } = Astro.props;
-const name = sketch.split('/').pop()!;
+const name = sketchKey(sketch);
 const entry = readManifest().sketches[name];
 const manifest = entry && { sketches: { [name]: entry } };
 const fields = manifest ? settingsOf(manifest, name, baud) : [];

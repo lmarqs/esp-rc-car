@@ -133,6 +133,18 @@ describe('viewFor', () => {
     ]);
   });
 
+  it('links the parts of a sketch at two levels under their folders, with the slash unescaped', () => {
+    const images = [
+      { profile: 'esp32', chipFamily: 'ESP32', parts: [{ path: 'blink/simple/esp32/simple.ino.bin', offset: 65536 }] },
+    ] as const;
+    const view = viewFor({ kind: 'unsupported' }, { ...context, images, firmwareUrl: '/robomania/firmware/' });
+
+    expect(view.links?.[0]).toEqual({
+      label: 'esp32: simple.ino.bin at 0x10000',
+      href: '/robomania/firmware/blink/simple/esp32/simple.ino.bin',
+    });
+  });
+
   it('points a browser that cannot flash to the project page when the card is on another page', () => {
     const view = viewFor({ kind: 'unsupported' }, { ...context, detailsHref: '/robomania/projects/blink/' });
 
