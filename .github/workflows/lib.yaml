@@ -1,0 +1,32 @@
+name: Library
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.event_name == 'workflow_dispatch' || contains(join(github.event.commits.*.message, ' '), '#lib-release')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - id: library
+        run: echo "version=$(sed -n 's/^version=//p' lib/library.properties)" >> "$GITHUB_OUTPUT"
+      - run: |
+          mkdir -p dist/Robomania
+          cp lib/* dist/Robomania/
+          cd dist && zip -qr "Robomania-$VERSION.zip" Robomania
+        env:
+          VERSION: ${{ steps.library.outputs.version }}
+      - run: >
+          gh release create "lib-v$VERSION" "dist/Robomania-$VERSION.zip"
+          --target "$GITHUB_SHA"
+          --title "Robomania library $VERSION"
+          --notes "Install with \`ARDUINO_LIBRARY_ENABLE_UNSAFE_INSTALL=true arduino-cli lib install --zip-path Robomania-$VERSION.zip\`, or in the Arduino IDE with Sketch > Include Library > Add .ZIP Library."
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.library.outputs.version }}

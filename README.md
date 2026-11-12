@@ -57,6 +57,11 @@ The drivers in `lib/`:
 | `camera*` | The camera of an AI Thinker ESP32-CAM |
 | `web_server.*` | An HTTP and WebSocket server on the ESP-IDF `httpd` |
 
+Another sketch uses the drivers through the Robomania library: download `Robomania-<version>.zip` from a
+[`lib-v` release](https://github.com/lmarqs/robomania/releases) and install it with
+`ARDUINO_LIBRARY_ENABLE_UNSAFE_INSTALL=true arduino-cli lib install --zip-path Robomania-<version>.zip`, or in the
+Arduino IDE with Sketch > Include Library > Add .ZIP Library. It builds only for ESP32 boards.
+
 [docs/](docs/README.md) explains [how the parts fit](docs/architecture.md) and the [standards](docs/standards/README.md)
 the code follows. `.clang-format` sets the layout; apply it with `mise exec -- clang-format -i <file>`.
 

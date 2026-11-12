@@ -8,9 +8,13 @@ This repository is a monorepo: the firmware and Robomania, its website, live and
 and each takes the drivers in `lib/` straight from the working tree, never from a released package. A change to a
 driver reaches every sketch and the website's Library page in the same commit.
 
-The drivers ship as source in this repository and are listed on no library registry. The Arduino Library Manager
-indexes a library only when its `library.properties` sits at the root of its repository, and here the root holds
-the whole monorepo.
+The drivers in `lib/` are also released as the Robomania Arduino library, a ZIP on the repository's GitHub
+Releases, for sketches outside this repository. The Arduino Library Manager indexes a library only when its
+`library.properties` sits at the root of its repository, and here the root holds the whole monorepo, so the ZIP is
+the one release. The library workflow, `.github/workflows/lib.yaml`, zips `lib/` and tags it `lib-v<version>`, with
+the version from `lib/library.properties`, when a push to `main` includes a commit whose message contains
+`#lib-release`, or when someone runs it by hand. A version already released fails the run, so each release raises
+the version first. The marker differs from the website's `#release` so that each releases alone.
 
 ## Firmware
 
