@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-#MISE description="Install the website's dependencies from the lockfile"
+#MISE description="Install the website's dependencies from the lockfile, and the browser its tests use"
 set -euo pipefail
 
 pnpm install --frozen-lockfile
+pnpm exec playwright install chromium

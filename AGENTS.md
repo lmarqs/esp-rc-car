@@ -18,7 +18,7 @@ website: Astro 7 on Node 24 and pnpm 12, pinned in `mise.toml` and `package.json
   `mise exec -- arduino-cli board list`
 - Build: `mise run arduino:compile <sketch>`, such as `sketches/blink`; the website: `mise run site:build`, and
   `mise run site:dev` to serve it locally
-- Test: `mise run lib:test`
+- Test: `mise run lib:test`; the website: `mise run site:test`
 - Lint or format one file: `mise exec -- clang-format -i <file>`; Python: `mise exec -- ruff format <file>`
 - Generate code: `mise run arduino:hexdump <sketch>`, which turns each file in `<sketch>/data` into a C header
 - Worktrees: `git worktree add .worktrees/<branch> -b <branch> && (cd .worktrees/<branch> && .worktrees/setup)`;
@@ -28,7 +28,7 @@ website: Astro 7 on Node 24 and pnpm 12, pinned in `mise.toml` and `package.json
 - Done check:
   `mise exec -- clang-format --dry-run --Werror lib/* test/* sketches/*/*.ino`, then
   `mise exec -- ruff check . .vscode/*.py && mise exec -- ruff format --check . .vscode/*.py`, `mise run lib:test`,
-  the Build command for every sketch in `sketches/`, and `mise run site:build`
+  the Build command for every sketch in `sketches/`, `mise run site:build`, `mise run site:test`
 
 ## Boundaries
 

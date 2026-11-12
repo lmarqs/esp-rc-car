@@ -25,6 +25,8 @@ jobs:
           install_args: node pnpm
       - run: mise run site:setup
       - run: mise run site:build
+      - run: mise exec -- pnpm exec playwright install-deps chromium
+      - run: mise run site:test
       - uses: actions/upload-pages-artifact@v5
         with:
           path: site/dist

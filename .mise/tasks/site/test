@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Run the website's unit tests, then its browser tests against a production build"
+#MISE depends=["site:build"]
+set -euo pipefail
+
+pnpm exec vitest run
+pnpm exec playwright test

@@ -28,3 +28,7 @@ CLAUDE.local.md
 **/.claude/CLAUDE.md
 # cook:end io.github.lmarqs.cookbook:agents#connect/harnesses
 /node_modules/
+
+# Playwright output
+/playwright-report/
+/test-results/
