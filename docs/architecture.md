@@ -96,7 +96,7 @@ The site also puts the firmware on a board. Its parts:
   (`Rail`, `Editor`, `Board` with its `Stage`, `Scope` and `Terminal`) and its pictures, and `site/src/lib/workbench/`
   the logic. A project built as a ladder of step sketches, such as Blink and Servo, has a
   workbench: step tabs and a Board switch, then the selected step's code in an editor with a debugger beside a board
-  pane. Per project, the logic holds one definition per step, which has the step's simulated program, what each line
+  pane. The address names the selected step by its id, such as `#input`, so a link opens that step. Per project, the logic holds one definition per step, which has the step's simulated program, what each line
   the step prints means, and the controls that send a line; and a board model, which turns that meaning into the
   picture, the watch values and the trace. The slice depends on the board slice and the flash slice, and on the
   images and the manifest through them.

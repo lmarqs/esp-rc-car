@@ -106,6 +106,26 @@ test.describe('the Blink workbench', () => {
     await expect(bench(page).getByRole('tabpanel')).toHaveAccessibleName(/1 simple/);
   });
 
+  test('opens the step the address names, such as #timer', async ({ page }) => {
+    await page.goto(`${BLINK}#timer`);
+    await expect(tab(page, '3 timer')).toHaveAttribute('aria-selected', 'true');
+    await expect(bench(page).locator('.edtab:visible')).toHaveText('timer.ino');
+  });
+
+  test('names the picked step in the address', async ({ page }) => {
+    await tab(page, '2 input').click();
+    await expect(page).toHaveURL(new RegExp(`${BLINK}#input$`));
+  });
+
+  test('opens the step a link on the page names', async ({ page }) => {
+    await page.evaluate(() => {
+      const link = Object.assign(document.createElement('a'), { href: '#commands', textContent: 'to commands' });
+      document.body.append(link);
+    });
+    await page.getByRole('link', { name: 'to commands' }).click();
+    await expect(tab(page, '4 commands')).toHaveAttribute('aria-selected', 'true');
+  });
+
   for (const [index, step] of blinkSteps.entries()) {
     const id = step.key.split('/')[1];
     test(`the ${id} tab shows its file, path, whole .ino, hint and shortcuts`, async ({ page }) => {

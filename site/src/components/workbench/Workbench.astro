@@ -388,21 +388,36 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       if (action === 'flash') void board.send({ type: 'flash', key: pane.flashed });
     }
 
+    /** Opens step `index` and names it in the address, such as `#input`, so the address opens the step on screen. */
+    function select(index: number) {
+      if (index === pane.selected) return;
+      dispatch({ kind: 'tab', index });
+      history.replaceState(history.state, '', `#${paneProject.ids[index]}`);
+    }
+
+    /** Opens the step the address names, such as `#input`; an address that names no step leaves the step on screen. */
+    function followAddress() {
+      const index = paneProject.ids.indexOf(decodeURIComponent(location.hash.slice(1)));
+      if (index >= 0 && index !== pane.selected) dispatch({ kind: 'tab', index });
+    }
+
     tabs.forEach((tab, index) => {
-      tab.addEventListener('click', () => {
-        if (index !== pane.selected) dispatch({ kind: 'tab', index });
-      });
+      tab.addEventListener('click', () => select(index));
       tab.addEventListener('keydown', (event) => {
         const next = tabAfterKey(event.key, index, tabs.length);
         if (next === undefined) return;
         event.preventDefault();
         tabs[next].focus();
-        if (next !== pane.selected) dispatch({ kind: 'tab', index: next });
+        select(next);
       });
     });
+    window.addEventListener('hashchange', followAddress, { signal });
+    // The router follows a link to a step of this page with pushState, which fires no hashchange.
+    window.navigation?.addEventListener('currententrychange', followAddress, { signal });
 
     openStep(0);
     showLink();
     draw();
+    followAddress();
   }
 </script>
