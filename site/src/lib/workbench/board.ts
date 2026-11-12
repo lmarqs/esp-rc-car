@@ -14,6 +14,8 @@ export interface WatchRow {
 export interface BoardModel<E, B, S> {
   /** Every watch row the project's steps can show, in the panel's order. */
   readonly fields: readonly string[];
+  /** The rows that change on every pass, such as a clock, which the page does not highlight when they change. */
+  readonly steady: readonly string[];
   initial(): B;
   /** The board after it printed a line meaning `event` at `at` milliseconds. */
   apply(board: B, event: E, at: number): B;

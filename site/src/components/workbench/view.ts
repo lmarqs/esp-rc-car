@@ -1,4 +1,5 @@
 import { highlightLine, type Token } from '../../lib/workbench/highlight';
+import type { WatchRow } from '../../lib/workbench/board';
 import type { OutputLine, RunnerView, RunStatus } from '../../lib/workbench/simulator';
 import { sketchSourcePath } from '../../lib/workbench/source';
 import type { Shortcut } from '../../lib/workbench/step';
@@ -7,26 +8,38 @@ import type { Shortcut } from '../../lib/workbench/step';
 export const SERIAL_LINES = 6;
 
 /**
- * One row of the editor: its 1-based number, its coloured text, whether it is new in this step, and whether it calls
- * `delay()`, which gives it a clock.
+ * One row of the editor: its 1-based number, its coloured text, whether it is new in this step, whether it calls
+ * `delay()`, which gives it a clock, and which of its tokens shows the live value, if any.
  */
 export interface CodeRow {
   readonly number: number;
   readonly tokens: readonly Token[];
   readonly isNew: boolean;
   readonly waits: boolean;
+  readonly live?: number;
 }
 
-/** The editor's rows for `source`, with the 1-based line numbers in `added` marked new. */
-export function codeRows(source: string, added: readonly number[]): CodeRow[] {
+/**
+ * The editor's rows for `source`, with the 1-based line numbers in `added` marked new. When `live` names a variable,
+ * the number it is declared with at the top of the file is marked to show its current value.
+ */
+export function codeRows(source: string, added: readonly number[], live?: string): CodeRow[] {
   const fresh = new Set(added);
   return source
     .replace(/\r?\n$/, '')
     .split(/\r?\n/)
     .map((line, index) => {
       const tokens = highlightLine(line);
-      return { number: index + 1, tokens, isNew: fresh.has(index + 1), waits: callsDelay(tokens) };
+      const row = { number: index + 1, tokens, isNew: fresh.has(index + 1), waits: callsDelay(tokens) };
+      const at = live === undefined ? -1 : declaredValue(line, tokens, live);
+      return at < 0 ? row : { ...row, live: at };
     });
+}
+
+/** The index of the number token that `line` declares `name` with at file scope, as in `int name = 1000;`; else -1. */
+function declaredValue(line: string, tokens: readonly Token[], name: string): number {
+  if (!new RegExp(`^[A-Za-z_][\\w ]*\\b${name}\\s*=\\s*\\d+\\s*;`).test(line)) return -1;
+  return tokens.findIndex((token) => token.kind === 'number');
 }
 
 const callsDelay = (tokens: readonly Token[]): boolean =>
@@ -106,4 +119,17 @@ export function debuggerControls(status: RunStatus, error?: unknown): DebuggerCo
 function reason(error: unknown): string {
   const text = error instanceof Error ? error.message : (error ?? '').toString();
   return text.replace(/[.\s]+$/, '') || 'something went wrong';
+}
+
+/** The rows whose value changed from `before` to `after`, but the `steady` ones; none when there is no `before`. */
+export function changedRows(
+  before: readonly WatchRow[] | undefined,
+  after: readonly WatchRow[],
+  steady: readonly string[],
+): string[] {
+  if (before === undefined) return [];
+  const previous = new Map(before.map((row) => [row.name, row.value]));
+  return after
+    .filter((row) => !steady.includes(row.name) && previous.has(row.name) && previous.get(row.name) !== row.value)
+    .map((row) => row.name);
 }

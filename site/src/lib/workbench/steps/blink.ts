@@ -1,5 +1,5 @@
 import { nth, op, waitOp, type Board, type Cost, type Operation, type Sketch } from '../simulator';
-import type { SliderShortcut, StepDefinition } from '../step';
+import type { LiveValue, SliderShortcut, StepDefinition } from '../step';
 
 /** What the four Blink sketches keep: the LED, the interval and, in `commands`, whether blinking is paused. */
 export interface BlinkState {
@@ -235,6 +235,9 @@ export function parseBlinkLine(line: string): BlinkEvent | undefined {
   return undefined;
 }
 
+/** The interval the three steps that read one show in their declaration of `blinkDelay`. */
+const liveDelay: LiveValue<BlinkState> = { name: 'blinkDelay', value: (state) => String(state.blinkDelay) };
+
 function delaySlider(command: (milliseconds: number) => string): SliderShortcut {
   return {
     kind: 'slider',
@@ -265,6 +268,7 @@ export const blinkInput: BlinkStep = {
   shortcuts: [delaySlider((ms) => String(ms))],
   placeholder: 'type a number and press Enter',
   hint: 'Send a number, then watch the arrow: the board reads it only when the arrow comes back to the Serial.available() line, after both delays.',
+  live: liveDelay,
   parse: parseBlinkLine,
 };
 
@@ -275,6 +279,7 @@ export const blinkTimer: BlinkStep = {
   shortcuts: [delaySlider((ms) => String(ms))],
   placeholder: 'type a number and press Enter',
   hint: 'There is no delay(): the board runs loop() again and again and checks the clock each time. A number you send is read on the next pass.',
+  live: liveDelay,
   parse: parseBlinkLine,
 };
 
@@ -285,6 +290,7 @@ export const blinkCommands: BlinkStep = {
   shortcuts: [{ kind: 'chip', text: 'pause' }, { kind: 'chip', text: 'run' }, delaySlider((ms) => `delay ${ms}`)],
   placeholder: 'type a command and press Enter',
   hint: 'The buttons and the slider type for you: drag the slider and watch the line it is about to send. The same words work in any serial monitor.',
+  live: liveDelay,
   parse: parseBlinkLine,
 };
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clockFace, codeRows, debuggerControls, crumbs, fileName, serialText, shortcutNames, SERIAL_LINES } from '../../src/components/workbench/view';
+import { changedRows, clockFace, codeRows, debuggerControls, crumbs, fileName, serialText, shortcutNames, SERIAL_LINES } from '../../src/components/workbench/view';
 import { blinkCommands, blinkSimple } from '../../src/lib/workbench/steps/blink';
 
 describe('codeRows', () => {
@@ -17,6 +17,22 @@ describe('codeRows', () => {
   it('marks the lines that call delay(), not a print or a comment that names it', () => {
     const rows = codeRows('  delay(blinkDelay);\n  Serial.print("delay ");\n// Blink with delay()\nint blinkDelay = 1;\n', []);
     expect(rows.map((row) => row.waits)).toEqual([true, false, false, false]);
+  });
+});
+
+describe('codeRows live value', () => {
+  const source = 'DigitalOutPin led(2);\nint blinkDelay = 1000;\n\nvoid loop() {\n  blinkDelay = constrain(x, 100, 2000);\n}\n';
+
+  it('marks the number the variable is declared with at the top of the file, and nothing else', () => {
+    const rows = codeRows(source, [], 'blinkDelay');
+    expect(rows.flatMap((row) => (row.live === undefined ? [] : [[row.number, row.tokens[row.live].text]]))).toEqual([
+      [2, '1000'],
+    ]);
+  });
+
+  it('marks nothing without a live variable or when the file does not declare it', () => {
+    expect(codeRows(source, []).some((row) => row.live !== undefined)).toBe(false);
+    expect(codeRows(source, [], 'wait').some((row) => row.live !== undefined)).toBe(false);
   });
 });
 
@@ -87,5 +103,19 @@ describe('debuggerControls', () => {
 
   it('disables Continue and Step once the sketch ended and says to restart', () => {
     expect(debuggerControls('ended')).toMatchObject({ canContinue: false, canStep: false, problem: /Restart/ });
+  });
+});
+
+describe('changedRows', () => {
+  const rows = (values: Record<string, string>) => Object.entries(values).map(([name, value]) => ({ name, value }));
+
+  it('names the rows whose value changed, but not the steady ones', () => {
+    const before = rows({ LED: 'LOW', wait: '1000 ms', 'millis()': '0' });
+    const after = rows({ LED: 'HIGH', wait: '1000 ms', 'millis()': '250' });
+    expect(changedRows(before, after, ['millis()'])).toEqual(['LED']);
+  });
+
+  it('names nothing after a reset, when there is no previous panel', () => {
+    expect(changedRows(undefined, rows({ LED: 'HIGH' }), [])).toEqual([]);
   });
 });

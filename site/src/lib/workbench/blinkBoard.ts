@@ -89,6 +89,7 @@ export function blinkWatch(step: string, board: BlinkBoard, millis: number | und
 
 export const blinkBoard: BoardModel<BlinkEvent, BlinkBoard, BlinkState> = {
   fields: BLINK_WATCH_FIELDS,
+  steady: ['millis()'],
   initial: initialBlinkBoard,
   apply: applyBlinkEvent,
   simulate: simulateBlink,

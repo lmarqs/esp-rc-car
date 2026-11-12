@@ -28,7 +28,7 @@ const rail = steps.map((step, index) => {
     shortcuts: shortcutNames(definition.shortcuts),
     file: fileName(step.sketch),
     crumbs: crumbs(step.sketch),
-    rows: codeRows(sources[index], newLines(sources[index - 1], sources[index])),
+    rows: codeRows(sources[index], newLines(sources[index - 1], sources[index]), definition.live?.name),
   };
 });
 const first = rail[0];
@@ -114,7 +114,17 @@ const id = (part: string) => `workbench-${project}-${part}`;
                   <b class="pc" aria-hidden="true" />
                   <i>{row.number}</i>
                   <span>
-                    {row.tokens.map((token) => (token.kind ? <span class={token.kind}>{token.text}</span> : token.text))}
+                    {row.tokens.map((token, at) =>
+                      at === row.live ? (
+                        <span class="live" data-live>
+                          {token.text}
+                        </span>
+                      ) : token.kind ? (
+                        <span class={token.kind}>{token.text}</span>
+                      ) : (
+                        token.text
+                      ),
+                    )}
                     {row.waits && (
                       <svg class="pie" viewBox="0 0 16 16" aria-hidden="true" data-pie>
                         <circle class="rim" cx="8" cy="8" r="7" />
@@ -224,6 +234,8 @@ const id = (part: string) => `workbench-${project}-${part}`;
   .function { color: var(--syntax-function); }
   .number { color: var(--syntax-number); }
   .comment { color: var(--muted); }
+  /* Room for four bold digits, the most the interval has, so the line keeps its width as the value changes. */
+  .live { display: inline-block; min-width: calc(4.5ch + 10px); padding: 0 5px; text-align: center; background: var(--yellow); border-radius: 6px; font-weight: 700; }
 
   .board { padding: 14px; display: grid; gap: 10px; align-content: start; min-width: 0; }
   .led-row { display: grid; grid-template-columns: 96px 1fr 1fr; gap: 12px; align-items: center; }
@@ -239,7 +251,8 @@ const id = (part: string) => `workbench-${project}-${part}`;
   .watch div { display: flex; justify-content: space-between; gap: 10px; padding: 3px 10px; }
   .watch div + div { border-top: 1px solid var(--line); }
   .watch dt { color: var(--muted); }
-  .watch dd { margin: 0; font-weight: 700; }
+  .watch dd { margin: 0; padding: 0 4px; border-radius: 4px; font-weight: 700; }
+  .watch dd[data-changed] { background: var(--yellow); }
 
   .term { background: var(--ink); color: var(--on-ink); border-radius: 12px; font-family: var(--mono); font-size: 13px; overflow: hidden; }
   .serial { margin: 0; padding: 10px 14px 6px; height: 118px; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; white-space: pre; background: none; color: inherit; border-radius: 0; font-size: 13px; line-height: 1.5; }
@@ -252,7 +265,12 @@ const id = (part: string) => `workbench-${project}-${part}`;
   import type { Runner, RunnerView } from '../../lib/workbench/simulator';
   import { lineNumber } from '../../lib/workbench/source';
   import { tabAfterKey } from '../../lib/workbench/tabs';
-  import { CLOCK_DASH, clockFace, debuggerControls, serialText, shortcutNames } from './view';
+  import type { WatchRow } from '../../lib/workbench/board';
+  import type { StepDefinition } from '../../lib/workbench/step';
+  import { changedRows, CLOCK_DASH, clockFace, debuggerControls, serialText, shortcutNames } from './view';
+
+  /** How long a watch value stays highlighted after it changes. */
+  const HIGHLIGHT_MS = 900;
 
   interface StepData {
     key: string;
@@ -283,6 +301,10 @@ const id = (part: string) => `workbench-${project}-${part}`;
     const problem = root.querySelector<HTMLElement>('[data-problem]')!;
 
     let selected = 0;
+    let definition: StepDefinition<unknown, unknown> | undefined;
+    // The watch panel as last painted; undefined after a reset, so the values it starts with are not highlighted.
+    let shownRows: readonly WatchRow[] | undefined;
+    const highlightTimers = new Map<string, number>();
     let runner: Runner<unknown> | undefined;
     let view: RunnerView<unknown> | undefined;
     let board: unknown;
@@ -294,20 +316,22 @@ const id = (part: string) => `workbench-${project}-${part}`;
     function select(index: number) {
       selected = index;
       const step = steps[index];
-      const definition = project!.steps.find((candidate) => candidate.key === step.key)!;
+      const chosen = project!.steps.find((candidate) => candidate.key === step.key)!;
+      definition = chosen;
       tabs.forEach((tab, at) => {
         tab.setAttribute('aria-selected', String(at === index));
         tab.tabIndex = at === index ? 0 : -1;
       });
       panel.setAttribute('aria-labelledby', tabs[index].id);
       for (const element of perStep) element.hidden = element.dataset.forStep !== String(index);
-      shortcuts.dataset.shortcuts = shortcutNames(definition.shortcuts);
+      shortcuts.dataset.shortcuts = shortcutNames(chosen.shortcuts);
+      resetWatch();
 
       runner?.dispose();
       board = project!.board.initial();
       keepRunning = OPENING.running;
       runner = openRunner(
-        definition,
+        chosen,
         (next, effects) => {
           board = project!.board.simulate(board, next.state, effects, next.millis);
           view = next;
@@ -334,6 +358,8 @@ const id = (part: string) => `workbench-${project}-${part}`;
         element.hidden = row === undefined;
         if (row !== undefined) element.querySelector('dd')!.textContent = row.value;
       }
+      for (const name of changedRows(shownRows, rows, project!.board.steady)) highlight(name);
+      shownRows = rows;
       serial.textContent = serialText(view.output);
       const controls = debuggerControls(view.status, view.error);
       pauseButton.classList.toggle('is-paused', controls.paused);
@@ -345,6 +371,8 @@ const id = (part: string) => `workbench-${project}-${part}`;
       problem.textContent = controls.problem ?? '';
       const running = view.line === undefined ? undefined : lineNumber(step.source, view.line, view.occurrence);
       const code = root.querySelector<HTMLElement>(`[data-code][data-for-step="${selected}"]`)!;
+      const live = code.querySelector('[data-live]');
+      if (live !== null && definition?.live !== undefined) live.textContent = definition.live.value(view.state);
       const before = code.querySelector('[data-running]');
       const row = running === undefined ? null : code.querySelector(`[data-line="${running}"]`);
       if (before !== row) {
@@ -356,6 +384,22 @@ const id = (part: string) => `workbench-${project}-${part}`;
       showClock(row?.querySelector('[data-pie]') ?? null, face);
       // The clock fills between the runner's notifications, so it is painted on every frame while it waits.
       if (face.waiting && !reducedMotion.matches) draw();
+    }
+
+    /** Marks a watch value that just changed for a moment. */
+    function highlight(name: string) {
+      const value = watchRows.get(name)?.querySelector('dd');
+      if (value == null) return;
+      value.setAttribute('data-changed', '');
+      clearTimeout(highlightTimers.get(name));
+      highlightTimers.set(name, window.setTimeout(() => value.removeAttribute('data-changed'), HIGHLIGHT_MS));
+    }
+
+    function resetWatch() {
+      shownRows = undefined;
+      for (const timer of highlightTimers.values()) clearTimeout(timer);
+      highlightTimers.clear();
+      for (const row of watchRows.values()) row.querySelector('dd')?.removeAttribute('data-changed');
     }
 
     function showClock(pie: Element | null, face: { waiting: boolean; fill: number }) {
@@ -381,6 +425,7 @@ const id = (part: string) => `workbench-${project}-${part}`;
     restartButton.addEventListener('click', () => {
       if (runner === undefined) return;
       board = project!.board.initial();
+      resetWatch();
       runner.restart();
       // The runner keeps running or paused, and comes back paused from an end or an error.
       if (keepRunning) runner.run();

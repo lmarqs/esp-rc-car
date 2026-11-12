@@ -526,3 +526,14 @@ describe('the LED pin', () => {
     runner.dispose();
   });
 });
+
+describe('the live value', () => {
+  it('shows blinkDelay on the steps that declare it, and nothing on simple', () => {
+    expect(blinkSimple.live).toBeUndefined();
+    for (const step of [blinkInput, blinkTimer, blinkCommands]) {
+      expect(step.live?.name).toBe('blinkDelay');
+      expect(readStepSource(step.sketch)).toMatch(/^int blinkDelay = 1000;$/m);
+      expect(step.live?.value({ ...step.program.init(), blinkDelay: 300 })).toBe('300');
+    }
+  });
+});

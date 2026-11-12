@@ -329,6 +329,43 @@ test.describe('the Blink workbench', () => {
     await expect(button(page, 'Continue')).toBeVisible();
   });
 
+  test('highlights a watch value briefly when it changes, but not the clock', async ({ page }) => {
+    const led = watchValue(page, 'LED');
+    await expect(led).not.toHaveAttribute('data-changed');
+    // led.write(HIGH) runs at 3000 ms in slow mode.
+    await page.clock.runFor(3050);
+    await expect(led).toHaveText('HIGH');
+    await expect(led).toHaveAttribute('data-changed');
+    await expect(led).toHaveCSS('background-color', 'rgb(247, 201, 72)');
+    await page.clock.runFor(1000);
+    await expect(led).not.toHaveAttribute('data-changed');
+
+    await tab(page, '3 timer').click();
+    await expect(led).not.toHaveAttribute('data-changed');
+    await page.clock.runFor(2600);
+    await expect(watchValue(page, 'millis()')).not.toHaveText('0');
+    await expect(watchValue(page, 'millis()')).not.toHaveAttribute('data-changed');
+  });
+
+  test('shows the live delay in the code at a width that holds every value', async ({ page }) => {
+    await expect(visibleCode(page).locator('[data-live]')).toHaveCount(0);
+    await tab(page, '2 input').click();
+    const live = visibleCode(page).locator('[data-live]');
+    await expect(live).toHaveText('1000');
+    const declaration = String(lineNumber(source('sketches/blink/input'), 'int blinkDelay = 1000;'));
+    await expect(visibleCode(page).locator(`[data-line="${declaration}"] [data-live]`)).toHaveCount(1);
+    await expect(live).toHaveCSS('background-color', 'rgb(247, 201, 72)');
+
+    // Layout only: the value changes when a sent number is applied, which the send area drives.
+    await button(page, 'Pause').click();
+    const widths: number[] = [];
+    for (const value of ['100', '2000', '1000']) {
+      await live.evaluate((element, text) => (element.textContent = text), value);
+      widths.push((await live.boundingBox())!.width);
+    }
+    expect(new Set(widths).size).toBe(1);
+  });
+
   test('moves between tabs with the arrow keys and shows the focus', async ({ page }) => {
     await tab(page, '1 simple').focus();
     await page.keyboard.press('ArrowRight');
