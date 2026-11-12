@@ -220,6 +220,8 @@ const manifest = readManifest();
     /** Once a board answers, its chip is certain: the pick follows it, and says so when the visitor picked another. */
     function followChip() {
       const state = session.state;
+      // The notice is about the board that answered; it goes with that board.
+      if (state.kind === 'idle') notice.hidden = true;
       if (!('chip' in state)) return;
       const picked = pick.model;
       const answering = modelAnswering(picked, state.chip);

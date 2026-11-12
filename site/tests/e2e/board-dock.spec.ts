@@ -194,6 +194,18 @@ test.describe('the board pick', () => {
     );
   });
 
+  test('drops the note once the board that answered is disconnected', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ chip: 'ESP32', lines: ['sketch blink/input'] });
+    await page.goto('/robomania/learn/');
+    await pick(page).selectOption({ label: 'ESP-01S' });
+    await dock(page).getByRole('button', { name: 'Connect board' }).click();
+    await expect(dock(page).getByRole('status')).toBeVisible();
+
+    await dock(page).getByRole('button', { name: 'Disconnect' }).click();
+
+    await expect(dock(page).getByRole('status')).toBeHidden();
+  });
+
   test('takes the board from the chip that answers when none was picked', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ chip: 'ESP8266', lines: ['sketch web-relay'] });
     await page.goto('/robomania/learn/');
