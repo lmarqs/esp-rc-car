@@ -22,7 +22,8 @@ The sketch sweeps a positional hobby servo from end to end.
 
 ## Run it on your board
 
-Wire the servo's signal to GPIO 13. The card above flashes this sketch onto your board from Chrome or Edge on a computer, with no tools installed. To build and flash it yourself, run from the repository's root:
+Wire the servo's signal to GPIO 13. The card above flashes this sketch onto your board from Chrome or Edge on a
+computer, with no tools installed. To build and flash it yourself, run from the repository's root:
 
 ```sh
 mise run arduino:run sketches/servo --port /dev/ttyUSB0
