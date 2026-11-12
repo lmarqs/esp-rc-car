@@ -107,7 +107,9 @@ values first, flashes the board, and once the board has reset reads its serial o
 take effect. A sketch with no baud prints nothing, so its card flashes without settings. The session also serves a
 workbench that shares one connection for control and flashing: `connect` with `reset` restarts the board without
 flashing, `subscribeLines` delivers every line the board prints with its arrival time, `sendLine` writes a line, and
-the `flash` event flashes a manifest key on the open port and keeps reading. The tests, in `site/tests`,
+the `flash` event flashes a manifest key on the open port and keeps reading. Once the board names the selected step,
+the workbench follows it: the board pane is drawn from the lines the board prints, and what the visitor sends goes
+to the board. Pause, Step or Restart hands the pane back to the simulator with the port still open. The tests, in `site/tests`,
 run the card in a browser against a fake serial port.
 
 The workflow publishes a new site version to GitHub Pages, at <https://lmarqs.github.io/robomania/>, when a push to

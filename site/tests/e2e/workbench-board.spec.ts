@@ -26,10 +26,11 @@ async function expectColour(page: Page, colour: { dot: string; core: string }) {
   expect(await statusLine(page).evaluate((element) => getComputedStyle(element, '::before').backgroundColor)).toBe(colour.dot);
 }
 
-/** The icon the button shows: `plug` or `bolt`. */
+/** The icon the button shows: `plug`, `bolt` or `back`. */
 async function icon(page: Page) {
   if (await boardButton(page).locator('.i-plug').isVisible()) return 'plug';
   if (await boardButton(page).locator('.i-bolt').isVisible()) return 'bolt';
+  if (await boardButton(page).locator('.i-back').isVisible()) return 'back';
   return 'none';
 }
 
@@ -340,6 +341,17 @@ test.describe('the rail', () => {
       },
     },
     {
+      name: 'Back to live',
+      options: { lines: ['sketch blink/simple'] },
+      reach: async (page) => {
+        await connect(page);
+        await expect(status(page)).toHaveText('Live');
+        await bench(page).getByRole('toolbar', { name: 'Debugger' }).getByRole('button', { name: 'Pause' }).click();
+        await expect(boardButton(page)).toHaveAccessibleName('Back to live');
+        expect(await icon(page)).toBe('back');
+      },
+    },
+    {
       name: 'Runs step 4',
       options: { lines: ['sketch blink/commands'] },
       reach: async (page) => {
@@ -382,6 +394,7 @@ test.describe('the rail', () => {
 
       expect(await railBoxes(page)).toEqual(simulated);
       expect(await fits(statusLine(page))).toBe(true);
+      expect(await fits(boardButton(page))).toBe(true);
     });
   }
 

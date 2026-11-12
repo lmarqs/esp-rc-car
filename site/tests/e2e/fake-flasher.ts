@@ -42,6 +42,8 @@ export interface FakeFlasher {
   calls(): Promise<string[]>;
   /** The paths of the parts each `load` was given, in order. */
   loaded(): Promise<string[][]>;
+  /** Makes the board print `lines` now, one call each, as a running sketch does; nothing while no monitor reads. */
+  print(...lines: string[]): Promise<void>;
 }
 
 /**
@@ -154,6 +156,11 @@ function installFakeFlasher(options: FakeFlasherOptions) {
   Object.defineProperty(window, '__fakeFlasherCalls', { value: calls });
   Object.defineProperty(window, '__fakeFlasherLoaded', { value: loaded });
   Object.defineProperty(window, '__fakeFlasherRelease', { value: release });
+  Object.defineProperty(window, '__fakeFlasherPrint', {
+    value: (lines: string[]) => {
+      for (const line of lines) printLines([line]);
+    },
+  });
 }
 
 function fakeFlasherFor(page: Page): FakeFlasher {
@@ -162,6 +169,11 @@ function fakeFlasherFor(page: Page): FakeFlasher {
     release: () => page.evaluate(() => (window as unknown as { __fakeFlasherRelease: () => void }).__fakeFlasherRelease()),
     calls: () => page.evaluate(() => (window as unknown as { __fakeFlasherCalls: string[] }).__fakeFlasherCalls),
     loaded: () => page.evaluate(() => (window as unknown as { __fakeFlasherLoaded: string[][] }).__fakeFlasherLoaded),
+    print: (...lines) =>
+      page.evaluate(
+        (printed) => (window as unknown as { __fakeFlasherPrint: (lines: string[]) => void }).__fakeFlasherPrint(printed),
+        lines,
+      ),
   };
 }
 

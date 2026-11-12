@@ -104,6 +104,7 @@ const simulated = boardStatusText({ kind: 'simulated' });
               <path d="M6 1.6v3M10 1.6v3M4 4.6h8v2.6a4 4 0 0 1-8 0zM8 11.2v3.2" />
             </svg>
             <svg class="i-bolt" viewBox="0 0 16 16" aria-hidden="true"><path d="M9.4 1 3.4 9.2h3.9L6.4 15l6.2-8.4H8.6z" /></svg>
+            <svg class="i-back" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 2.6 2.6 6.2l3.6 3.6M3 6.2h6.4a3.6 3.6 0 0 1 0 7.2H7.4" /></svg>
             <span data-board-action-label>Connect</span>
           </button>
         )
@@ -312,6 +313,7 @@ const simulated = boardStatusText({ kind: 'simulated' });
           </p>
         ))
       }
+      <p class="notice" role="status" data-other-step hidden></p>
     </div>
   </div>
 </section>
@@ -356,9 +358,9 @@ const simulated = boardStatusText({ kind: 'simulated' });
   .connbtn:active:not([aria-disabled="true"]) { transform: translateY(3px); box-shadow: 0 0 0 var(--ink); }
   .connbtn[aria-disabled="true"] { opacity: .6; cursor: default; }
   .connbtn svg { width: 15px; height: 15px; flex: none; }
-  .connbtn .i-plug path { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .connbtn :is(.i-plug, .i-back) path { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .connbtn .i-bolt path { fill: currentColor; }
-  .connbtn[data-icon="plug"] .i-bolt, .connbtn[data-icon="bolt"] .i-plug { display: none; }
+  .connbtn:not([data-icon="plug"]) .i-plug, .connbtn:not([data-icon="bolt"]) .i-bolt, .connbtn:not([data-icon="back"]) .i-back { display: none; }
   .needs { position: relative; flex: none; width: 138px; margin: 0; font-size: 12px; line-height: 1.25; color: var(--muted); }
 
   .panes { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
@@ -464,6 +466,8 @@ const simulated = boardStatusText({ kind: 'simulated' });
   .prompt { color: var(--yellow); }
   .cmd input { flex: 1; min-width: 0; padding: 8px 0; border: 0; background: transparent; color: var(--card); font: inherit; outline: none; }
   .cmd input::placeholder { color: var(--faint); }
+  .cmd :disabled, .shortcuts :disabled { cursor: default; }
+  .send:disabled, .shortcuts :disabled { opacity: .45; }
   .cmd input[data-typing] { color: var(--yellow); }
   .cmd:has(input:focus-visible) { box-shadow: inset 0 0 0 2px var(--blue); }
   .send { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-family: var(--sans); font-size: 13px; font-weight: 700; line-height: 1.5; color: var(--ink); background: var(--yellow); border: 0; border-radius: 6px; padding: 4px 12px; cursor: pointer; }
@@ -472,13 +476,14 @@ const simulated = boardStatusText({ kind: 'simulated' });
   .shortcuts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 8px 12px 8px 14px; border-top: 1px solid var(--on-ink-line); background: var(--ink-raised); color: var(--on-ink); }
   .chips { display: flex; gap: 6px; }
   .chip { font: inherit; font-size: 13px; line-height: 1.5; color: var(--on-ink); background: transparent; border: 1px solid var(--on-ink-edge); border-radius: 6px; padding: 2px 10px; cursor: pointer; }
-  .chip:hover { border-color: var(--yellow); color: var(--yellow); }
+  .chip:hover:not(:disabled) { border-color: var(--yellow); color: var(--yellow); }
   .chip:focus-visible, .slider input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
   .slider { display: flex; flex: 1 1 220px; align-items: center; gap: 8px; min-width: 0; }
   .slider input { flex: 1; min-width: 80px; margin: 0; accent-color: var(--yellow); }
   /* Four digits, the most the value has, so the slider keeps its length as the value changes. */
   .slider output { min-width: 4ch; text-align: right; color: var(--card); }
   .hint { font-size: 13px; color: var(--muted); margin: 0; }
+  .board > .notice { margin: 0; font-size: 14px; }
   .problem { margin: 0; padding: 8px 12px; border: 1.5px solid var(--ink); border-radius: 10px; font-size: 14px; font-weight: 600; }
 </style>
 
@@ -489,18 +494,22 @@ const simulated = boardStatusText({ kind: 'simulated' });
   import { tabAfterKey } from '../../lib/workbench/tabs';
   import type { WatchRow } from '../../lib/workbench/board';
   import type { StepDefinition } from '../../lib/workbench/step';
+  import type { BoardStatus } from '../../lib/workbench/link';
   import { createTypist } from '../../lib/workbench/typist';
   import { emptyTrace, recordEffects, traceShape, traceTime, type Trace } from '../../lib/workbench/trace';
   import { createFlasher, createSession, type Manifest } from '../../lib/flash';
-  import { boardAction, boardStatus, sketchOf, type BoardAction } from '../../lib/workbench/link';
+  import { boardAction, boardStatus, paneMode, sketchOf, type BoardAction, type PaneMode } from '../../lib/workbench/link';
+  import { follow, receive, send as sendFollowed, type Followed } from '../../lib/workbench/live';
   import {
     boardMessage,
     boardStatusText,
     changedRows,
     CLOCK_DASH,
     clockFace,
-    debuggerControls,
+    OTHER_STEP_PLACEHOLDER,
+    otherStepNotice,
     serialRows,
+    toolbar,
   } from './view';
 
   /** How long a watch value stays highlighted after it changes. */
@@ -527,6 +536,9 @@ const simulated = boardStatusText({ kind: 'simulated' });
     const serialLines = [...root.querySelectorAll<HTMLElement>('[data-serial-line]')];
     const command = root.querySelector<HTMLFormElement>('[data-command]')!;
     const commandLine = root.querySelector<HTMLInputElement>('[data-command-line]')!;
+    const sendButton = command.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    const shortcutControls = [...root.querySelectorAll<HTMLButtonElement | HTMLInputElement>('[data-shortcut]')];
+    const otherStep = root.querySelector<HTMLElement>('[data-other-step]')!;
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
     const pauseButton = root.querySelector<HTMLButtonElement>('[data-pause]')!;
     const pauseLabel = root.querySelector<HTMLElement>('[data-pause-label]')!;
@@ -574,6 +586,11 @@ const simulated = boardStatusText({ kind: 'simulated' });
     let slow: boolean = OPENING.slow;
     // Whether the visitor wants the sketch running: Pause and Step stop it, Continue and a tab pick start it.
     let keepRunning: boolean = OPENING.running;
+    let mode: PaneMode = 'simulator';
+    // Set when the visitor paused, stepped or restarted while live: the simulator keeps the pane until Back to live.
+    let detached = false;
+    // The real board as its lines tell it, while the pane follows it.
+    let followed: Followed<unknown> | undefined;
 
     function select(index: number) {
       selected = index;
@@ -588,7 +605,6 @@ const simulated = boardStatusText({ kind: 'simulated' });
       for (const element of perStep) element.hidden = element.dataset.forStep !== String(index);
       commandLine.placeholder = chosen.placeholder;
       if (session.state.kind === 'running') dismissedRefusal = session.state.flashRefused;
-      showLink();
       clearCommandLine();
       resetWatch();
 
@@ -596,9 +612,14 @@ const simulated = boardStatusText({ kind: 'simulated' });
       board = project!.board.initial();
       trace = emptyTrace();
       keepRunning = OPENING.running;
+      mode = 'simulator';
+      detached = false;
+      followed = undefined;
       runner = openRunner(
         chosen,
         (next, effects) => {
+          // While the pane follows the board, the simulator waits, paused, and its notices are not the pane's.
+          if (mode !== 'simulator') return;
           board = project!.board.simulate(board, next.state, effects, next.millis);
           // A line is sent between two lines of the program, part way through the one under way.
           const sentAt = traceTime(next, runner?.progress() ?? 0, reducedMotion.matches);
@@ -609,7 +630,52 @@ const simulated = boardStatusText({ kind: 'simulated' });
         { slow },
       );
       view = runner.view();
+      // Picking the step the board runs follows the board at once.
+      showLink();
       draw();
+    }
+
+    /** Hands the pane to the board, from the next line it prints; the simulator waits, paused. */
+    function startFollowing() {
+      runner?.pause();
+      followed = follow(project!.board);
+      resetWatch();
+    }
+
+    /** Hands the pane to a fresh simulator at the sketch's first line, running if the visitor wants it running. */
+    function startSimulator() {
+      followed = undefined;
+      board = project!.board.initial();
+      trace = emptyTrace();
+      resetWatch();
+      runner?.restart();
+      if (keepRunning) runner?.run();
+    }
+
+    /** Puts the pane where the board's status and the visitor's last choice say it goes. */
+    function syncMode(status: BoardStatus) {
+      if (status.kind !== 'live') detached = false;
+      const next = paneMode(status, detached);
+      if (next === mode) return;
+      const was = mode;
+      mode = next;
+      if (next === 'simulator') startSimulator();
+      else if (was === 'simulator') startFollowing();
+      draw();
+    }
+
+    /** Pause, Step or Restart pressed while live: the simulator takes the pane, and the board keeps its port. */
+    function detach() {
+      detached = true;
+      mode = 'simulator';
+      startSimulator();
+      showLink();
+    }
+
+    /** The step the followed board runs, whose lines the pane reads: the selected one unless the board runs another. */
+    function followedStep(): StepDefinition<unknown, unknown> {
+      if (mode === 'live') return definition!;
+      return project!.steps.find((step) => step.key === heard) ?? definition!;
     }
 
     function draw() {
@@ -620,8 +686,11 @@ const simulated = boardStatusText({ kind: 'simulated' });
       frame = 0;
       if (view === undefined) return;
       const step = steps[selected];
-      picture.classList.toggle('on', project!.board.lit(board));
-      const rows = project!.board.watch(step.key, board, view.millis);
+      const shown = mode === 'simulator' ? undefined : followed;
+      const shownBoard = shown?.board ?? board;
+      picture.classList.toggle('on', project!.board.lit(shownBoard));
+      // A real board's clock is unknown: it prints no time.
+      const rows = project!.board.watch(step.key, shownBoard, shown === undefined ? view.millis : undefined);
       for (const [name, element] of watchRows) {
         const row = rows.find((candidate) => candidate.name === name);
         element.hidden = row === undefined;
@@ -629,23 +698,30 @@ const simulated = boardStatusText({ kind: 'simulated' });
       }
       for (const name of changedRows(shownRows, rows, project!.board.steady)) highlight(name);
       shownRows = rows;
-      const serialText = serialRows(view.output);
+      const serialText = serialRows(shown?.output ?? view.output);
       serialLines.forEach((element, at) => {
         element.textContent = serialText[at]?.text ?? '';
         element.toggleAttribute('data-sent', serialText[at]?.sent ?? false);
       });
-      const controls = debuggerControls(view.status, view.error);
+      const controls = toolbar(mode, view.status, view.error, view.slow);
       pauseButton.classList.toggle('is-paused', controls.paused);
       pauseLabel.textContent = controls.label;
       pauseButton.disabled = !controls.canContinue;
       stepButton.disabled = !controls.canStep;
-      slowButton.setAttribute('aria-pressed', String(view.slow));
+      restartButton.disabled = !controls.canRestart;
+      slowButton.disabled = !controls.canSlow;
+      slowButton.setAttribute('aria-pressed', String(controls.slow));
       problem.hidden = controls.problem === undefined;
       problem.textContent = controls.problem ?? '';
-      const running = view.line === undefined ? undefined : lineNumber(step.source, view.line, view.occurrence);
+      const at = shown === undefined ? { text: view.line, occurrence: view.occurrence } : arrowOf(shown);
+      const running = at.text === undefined ? undefined : lineNumber(step.source, at.text, at.occurrence);
       const code = root.querySelector<HTMLElement>(`[data-code][data-for-step="${selected}"]`)!;
       const live = code.querySelector('[data-live]');
-      if (live !== null && definition?.live !== undefined) live.textContent = definition.live.value(view.state);
+      if (live !== null && definition?.live !== undefined) {
+        const value =
+          shown === undefined ? definition.live.value(view.state) : project!.board.variable(shown.board, definition.live.name);
+        if (value !== undefined) live.textContent = value;
+      }
       const before = code.querySelector('[data-running]');
       const row = running === undefined ? null : code.querySelector(`[data-line="${running}"]`);
       if (before !== row) {
@@ -654,13 +730,24 @@ const simulated = boardStatusText({ kind: 'simulated' });
         if (before !== null) showClock(before.querySelector('[data-pie]'), { waiting: false, fill: 0 });
       }
       const progress = runner?.progress() ?? 0;
-      const face = clockFace(view, progress, reducedMotion.matches);
+      // A real board's wait is not timed by the page, so the clock stays empty while the pane follows it.
+      const face = shown === undefined ? clockFace(view, progress, reducedMotion.matches) : { waiting: false, fill: 0 };
       showClock(row?.querySelector('[data-pie]') ?? null, face);
-      const shape = traceShape(trace, traceTime(view, progress, reducedMotion.matches), traceWidth);
+      const shape =
+        shown === undefined
+          ? traceShape(trace, traceTime(view, progress, reducedMotion.matches), traceWidth)
+          : traceShape(shown.trace, Date.now(), traceWidth);
       for (const [part, path] of Object.entries(tracePaths)) path.setAttribute('d', shape[part as keyof typeof shape]);
       // The clock fills and the trace scrolls between the runner's notifications, so they are painted on every frame.
-      const moving = view.status === 'running' && (face.waiting || view.cost > 0);
+      const moving = shown !== undefined || (view.status === 'running' && (face.waiting || view.cost > 0));
       if (moving && !reducedMotion.matches) draw();
+    }
+
+    /** Where the arrow sits on the followed board: only live, and only on a step whose lines place it. */
+    function arrowOf(shown: Followed<unknown>): { text: string | undefined; occurrence: number } {
+      const ref = mode === 'live' ? shown.arrow : undefined;
+      if (ref === undefined || typeof ref === 'string') return { text: ref, occurrence: 1 };
+      return { text: ref.text, occurrence: ref.occurrence };
     }
 
     /** Marks a watch value that just changed for a moment. */
@@ -686,9 +773,20 @@ const simulated = boardStatusText({ kind: 'simulated' });
       fill.style.strokeDasharray = `${face.fill * CLOCK_DASH} ${CLOCK_DASH}`;
     }
 
-    /** Sends a line the visitor typed or a shortcut typed for them to the sketch's serial input. */
+    /**
+     * Sends a line the visitor typed or a shortcut typed for them to the sketch's serial input: the simulator's, or the
+     * board's while live. A board that runs another sketch takes none.
+     */
     function sendToBoard(text: string) {
-      runner?.send(text);
+      if (mode === 'simulator') {
+        runner?.send(text);
+        return;
+      }
+      if (mode !== 'live' || followed === undefined) return;
+      followed = sendFollowed(followed, definition!, project!.tracedPin, text, Date.now());
+      draw();
+      // A write the port refuses means the board went away, which the session reports through its state.
+      session.sendLine(text).catch(() => {});
     }
 
     /** Shows `text` in the command line in yellow: typed by a shortcut, or about to be sent by the slider. */
@@ -770,6 +868,10 @@ const simulated = boardStatusText({ kind: 'simulated' });
     }
 
     pauseButton.addEventListener('click', () => {
+      if (mode === 'live') {
+        keepRunning = false;
+        return detach();
+      }
       if (runner?.view().status === 'running') {
         keepRunning = false;
         runner.pause();
@@ -780,9 +882,11 @@ const simulated = boardStatusText({ kind: 'simulated' });
     });
     stepButton.addEventListener('click', () => {
       keepRunning = false;
+      if (mode === 'live') return detach();
       runner?.step();
     });
     restartButton.addEventListener('click', () => {
+      if (mode === 'live') return detach();
       if (runner === undefined) return;
       board = project!.board.initial();
       trace = emptyTrace();
@@ -815,6 +919,7 @@ const simulated = boardStatusText({ kind: 'simulated' });
       const state = session.state;
       const key = steps[selected].key;
       const status = boardStatus(state, heard, key, stepKeys);
+      syncMode(status);
       const text = boardStatusText(status);
       cell.dataset.status = status.kind;
       // Set only on a change, since the status is a live region.
@@ -822,7 +927,7 @@ const simulated = boardStatusText({ kind: 'simulated' });
       if (statusSentence.textContent !== `: ${text.title}`) statusSentence.textContent = `: ${text.title}`;
       statusText.title = text.title;
 
-      const action = boardAction(state, heard, key, pressed);
+      const action = boardAction(state, heard, key, pressed, detached);
       needsBrowser.hidden = action !== undefined;
       if (actionButton !== null && actionLabel !== null) {
         actionButton.hidden = action === undefined;
@@ -847,23 +952,41 @@ const simulated = boardStatusText({ kind: 'simulated' });
         progressFill.style.width = `${shown.progress}%`;
         progressText.textContent = `${shown.progress}%`;
       }
+
+      // A board that runs another sketch takes no line from the page.
+      const usable = mode !== 'other';
+      commandLine.disabled = !usable;
+      sendButton.disabled = !usable;
+      for (const control of shortcutControls) control.disabled = !usable;
+      commandLine.placeholder = usable ? definition!.placeholder : OTHER_STEP_PLACEHOLDER;
+      const notice = otherStepNotice(status, key);
+      otherStep.hidden = notice === undefined;
+      if (otherStep.textContent !== (notice ?? '')) otherStep.textContent = notice ?? '';
     }
 
     session.subscribe((state) => {
       if (state.kind === 'connecting') heard = undefined;
       showLink();
     });
-    session.subscribeLines(({ text }) => {
+    session.subscribeLines(({ text, at }) => {
       const key = sketchOf(text);
-      if (key === undefined || key === heard) return;
-      heard = key;
-      showLink();
+      if (key !== undefined && key !== heard) {
+        heard = key;
+        showLink();
+      }
+      // Lines the board prints while the simulator has the pane are not shown, nor kept for later.
+      if (followed === undefined) return;
+      followed = receive(followed, followedStep(), project!.board, project!.tracedPin, text, at);
+      draw();
     });
     actionButton?.addEventListener('click', () => {
-      const action = boardAction(session.state, heard, steps[selected].key, pressed);
+      const action = boardAction(session.state, heard, steps[selected].key, pressed, detached);
       if (action === undefined || action.disabled) return;
       pressed = action;
-      if (action.event === 'connect') {
+      if (action.event === 'live') {
+        detached = false;
+        showLink();
+      } else if (action.event === 'connect') {
         void session.send({ type: 'connect', reset: true });
       } else {
         flashedKey = steps[selected].key;

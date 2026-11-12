@@ -6,6 +6,8 @@ import {
   clockFace,
   codeRows,
   debuggerControls,
+  otherStepNotice,
+  toolbar,
   crumbs,
   fileName,
   serialRows,
@@ -201,5 +203,57 @@ describe('boardMessage', () => {
       notice: true,
     });
     expect(boardMessage(refused, 'blink/input', false)).toBeUndefined();
+  });
+});
+
+describe('toolbar', () => {
+  it('is the simulator’s run, with Restart and Slow, in the simulator', () => {
+    expect(toolbar('simulator', 'paused', undefined, true)).toEqual({
+      ...debuggerControls('paused'),
+      canRestart: true,
+      canSlow: true,
+      slow: true,
+    });
+    expect(toolbar('simulator', 'running', undefined, false).slow).toBe(false);
+  });
+
+  it('offers Pause, Step and Restart live, with Slow off and disabled, whatever the simulator was doing', () => {
+    expect(toolbar('live', 'paused', undefined, true)).toEqual({
+      paused: false,
+      label: 'Pause',
+      canContinue: true,
+      canStep: true,
+      canRestart: true,
+      canSlow: false,
+      slow: false,
+    });
+  });
+
+  it('disables every button on a board that runs another sketch', () => {
+    expect(toolbar('other', 'running', undefined, true)).toEqual({
+      paused: false,
+      label: 'Pause',
+      canContinue: false,
+      canStep: false,
+      canRestart: false,
+      canSlow: false,
+      slow: false,
+    });
+  });
+});
+
+describe('otherStepNotice', () => {
+  it('names the step the board runs and the one to flash, by their full keys', () => {
+    expect(otherStepNotice({ kind: 'step', key: 'blink/simple', number: 1 }, 'blink/input')).toBe(
+      'Your board runs blink/simple. Flash blink/input to control it from here.',
+    );
+    expect(otherStepNotice({ kind: 'sketch', key: 'servo/sweep' }, 'blink/input')).toBe(
+      'Your board runs servo/sweep. Flash blink/input to control it from here.',
+    );
+  });
+
+  it('says nothing while simulated or live', () => {
+    expect(otherStepNotice({ kind: 'simulated' }, 'blink/input')).toBeUndefined();
+    expect(otherStepNotice({ kind: 'live' }, 'blink/input')).toBeUndefined();
   });
 });

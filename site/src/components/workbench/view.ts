@@ -3,7 +3,7 @@ import type { WatchRow } from '../../lib/workbench/board';
 import type { OutputLine, RunnerView, RunStatus } from '../../lib/workbench/simulator';
 import { sketchSourcePath } from '../../lib/workbench/source';
 import { wording, type SessionState } from '../../lib/flash';
-import type { BoardStatus } from '../../lib/workbench/link';
+import type { BoardStatus, PaneMode } from '../../lib/workbench/link';
 
 /** How many lines of serial output the terminal shows, the newest at the bottom. */
 export const SERIAL_LINES = 6;
@@ -120,6 +120,41 @@ export function debuggerControls(status: RunStatus, error?: unknown): DebuggerCo
   if (status === 'error') return { ...controls, problem: `The simulator stopped: ${reason(error)}. Restart to try again.` };
   if (status === 'ended') return { ...controls, problem: 'The sketch has ended. Restart to run it again.' };
   return controls;
+}
+
+/** The toolbar's buttons as the board pane follows a real board: which work, and whether Slow shows pressed. */
+export interface Toolbar extends DebuggerControls {
+  readonly canRestart: boolean;
+  readonly canSlow: boolean;
+  readonly slow: boolean;
+}
+
+/**
+ * The toolbar for the pane's `mode`. The simulator's comes from its run, `status` and `error`, with its `slow` setting.
+ * Live, Pause, Step and Restart hand the pane to the simulator, and Slow, which a real board cannot follow, is off.
+ * On a board that runs another sketch, nothing in the toolbar applies.
+ */
+export function toolbar(mode: PaneMode, status: RunStatus, error: unknown, slow: boolean): Toolbar {
+  switch (mode) {
+    case 'simulator':
+      return { ...debuggerControls(status, error), canRestart: true, canSlow: true, slow };
+    case 'live':
+      return { ...debuggerControls('running'), canRestart: true, canSlow: false, slow: false };
+    case 'other':
+      return { paused: false, label: 'Pause', canContinue: false, canStep: false, canRestart: false, canSlow: false, slow: false };
+  }
+}
+
+/** The command line's placeholder while the board runs another sketch, which takes no line from the page. */
+export const OTHER_STEP_PLACEHOLDER = 'the board runs another step';
+
+/**
+ * What the board pane says when the board runs a sketch other than the `selected` step: which one, in full, and that
+ * flashing the selected step lets the page control it. `undefined` for any other status.
+ */
+export function otherStepNotice(status: BoardStatus, selected: string): string | undefined {
+  if (status.kind !== 'step' && status.kind !== 'sketch') return undefined;
+  return `Your board runs ${status.key}. Flash ${selected} to control it from here.`;
 }
 
 function reason(error: unknown): string {
