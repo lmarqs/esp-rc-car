@@ -17,15 +17,15 @@ jobs:
       - id: library
         run: echo "version=$(sed -n 's/^version=//p' lib/library.properties)" >> "$GITHUB_OUTPUT"
       - run: |
-          mkdir -p dist/Robomania
-          cp lib/* dist/Robomania/
-          cd dist && zip -qr "robomania-$VERSION.zip" Robomania
+          mkdir -p dist/robomania
+          cp lib/* dist/robomania/
+          cd dist && zip -qr "robomania-$VERSION.zip" robomania
         env:
           VERSION: ${{ steps.library.outputs.version }}
       - run: >
           gh release create "lib-v$VERSION" "dist/robomania-$VERSION.zip"
           --target "$GITHUB_SHA"
-          --title "Robomania library $VERSION"
+          --title "robomania library $VERSION"
           --notes "Install with \`ARDUINO_LIBRARY_ENABLE_UNSAFE_INSTALL=true arduino-cli lib install --zip-path robomania-$VERSION.zip\`, or in the Arduino IDE with Sketch > Include Library > Add .ZIP Library."
         env:
           GH_TOKEN: ${{ github.token }}
