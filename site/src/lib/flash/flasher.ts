@@ -2,6 +2,14 @@ import type { ESPLoader, Transport } from 'esptool-js';
 import { createLineSplitter } from './lines';
 import type { ManifestPart } from './manifest';
 
+export interface MonitorOptions {
+  /**
+   * Restarts the board into its sketch once the port is open at `baud` and being read, so the first line the sketch
+   * prints is not missed. Replaces `reset`: a board that `reset` already restarted may print before the reading starts.
+   */
+  restart?: boolean;
+}
+
 export interface ConnectOptions {
   reusePort?: boolean;
 }
@@ -28,9 +36,10 @@ export interface Flasher {
   reset(): Promise<void>;
   /**
    * Reads what the sketch prints, at the sketch's own `baud`, and calls `onLines` with the lines each piece of text
-   * completes, blank lines included. Call it after `reset`. Resolves once `disconnect` has released the port or the port is lost.
+   * completes, blank lines included. Call it after `reset`, or with `restart` instead of it. Resolves once
+   * `disconnect` has released the port or the port is lost.
    */
-  monitor(baud: number, onLines: (lines: string[]) => void): Promise<void>;
+  monitor(baud: number, onLines: (lines: string[]) => void, options?: MonitorOptions): Promise<void>;
   /** Writes `line` and a line break to the sketch, at the baud `monitor` reads at. Rejects while `monitor` is not reading. */
   send(line: string): Promise<void>;
   /** Releases the port. Never rejects. */
@@ -61,6 +70,19 @@ const RECOVERABLE_READ_ERRORS: ReadonlySet<string> = new Set([
 
 function isRecoverable(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'name' in error && RECOVERABLE_READ_ERRORS.has(String(error.name));
+}
+
+const RESTART_PULSE_MS = 100;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Pulls RTS and releases it after the pulse, which is the edge on EN that restarts the board. */
+async function pulseRts(transport: Transport): Promise<void> {
+  await transport.setRTS(true);
+  await sleep(RESTART_PULSE_MS);
+  await transport.setRTS(false);
 }
 
 const silentTerminal = { clean() {}, write() {}, writeLine() {} };
@@ -155,7 +177,11 @@ export class EsptoolFlasher implements Flasher {
     await loader.after('hard_reset');
   }
 
-  async monitor(baud: number, onLines: (lines: string[]) => void): Promise<void> {
+  async monitor(
+    baud: number,
+    onLines: (lines: string[]) => void,
+    { restart = false }: MonitorOptions = {},
+  ): Promise<void> {
     const transport = this.transport;
     const port = this.port;
     if (!transport || !port) {
@@ -176,6 +202,11 @@ export class EsptoolFlasher implements Flasher {
     const decoder = new TextDecoder();
     const splitter = createLineSplitter({ keepBlank: true });
     try {
+      if (restart) {
+        // The pulse of esptool-js's hard reset after the reset's pull of RTS, with the reader already waiting. DTR
+        // stays released, so IO0 stays high and the board restarts into the sketch, not the bootloader.
+        await pulseRts(transport);
+      }
       for (;;) {
         try {
           const { value, done } = await reader.read();

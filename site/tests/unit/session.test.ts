@@ -59,9 +59,12 @@ function fakeFlasher(options: FakeFlasherOptions = {}): FakeFlasher {
       onLines!(lines);
     },
     endMonitor: (error) => endMonitor(error),
-    async monitor(baud, listener) {
+    async monitor(baud, listener, monitorOptions) {
       calls.push(`monitor ${baud}`);
       onLines = listener;
+      if (monitorOptions?.restart) {
+        calls.push('restart');
+      }
       await new Promise<void>((resolve, reject) => {
         endMonitor = (error) => (error === undefined ? resolve() : reject(error));
       });
@@ -1226,6 +1229,26 @@ describe('the lines of the board and the workbench connection', () => {
       await flashing;
     });
 
+    it('rejects while the session talks settings with the board, so a line cannot interleave with it', async () => {
+      const listing = ['cfg ap_ssid=web-relay', 'cfg ap_password=x', 'cfg low=0', 'cfg high=0', 'cfg end'];
+      const flasher = fakeFlasher({ answer: (line) => (line === 'cfg get' ? listing : []) });
+      const session = createSession({ flasher, manifest, sketch: 'web-relay', baud: 115200 });
+      await session.send({ type: 'connect' });
+      await session.send({ type: 'submitSettings', values: DEFAULTS });
+      const attempts: Promise<void>[] = [];
+      session.subscribe((state) => {
+        if (state.kind === 'reading' || state.kind === 'applying') attempts.push(session.sendLine('HIGH'));
+      });
+
+      await session.send({ type: 'changeSettings' });
+
+      expect(attempts.length).toBeGreaterThan(0);
+      for (const attempt of attempts) {
+        await expect(attempt).rejects.toThrow('Not reading the board.');
+      }
+      expect(flasher.calls).not.toContain('send HIGH');
+    });
+
     it('passes on the rejection of a port that refuses the line', async () => {
       const { flasher, session } = await attached();
       const refusal = new Error('port closed');
@@ -1238,10 +1261,20 @@ describe('the lines of the board and the workbench connection', () => {
   });
 
   describe('connect with reset', () => {
-    it('restarts the board with the flasher\'s reset and reads it, flashing nothing', async () => {
+    it('restarts the board once the monitor reads, so the first line is not missed, flashing nothing', async () => {
       const { flasher, session } = await attached();
 
-      expect(flasher.calls).toEqual(['connect', 'reset', 'monitor 115200']);
+      expect(flasher.calls).toEqual(['connect', 'monitor 115200', 'restart']);
+      expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [] });
+    });
+
+    it('resets the board with the flasher\'s reset when there is no baud to read at', async () => {
+      const flasher = fakeFlasher();
+      const session = createSession({ flasher, manifest, sketch: 'servo' });
+
+      await session.send({ type: 'connect', reset: true });
+
+      expect(flasher.calls).toEqual(['connect', 'reset']);
       expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [] });
     });
 
@@ -1264,9 +1297,9 @@ describe('the lines of the board and the workbench connection', () => {
       expect(session.state).toEqual({ kind: 'running', chip: 'ESP8266', output: [] });
     });
 
-    it('reports a board that cannot be restarted as a drop at 0 and releases the port', async () => {
+    it('reports a board that cannot be reset as a drop at 0 and releases the port', async () => {
       const flasher = fakeFlasher({ failAt: { reset: new Error('no reset') } });
-      const session = createSession({ flasher, manifest, sketch: 'servo', baud: 115200 });
+      const session = createSession({ flasher, manifest, sketch: 'servo' });
 
       await session.send({ type: 'connect', reset: true });
 
@@ -1292,13 +1325,13 @@ describe('the lines of the board and the workbench connection', () => {
 
       expect(flasher.calls).toEqual([
         'connect',
-        'reset',
         'monitor 115200',
+        'restart',
         'connect reuse',
         'load',
         'write 65536',
-        'reset',
         'monitor 115200',
+        'restart',
       ]);
       expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [] });
     });
@@ -1339,16 +1372,59 @@ describe('the lines of the board and the workbench connection', () => {
       expect(flasher.calls).not.toContain('connect reuse');
     });
 
-    it('reports a key with no image for the chip, naming the chips that have one, and releases the port', async () => {
-      const { flasher, session } = await attached({ chip: 'ESP8266' });
+    it('resets the board with the flasher\'s reset after the write when there is no baud to read at', async () => {
+      const flasher = fakeFlasher();
+      const session = createSession({ flasher, manifest: workbenchManifest, sketch: 'servo' });
+      await session.send({ type: 'connect', reset: true });
+
+      await session.send({ type: 'flash', key: 'blink/simple' });
+
+      expect(flasher.calls).toEqual(['connect', 'reset', 'connect reuse', 'load', 'write 65536', 'reset']);
+    });
+
+    it('refuses a key with no image for the chip, keeping the connection: running, port untouched', async () => {
+      const { flasher, session, lines } = await attached({ chip: 'ESP8266' });
+      const calls = [...flasher.calls];
 
       await session.send({ type: 'flash', key: 'servo' });
 
-      expect(session.state).toEqual({ kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] });
-      expect(flasher.calls.at(-1)).toBe('disconnect');
-      await session.send({ type: 'connect', reset: true });
+      expect(session.state).toEqual({
+        kind: 'running',
+        chip: 'ESP8266',
+        output: [],
+        flashRefused: { key: 'servo', available: ['ESP32'] },
+      });
+      expect(flasher.calls).toEqual(calls);
+      flasher.print('still here');
+      await session.sendLine('HIGH');
+      expect(lines.map((line) => line.text)).toEqual(['still here']);
+      expect(session.state).toMatchObject({ output: ['still here'], flashRefused: { key: 'servo' } });
+    });
+
+    it('refuses a key the manifest does not have, naming no chips', async () => {
+      const { flasher, session } = await attached();
+
       await session.send({ type: 'flash', key: 'missing' });
-      expect(session.state).toEqual({ kind: 'noImage', chip: 'ESP8266', available: [] });
+
+      expect(session.state).toMatchObject({ kind: 'running', flashRefused: { key: 'missing', available: [] } });
+      expect(flasher.calls).not.toContain('connect reuse');
+    });
+
+    it('ignores the end of the old monitor while the key is flashed, and reads on afterwards', async () => {
+      let open!: () => void;
+      const { flasher, session } = await attached({ writeGate: new Promise<void>((resolve) => (open = resolve)) });
+      const states = record(session);
+
+      const flashing = session.send({ type: 'flash', key: 'blink/simple' });
+      await vi.waitFor(() => expect(flasher.calls).toContain('write 65536'));
+      flasher.endMonitor();
+      await Promise.resolve();
+      open();
+      await flashing;
+
+      expect(states.some((state) => 'lost' in state)).toBe(false);
+      expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [] });
+      await expect(session.sendLine('HIGH')).resolves.toBeUndefined();
     });
 
     it('reports a port that cannot be reached again', async () => {

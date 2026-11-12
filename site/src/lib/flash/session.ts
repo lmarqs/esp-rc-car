@@ -1,4 +1,4 @@
-import type { Flasher } from './flasher';
+import type { Flasher, MonitorOptions } from './flasher';
 import { keepLast } from './lines';
 import { imageFor, isMissing, type ChipFamily, type Manifest, type ManifestImage } from './manifest';
 import {
@@ -40,7 +40,16 @@ export type SessionState =
    * `output` is the last lines the board printed, which stay empty when the session has no baud to read at. `lost`
    * is set when the port stopped answering without the visitor disconnecting it.
    */
-  | { kind: 'running'; chip: string; output: readonly string[]; lost?: true }
+  | {
+      kind: 'running';
+      chip: string;
+      output: readonly string[];
+      lost?: true;
+      /**
+       * Set when `flash` was refused: the manifest has no image of `key` for the board's chip. The port is not touched.
+       */
+      flashRefused?: { key: string; available: ChipFamily[] };
+    }
   /** Asking the board that runs the sketch for its settings, to open the form at them. */
   | { kind: 'reading'; chip: string }
   /** Sending the settings to the board that runs the sketch, one `cfg` line at a time. */
@@ -63,7 +72,10 @@ export type SessionEvent =
   /**
    * From `running` on a board that is not lost: flashes the sketch that `key` names in the manifest onto the open
    * port, without asking for one, and goes back to `running` with the port open and the board's lines flowing to
-   * `subscribeLines`. The sketch's settings are not asked for.
+   * `subscribeLines`. The sketch's settings are not asked for. The session's `baud` and settings belong to the
+   * session's `sketch`, so a flashed key is expected to print at the same baud, as the steps of a ladder do (115200).
+   * A key with no image for the board's chip is refused before the port is touched: the session stays `running`
+   * with `flashRefused` set.
    */
   | { type: 'flash'; key: string }
   /**
@@ -228,25 +240,35 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
     await flash(active, chip);
   }
 
-  /** Restarts the board into the sketch it holds, and reads it. */
+  /**
+   * Restarts the board into the sketch it holds, and reads it. With a baud, the restart comes from the monitor once it
+   * reads, so the line the sketch prints first is not missed.
+   */
   async function restart(active: Flasher, chip: string) {
-    try {
-      await active.reset();
-    } catch (error) {
-      console.error(error);
-      await active.disconnect();
-      enter({ kind: 'dropped', pct: 0 });
-      return;
+    if (baud === undefined) {
+      try {
+        await active.reset();
+      } catch (error) {
+        console.error(error);
+        await active.disconnect();
+        enter({ kind: 'dropped', pct: 0 });
+        return;
+      }
     }
     output = [];
     enter({ kind: 'running', chip, output });
     if (baud !== undefined) {
-      read(active, baud);
+      read(active, baud, { restart: true });
     }
   }
 
   /** Flashes `key` onto the port the running board holds, which it reaches the bootloader of again. */
-  async function flashKey(active: Flasher, key: string) {
+  async function flashKey(active: Flasher, running: Extract<SessionState, { kind: 'running' }>, key: string) {
+    const known = imageFor(manifest, key, running.chip);
+    if (isMissing(known)) {
+      enter({ kind: 'running', chip: running.chip, output, flashRefused: { key, available: known.available } });
+      return;
+    }
     reading++;
     enter({ kind: 'connecting' });
     let chip: string;
@@ -265,11 +287,15 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
       return;
     }
     image = found;
-    await flash(active, chip);
+    await flash(active, chip, undefined, true);
   }
 
-  /** Flashes the board and, with `request`, sends it the settings once it runs the sketch. */
-  async function flash(active: Flasher, chip: string, request?: SettingsRequest) {
+  /**
+   * Flashes the board and, with `request`, sends it the settings once it runs the sketch. With `restartWhileReading`,
+   * the monitor restarts the board once it reads, instead of a reset before it.
+   */
+  async function flash(active: Flasher, chip: string, request?: SettingsRequest, restartWhileReading?: true) {
+    const restartInMonitor = restartWhileReading && baud !== undefined;
     downloading = true;
     if (request) {
       // Replaces the form, which the download would otherwise leave on screen and unanswered.
@@ -298,7 +324,9 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
           enter({ kind: 'flashing', chip, pct: clamped });
         }
       });
-      await active.reset();
+      if (!restartInMonitor) {
+        await active.reset();
+      }
     } catch (error) {
       console.error(error);
       await active.disconnect();
@@ -313,7 +341,7 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
     }
     enter({ kind: 'running', chip, output });
     if (baud !== undefined) {
-      read(active, baud);
+      read(active, baud, restartInMonitor ? { restart: true } : undefined);
     }
   }
 
@@ -458,7 +486,7 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
    * Reads the board until the port is released: hands each `cfg` line to the settings exchange, and shows the other
    * lines while the card is on `running`.
    */
-  function read(active: Flasher, speed: number) {
+  function read(active: Flasher, speed: number, options?: MonitorOptions) {
     const reader = ++reading;
     live = reader;
     lost = false;
@@ -472,32 +500,31 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
         enter({ kind: 'running', chip: state.chip, output, lost: true });
       }
     };
-    active
-      .monitor(speed, (lines) => {
-        if (reader !== reading) {
-          return;
+    const onLines = (lines: string[]) => {
+      if (reader !== reading) {
+        return;
+      }
+      const printed: string[] = [];
+      for (const line of lines) {
+        deliver(line);
+        if (line.startsWith('cfg ')) {
+          const reply = parseCfgLine(line);
+          if (reply) onReply?.(reply);
+        } else if (line !== '') {
+          printed.push(line);
         }
-        const printed: string[] = [];
-        for (const line of lines) {
-          deliver(line);
-          if (line.startsWith('cfg ')) {
-            const reply = parseCfgLine(line);
-            if (reply) onReply?.(reply);
-          } else if (line !== '') {
-            printed.push(line);
-          }
+      }
+      if (printed.length > 0) {
+        output = keepLast(output, printed);
+        if (state.kind === 'running') {
+          enter({ ...state, output });
         }
-        if (printed.length > 0) {
-          output = keepLast(output, printed);
-          if (state.kind === 'running') {
-            enter({ ...state, output });
-          }
-        }
-      })
-      .then(markLost, (error) => {
-        console.error(error);
-        markLost();
-      });
+      }
+    };
+    active.monitor(speed, onLines, options).then(markLost, (error) => {
+      console.error(error);
+      markLost();
+    });
   }
 
   async function release(active: Flasher, released?: true) {
@@ -519,7 +546,8 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
       return () => lineListeners.delete(listener);
     },
     async sendLine(line) {
-      if (!flasher || live === 0 || live !== reading) {
+      // Only on `running`, so a line cannot interleave with the `cfg` exchange of the settings.
+      if (!flasher || state.kind !== 'running' || live === 0 || live !== reading) {
         throw new Error('Not reading the board.');
       }
       await flasher.send(line);
@@ -543,7 +571,7 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
           break;
         case 'flash':
           if (state.kind === 'running' && !state.lost) {
-            await flashKey(flasher, event.key);
+            await flashKey(flasher, state, event.key);
           }
           break;
         case 'submitSettings':

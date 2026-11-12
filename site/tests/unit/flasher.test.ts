@@ -460,6 +460,35 @@ describe('EsptoolFlasher.monitor', () => {
     await expect(target.monitor(9600, () => {})).rejects.toThrow('Not connected');
   });
 
+  it('restarts the board with an RTS pulse once the stream is being read, and not before', async () => {
+    const readingWhenPulled: boolean[] = [];
+    esptool.after.mockReset().mockResolvedValue(undefined);
+    esptool.setRTS.mockReset().mockImplementation(async (state: boolean) => {
+      readingWhenPulled.push(port.readable!.locked);
+      order.push(`rts ${state}`);
+    });
+    const target = await connected();
+    const monitoring = target.monitor(115200, () => {}, { restart: true });
+
+    await vi.waitFor(() => expect(order).toEqual(['release', 'open', 'setSignals', 'rts true', 'rts false']));
+    expect(readingWhenPulled).toEqual([true, true]);
+    controller.close();
+    await monitoring;
+    expect(esptool.after).not.toHaveBeenCalled();
+  });
+
+  it('does not touch RTS when it is not asked to restart', async () => {
+    esptool.setRTS.mockReset().mockResolvedValue(undefined);
+    const target = await connected();
+    const monitoring = target.monitor(115200, () => {});
+    await vi.waitFor(() => expect(port.readable!.locked).toBe(true));
+
+    controller.close();
+    await monitoring;
+
+    expect(esptool.setRTS).not.toHaveBeenCalled();
+  });
+
   it('calls onLines with the blank lines too', async () => {
     const target = await connected();
     const received: string[][] = [];
