@@ -585,6 +585,8 @@ const id = (part: string) => `workbench-${project}-${part}`;
       reduceMotion: () => reducedMotion.matches,
     });
 
+    // Whether the line the typist holds came from a slider, which a further move of a slider replaces.
+    let heldBySlider = false;
     const sliders = [...root.querySelectorAll<HTMLInputElement>('input[type="range"][data-shortcut]')];
     function shortcutOf(control: HTMLElement) {
       const stepIndex = Number(control.closest<HTMLElement>('[data-for-step]')!.dataset.forStep);
@@ -608,7 +610,9 @@ const id = (part: string) => `workbench-${project}-${part}`;
     for (const chip of root.querySelectorAll<HTMLButtonElement>('button[data-shortcut]')) {
       chip.addEventListener('click', () => {
         const shortcut = shortcutOf(chip);
-        if (shortcut?.kind === 'chip') typist.type(shortcut.text);
+        if (shortcut?.kind !== 'chip') return;
+        heldBySlider = false;
+        typist.type(shortcut.text);
       });
     }
     for (const slider of sliders) {
@@ -618,11 +622,16 @@ const id = (part: string) => `workbench-${project}-${part}`;
       };
       // Dragging only shows the line; releasing sends it, so the values passed on the way never reach the board.
       slider.addEventListener('input', () => {
-        typist.finish();
+        // A value the slider passed on the way, as each arrow key press is, gives way to the next one unsent.
+        if (heldBySlider) typist.stop();
+        else typist.finish();
         slider.nextElementSibling!.textContent = slider.value;
         showTyped(line());
       });
-      slider.addEventListener('change', () => typist.type(line(), line().length));
+      slider.addEventListener('change', () => {
+        heldBySlider = true;
+        typist.type(line(), line().length);
+      });
     }
 
     pauseButton.addEventListener('click', () => {

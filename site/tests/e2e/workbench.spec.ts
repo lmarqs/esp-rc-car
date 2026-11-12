@@ -588,6 +588,23 @@ test.describe('the Blink workbench', () => {
     });
   }
 
+  test('the delay slider sends only the value it ends on when the arrow keys move it', async ({ page }) => {
+    await tab(page, '4 commands').click();
+    await freeze(page);
+    await delaySlider(page).focus();
+    for (let i = 0; i < 5; i++) {
+      await page.keyboard.press('ArrowRight');
+      await page.clock.runFor(100);
+    }
+    await expect(delaySlider(page)).toHaveValue('1500');
+    await expect(commandLine(page)).toHaveValue('delay 1500');
+    await page.clock.runFor(HOLD_MS);
+    await nextFrame(page);
+    await expect(sentLines(page)).toHaveText(['› delay 1500']);
+    await page.clock.runFor(2 * HOLD_MS);
+    await expect(sentLines(page)).toHaveCount(1);
+  });
+
   for (const width of [1280, 400]) {
     test(`ends the slider's value and the Send button at the same right edge at ${width} px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
