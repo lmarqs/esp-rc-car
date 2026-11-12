@@ -6,7 +6,6 @@ import {
   clockFace,
   codeRows,
   debuggerControls,
-  otherStepKeys,
   liveClockFace,
   notSent,
   toolbar,
@@ -251,35 +250,6 @@ describe('toolbar', () => {
     });
   });
 
-  it('disables every button on a board that runs another sketch', () => {
-    expect(toolbar('other', 'running', undefined, true)).toEqual({
-      paused: false,
-      label: 'Pause',
-      canContinue: false,
-      canStep: false,
-      canRestart: false,
-      canSlow: false,
-      slow: false,
-    });
-  });
-});
-
-describe('otherStepKeys', () => {
-  it('names the sketch the board runs and the step to flash, by their full keys', () => {
-    expect(otherStepKeys({ kind: 'step', key: 'blink/simple', number: 1 }, 'blink/input')).toEqual({
-      running: 'blink/simple',
-      wanted: 'blink/input',
-    });
-    expect(otherStepKeys({ kind: 'sketch', key: 'servo/sweep' }, 'blink/input')).toEqual({
-      running: 'servo/sweep',
-      wanted: 'blink/input',
-    });
-  });
-
-  it('names nothing while simulated or live', () => {
-    expect(otherStepKeys({ kind: 'simulated' }, 'blink/input')).toBeUndefined();
-    expect(otherStepKeys({ kind: 'live' }, 'blink/input')).toBeUndefined();
-  });
 });
 
 describe('liveClockFace', () => {

@@ -130,8 +130,8 @@ describe('paneMode', () => {
     expect(paneMode({ kind: 'live' }, true)).toBe('simulator');
   });
 
-  it('follows, without taking lines, a board that runs another step or sketch', () => {
-    expect(paneMode({ kind: 'step', key: 'blink/simple', number: 1 }, false)).toBe('other');
-    expect(paneMode({ kind: 'sketch', key: 'servo/sweep' }, true)).toBe('other');
+  it('simulates the selected step while the board runs another step or sketch', () => {
+    expect(paneMode({ kind: 'step', key: 'blink/simple', number: 1 }, false)).toBe('simulator');
+    expect(paneMode({ kind: 'sketch', key: 'servo/sweep' }, true)).toBe('simulator');
   });
 });

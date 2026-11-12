@@ -76,24 +76,17 @@ export function boardAction(
 
 /**
  * What drives the board pane: `simulator`, the simulated step; `live`, the board, which runs the selected step and
- * takes the visitor's lines; `other`, the board, which runs another sketch and takes none.
+ * takes the visitor's lines.
  */
-export type PaneMode = 'simulator' | 'live' | 'other';
+export type PaneMode = 'simulator' | 'live';
 
 /**
- * What drives the board pane for the board's `status`. `detached` is set when the visitor paused, stepped or
- * restarted while live, which hands the pane to the simulator until they go back to live.
+ * What drives the board pane for the board's `status`: the board only while it runs the selected step, so a step the
+ * board does not run is simulated like any other. `detached` is set when the visitor paused, stepped or restarted
+ * while live, which hands the pane to the simulator until they go back to live.
  */
 export function paneMode(status: BoardStatus, detached: boolean): PaneMode {
-  switch (status.kind) {
-    case 'simulated':
-    case 'connected':
-      return 'simulator';
-    case 'live':
-      return detached ? 'simulator' : 'live';
-    default:
-      return 'other';
-  }
+  return status.kind === 'live' && !detached ? 'live' : 'simulator';
 }
 
 const CONNECT: BoardAction = { label: 'Connect', icon: 'plug', event: 'connect', disabled: false };

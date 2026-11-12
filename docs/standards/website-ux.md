@@ -37,8 +37,7 @@ A MUST does not vary. A SHOULD yields only to a reason written beside the code. 
    output.
 6. **Every state says what to do next, in plain words.** A state MUST NOT leave the visitor to guess the next step.
    Example: below the panes a hint says what the arrow is and that Step runs one line; when the board runs another
-   step, a notice says "Your board runs blink/simple. Flash blink/input to control it from here." and the command
-   line's placeholder says "the board runs another step".
+   step, the Board cell says which one and its button offers to flash the step on screen.
 7. **A control shows what it sent, and a slider sends on release.** After a control acts, the page MUST show what
    went out, and a slider MUST NOT send while it is dragged, since each intermediate value would reach the board.
    Example: in the commands step, dragging the delay slider updates its number and writes the line it would send,

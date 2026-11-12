@@ -116,7 +116,7 @@ function readLine<B>(project: PaneProject<B>, state: PaneState<B>, text: string,
   const key = sketchOf(text);
   const named = key !== undefined && key !== state.heard ? sync(project, { ...state, heard: key }) : state;
   if (named.followed !== undefined) {
-    return { ...named, followed: receive(named.followed, followedStep(project, named), project.board, text, at) };
+    return { ...named, followed: receive(named.followed, selectedStep(project, named), project.board, text, at) };
   }
   if (key !== undefined) return { ...named, known: project.board.initial() };
   if (named.known === undefined) return named;
@@ -131,9 +131,7 @@ function sync<B>(project: PaneProject<B>, state: PaneState<B>): PaneState<B> {
   const mode = paneMode(status, detached);
   const placed = { ...state, detached };
   if (mode === state.mode) return placed;
-  if (mode === 'simulator') return startSimulator({ ...placed, mode });
-  if (state.mode === 'simulator') return startFollowing(project, { ...placed, mode });
-  return { ...placed, mode };
+  return mode === 'simulator' ? startSimulator({ ...placed, mode }) : startFollowing(project, { ...placed, mode });
 }
 
 /** Hands the pane to the board, from the next line it prints; the simulator waits, paused. */
@@ -142,7 +140,7 @@ function startFollowing<B>(project: PaneProject<B>, state: PaneState<B>): PaneSt
     ...state,
     refused: undefined,
     following: state.following + 1,
-    followed: follow(project.board, followedStep(project, state).key, state.known),
+    followed: follow(project.board, selectedStep(project, state).key, state.known),
   };
 }
 
@@ -162,10 +160,4 @@ function selectedStep<B>(project: PaneProject<B>, state: PaneState<B>): StepDefi
 
 function heardStep<B>(project: PaneProject<B>, state: PaneState<B>): StepDefinition<unknown, unknown> | undefined {
   return project.steps.find((step) => step.key === state.heard);
-}
-
-/** The step the followed board runs, whose lines the pane reads: the selected one unless the board runs another. */
-export function followedStep<B>(project: PaneProject<B>, state: PaneState<B>): StepDefinition<unknown, unknown> {
-  if (state.mode === 'live') return selectedStep(project, state);
-  return heardStep(project, state) ?? selectedStep(project, state);
 }

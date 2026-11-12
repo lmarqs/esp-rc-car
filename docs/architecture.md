@@ -134,8 +134,8 @@ key ties a board to a step:
 - Until a connected board prints a key, the workbench goes on simulating.
 - When the key is the selected step's, the workbench follows the board, which is live mode: the pictures, the trace
   and the arrow are drawn from the lines the board prints, and what the visitor sends goes to the board.
-- When the key is another step's or another sketch's, the Board cell says which, the pane takes no line from the
-  visitor, and the button flashes the selected step.
+- When the key is another step's or another sketch's, the Board cell says which, the selected step is simulated
+  like any other, and the button flashes the selected step.
 - Pause, Step or Restart hands the pane back to the simulator with the port still open, and the Board cell's button
   brings it back to the board.
 

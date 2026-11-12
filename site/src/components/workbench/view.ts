@@ -148,7 +148,6 @@ export interface Toolbar extends DebuggerControls {
 /**
  * The toolbar for the pane's `mode`. The simulator's comes from its run, `status` and `error`, with its `slow` setting.
  * Live, Pause, Step and Restart hand the pane to the simulator, and Slow, which a real board cannot follow, is off.
- * On a board that runs another sketch, nothing in the toolbar applies.
  */
 export function toolbar(mode: PaneMode, status: RunStatus, error: unknown, slow: boolean): Toolbar {
   switch (mode) {
@@ -156,8 +155,6 @@ export function toolbar(mode: PaneMode, status: RunStatus, error: unknown, slow:
       return { ...debuggerControls(status, error), canRestart: true, canSlow: true, slow };
     case 'live':
       return { ...debuggerControls('running'), canRestart: true, canSlow: false, slow: false };
-    case 'other':
-      return { paused: false, label: 'Pause', canContinue: false, canStep: false, canRestart: false, canSlow: false, slow: false };
   }
 }
 
@@ -188,18 +185,6 @@ export function followSlider(
 /** What the board pane says when the port refused a line the visitor sent to the board, and what to do. */
 export function notSent(text: string): string {
   return `The board did not get ${text}. Check that it is still plugged in, then send it again.`;
-}
-
-/** The command line's placeholder while the board runs another sketch, which takes no line from the page. */
-export const OTHER_STEP_PLACEHOLDER = 'the board runs another step';
-
-/**
- * The keys the board pane's notice names when the board runs a sketch other than the `selected` step: the one it
- * runs, and the one to flash so the page can control it. `undefined` for any other status.
- */
-export function otherStepKeys(status: BoardStatus, selected: string): { running: string; wanted: string } | undefined {
-  if (status.kind !== 'step' && status.kind !== 'sketch') return undefined;
-  return { running: status.key, wanted: selected };
 }
 
 function reason(error: unknown): string {

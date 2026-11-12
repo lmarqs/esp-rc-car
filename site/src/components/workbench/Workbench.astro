@@ -59,8 +59,6 @@ const manifest = {
 const flashable = Object.keys(manifest.sketches).length > 0;
 const simulated = boardStatusText({ kind: 'simulated' });
 const Picture = { led: Led, servo: Servo }[workbench.picture];
-// The notice is drawn with the longest keys while hidden, so it holds its height whichever keys it names.
-const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.length > longest.length ? key : longest));
 ---
 
 <section
@@ -320,11 +318,6 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
             </p>
           ))
         }
-        {/* The Board cell's status announces the change; this says what to do about it. */}
-        <p class="elsewhere" data-other-step>
-          Your board runs <b data-other-running>{longestKey}</b>. Flash <b data-other-wanted>{longestKey}</b> to control it
-          from here.
-        </p>
         <p class="problem" role="alert" data-problem hidden></p>
       </div>
     </div>
@@ -473,32 +466,27 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
   .prompt { color: var(--yellow); }
   .cmd input { flex: 1; min-width: 0; padding: 8px 0; border: 0; background: transparent; color: var(--card); font: inherit; outline: none; }
   .cmd input::placeholder { color: var(--faint); }
-  .cmd :disabled, .shortcuts :disabled { cursor: default; }
-  .send:disabled, .chip:disabled, .slider:has(:disabled) { opacity: .45; }
   .cmd input[data-typing] { color: var(--yellow); }
   .cmd:has(input:focus-visible) { box-shadow: inset 0 0 0 2px var(--blue); }
   .send { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-family: var(--sans); font-size: 13px; font-weight: 700; line-height: 1.5; color: var(--ink); background: var(--yellow); border: 0; border-radius: 6px; padding: 4px 12px; cursor: pointer; }
   .send svg { width: 13px; height: 13px; fill: currentColor; }
   .send:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-  /* Room for the longest placeholder, the board runs another step, at phone width. */
+  /* Room for the longest placeholder at phone width. */
   @media (max-width: 480px) { .send { padding: 4px 8px; } }
   .shortcuts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 8px 12px 8px 14px; border-top: 1px solid var(--on-ink-line); background: var(--ink-raised); color: var(--on-ink); }
   .chips { display: flex; gap: 6px; }
   .chip { font: inherit; font-size: 13px; line-height: 1.5; color: var(--on-ink); background: transparent; border: 1px solid var(--on-ink-edge); border-radius: 6px; padding: 2px 10px; cursor: pointer; }
-  .chip:hover:not(:disabled) { border-color: var(--yellow); color: var(--yellow); }
+  .chip:hover { border-color: var(--yellow); color: var(--yellow); }
   .chip:focus-visible, .slider input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
   .slider { display: flex; flex: 1 1 220px; align-items: center; gap: 8px; min-width: 0; }
   .slider input { flex: 1; min-width: 80px; margin: 0; accent-color: var(--yellow); }
   /* Four digits, the most the value has, so the slider keeps its length as the value changes. */
   .slider output { min-width: 4ch; text-align: right; color: var(--card); }
   .hint { font-size: 13px; color: var(--muted); margin: 0; }
-  /* A notice or a problem takes the hint's place, which says how to send and does not apply then, so nothing moves. */
+  /* A problem takes the hint's place, which says how to send and does not apply then, so nothing moves. */
   .say { display: grid; }
   .say > * { grid-area: 1 / 1; }
-  .elsewhere { visibility: hidden; margin: 0; padding: 8px 12px; border: 1.5px solid var(--coral); border-radius: 12px; background: var(--wash-coral); font-size: 14px; }
-  .say[data-elsewhere] .hint { visibility: hidden; }
-  .say[data-elsewhere] .elsewhere { visibility: visible; }
-  .say[data-trouble] :is(.hint, .elsewhere) { visibility: hidden; }
+  .say[data-trouble] .hint { visibility: hidden; }
   .problem { margin: 0; padding: 8px 12px; border: 1.5px solid var(--ink); border-radius: 10px; font-size: 14px; font-weight: 600; }
 </style>
 
@@ -531,8 +519,6 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     clockFace,
     liveClockFace,
     notSent,
-    OTHER_STEP_PLACEHOLDER,
-    otherStepKeys,
     serialRows,
     toolbar,
   } from './view';
@@ -561,11 +547,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     const serialLines = [...root.querySelectorAll<HTMLElement>('[data-serial-line]')];
     const command = root.querySelector<HTMLFormElement>('[data-command]')!;
     const commandLine = root.querySelector<HTMLInputElement>('[data-command-line]')!;
-    const sendButton = command.querySelector<HTMLButtonElement>('button[type="submit"]')!;
-    const shortcutControls = [...root.querySelectorAll<HTMLButtonElement | HTMLInputElement>('[data-shortcut]')];
     const say = root.querySelector<HTMLElement>('[data-say]')!;
-    const otherRunning = root.querySelector<HTMLElement>('[data-other-running]')!;
-    const otherWanted = root.querySelector<HTMLElement>('[data-other-wanted]')!;
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
     const pauseButton = root.querySelector<HTMLButtonElement>('[data-pause]')!;
     const pauseLabel = root.querySelector<HTMLElement>('[data-pause-label]')!;
@@ -840,14 +822,14 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
 
     /**
      * Sends a line the visitor typed or a shortcut typed for them to the sketch's serial input: the simulator's, or the
-     * board's while live. A board that runs another sketch takes none.
+     * board's while live.
      */
     function sendToBoard(text: string) {
       if (pane.mode === 'simulator') {
         runner?.send(text);
         return;
       }
-      if (pane.mode !== 'live' || pane.followed === undefined) return;
+      if (pane.followed === undefined) return;
       const id = pane.followed.nextId;
       const following = pane.following;
       dispatch({ kind: 'sent', text, at: Date.now() });
@@ -996,7 +978,7 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
     // The refusal the visitor moved on from by picking another step.
     let dismissedRefusal: unknown;
 
-    /** Paints the Board cell, its button, the board pane's message and what the pane's owner lets the visitor send. */
+    /** Paints the Board cell, its button and the board pane's message. */
     function showLink() {
       const state = pane.session;
       const key = steps[pane.selected].key;
@@ -1041,18 +1023,6 @@ const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.le
         progressText.textContent = `${shown.progress}%`;
       }
 
-      // A board that runs another sketch takes no line from the page.
-      const usable = pane.mode !== 'other';
-      commandLine.disabled = !usable;
-      sendButton.disabled = !usable;
-      for (const control of shortcutControls) control.disabled = !usable;
-      commandLine.placeholder = usable ? definition().placeholder : OTHER_STEP_PLACEHOLDER;
-      const keys = otherStepKeys(status, key);
-      say.toggleAttribute('data-elsewhere', keys !== undefined);
-      if (keys !== undefined) {
-        otherRunning.textContent = keys.running;
-        otherWanted.textContent = keys.wanted;
-      }
     }
 
     session.subscribe((state) => dispatch({ kind: 'session', state }));

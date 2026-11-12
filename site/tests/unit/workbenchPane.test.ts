@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { SessionState } from '../../src/lib/flash/session';
 import type { BlinkBoard } from '../../src/lib/workbench/blinkBoard';
 import {
-  followedStep,
   initialPane,
   paneStatus,
   reducePane,
@@ -54,24 +53,31 @@ describe('the board pane', () => {
     expect(paneStatus(blink, pane)).toEqual({ kind: 'live' });
   });
 
-  it('follows a board that runs another step without taking lines, and back when its step is picked', () => {
+  it('simulates a step the board does not run, and follows the board once its step is picked', () => {
     const other = after(connected, line('sketch blink/commands'));
-    expect(other).toMatchObject({ mode: 'other', following: 1 });
-    expect(followedStep(blink, other).key).toBe('blink/commands');
+    expect(other).toMatchObject({ mode: 'simulator', following: 0 });
+    expect(other.followed).toBeUndefined();
+    expect(paneStatus(blink, other)).toEqual({ kind: 'step', key: 'blink/commands', number: 4 });
 
     const live = reducePane(blink, other, tab(COMMANDS));
-    expect(live).toMatchObject({ mode: 'live', selected: COMMANDS, following: 2 });
-    expect(followedStep(blink, live).key).toBe('blink/commands');
+    expect(live).toMatchObject({ mode: 'live', selected: COMMANDS, following: 1 });
     expect(reducePane(blink, other, { kind: 'sent', text: 'pause', at: 0 })).toBe(other);
   });
 
-  it('keeps what it knew of the board when a tab pick takes the pane from it', () => {
+  it('keeps what it knew of the board when a tab pick hands the pane to the simulator', () => {
     const live = after(tab(INPUT), connected, line('sketch blink/input'), line('delay 700'));
     expect(followedWait(live)).toBe('700');
     const other = reducePane(blink, live, tab(SIMPLE));
-    expect(other).toMatchObject({ mode: 'other', selected: SIMPLE, following: 2 });
+    expect(other).toMatchObject({ mode: 'simulator', selected: SIMPLE });
+    expect(other.followed).toBeUndefined();
     expect(wait(other)).toBe('700');
-    expect(followedWait(other)).toBe('700');
+  });
+
+  it("reads the board's lines by the step it runs while another is simulated", () => {
+    const other = after(tab(SIMPLE), connected, line('sketch blink/input'), line('delay 700'));
+    expect(other.mode).toBe('simulator');
+    expect(wait(other)).toBe('700');
+    expect(followedWait(reducePane(blink, other, tab(INPUT)))).toBe('700');
   });
 
   describe('Pause, Step or Restart while live', () => {
@@ -108,7 +114,7 @@ describe('the board pane', () => {
 
     it('lets go of the detached state once the board no longer runs the step', () => {
       const elsewhere = reducePane(blink, detached, line('sketch blink/commands'));
-      expect(elsewhere).toMatchObject({ mode: 'other', detached: false });
+      expect(elsewhere).toMatchObject({ mode: 'simulator', detached: false });
     });
   });
 

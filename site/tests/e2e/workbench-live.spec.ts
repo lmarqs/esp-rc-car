@@ -21,7 +21,6 @@ const debuggerButton = (page: Page, name: string) => toolbar(page).getByRole('bu
 const commandLine = (page: Page) => bench(page).getByRole('textbox', { name: 'Line to send to the board' });
 const sendButton = (page: Page) => bench(page).getByRole('button', { name: 'Send', exact: true });
 const shortcuts = (page: Page) => bench(page).locator('[data-shortcuts]:visible [data-shortcut]');
-const notice = (page: Page) => bench(page).locator('[data-other-step]');
 const runningRow = (page: Page) => bench(page).locator('[data-code]:visible [data-running]');
 const livePill = (page: Page) => bench(page).locator('[data-code]:visible [data-live]');
 /** How full the clock on the arrow's line is, from 0 to 100. */
@@ -329,60 +328,24 @@ test.describe('live mode', () => {
 });
 
 test.describe('a board that runs another step', () => {
-  test('reads Runs step 1, names both keys, disables the Send area and the debugger, and shows the board', async ({
+  test('simulates the selected step with every control on, and sends nothing to the board', async ({
     page,
     fakeFlasher,
   }) => {
     await connectTo(page, fakeFlasher, 'blink/simple', '2 input', 'Runs step 1');
 
-    await expect(notice(page)).toBeVisible();
-    await expect(notice(page)).toHaveText('Your board runs blink/simple. Flash blink/input to control it from here.');
-    await expect(commandLine(page)).toBeDisabled();
-    await expect(commandLine(page)).toHaveAttribute('placeholder', 'the board runs another step');
-    await expect(sendButton(page)).toBeDisabled();
-    for (const control of await shortcuts(page).all()) await expect(control).toBeDisabled();
-    for (const name of ['Pause', 'Step', 'Restart', 'Slow']) await expect(debuggerButton(page, name)).toBeDisabled();
+    await expect(commandLine(page)).toBeEnabled();
+    await expect(commandLine(page)).toHaveAttribute('placeholder', 'a number, then Enter');
+    await expect(sendButton(page)).toBeEnabled();
+    for (const control of await shortcuts(page).all()) await expect(control).toBeEnabled();
+    for (const name of ['Pause', 'Step', 'Restart', 'Slow']) await expect(debuggerButton(page, name)).toBeEnabled();
 
     await fakeFlasher.print('HIGH');
-    await expect(picture(page)).toHaveClass(/\bon\b/);
-    await expect(serial(page)).toHaveText('sketch blink/simple\nHIGH');
-    await expect(runningRow(page)).toHaveCount(0);
+    await commandLine(page).fill('500');
+    await commandLine(page).press('Enter');
+    await expect(serial(page)).not.toContainText('sketch blink/simple');
     expect(await fakeFlasher.calls()).not.toContainEqual(expect.stringMatching(/^send /));
   });
-
-  for (const width of [1280, 400]) {
-    test(`shows the notice in the hint's place, moving nothing, at ${width} px`, async ({ page, fakeFlasher }) => {
-      await page.setViewportSize({ width, height: 900 });
-      await fakeFlasher.install({ lines: ['sketch blink/simple'] });
-      await page.goto(BLINK);
-      await tab(page, '2 input').click();
-      const hint = bench(page).locator('[data-hint]:visible');
-      const boxes = async () => ({
-        bench: await bench(page).boundingBox(),
-        say: await bench(page).locator('[data-say]').boundingBox(),
-        term: await bench(page).locator('.term').boundingBox(),
-      });
-      const before = await boxes();
-      await expect(hint).toBeVisible();
-
-      await boardButton(page).click();
-      await expect(status(page)).toHaveText('Runs step 1');
-
-      await expect(notice(page)).toBeVisible();
-      await expect(hint).toBeHidden();
-      expect(await boxes()).toEqual(before);
-      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
-      // The whole placeholder shows.
-      const room = await commandLine(page).evaluate((input: HTMLInputElement) => {
-        const style = getComputedStyle(input);
-        const context = document.createElement('canvas').getContext('2d')!;
-        context.font = `${style.fontSize} ${style.fontFamily}`;
-        const free = input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-        return free - context.measureText(input.placeholder).width;
-      });
-      expect(room).toBeGreaterThan(0);
-    });
-  }
 
   test('Flash step puts the selected step on the board and follows it live, with the Send area back', async ({
     page,
@@ -393,13 +356,11 @@ test.describe('a board that runs another step', () => {
     await tab(page, '2 input').click();
     await boardButton(page).click();
     await expect(status(page)).toHaveText('Runs step 1');
-    await expect(notice(page)).toBeVisible();
 
     await boardButton(page).click();
 
     await expect(status(page)).toHaveText('Live');
     await expect(boardButton(page)).toHaveAccessibleName('Flash again');
-    await expect(notice(page)).toBeHidden();
     await expect(commandLine(page)).toBeEnabled();
     await expect(serial(page)).toHaveText('sketch blink/input');
     await fakeFlasher.print('HIGH');
@@ -417,7 +378,7 @@ test.describe('a board that runs another step', () => {
     ]);
   });
 
-  test('gives the Send area back and hides the notice once the visitor picks the step the board runs', async ({
+  test('follows the board, Live, once the visitor picks the step the board runs', async ({
     page,
     fakeFlasher,
   }) => {
@@ -426,7 +387,6 @@ test.describe('a board that runs another step', () => {
     await tab(page, '4 commands').click();
 
     await expect(status(page)).toHaveText('Live');
-    await expect(notice(page)).toBeHidden();
     await expect(commandLine(page)).toBeEnabled();
     await expect(commandLine(page)).toHaveAttribute('placeholder', 'a command, then Enter');
     for (const control of await shortcuts(page).all()) await expect(control).toBeEnabled();
