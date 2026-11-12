@@ -81,7 +81,10 @@ export function imageFor(manifest: Manifest, sketch: string, chip: string): Mani
   return { missing: true, available: [...new Set(images.map((candidate) => candidate.chipFamily))] };
 }
 
-/** The chips with an image of at least one of `sketches`, in manifest order; a sketch the manifest lacks adds none. */
+/**
+ * The chips with an image of at least one of `sketches`, in order of first appearance: sketch by sketch in the order
+ * given, then image by image within a sketch. A sketch the manifest lacks adds none.
+ */
 export function chipFamilies(manifest: Manifest, sketches: readonly string[]): ChipFamily[] {
   const families = sketches.flatMap((sketch) => manifest.sketches[sketch]?.images.map((image) => image.chipFamily) ?? []);
   return [...new Set(families)];

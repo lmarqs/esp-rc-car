@@ -93,8 +93,16 @@ describe('chipFamilies', () => {
     },
   };
 
-  it('joins the chips of every sketch once, in manifest order', () => {
+  it('joins the chips of every sketch once, in order of first appearance', () => {
     expect(chipFamilies(ladder, ['blink/simple', 'blink/input'])).toEqual(['ESP32', 'ESP8266']);
+  });
+
+  it('follows the order of the sketches given, not the order of the manifest', () => {
+    const apart: Manifest = {
+      sketches: { 'blink/simple': { images: [image('ESP8266')] }, 'blink/input': { images: [image('ESP32')] } },
+    };
+    expect(chipFamilies(apart, ['blink/simple', 'blink/input'])).toEqual(['ESP8266', 'ESP32']);
+    expect(chipFamilies(apart, ['blink/input', 'blink/simple'])).toEqual(['ESP32', 'ESP8266']);
   });
 
   it('leaves out a sketch the manifest lacks', () => {
