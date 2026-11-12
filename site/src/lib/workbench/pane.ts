@@ -110,7 +110,12 @@ export function reducePane<B>(project: PaneProject<B>, state: PaneState<B>, even
         dismissed: state.session.kind === 'running' ? state.session.flashRefused : state.dismissed,
       });
     case 'session': {
-      const connecting = event.state.kind === 'connecting';
+      if (event.state.kind === 'flashMode') {
+        // The board runs the step just written once it leaves flash mode, and the port then opens too late to hear
+        // it say so.
+        return sync(project, { ...state, session: event.state, heard: state.flashed, known: project.board.initial() });
+      }
+      const connecting = event.state.kind === 'connecting' && state.session.kind !== 'flashMode';
       return sync(project, {
         ...state,
         session: event.state,

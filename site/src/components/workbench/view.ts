@@ -265,6 +265,8 @@ export function boardMessage(state: SessionState, key: string, showRefusal: bool
       return { text: wording.CONNECTING, notice: false };
     case 'flashing':
       return { text: wording.found(state.chip), notice: false, progress: state.pct };
+    case 'flashMode':
+      return notice(wording.FLASH_MODE);
     case 'noPort':
       return notice(wording.NO_PORT);
     case 'portBusy':

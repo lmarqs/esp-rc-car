@@ -1,5 +1,5 @@
 import type { Flasher, MonitorOptions } from './flasher';
-import { keepLast } from './lines';
+import { keepLast, sketchOf } from './lines';
 import { imageFor, isMissing, type ChipFamily, type Manifest, type ManifestImage } from './manifest';
 import {
   boardValues,
@@ -37,6 +37,12 @@ export type SessionState =
     }
   | { kind: 'flashing'; chip: string; pct: number }
   /**
+   * The sketch is written, but the board did not start it: an ESP8266 that its adapter keeps in flash mode, which the
+   * port cannot restart. The port is released; the visitor takes the adapter out of flash mode, plugs it back in and
+   * connects again.
+   */
+  | { kind: 'flashMode'; chip: string }
+  /**
    * `output` is the last lines the board printed, which stay empty when the session has no baud to read at. `lost`
    * is set when the port stopped answering without the visitor disconnecting it.
    */
@@ -67,6 +73,8 @@ export type SessionEvent =
    * port first, so "Flash again" flashes in the same click. With `reset`, it flashes nothing and asks for no settings:
    * it restarts the board into the sketch it holds, so the board prints its `sketch <key>` line, and goes to
    * `running`, reading at the session's baud. It is the connection of the workbench, which flashes with `flash`.
+   * From `flashMode`, or a failure to connect after it, it asks for a port and reads the board as it runs, without its
+   * bootloader, and sends the settings the flash was asked with, if any.
    */
   | { type: 'connect'; reset?: true }
   /**
@@ -185,6 +193,13 @@ const GET_INTERVAL_MS = 1000;
 const GET_TRIES = 10;
 /** How long the board has to answer one `cfg set`. */
 const SET_TIMEOUT_MS = 3000;
+/**
+ * How long an ESP8266 has to print its `sketch <key>` line after a write. One on an adapter without auto-reset stays in
+ * flash mode and prints nothing.
+ */
+const SKETCH_START_MS = 3000;
+/** The chip whose boards are often on an adapter that the port cannot restart: the ESP-01S. */
+const RESETLESS_CHIP = 'ESP8266';
 
 /** Whether the session is talking to the board, so that leaving it would leave a write half-done. */
 export function isBusy(state: SessionState): boolean {
@@ -211,6 +226,8 @@ export function createSession(options: SessionOptions): FlashSession {
   let output: readonly string[] = [];
   let onReply: ((reply: CfgReply) => void) | undefined;
   let fields = settingsOf(manifest, sketch, baud);
+  /** Set from `flashMode` until the board runs again: its chip, and the settings to send it then. */
+  let awaitingRun: { chip: string; request?: SettingsRequest } | undefined;
 
   function enter(next: SessionState) {
     state = next;
@@ -342,6 +359,18 @@ export function createSession(options: SessionOptions): FlashSession {
       return;
     }
     output = [];
+    if (chip === RESETLESS_CHIP && baud !== undefined) {
+      read(active, baud, restartInMonitor ? { restart: true } : undefined);
+      if (!(await sketchStarts())) {
+        reading++;
+        await active.disconnect();
+        awaitingRun = { chip, ...(request && { request }) };
+        enter({ kind: 'flashMode', chip });
+        return;
+      }
+      await run(active, chip, request);
+      return;
+    }
     if (request) {
       read(active, baud!);
       await apply(active, chip, request);
@@ -351,6 +380,48 @@ export function createSession(options: SessionOptions): FlashSession {
     if (baud !== undefined) {
       read(active, baud, restartInMonitor ? { restart: true } : undefined);
     }
+  }
+
+  /** Goes on with a board that the monitor reads and that runs the sketch: sends it `request`, or shows it running. */
+  async function run(active: Flasher, chip: string, request?: SettingsRequest) {
+    if (request) {
+      await apply(active, chip, request);
+      return;
+    }
+    enter({ kind: 'running', chip, output });
+  }
+
+  /** Resolves with whether the board printed a `sketch <key>` line within {@link SKETCH_START_MS}. */
+  function sketchStarts(): Promise<boolean> {
+    return new Promise((resolve) => {
+      const stop = (started: boolean) => {
+        clearTimeout(timer);
+        lineListeners.delete(listen);
+        resolve(started);
+      };
+      const listen = (line: BoardLine) => {
+        if (sketchOf(line.text) !== undefined) stop(true);
+      };
+      const timer = setTimeout(() => stop(false), SKETCH_START_MS);
+      lineListeners.add(listen);
+    });
+  }
+
+  /** Reads a board that came out of flash mode, through a port opened without its bootloader. */
+  async function reattach(active: Flasher, { chip, request }: NonNullable<typeof awaitingRun>) {
+    enter({ kind: 'connecting' });
+    try {
+      await active.attach();
+    } catch (error) {
+      console.error(error);
+      await active.disconnect();
+      enter({ kind: connectFailure(error) });
+      return;
+    }
+    awaitingRun = undefined;
+    output = [];
+    if (baud !== undefined) read(active, baud);
+    await run(active, chip, request);
   }
 
   async function submit(
@@ -537,6 +608,7 @@ export function createSession(options: SessionOptions): FlashSession {
 
   async function release(active: Flasher, released?: true) {
     reading++;
+    awaitingRun = undefined;
     await active.disconnect();
     enter(released ? { kind: 'idle', released } : { kind: 'idle' });
   }
@@ -573,7 +645,9 @@ export function createSession(options: SessionOptions): FlashSession {
       const { kind } = state;
       switch (event.type) {
         case 'connect':
-          if (kind === 'running') {
+          if (awaitingRun && (kind === 'flashMode' || FAILURE_KINDS.has(kind))) {
+            await reattach(flasher, awaitingRun);
+          } else if (kind === 'running') {
             reading++;
             // Ignores a second click while the old port is released.
             enter({ kind: 'connecting' });
@@ -604,7 +678,7 @@ export function createSession(options: SessionOptions): FlashSession {
           }
           break;
         case 'retry':
-          if (kind === 'settings' || kind === 'running' || FAILURE_KINDS.has(kind)) {
+          if (kind === 'settings' || kind === 'running' || kind === 'flashMode' || FAILURE_KINDS.has(kind)) {
             await release(flasher);
           }
           break;

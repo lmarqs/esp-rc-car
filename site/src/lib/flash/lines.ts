@@ -1,3 +1,11 @@
+/**
+ * The key a `sketch <key>` line names, which every sketch the site flashes prints first; `undefined` for any other
+ * line.
+ */
+export function sketchOf(line: string): string | undefined {
+  return /^sketch (\S+)$/.exec(line)?.[1];
+}
+
 /** How many of the board's last lines the card shows. */
 export const OUTPUT_LINES = 6;
 

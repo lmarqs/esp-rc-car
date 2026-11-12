@@ -26,6 +26,11 @@ export interface Flasher {
    */
   connect(options?: ConnectOptions): Promise<string>;
   /**
+   * Asks the visitor for a port and opens it for `monitor`, without reaching the bootloader: for a board that already
+   * runs its sketch and that the port cannot restart, such as an ESP-01S on an adapter without auto-reset.
+   */
+  attach(): Promise<void>;
+  /**
    * Downloads the parts, before the board is touched. Rejects with an error named `DownloadError` when a part does not
    * arrive.
    */
@@ -126,6 +131,17 @@ export class EsptoolFlasher implements Flasher {
       throw error;
     }
     return this.loader.chip.CHIP_NAME;
+  }
+
+  async attach(): Promise<void> {
+    await this.disconnect();
+    const port = await navigator.serial.requestPort();
+    this.port = port;
+    const esptool = await import('esptool-js');
+    const transport = new esptool.Transport(port);
+    // Opened, so that `monitor` can close it and open it again at the sketch's speed, as after a connect.
+    await transport.connect(ROM_BAUD_RATE);
+    this.transport = transport;
   }
 
   async load(parts: readonly ManifestPart[]): Promise<void> {

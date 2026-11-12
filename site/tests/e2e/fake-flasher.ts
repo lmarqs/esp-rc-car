@@ -105,6 +105,9 @@ function installFakeFlasher(options: FakeFlasherOptions) {
       failOnce('connect');
       return chips[Math.min(call, chips.length - 1)]!;
     },
+    async attach() {
+      calls.push('attach');
+    },
     async load(parts) {
       calls.push('load');
       loaded.push(parts.map((part) => part.path));

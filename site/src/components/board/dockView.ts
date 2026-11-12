@@ -84,6 +84,16 @@ export function dockView(
     const doing = state.pct >= 100 ? { doing: 'is restarting' } : writing;
     return { shown: true, connected: true, chip: state.chip, ...doing, progress: state.pct, ...NOTHING };
   }
+  if (state.kind === 'flashMode') {
+    return {
+      shown: true,
+      connected: false,
+      chip: state.chip,
+      doing: 'is still in flash mode. Set the adapter to UART and plug it back in.',
+      ...NOTHING,
+      connect: true,
+    };
+  }
   if (state.kind === 'connecting') {
     return { shown: true, connected: false, chip: 'Board', doing: 'is connecting', ...NOTHING };
   }

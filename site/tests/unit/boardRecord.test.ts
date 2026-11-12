@@ -68,3 +68,19 @@ describe('the board record', () => {
     expect(record).toEqual({ flashed: 'blink/simple', lines: [] });
   });
 });
+
+describe('the record of a board left in flash mode', () => {
+  const flashing: SessionState = { kind: 'flashing', chip: 'ESP8266', pct: 100 };
+  const flashMode: SessionState = { kind: 'flashMode', chip: 'ESP8266' };
+
+  it('holds the key that was written, and still does once the board is read again', () => {
+    let record = recordBoard(EMPTY_RECORD, { kind: 'flash', key: 'blink/simple' });
+    record = recordBoard(record, state(flashing, flashMode));
+    expect(record).toEqual({ flashed: 'blink/simple', lines: [] });
+
+    record = recordBoard(record, state(flashMode, { kind: 'connecting' }));
+    record = recordBoard(record, state({ kind: 'connecting' }, { kind: 'running', chip: 'ESP8266', output: [] }));
+
+    expect(runs(record)).toBe('blink/simple');
+  });
+});

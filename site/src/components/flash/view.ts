@@ -143,6 +143,13 @@ export function viewFor(
       return settingsView(state, title, settings);
     case 'flashing':
       return { step: 'flash', message: wording.found(state.chip), progress: state.pct };
+    case 'flashMode':
+      return {
+        step: 'flash',
+        message: wording.FLASH_MODE,
+        notice: true,
+        actions: [{ label: 'Connect again', event: 'connect' }],
+      };
     case 'reading':
       return { step: 'running', message: "Reading the board's settings." };
     case 'applying':

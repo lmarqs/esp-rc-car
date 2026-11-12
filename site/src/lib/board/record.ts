@@ -1,4 +1,7 @@
 import { isBusy, type BoardLine, type SessionState } from '../flash';
+import { sketchOf } from '../flash/lines';
+
+export { sketchOf };
 
 /** How many of the lines the board printed the site keeps, for the serial monitor. */
 export const KEPT_LINES = 200;
@@ -37,11 +40,6 @@ export type RecordEvent =
 
 export const EMPTY_RECORD: BoardRecord = { lines: [] };
 
-/** The key a `sketch <key>` line names, which every step of a ladder prints first; `undefined` for any other line. */
-export function sketchOf(line: string): string | undefined {
-  return /^sketch (\S+)$/.exec(line)?.[1];
-}
-
 /** The key of the sketch the board runs, as far as the site knows: what it said, or else what the site flashed. */
 export function runs(record: BoardRecord): string | undefined {
   return record.heard ?? record.flashed;
@@ -66,9 +64,15 @@ export function recordBoard(record: BoardRecord, event: RecordEvent): BoardRecor
 }
 
 function recordState(record: BoardRecord, from: SessionState, to: SessionState): BoardRecord {
+  if (to.kind === 'flashMode') {
+    // The write is done; the board runs it once the visitor restarts it out of flash mode.
+    return { flashed: record.pending ?? record.flashed, lines: [] };
+  }
   if (to.kind === 'connecting') {
-    // A new connection: the board restarts, and only what it says from now on counts.
-    return { pending: record.pending, lines: [] };
+    // A new connection: the board restarts, and only what it says from now on counts. A board that came out of flash
+    // mode runs what was flashed.
+    const flashed = from.kind === 'flashMode' ? { flashed: record.flashed } : {};
+    return { ...flashed, pending: record.pending, lines: [] };
   }
   if (to.kind === 'running') {
     // A flash ends in `running`: the board now holds the key that was pending. A refused flash wrote nothing.

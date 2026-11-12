@@ -42,14 +42,16 @@ interface FakeFlasherOptions {
   /** The lines the board prints in answer to each line sent to it. Default: none. */
   answer?: (line: string) => string[];
   progress?: number[];
-  failAt?: Partial<Record<'connect' | 'load' | 'write' | 'reset', unknown>>;
+  failAt?: Partial<Record<'connect' | 'attach' | 'load' | 'write' | 'reset', unknown>>;
   /** The write waits for this before it reports progress. */
   writeGate?: Promise<void>;
+  /** The lines the board prints as soon as a monitor reads it, as a sketch does at boot. Default: none. */
+  boot?: string[];
 }
 
 /** A flasher that connects to `chip`, writes by reporting each of `progress`, and fails where `failAt` says. */
 function fakeFlasher(options: FakeFlasherOptions = {}): FakeFlasher {
-  const { chip = 'ESP32', progress = [10, 50, 100], failAt = {}, writeGate, answer = () => [] } = options;
+  const { chip = 'ESP32', progress = [10, 50, 100], failAt = {}, writeGate, answer = () => [], boot = [] } = options;
   const calls: string[] = [];
   let onLines: ((lines: string[]) => void) | undefined;
   let endMonitor = (_error?: unknown) => {};
@@ -64,6 +66,9 @@ function fakeFlasher(options: FakeFlasherOptions = {}): FakeFlasher {
       onLines = listener;
       if (monitorOptions?.restart) {
         calls.push('restart');
+      }
+      if (boot.length > 0) {
+        queueMicrotask(() => listener(boot));
       }
       await new Promise<void>((resolve, reject) => {
         endMonitor = (error) => (error === undefined ? resolve() : reject(error));
@@ -82,6 +87,12 @@ function fakeFlasher(options: FakeFlasherOptions = {}): FakeFlasher {
         throw failAt.connect;
       }
       return chip;
+    },
+    async attach() {
+      calls.push('attach');
+      if ('attach' in failAt) {
+        throw failAt.attach;
+      }
     },
     async load() {
       calls.push('load');
@@ -298,7 +309,7 @@ describe('a session for a sketch with settings', () => {
   });
 
   it('writes the parts of the image built for the chip it found', async () => {
-    const { flasher, session } = await connected({ chip: 'ESP8266' });
+    const { flasher, session } = await connected({ chip: 'ESP8266', boot: ['sketch web-relay'] });
 
     await session.send({ type: 'submitSettings', values: DEFAULTS });
 
@@ -1462,5 +1473,132 @@ describe('a session pointed at another sketch', () => {
 
     expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [] });
     expect(flasher.calls).toContain('write 4096,65536');
+  });
+});
+
+describe('an ESP8266 after a write', () => {
+  function relayBoard(line: string): string[] {
+    if (line === 'cfg get') return ['cfg ap_ssid=web-relay', 'cfg ap_password=unset', 'cfg low=0', 'cfg high=0', 'cfg end'];
+    return line.startsWith('cfg set ') ? [`cfg ok ${line.split(' ')[2]}`] : [];
+  }
+
+  async function flashed(options: FakeFlasherOptions, sketch = 'blink/simple') {
+    const flasher = fakeFlasher({ chip: 'ESP8266', ...options });
+    const parts = [{ path: 'blink/simple/esp01/simple.ino.bin', offset: 0 }];
+    const blink = { images: [{ profile: 'esp01', chipFamily: 'ESP8266' as const, parts }] };
+    const session = createSession({
+      flasher,
+      manifest: { sketches: { ...manifest.sketches, 'blink/simple': blink } },
+      sketch,
+      baud: 115200,
+    });
+    const states = record(session);
+    return { flasher, session, states };
+  }
+
+  it('runs as soon as the board prints its sketch line', async () => {
+    const { session } = await flashed({ boot: ['sketch blink/simple'] });
+
+    await session.send({ type: 'connect' });
+
+    expect(session.state).toEqual({ kind: 'running', chip: 'ESP8266', output: ['sketch blink/simple'] });
+  });
+
+  it('waits in flash mode, with the port released, when the board prints nothing within 3 seconds', async () => {
+    vi.useFakeTimers();
+    try {
+      const { flasher, session } = await flashed({});
+      const done = session.send({ type: 'connect' });
+      await vi.advanceTimersByTimeAsync(2999);
+      expect(session.state).toMatchObject({ kind: 'flashing', pct: 100 });
+
+      await vi.advanceTimersByTimeAsync(1);
+      await done;
+
+      expect(session.state).toEqual({ kind: 'flashMode', chip: 'ESP8266' });
+      expect(flasher.calls.slice(-2)).toEqual(['monitor 115200', 'disconnect']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reads the board without its bootloader on the next connect', async () => {
+    vi.useFakeTimers();
+    try {
+      const { flasher, session } = await flashed({});
+      const done = session.send({ type: 'connect' });
+      await vi.advanceTimersByTimeAsync(3000);
+      await done;
+
+      await session.send({ type: 'connect' });
+
+      expect(session.state).toEqual({ kind: 'running', chip: 'ESP8266', output: [] });
+      expect(flasher.calls.slice(-2)).toEqual(['attach', 'monitor 115200']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('sends the settings once the board is read again out of flash mode', async () => {
+    vi.useFakeTimers();
+    try {
+      const { flasher, session } = await flashed({ answer: relayBoard }, 'web-relay');
+      await session.send({ type: 'connect' });
+      const done = session.send({ type: 'submitSettings', values: { ...DEFAULTS, ap_ssid: 'lamp' } });
+      await vi.advanceTimersByTimeAsync(3000);
+      await done;
+      expect(session.state).toEqual({ kind: 'flashMode', chip: 'ESP8266' });
+      expect(flasher.calls.filter((call) => call.startsWith('send '))).toEqual([]);
+
+      await session.send({ type: 'connect' });
+
+      expect(session.state).toEqual({ kind: 'running', chip: 'ESP8266', output: [] });
+      expect(flasher.calls.filter((call) => call.startsWith('send '))).toEqual([
+        'send cfg get',
+        'send cfg set ap_ssid lamp',
+        'send cfg restart',
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps waiting for the board to run after the visitor closes the port picker', async () => {
+    vi.useFakeTimers();
+    try {
+      const { flasher, session } = await flashed({ failAt: { attach: domError('NotFoundError') } });
+      const done = session.send({ type: 'connect' });
+      await vi.advanceTimersByTimeAsync(3000);
+      await done;
+      await session.send({ type: 'connect' });
+      expect(session.state).toEqual({ kind: 'noPort' });
+
+      await session.send({ type: 'connect' });
+
+      expect(flasher.calls.filter((call) => call === 'attach')).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('starts over with the bootloader after retry from flash mode', async () => {
+    vi.useFakeTimers();
+    try {
+      const { flasher, session } = await flashed({});
+      const done = session.send({ type: 'connect' });
+      await vi.advanceTimersByTimeAsync(3000);
+      await done;
+
+      await session.send({ type: 'retry' });
+      expect(session.state).toEqual({ kind: 'idle' });
+      const flashing = session.send({ type: 'connect' });
+      await vi.advanceTimersByTimeAsync(3000);
+      await flashing;
+
+      expect(flasher.calls.filter((call) => call === 'connect')).toHaveLength(2);
+      expect(flasher.calls).not.toContain('attach');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
