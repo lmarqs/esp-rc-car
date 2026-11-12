@@ -18,6 +18,17 @@ const files = Object.entries(headers)
   .map(([path, source]) => ({ name: path.split('/').pop()!, source }))
   .sort((a, b) => a.name.localeCompare(b.name));
 const repo = 'https://github.com/lmarqs/robomania/blob/main/lib/';
+
+const propertiesPath = '../../../../lib/library.properties';
+const properties = import.meta.glob<string>('../../../../lib/library.properties', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+})[propertiesPath];
+const version = properties?.match(/^version=(\S+)\s*$/m)?.[1];
+if (!version) throw new Error('No "version=" line found in lib/library.properties');
+const zip = `Robomania-${version}.zip`;
+const zipUrl = `https://github.com/lmarqs/robomania/releases/download/lib-v${version}/${zip}`;
 ---
 
 <Base title="Library" description="The drivers every Robomania project builds with, straight from the repository's lib/ folder.">
@@ -27,6 +38,13 @@ const repo = 'https://github.com/lmarqs/robomania/blob/main/lib/';
     device sits on which pin; the drivers do the talking to the hardware. Below is each driver's header, the part a
     sketch uses, exactly as it is in the code today.
   </p>
+  <section aria-labelledby="download">
+    <h2 id="download">Download</h2>
+    <p class="prose">
+      <a href={zipUrl}>Download {zip}</a> to use the library in your own sketches. In the Arduino IDE: Sketch &gt;
+      Include Library &gt; Add .ZIP Library. The library is for ESP32 boards.
+    </p>
+  </section>
   {
     files.map((f) => (
       <section>
