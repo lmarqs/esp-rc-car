@@ -161,15 +161,15 @@ describe('boardStatusText', () => {
     expect(boardStatusText({ kind: 'simulated' }, true).title).toBe('Running in the browser');
   });
 
-  it('reads Simulated, Connected, Live, Runs step <n> or Other sketch, with the full key in the sentence for the tooltip', () => {
+  it('reads Simulated, Connected, Live, Runs <id> or Other sketch, with the full key in the sentence for the tooltip', () => {
     expect(boardStatusText({ kind: 'simulated' })).toEqual({ word: 'Simulated', title: 'Running in the browser' });
     expect(boardStatusText({ kind: 'connected' })).toEqual({
       word: 'Connected',
       title: 'Waiting for the board to name its sketch; flash a step to use it here',
     });
     expect(boardStatusText({ kind: 'live' })).toEqual({ word: 'Live', title: 'Your board runs this step' });
-    expect(boardStatusText({ kind: 'step', key: 'blink/commands', number: 4 })).toEqual({
-      word: 'Runs step 4',
+    expect(boardStatusText({ kind: 'step', key: 'blink/commands', id: 'commands' })).toEqual({
+      word: 'Runs commands',
       title: 'Your board runs blink/commands',
     });
     expect(boardStatusText({ kind: 'sketch', key: 'servo/sweep' })).toEqual({

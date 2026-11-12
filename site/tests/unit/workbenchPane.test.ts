@@ -50,7 +50,7 @@ describe('the board pane', () => {
   it('opens simulated beside a board the site kept connected that runs another step', () => {
     const pane = initialPane(blink, running, 'blink/input');
     expect(pane).toMatchObject({ selected: 0, mode: 'simulator', heard: 'blink/input' });
-    expect(paneStatus(blink, pane)).toEqual({ kind: 'step', key: 'blink/input', number: 2 });
+    expect(paneStatus(blink, pane)).toEqual({ kind: 'step', key: 'blink/input', id: 'input' });
   });
 
   it('keeps simulating, Connected, until the board names its sketch', () => {
@@ -71,7 +71,7 @@ describe('the board pane', () => {
     const other = after(connected, line('sketch blink/commands'));
     expect(other).toMatchObject({ mode: 'simulator', following: 0 });
     expect(other.followed).toBeUndefined();
-    expect(paneStatus(blink, other)).toEqual({ kind: 'step', key: 'blink/commands', number: 4 });
+    expect(paneStatus(blink, other)).toEqual({ kind: 'step', key: 'blink/commands', id: 'commands' });
 
     const live = reducePane(blink, other, tab(COMMANDS));
     expect(live).toMatchObject({ mode: 'live', selected: COMMANDS, following: 1 });

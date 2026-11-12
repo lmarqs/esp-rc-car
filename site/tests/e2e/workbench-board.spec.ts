@@ -79,8 +79,8 @@ test.describe('the Board switch', () => {
 
     await connect(page);
 
-    await expect(status(page)).toHaveText('Runs step 4');
-    await expect(statusLine(page)).toHaveText('Runs step 4: Your board runs blink/commands');
+    await expect(status(page)).toHaveText('Runs commands');
+    await expect(statusLine(page)).toHaveText('Runs commands: Your board runs blink/commands');
     await expect(boardButton(page)).toHaveAccessibleName('Flash simple to board');
     expect(await icon(page)).toBe('bolt');
     expect(await pressed(page)).toEqual(['true', 'false']);
@@ -193,7 +193,7 @@ test.describe('flashing from the workbench', () => {
     await expect(status(page)).toHaveText('Live');
 
     await tab(page, '2 input').click();
-    await expect(status(page)).toHaveText('Runs step 1');
+    await expect(status(page)).toHaveText('Runs simple');
     await boardButton(page).click();
 
     await expect(status(page)).toHaveText('Live');
@@ -249,7 +249,7 @@ test.describe('flashing from the workbench', () => {
     await fakeFlasher.install({ lines: ['sketch blink/timer'] });
     await page.goto(BLINK);
     await connect(page);
-    await expect(status(page)).toHaveText('Runs step 3');
+    await expect(status(page)).toHaveText('Runs timer');
 
     const seen: [string, string][] = [];
     for (const name of ['2 input', '3 timer', '4 commands', '1 simple', '3 timer']) {
@@ -259,10 +259,10 @@ test.describe('flashing from the workbench', () => {
 
     // The switch shows the short label; the button's name, read out, ends in "to board".
     expect(seen).toEqual([
-      ['Runs step 3', 'Flash input'],
+      ['Runs timer', 'Flash input'],
       ['Live', 'My board, live'],
-      ['Runs step 3', 'Flash commands'],
-      ['Runs step 3', 'Flash simple'],
+      ['Runs timer', 'Flash commands'],
+      ['Runs timer', 'Flash simple'],
       ['Live', 'My board, live'],
     ]);
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
@@ -317,7 +317,7 @@ test.describe('flashing from the workbench', () => {
       'This board is an ESP32-C3. blink/input has images for: ESP32. Connect an ESP32, or pick another step.',
     );
     await expect(picture(page)).toBeHidden();
-    await expect(status(page)).toHaveText('Runs step 1');
+    await expect(status(page)).toHaveText('Runs simple');
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
 
     await tab(page, '3 timer').click();
@@ -450,11 +450,11 @@ test.describe('the rail', () => {
       },
     },
     {
-      name: 'Runs step 4',
+      name: 'Runs commands',
       options: { lines: ['sketch blink/commands'] },
       reach: async (page) => {
         await connect(page);
-        await expect(status(page)).toHaveText('Runs step 4');
+        await expect(status(page)).toHaveText('Runs commands');
       },
     },
     {

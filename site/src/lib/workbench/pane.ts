@@ -84,7 +84,7 @@ export function initialPane<B>(project: PaneProject<B>, session: SessionState, h
 /** The Board cell's status for `state`. */
 export function paneStatus<B>(project: PaneProject<B>, state: PaneState<B>): BoardStatus {
   const keys = project.steps.map((step) => step.key);
-  return boardStatus(state.session, state.heard, keys[state.selected], keys);
+  return boardStatus(state.session, state.heard, keys[state.selected], keys, project.ids);
 }
 
 /** The board half of the Board switch for the pane; `undefined` in a browser that cannot reach a board. */

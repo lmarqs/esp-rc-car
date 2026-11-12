@@ -51,7 +51,7 @@ test.describe('live mode', () => {
     fakeFlasher,
   }) => {
     await page.clock.install();
-    await connectTo(page, fakeFlasher, 'blink/input', '1 simple', 'Runs step 2');
+    await connectTo(page, fakeFlasher, 'blink/input', '1 simple', 'Runs input');
 
     // Picking the step the board runs follows the board.
     await tab(page, '2 input').click();
@@ -282,7 +282,7 @@ test.describe('live mode', () => {
     await page.clock.runFor(60);
     await expect(commandLine(page)).toHaveAttribute('data-typing', '');
     await fakeFlasher.print('', 'sketch blink/simple');
-    await expect(status(page)).toHaveText('Runs step 1');
+    await expect(status(page)).toHaveText('Runs simple');
     await page.clock.runFor(2000);
 
     await expect(commandLine(page)).toHaveValue('');
@@ -332,7 +332,7 @@ test.describe('a board that runs another step', () => {
     page,
     fakeFlasher,
   }) => {
-    await connectTo(page, fakeFlasher, 'blink/simple', '2 input', 'Runs step 1');
+    await connectTo(page, fakeFlasher, 'blink/simple', '2 input', 'Runs simple');
 
     await expect(commandLine(page)).toBeEnabled();
     await expect(commandLine(page)).toHaveAttribute('placeholder', 'a number, then Enter');
@@ -355,7 +355,7 @@ test.describe('a board that runs another step', () => {
     await page.goto(BLINK);
     await tab(page, '2 input').click();
     await boardButton(page).click();
-    await expect(status(page)).toHaveText('Runs step 1');
+    await expect(status(page)).toHaveText('Runs simple');
 
     await boardButton(page).click();
 
@@ -382,7 +382,7 @@ test.describe('a board that runs another step', () => {
     page,
     fakeFlasher,
   }) => {
-    await connectTo(page, fakeFlasher, 'blink/commands', '2 input', 'Runs step 4');
+    await connectTo(page, fakeFlasher, 'blink/commands', '2 input', 'Runs commands');
 
     await tab(page, '4 commands').click();
 

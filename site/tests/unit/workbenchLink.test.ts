@@ -31,36 +31,37 @@ describe('isConnected', () => {
 });
 
 const STEPS = ['blink/simple', 'blink/input', 'blink/timer', 'blink/commands'];
+const IDS = ['simple', 'input', 'timer', 'commands'];
 
 describe('boardStatus', () => {
   it('is Simulated before a board is connected, whatever was heard', () => {
-    expect(boardStatus({ kind: 'idle' }, 'blink/simple', 'blink/simple', STEPS)).toEqual({ kind: 'simulated' });
-    expect(boardStatus({ kind: 'unsupported' }, undefined, 'blink/simple', STEPS)).toEqual({ kind: 'simulated' });
+    expect(boardStatus({ kind: 'idle' }, 'blink/simple', 'blink/simple', STEPS, IDS)).toEqual({ kind: 'simulated' });
+    expect(boardStatus({ kind: 'unsupported' }, undefined, 'blink/simple', STEPS, IDS)).toEqual({ kind: 'simulated' });
   });
 
   it('is Connected on a connected board that has not named its sketch yet', () => {
-    expect(boardStatus(running, undefined, 'blink/simple', STEPS)).toEqual({ kind: 'connected' });
+    expect(boardStatus(running, undefined, 'blink/simple', STEPS, IDS)).toEqual({ kind: 'connected' });
   });
 
   it('is Live when the board runs the selected step', () => {
-    expect(boardStatus(running, 'blink/input', 'blink/input', STEPS)).toEqual({ kind: 'live' });
+    expect(boardStatus(running, 'blink/input', 'blink/input', STEPS, IDS)).toEqual({ kind: 'live' });
   });
 
-  it('numbers the step as the rail does when the board runs another step of the project', () => {
-    expect(boardStatus(running, 'blink/commands', 'blink/input', STEPS)).toEqual({
+  it('names the step by its id as its tab does when the board runs another step of the project', () => {
+    expect(boardStatus(running, 'blink/commands', 'blink/input', STEPS, IDS)).toEqual({
       kind: 'step',
       key: 'blink/commands',
-      number: 4,
+      id: 'commands',
     });
-    expect(boardStatus(running, 'blink/simple', 'blink/input', STEPS)).toEqual({ kind: 'step', key: 'blink/simple', number: 1 });
+    expect(boardStatus(running, 'blink/simple', 'blink/input', STEPS, IDS)).toEqual({ kind: 'step', key: 'blink/simple', id: 'simple' });
   });
 
   it('keeps the key of a sketch from outside the project', () => {
-    expect(boardStatus(running, 'servo/sweep', 'blink/input', STEPS)).toEqual({ kind: 'sketch', key: 'servo/sweep' });
+    expect(boardStatus(running, 'servo/sweep', 'blink/input', STEPS, IDS)).toEqual({ kind: 'sketch', key: 'servo/sweep' });
   });
 
   it('is Simulated again once the board is lost', () => {
-    expect(boardStatus(lost, 'blink/input', 'blink/input', STEPS)).toEqual({ kind: 'simulated' });
+    expect(boardStatus(lost, 'blink/input', 'blink/input', STEPS, IDS)).toEqual({ kind: 'simulated' });
   });
 });
 
@@ -142,7 +143,7 @@ describe('paneMode', () => {
   });
 
   it('simulates the selected step while the board runs another step or sketch', () => {
-    expect(paneMode({ kind: 'step', key: 'blink/simple', number: 1 }, false)).toBe('simulator');
+    expect(paneMode({ kind: 'step', key: 'blink/simple', id: 'simple' }, false)).toBe('simulator');
     expect(paneMode({ kind: 'sketch', key: 'servo/sweep' }, true)).toBe('simulator');
   });
 });

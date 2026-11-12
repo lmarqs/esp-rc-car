@@ -235,7 +235,7 @@ export function boardStatusText(status: BoardStatus, detached = false): { readon
         title: detached ? 'Live — the pane shows the simulator until My board' : 'Your board runs this step',
       };
     case 'step':
-      return { word: `Runs step ${status.number}`, title: `Your board runs ${status.key}` };
+      return { word: `Runs ${status.id}`, title: `Your board runs ${status.key}` };
     case 'sketch':
       return { word: 'Other sketch', title: `Your board runs ${status.key}` };
   }

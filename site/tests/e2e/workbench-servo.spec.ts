@@ -356,7 +356,7 @@ test.describe('the Servo workbench', () => {
 
   for (const [state, lines, word] of [
     ['Live', ['sketch servo/sweep'], 'Live'],
-    ['Runs step 4', ['sketch servo/speed'], 'Runs step 4'],
+    ['Runs speed', ['sketch servo/speed'], 'Runs speed'],
     ['Other sketch', ['sketch blink/simple'], 'Other sketch'],
   ] as const) {
     test(`keeps every tab, the Board cell and the button where Simulated has them: ${state}`, async ({
