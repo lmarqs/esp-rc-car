@@ -12,6 +12,7 @@ describe('readManifest', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllEnvs();
     rmSync(directory, { recursive: true });
   });
@@ -24,9 +25,16 @@ describe('readManifest', () => {
     expect(readManifest()).toEqual({ sketches: { blink: { images: [] } } });
   });
 
-  it('holds no sketches when the file is absent', () => {
-    vi.stubEnv('ROBOMANIA_FIRMWARE_MANIFEST', join(directory, 'missing.json'));
+  it('holds no sketches when the variable is unset and the default file is absent', () => {
+    vi.stubEnv('ROBOMANIA_FIRMWARE_MANIFEST', '');
+    vi.spyOn(process, 'cwd').mockReturnValue(directory);
 
     expect(readManifest()).toEqual({ sketches: {} });
+  });
+
+  it('throws when the variable names a file that is absent', () => {
+    vi.stubEnv('ROBOMANIA_FIRMWARE_MANIFEST', join(directory, 'missing.json'));
+
+    expect(() => readManifest()).toThrow('does not exist');
   });
 });
