@@ -48,3 +48,17 @@ export function newLines(previous: string | undefined, current: string): number[
   }
   return added;
 }
+
+/**
+ * The 1-based number of the `occurrence`-th line of `source` whose trimmed text is `text`, counting occurrences from 1
+ * at the top; `undefined` when the file has no such line. This is how an operation's named line finds its place in
+ * the file the page shows.
+ */
+export function lineNumber(source: string, text: string, occurrence = 1): number | undefined {
+  let seen = 0;
+  const lines = toLines(source);
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim() === text && ++seen === occurrence) return i + 1;
+  }
+  return undefined;
+}

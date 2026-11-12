@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { readStepSource } from '../../src/lib/workbench/readSource';
-import { newLines, sketchSourcePath } from '../../src/lib/workbench/source';
+import { lineNumber, newLines, sketchSourcePath } from '../../src/lib/workbench/source';
 
 const BLINK = ['simple', 'input', 'timer', 'commands'];
 const SERVO = ['sweep', 'angle', 'commands', 'speed'];
@@ -106,5 +106,24 @@ describe('the real ladders', () => {
         expect(lines[number - 1]).toBeDefined();
       }
     });
+  });
+});
+
+describe('lineNumber', () => {
+  const source = 'void loop() {\n  delay(1);\n  delay(1);\n}\n';
+
+  it('finds a line by its trimmed text', () => {
+    expect(lineNumber(source, 'void loop() {')).toBe(1);
+    expect(lineNumber(source, 'delay(1);')).toBe(2);
+  });
+
+  it('counts the occurrence of a repeated line from 1', () => {
+    expect(lineNumber(source, 'delay(1);', 1)).toBe(2);
+    expect(lineNumber(source, 'delay(1);', 2)).toBe(3);
+  });
+
+  it('gives undefined for a line the file does not have or has fewer times', () => {
+    expect(lineNumber(source, 'delay(2);')).toBeUndefined();
+    expect(lineNumber(source, 'delay(1);', 3)).toBeUndefined();
   });
 });
