@@ -231,6 +231,40 @@ test.describe('the switch', () => {
     expect(await fakeFlasher.loaded()).toEqual([['blink/simple/esp32/simple.ino.bootloader.bin', 'blink/simple/esp32/simple.ino.bin']]);
   });
 
+  test('gives the focus to Flash again once a connect pressed from the keyboard ends live', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/simple'] });
+    await page.goto(BLINK);
+    await myBoardButton(page).click();
+
+    await boardButton(page).focus();
+    await page.keyboard.press('Enter');
+
+    await expect(tagWord(page)).toHaveText('Live');
+    await expect(flashAgain(page)).toBeFocused();
+  });
+
+  test('keeps the focus through Flash again, on Flashing… while it flashes, and back on Flash again once live', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/simple'], announce: true, hold: true });
+    await page.goto(BLINK);
+    await connect(page);
+    await expect(tagWord(page)).toHaveText('Live');
+
+    await flashAgain(page).focus();
+    await page.keyboard.press('Enter');
+
+    await expect(boardButton(page)).toHaveAccessibleName('Flashing…');
+    await expect(boardButton(page)).toBeFocused();
+    await fakeFlasher.release();
+    await expect(tagWord(page)).toHaveText('Live');
+    await expect(flashAgain(page)).toBeFocused();
+  });
+
   test('outlines each half in blue when it has the keyboard focus', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install();
     await page.goto(BLINK);

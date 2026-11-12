@@ -68,8 +68,10 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
         tagWord = word;
         tagTitle = title;
       }
-      // The press hides Flash again as the flash starts: the focus goes on to the button that says what it does.
+      // The press hides Flash again as the flash starts: the focus goes on to the button that says what it does. The
+      // My board view's button goes as the pane goes live, and the focus goes back to Flash again.
       const refocus = !view.flashAgain && document.activeElement === flashAgain;
+      const toFlashAgain = view.flashAgain && actionButton !== null && document.activeElement === actionButton;
       flashAgain.hidden = !view.flashAgain;
 
       const waiting = view.mode === 'waiting';
@@ -98,6 +100,7 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
         }
         if (refocus && waiting && !actionButton.hidden) actionButton.focus();
       }
+      if (toFlashAgain) flashAgain.focus();
     },
   };
 }
