@@ -16,8 +16,8 @@ website: Astro 7 pinned in `site/package.json`, Node 24 in `mise.toml`, pnpm 12 
   (unverified); a website package: `pnpm --filter @robomania/site add <package>`
 - Run: `mise run arduino:run <sketch> --port <port>` (unverified)
 - Flash a compiled sketch: `mise run arduino:upload <sketch> --port <port>`
-- Build: `mise run arduino:compile sketches/<name>`; the website: `mise run site:build` or
-  `site:dev` (serves it)
+- Build: `mise run arduino:compile sketches/<name>`, or `sketches/<project>/<variant>`; the website:
+  `mise run site:build` or `site:dev` (serves it)
 - Test: `mise run lib:test`; the website: `mise run site:test`
 - Lint or format one file: `mise exec -- clang-format -i <file>`; Python: `mise exec -- ruff format <file>`
 - Generate: `mise run arduino:hexdump <sketch>`, a C header per `<sketch>/data` file; the website's firmware images,
@@ -27,7 +27,7 @@ website: Astro 7 pinned in `site/package.json`, Node 24 in `mise.toml`, pnpm 12 
 - Quick check: `mise exec -- clang-format --dry-run --Werror <file>` on each changed file,
   then the Build command for the sketch the change touches, or `mise run site:build` for a `site/` change
 - Done check:
-  `mise exec -- clang-format --dry-run --Werror lib/* test/* sketches/*/*.ino`,
+  `mise exec -- clang-format --dry-run --Werror lib/* test/* $(find sketches -name '*.ino')`,
   `mise exec -- ruff check . .vscode/*.py && mise exec -- ruff format --check . .vscode/*.py`, `mise run lib:test`,
   the Build command for every sketch in `sketches/`, `mise run arduino:firmware`, `mise run site:build`,
   `mise run site:test`
@@ -55,9 +55,9 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 
 ## Where things go
 
-- New code: drivers in `lib/`, sketches in `sketches/`, laid out as [Code layout](README.md#code-layout) says; no
-  design document; website pages in `site/src/content/projects/` and `site/src/content/topics/`, one Markdown file
-  each, and its playable examples in `site/src/components/examples/`
+- New code: drivers in `lib/`, sketches in `sketches/<name>/` or `sketches/<project>/<variant>/`, laid out as
+  [Code layout](README.md#code-layout) says; no design document; website pages in `site/src/content/projects/` and
+  `site/src/content/topics/`, one Markdown file each, and its playable examples in `site/src/components/examples/`
 - Tests: `test/test_<header>.cpp`, only for `lib/` drivers needing no hardware; the website's in `site/tests`
   (Vitest `unit`, Playwright `e2e`)
 - Settings: `.env` (gitignored, loaded by mise), arduino-cli in `arduino-cli.yaml`, board profiles in `sketch.yaml`;
@@ -91,6 +91,5 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 - Changing what agents may run, or how Claude or Codex is wired: the `agents-layout` skill and `.agents/README.md`.
 <!-- cook:begin io.github.lmarqs.cookbook:git#worktrees/worktrees -->
 <!-- io.github.lmarqs.cookbook:git#worktrees --instructions=AGENTS.md --instructions=README.md -->
-- Worktrees: branch `<branch>` is checked out at `.worktrees/<branch>`; `.worktrees/README.md` says how to
-  create one ready to run and remove it.
+- Worktrees: `.worktrees/README.md` says how to create one ready to run and remove it.
 <!-- cook:end io.github.lmarqs.cookbook:git#worktrees/worktrees -->

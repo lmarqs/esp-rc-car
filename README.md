@@ -77,9 +77,11 @@ on a board yet; report what fails.
 
 ## Code layout
 
-Each sketch is a folder under `sketches/` with a `sketch.yaml` that pins the board, the core version and the
-libraries; `sketches/blink/sketch.yaml` is the one to copy. A sketch uses the drivers by listing `../../lib` under
-`libraries`.
+Each sketch is a folder with a `sketch.yaml` that pins the board, the core version and the libraries, one or two
+levels under `sketches/`: `sketches/<name>/`, or `sketches/<project>/<variant>/` for a project whose variants are
+steps of one ladder. A sketch's path under `sketches/`, such as `blink/simple`, names it in the firmware manifest.
+`sketches/blink/sketch.yaml` is the one to copy. A sketch uses the drivers by listing the path to `lib`, `../../lib`
+at one level and `../../../lib` at two, under `libraries`.
 
 The drivers in `lib/`:
 

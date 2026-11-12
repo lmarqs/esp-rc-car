@@ -21,8 +21,10 @@ the `lib-v<version>` asset, so a raised version is released before the site.
 
 The firmware has five parts:
 
-- **Sketches**, in `sketches/<name>/`: each is one firmware image, for one robot or for trying one driver on a board.
-  A sketch says which device sits on which pin, and holds its robot's control logic.
+- **Sketches**, in `sketches/<name>/` or, to group the variants of a project, `sketches/<project>/<variant>/`: each is
+  one firmware image, for one robot or for trying one driver on a board. A sketch is a folder with a `sketch.yaml`;
+  a folder without one is searched a level down. A sketch says which device sits on which pin, and holds its robot's
+  control logic. Its path under `sketches/` names it in the firmware manifest and its image folder.
 - **Pin interfaces**, in `lib/`: the kinds of pin output a driver can ask for, such as a level or a PWM signal, each
   with a class per way the ESP32 produces it.
 - **Drivers**, in `lib/`: one library that the ESP32 sketches build with. Each driver runs one sort of device, such
