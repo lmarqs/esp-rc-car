@@ -3,12 +3,17 @@ import type { Flasher } from '../../src/lib/flash/flasher';
 
 /** What the fake flasher does in one test. */
 export interface FakeFlasherOptions {
-  /** The chip `connect` resolves with. Default: `ESP32`. */
-  chip?: string;
+  /** The chip `connect` resolves with; with a list, each call takes the next and the last repeats. Default: `ESP32`. */
+  chip?: string | string[];
   /** The percentages `write` reports, in order, before it waits. Default: none. */
   progress?: number[];
   /** `write` waits after reporting `progress`, until `release` is called. Default: finishes at once. */
   hold?: boolean;
+  /**
+   * Makes the first call of a method reject with an error of this name, as the layer below does; later calls succeed.
+   * `write` rejects after it has reported `progress`.
+   */
+  failFirst?: { connect?: string; load?: string; write?: string };
 }
 
 /** Controls the fake flasher of one page. */
@@ -32,19 +37,35 @@ function installFakeFlasher(options: FakeFlasherOptions) {
     release = resolve;
   });
 
+  const chips = [options.chip ?? 'ESP32'].flat();
+  const failing = { ...options.failFirst };
+  function failOnce(method: 'connect' | 'load' | 'write') {
+    const name = failing[method];
+    delete failing[method];
+    if (name) {
+      const error = new Error(`${method} failed in the test`);
+      error.name = name;
+      throw error;
+    }
+  }
+
   const flasher: Flasher = {
     async connect() {
+      const call = calls.filter((name) => name === 'connect').length;
       calls.push('connect');
-      return options.chip ?? 'ESP32';
+      failOnce('connect');
+      return chips[Math.min(call, chips.length - 1)]!;
     },
     async load() {
       calls.push('load');
+      failOnce('load');
     },
     async write(_parts, onProgress) {
       calls.push('write');
       for (const pct of options.progress ?? []) {
         onProgress(pct);
       }
+      failOnce('write');
       if (options.hold) {
         await released;
       }
