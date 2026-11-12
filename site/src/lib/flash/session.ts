@@ -169,6 +169,10 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
   /** Flashes the board and, with `values`, sends it the settings once it runs the sketch. */
   async function flash(active: Flasher, chip: string, values?: SettingValues) {
     downloading = true;
+    if (values) {
+      // Replaces the form, which the download would otherwise leave on screen and unanswered.
+      enter({ kind: 'flashing', chip, pct: 0 });
+    }
     try {
       await active.load(image!.parts);
     } catch (error) {
@@ -181,7 +185,9 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
     }
 
     lastPct = 0;
-    enter({ kind: 'flashing', chip, pct: 0 });
+    if (state.kind !== 'flashing') {
+      enter({ kind: 'flashing', chip, pct: 0 });
+    }
     try {
       await active.write(image!.parts, (pct) => {
         const clamped = Math.min(100, Math.max(0, Math.floor(pct)));
@@ -242,7 +248,10 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
     });
   }
 
-  /** The values the board's next boot uses, by key, as `cfg get` lists them; `undefined` when it never does. */
+  /**
+   * The values the board's next boot uses, by key, as `cfg get` lists them; `undefined` when it never does. A list
+   * that misses a field, such as one whose start answered an earlier `cfg get`, is asked for again.
+   */
   async function readBoard(active: Flasher): Promise<Record<string, string> | undefined> {
     for (let attempt = 0; attempt < GET_TRIES && !lost; attempt++) {
       const listed: Record<string, string> = {};
@@ -251,7 +260,7 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
         'cfg get',
         (reply) => {
           if (reply.kind === 'value') listed[reply.key] = reply.value;
-          return reply.kind === 'end';
+          return reply.kind === 'end' && fields.every((field) => field.key in listed);
         },
         GET_INTERVAL_MS,
       );
@@ -279,8 +288,14 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
     }
 
     const errors: Record<string, string> = {};
+    // The order assumed every value of a group is accepted, so after a refusal the rest of the group waits in the form.
+    const refusedGroups = new Set<string>();
     const order = sendOrder(fields, changedValues(fields, values, board), board);
     for (const [key, value] of order) {
+      const field = fields.find((candidate) => candidate.key === key)!;
+      if (field.group && refusedGroups.has(field.group)) {
+        continue;
+      }
       const reply = await exchange(
         active,
         `cfg set ${key} ${value}`,
@@ -292,8 +307,8 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
         return;
       }
       if (reply?.kind !== 'ok') {
-        const field = fields.find((candidate) => candidate.key === key)!;
         errors[key] = refusalText(field, reply?.kind === 'err' ? reply.reason : NO_ANSWER);
+        if (field.group) refusedGroups.add(field.group);
       }
     }
     if (Object.keys(errors).length > 0) {
@@ -304,7 +319,7 @@ export function createSession({ flasher, manifest, sketch, baud }: SessionOption
       // The values take effect at the next boot.
       await active.send('cfg restart').catch(() => {});
     }
-    enter({ kind: 'running', chip, output });
+    enter(lost ? { kind: 'running', chip, output, lost: true } : { kind: 'running', chip, output });
   }
 
   /**

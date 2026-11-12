@@ -112,8 +112,9 @@ function sameValue(field: SettingField, a: string, b: string | undefined): boole
 }
 
 /**
- * The values to send, by key, in field order. The board reports a password only as `set` or `unset`, so a password
- * is sent when it differs from the default; any other value, when it differs from what the board reported.
+ * The values to send, by key, in field order. The board reports a password only as `set` when it stores one, or
+ * `unset`, so a password is sent when it differs from the default or the board stores one, which may be another; any
+ * other value, when it differs from what the board reported.
  */
 export function changedValues(
   fields: readonly SettingField[],
@@ -123,8 +124,11 @@ export function changedValues(
   const changed: Record<string, string> = {};
   for (const field of fields) {
     const value = values[field.key] ?? String(field.default);
-    const reference = field.type === 'password' ? String(field.default) : board[field.key];
-    if (!sameValue(field, value, reference)) {
+    const differs =
+      field.type === 'password'
+        ? value !== String(field.default) || board[field.key] === 'set'
+        : !sameValue(field, value, board[field.key]);
+    if (differs) {
       changed[field.key] = value;
     }
   }

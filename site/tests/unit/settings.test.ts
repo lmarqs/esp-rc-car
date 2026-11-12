@@ -20,7 +20,7 @@ const field = (key: string) => beam.find((candidate) => candidate.key === key)!;
 
 const BEAM_BOARD = {
   ap_ssid: 'balance-beam',
-  ap_password: 'set',
+  ap_password: 'unset',
   angle_offset_deg: '0',
   throttle_min: '0',
   throttle_mid: '0',
@@ -146,13 +146,24 @@ describe('changedValues', () => {
     expect(changedValues(beam, defaultValues(beam), board)).toEqual({ ap_ssid: 'balance-beam', throttle_max: '0' });
   });
 
-  it('sends a password only when it differs from the default, since the board shows it as set or unset', () => {
-    const values = defaultValues(relay);
+  it('sends no password the board does not store while the form holds its default', () => {
+    const board = { ap_ssid: 'web-relay', ap_password: 'unset', ota_password: 'unset' };
 
-    expect(changedValues(relay, values, { ap_ssid: 'web-relay', ap_password: 'set', ota_password: 'unset' })).toEqual({});
-    expect(
-      changedValues(relay, { ...values, ota_password: 'another-secret' }, { ap_ssid: 'web-relay', ap_password: 'set' }),
-    ).toEqual({ ota_password: 'another-secret' });
+    expect(changedValues(relay, defaultValues(relay), board)).toEqual({});
+  });
+
+  it('sends a password that differs from the default', () => {
+    const board = { ap_ssid: 'web-relay', ap_password: 'unset', ota_password: 'unset' };
+
+    expect(changedValues(relay, { ...defaultValues(relay), ota_password: 'another-secret' }, board)).toEqual({
+      ota_password: 'another-secret',
+    });
+  });
+
+  it('sends the default password over one the board stores, which may be another', () => {
+    const board = { ap_ssid: 'web-relay', ap_password: 'set', ota_password: 'unset' };
+
+    expect(changedValues(relay, defaultValues(relay), board)).toEqual({ ap_password: 'web-relay-1234' });
   });
 
   it('sends a value the board did not report', () => {

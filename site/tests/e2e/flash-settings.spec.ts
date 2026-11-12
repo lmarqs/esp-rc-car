@@ -3,10 +3,10 @@ import { expect, test } from './fake-flasher';
 const card = (page: import('@playwright/test').Page) => page.getByRole('region', { name: 'Put it on your board' });
 const field = (page: import('@playwright/test').Page, label: string) => card(page).getByLabel(label, { exact: true });
 
-/** What a balance-beam that holds no settings lists for `cfg get`: each default, the password as set. */
+/** What a balance-beam that holds no settings lists for `cfg get`: each default, the password unset. */
 const DEFAULTS = {
   ap_ssid: 'balance-beam',
-  ap_password: 'set',
+  ap_password: 'unset',
   angle_offset_deg: '0',
   throttle_min: '0',
   throttle_mid: '0',
@@ -61,6 +61,22 @@ test.describe('a project whose sketch has settings', () => {
       'send cfg get',
       'send cfg set ap_ssid balance-beam',
       'send cfg set throttle_max 0',
+      'send cfg restart',
+    ]);
+  });
+
+  test('Use the defaults puts the default password back over one the board stores', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ board: { values: { ...DEFAULTS, ap_password: 'set' } } });
+    await page.goto('/robomania/projects/balance-beam/');
+    await card(page).getByRole('button', { name: 'Connect board' }).click();
+
+    await card(page).getByRole('button', { name: 'Use the defaults' }).click();
+
+    await expect(card(page).locator('[data-message]')).toContainText('Done. Your board is running Balance beam.');
+    expect(await fakeFlasher.calls()).toEqual([
+      ...FLASHED,
+      'send cfg get',
+      'send cfg set ap_password thebalancebot',
       'send cfg restart',
     ]);
   });
