@@ -31,6 +31,38 @@ test.describe('moving between pages', () => {
     await expect(page.locator('[data-level-item="beginner"]').first()).toHaveAttribute('hidden', '');
   });
 
+  test('drives the home car again after leaving the home page and coming back', async ({ page }) => {
+    await page.goto('/robomania/');
+    await mark(page);
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Projects' }).click();
+    await expect(page).toHaveURL('/robomania/projects/');
+    await page.goBack();
+    await expect(page).toHaveURL('/robomania/');
+
+    await page.getByRole('application', { name: /Joystick/ }).focus();
+    await page.keyboard.down('ArrowLeft');
+
+    await expect
+      .poll(async () => Number((await page.locator('#car').getAttribute('transform'))?.match(/translate\(([-\d.]+)/)?.[1]))
+      .toBeLessThan(-50);
+    await page.keyboard.up('ArrowLeft');
+    expect(await sameDocument(page)).toBe(true);
+  });
+
+  test('leaves the arrow keys to the page once the home page is gone', async ({ page }) => {
+    await page.goto('/robomania/');
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Projects' }).click();
+    await expect(page).toHaveURL('/robomania/projects/');
+
+    const prevented = await page.evaluate(() => {
+      const event = new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true });
+      document.body.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+
+    expect(prevented).toBe(false);
+  });
+
   test('runs the workbench on a project page reached by a link, and again after leaving and coming back', async ({
     page,
   }) => {

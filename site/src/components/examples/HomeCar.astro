@@ -135,84 +135,91 @@
 
 <script>
   import { PARKED, stepCar, tiltStick, type Tilt } from './homeCar';
+  import { onEveryPage } from '../../lib/page';
 
-  const $ = (id: string) => document.getElementById(id)!;
-  const carArt = $('car');
-  const pupils = $('pupils');
-  const spare = $('spare');
-  const spareRoll = $('spare-roll');
-  const pad = $('pad');
-  const stick = $('stick') as unknown as SVGGraphicsElement;
-  const knob = $('knob');
-  const led = $('led');
-  const light = $('light');
-  const STICK_CENTRE = { x: -52, y: 44 };
-  const keys: Record<string, boolean> = {};
-  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let car = PARKED;
-  let tilt: Tilt | null = null;
-  let jumpPressed = false;
+  // The router keeps the document from page to page, so the scene mounts on each visit to the home page and stops,
+  // with its window listeners and its frame loop, as the page goes.
+  onEveryPage((signal) => {
+    // The router runs this on every page; only the home page has the scene.
+    if (document.getElementById('car') === null) return;
+    const $ = (id: string) => document.getElementById(id)!;
+    const carArt = $('car');
+    const pupils = $('pupils');
+    const spare = $('spare');
+    const spareRoll = $('spare-roll');
+    const pad = $('pad');
+    const stick = $('stick') as unknown as SVGGraphicsElement;
+    const knob = $('knob');
+    const led = $('led');
+    const light = $('light');
+    const STICK_CENTRE = { x: -52, y: 44 };
+    const keys: Record<string, boolean> = {};
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let car = PARKED;
+    let tilt: Tilt | null = null;
+    let jumpPressed = false;
 
-  function moveKnob(next: Tilt | null) {
-    tilt = next;
-    knob.setAttribute('transform', next ? `translate(${next.dx.toFixed(1)} ${next.dy.toFixed(1)})` : '');
-  }
-  function dragTo(e: PointerEvent) {
-    const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(stick.getScreenCTM()!.inverse());
-    moveKnob(tiltStick(p.x - STICK_CENTRE.x, p.y - STICK_CENTRE.y));
-  }
-  stick.addEventListener('pointerdown', (e) => { stick.classList.add('dragging'); stick.setPointerCapture(e.pointerId); dragTo(e); });
-  stick.addEventListener('pointermove', (e) => { if (tilt) dragTo(e); });
-  const release = () => { stick.classList.remove('dragging'); moveKnob(null); };
-  stick.addEventListener('pointerup', release);
-  stick.addEventListener('pointercancel', release);
+    function moveKnob(next: Tilt | null) {
+      tilt = next;
+      knob.setAttribute('transform', next ? `translate(${next.dx.toFixed(1)} ${next.dy.toFixed(1)})` : '');
+    }
+    function dragTo(e: PointerEvent) {
+      const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(stick.getScreenCTM()!.inverse());
+      moveKnob(tiltStick(p.x - STICK_CENTRE.x, p.y - STICK_CENTRE.y));
+    }
+    stick.addEventListener('pointerdown', (e) => { stick.classList.add('dragging'); stick.setPointerCapture(e.pointerId); dragTo(e); });
+    stick.addEventListener('pointermove', (e) => { if (tilt) dragTo(e); });
+    const release = () => { stick.classList.remove('dragging'); moveKnob(null); };
+    stick.addEventListener('pointerup', release);
+    stick.addEventListener('pointercancel', release);
 
-  // Arrow keys drive only while the page itself or the stick has focus, so they never hijack a form field;
-  // ArrowDown has no meaning here and is left to scroll the page.
-  const driving = ['ArrowLeft', 'ArrowRight', 'ArrowUp'];
-  addEventListener('keydown', (e) => {
-    if (driving.includes(e.key) && (document.activeElement === document.body || document.activeElement === stick)) { keys[e.key] = true; e.preventDefault(); }
-  });
-  addEventListener('keyup', (e) => { keys[e.key] = false; });
-  addEventListener('blur', () => { for (const k of driving) keys[k] = false; });
+    // Arrow keys drive only while the page itself or the stick has focus, so they never hijack a form field;
+    // ArrowDown has no meaning here and is left to scroll the page.
+    const driving = ['ArrowLeft', 'ArrowRight', 'ArrowUp'];
+    addEventListener('keydown', (e) => {
+      if (driving.includes(e.key) && (document.activeElement === document.body || document.activeElement === stick)) { keys[e.key] = true; e.preventDefault(); }
+    }, { signal });
+    addEventListener('keyup', (e) => { keys[e.key] = false; }, { signal });
+    addEventListener('blur', () => { for (const k of driving) keys[k] = false; }, { signal });
 
-  function onPress(el: Element, act: () => void) {
-    el.addEventListener('click', act);
-    el.addEventListener('keydown', (e) => {
-      const key = (e as KeyboardEvent).key;
-      if (key === 'Enter' || key === ' ') { e.preventDefault(); act(); }
-    });
-  }
-  function toggleLed() {
-    const off = led.classList.toggle('off');
-    $('light-icon').classList.toggle('off', off);
-    light.setAttribute('aria-pressed', String(!off));
-    light.setAttribute('aria-label', off ? 'LED: off. Press to make it blink' : 'LED: blinking. Press to switch it off');
-  }
-  onPress($('jump'), () => { jumpPressed = true; });
-  onPress(light, toggleLed);
-  led.addEventListener('click', toggleLed);
+    function onPress(el: Element, act: () => void) {
+      el.addEventListener('click', act);
+      el.addEventListener('keydown', (e) => {
+        const key = (e as KeyboardEvent).key;
+        if (key === 'Enter' || key === ' ') { e.preventDefault(); act(); }
+      });
+    }
+    function toggleLed() {
+      const off = led.classList.toggle('off');
+      $('light-icon').classList.toggle('off', off);
+      light.setAttribute('aria-pressed', String(!off));
+      light.setAttribute('aria-label', off ? 'LED: off. Press to make it blink' : 'LED: blinking. Press to switch it off');
+    }
+    onPress($('jump'), () => { jumpPressed = true; });
+    onPress(light, toggleLed);
+    led.addEventListener('click', toggleLed);
 
-  function readDrive() {
-    const steer = tilt ? tilt.steer : (keys.ArrowRight ? 1 : 0) - (keys.ArrowLeft ? 1 : 0);
-    const jump = jumpPressed || (tilt ? tilt.lift > 0.6 : !!keys.ArrowUp);
-    jumpPressed = false;
-    return { steer, jump };
-  }
-  function draw() {
-    const tiltAngle = still ? 0 : car.vx * 0.9;
-    const squash = `scale(${(1 + 0.05 * car.squash).toFixed(3)} ${(1 - 0.1 * car.squash).toFixed(3)})`;
-    carArt.setAttribute('transform', `translate(${car.x.toFixed(1)} ${car.y.toFixed(1)}) rotate(${tiltAngle.toFixed(2)} 305 290) translate(305 292) ${squash} translate(-305 -292)`);
-    pupils.setAttribute('transform', `translate(${(car.vx * 0.6).toFixed(1)} ${car.y < 0 ? -2 : 0})`);
-    spare.setAttribute('transform', `translate(${(520 + car.push).toFixed(1)} 270)`);
-    spareRoll.setAttribute('transform', `rotate(${(car.push * 4.8).toFixed(1)} 0 10)`);
-  }
-  function frame(now: number) {
-    const drive = readDrive();
-    pad.classList.toggle('sending', drive.steer !== 0 || drive.jump);
-    car = stepCar(car, drive, still, now);
-    draw();
+    function readDrive() {
+      const steer = tilt ? tilt.steer : (keys.ArrowRight ? 1 : 0) - (keys.ArrowLeft ? 1 : 0);
+      const jump = jumpPressed || (tilt ? tilt.lift > 0.6 : !!keys.ArrowUp);
+      jumpPressed = false;
+      return { steer, jump };
+    }
+    function draw() {
+      const tiltAngle = still ? 0 : car.vx * 0.9;
+      const squash = `scale(${(1 + 0.05 * car.squash).toFixed(3)} ${(1 - 0.1 * car.squash).toFixed(3)})`;
+      carArt.setAttribute('transform', `translate(${car.x.toFixed(1)} ${car.y.toFixed(1)}) rotate(${tiltAngle.toFixed(2)} 305 290) translate(305 292) ${squash} translate(-305 -292)`);
+      pupils.setAttribute('transform', `translate(${(car.vx * 0.6).toFixed(1)} ${car.y < 0 ? -2 : 0})`);
+      spare.setAttribute('transform', `translate(${(520 + car.push).toFixed(1)} 270)`);
+      spareRoll.setAttribute('transform', `rotate(${(car.push * 4.8).toFixed(1)} 0 10)`);
+    }
+    function frame(now: number) {
+      const drive = readDrive();
+      pad.classList.toggle('sending', drive.steer !== 0 || drive.jump);
+      car = stepCar(car, drive, still, now);
+      draw();
+      if (!signal.aborted) requestAnimationFrame(frame);
+    }
     requestAnimationFrame(frame);
-  }
-  requestAnimationFrame(frame);
+  });
 </script>
