@@ -74,8 +74,8 @@ The site also puts the firmware on a board. Its parts:
   per sketch, its images by profile and chip family, and the fields of the sketch's `settings.json` when it has one.
   It refuses a sketch that has a `local.h`, whose secrets would ship to every visitor.
 - **Settings list**: a sketch that stores values over `cfg` has a `settings.json` in its folder, one entry per value
-  with its `cfg` key, label, type, default and limits, matching the sketch's own. `arduino:firmware` rejects an entry
-  the card cannot show.
+  with its `cfg` key, label, type, default and limits, which are the sketch's own or stricter. `arduino:firmware`
+  rejects an entry the card cannot show.
 - **Flash slice**: `site/src/lib/flash/` holds the logic and `site/src/components/flash/` the card. The logic reads
   the manifest, talks to the board over Web Serial and walks one session through connecting, the settings form,
   flashing and running. The rest of the site imports only the card, `FlashCard`, and the manifest reader.
