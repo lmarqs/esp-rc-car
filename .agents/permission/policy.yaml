@@ -19,7 +19,7 @@ bypass: refuse
 commands:
   allow:
     - [git, [status, diff, log, show]]
-    - [mise, run, [arduino:compile, arduino:firmware, site:test]]
+    - [mise, run, [arduino:compile, arduino:firmware, site:test, node:setup]]
     - [mise, tasks]
     - [cook, check]
   ask: []

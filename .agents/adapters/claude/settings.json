@@ -8,6 +8,7 @@
       "Bash(mise run arduino:compile *)",
       "Bash(mise run arduino:firmware *)",
       "Bash(mise run site:test *)",
+      "Bash(mise run node:setup *)",
       "Bash(mise tasks *)",
       "Bash(cook check *)"
     ],
