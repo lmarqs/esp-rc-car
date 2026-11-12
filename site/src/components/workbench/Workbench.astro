@@ -51,8 +51,8 @@ const manifest = {
 };
 const flashable = Object.keys(manifest.sketches).length > 0;
 const simulated = boardStatusText({ kind: 'simulated' });
-// The notice is drawn with the longest keys while hidden, so it holds its height whichever keys it names.
 const Picture = { led: Led, servo: Servo }[workbench.picture];
+// The notice is drawn with the longest keys while hidden, so it holds its height whichever keys it names.
 const longestKey = rail.map((step) => step.key).reduce((longest, key) => (key.length > longest.length ? key : longest));
 ---
 
