@@ -94,12 +94,12 @@ The site also puts the firmware on a board. Its parts:
   router swaps it out, through `site/src/lib/page.ts`. A reload, or a new tab, drops the port.
 - **Workbench slice**: `site/src/components/workbench/` holds the component, one Astro component for each part of it
   (`Rail`, `Editor`, `Board` with its `Stage`, `Scope` and `Terminal`) and its pictures, and `site/src/lib/workbench/`
-  the logic. A project built as a ladder of step sketches, such as Blink and Servo, has a
-  workbench: step tabs and a Board switch, then the selected step's code in an editor with a debugger beside a board
-  pane. The address names the selected step by its id, such as `#input`, so a link opens that step. Per project, the logic holds one definition per step, which has the step's simulated program, what each line
-  the step prints means, and the controls that send a line; and a board model, which turns that meaning into the
-  picture, the watch values and the trace. The slice depends on the board slice and the flash slice, and on the
-  images and the manifest through them.
+  the logic. A project built as a ladder of step sketches, such as Blink and Servo, has a workbench: step tabs and a
+  Board switch, then the selected step's code in an editor with a debugger beside a board pane. The address names the
+  selected step by its id, such as `#input`, so a link opens that step. Per project, the logic holds one definition per
+  step, which has the step's simulated program, what each line the step prints means, and the controls that send a line;
+  and a board model, which turns that meaning into the picture, the watch values and the trace. The slice depends on the
+  board slice and the flash slice, and on the images and the manifest through them.
 - **Simulator**: the DOM-free part of the workbench slice that runs a step's program on a simulated board, one source
   line at a time on a simulated clock, with Pause, Step and Restart. A program names the lines of the step's `.ino`
   and does what each does to the board, and the editor shows the real source, read from `sketches/` at build time,
