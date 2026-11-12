@@ -2,22 +2,14 @@
 
 bool SerialInput::ready() {
   while (!complete && Serial.available()) {
-    char c = Serial.read();
-    if (c == '\n') {
-      line.trim();
-      complete = true;
-    } else {
-      line += c;
-    }
+    complete = reader.feed(static_cast<char>(Serial.read()));
   }
   return complete;
 }
 
 String SerialInput::take() {
-  String taken = line;
-  line = "";
   complete = false;
-  return taken;
+  return String(reader.line());
 }
 
 void SerialOutput::begin(const char* name) {
@@ -28,3 +20,5 @@ void SerialOutput::begin(const char* name) {
 }
 
 size_t SerialOutput::write(uint8_t c) { return Serial.write(c); }
+
+void SerialOutput::flush() { Serial.flush(); }

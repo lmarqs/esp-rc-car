@@ -93,6 +93,8 @@ The drivers in `lib/`:
 | Files | Drives |
 | --- | --- |
 | `pin.h`, `digital_pin.*`, `analog_pin.*` | GPIO pins through the Arduino API |
+| `line_reader.*` | Serial bytes split into lines |
+| `serial_io.*` | The serial port as lines: read without waiting, printed with `Print` |
 | `ledc_pin.*` | A PWM pin through the ESP32 LEDC peripheral, on a channel it allocates |
 | `h_bridge.*` | A motor through a full or half H-bridge |
 | `servo.*` | A positional (180°) or continuous-rotation (360°) hobby servo on a PWM pin |

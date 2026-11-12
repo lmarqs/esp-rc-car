@@ -56,6 +56,8 @@ inline int hostTestEnd() {
 
 #define TEST_ASSERT_TRUE(actual) HOST_TEST_CHECK((actual), "expected true: " #actual)
 #define TEST_ASSERT_FALSE(actual) HOST_TEST_CHECK(!(actual), "expected false: " #actual)
+#define TEST_ASSERT_EQUAL_STRING(expected, actual) \
+  HOST_TEST_CHECK(std::strcmp((expected), (actual)) == 0, "expected " #actual " to equal " #expected)
 #define TEST_ASSERT_FLOAT_WITHIN(delta, expected, actual)                              \
   HOST_TEST_CHECK(std::fabs((double)(expected) - (double)(actual)) <= (double)(delta), \
                   "expected " #actual " within " #delta " of " #expected)
