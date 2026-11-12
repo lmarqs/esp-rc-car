@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SessionState } from '../../src/lib/flash/session';
-import { boardAction, boardStatus, isConnected, paneMode, sketchOf } from '../../src/lib/workbench/link';
+import { sketchOf } from '../../src/lib/board/record';
+import { boardAction, boardStatus, isConnected, paneMode } from '../../src/lib/workbench/link';
 
 const running: SessionState = { kind: 'running', chip: 'ESP32', output: [] };
 const lost: SessionState = { kind: 'running', chip: 'ESP32', output: [], lost: true };

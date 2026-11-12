@@ -1,7 +1,5 @@
 import { isBusy, type SessionState } from '../flash';
 
-export { sketchOf } from '../board/record';
-
 /**
  * Which board the workbench's pictures follow, as the Board cell names it: the simulator with no board, the simulator
  * beside a connected board that has not named its sketch yet, the visitor's board running the selected step, another
