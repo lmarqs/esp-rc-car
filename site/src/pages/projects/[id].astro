@@ -1,6 +1,7 @@
 ---
 import { getCollection, getEntry, render } from 'astro:content';
 import Example from '../../components/Example.astro';
+import FlashCard from '../../components/flash/FlashCard.astro';
 import Meta from '../../components/Meta.astro';
 import StateNotice from '../../components/StateNotice.astro';
 import Base from '../../layouts/Base.astro';
@@ -24,6 +25,7 @@ const repo = 'https://github.com/lmarqs/robomania/tree/main/';
     <h1>{project.data.title}</h1>
     <p class="lead">{project.data.summary}</p>
     <Example name={project.data.example} />
+    {project.data.sketch && <FlashCard sketch={project.data.sketch} title={project.data.title} />}
     <StateNotice state={project.data.state} />
     <div class="prose"><Content /></div>
     {
