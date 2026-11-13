@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createBoard, type OpenedSketch } from '../../src/lib/board/board';
-import { boardMessage, connectionView, createConnection, type ConnectionInput } from '../../src/lib/board/connection';
+import {
+  boardMessage,
+  connectionView,
+  createConnection,
+  type ConnectionInput,
+  type Press,
+} from '../../src/lib/board/connection';
 import { flashScene } from '../../src/lib/board/flashScene';
 import { boardModel } from '../../src/lib/board/models';
 import { createPick } from '../../src/lib/board/pick';
@@ -210,11 +216,11 @@ describe('connectionView action', () => {
     ];
     for (const state of failures) {
       for (const opened of [sketch, undefined]) {
-        const again = (lastPress?: 'connect' | 'flash') => viewOf(state, { opened, lastPress }).action;
+        const again = (lastPress?: Press) => viewOf(state, { opened, lastPress }).action;
         const tryAgain = { label: 'Try again', icon: 'again', disabled: false };
         expect(again()).toEqual({ ...tryAgain, event: 'connect' });
-        expect(again('connect')).toEqual({ ...tryAgain, event: 'connect' });
-        expect(again('flash')).toEqual({ ...tryAgain, event: 'flash' });
+        expect(again({ event: 'connect' })).toEqual({ ...tryAgain, event: 'connect' });
+        expect(again({ event: 'flash', key: 'blink/input' })).toEqual({ ...tryAgain, event: 'flash' });
       }
     }
   });
@@ -533,6 +539,20 @@ describe('createConnection', () => {
 
       expect(fake.sent, state.kind).toEqual([{ type: 'connect', reset: true }]);
     }
+  });
+
+  it('names the sketch the visitor tried to flash when the board has no image of it, whichever is open by now', async () => {
+    const { fake, board, page, connection } = connectionOver((event, enter) => {
+      if (event.type === 'connect') enter({ kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] });
+    });
+    await connection.press();
+    page.abort();
+    board.open({ ...use, sketch: 'blink/timer' }, new AbortController().signal);
+
+    expect(fake.sent).toEqual([{ type: 'connect' }]);
+    expect(connection.view.panel?.text).toBe(
+      'This board is an ESP8266. Blink · 2 input has images for: ESP32. Connect an ESP32, or pick another step.',
+    );
   });
 
   it('only reads the board when Try again repeats a flash on a page with nothing to flash', async () => {

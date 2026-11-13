@@ -475,6 +475,22 @@ test.describe('the board dock panel', () => {
     await expect(panel(page)).toBeHidden();
   });
 
+  test('names the step it tried to flash when the board has no image of it, after another step is opened', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ chip: 'ESP32-C3' });
+    await page.goto(BLINK);
+    await bench(page).getByRole('tab', { name: /^2 input/ }).click();
+    const said = 'This board is an ESP32-C3. Blink · 2 input has images for: ESP32. Connect an ESP32, or pick another step.';
+
+    await bar(page).getByRole('button', { name: 'Flash Blink · 2 input' }).click();
+    await expect(panelMessage(page)).toHaveText(said);
+    await bench(page).getByRole('tab', { name: /^3 timer/ }).click();
+
+    await expect(panelMessage(page)).toHaveText(said);
+  });
+
   test('connects without flashing on a page with no sketch open, whatever the last page opened', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['sketch blink/input'] });
     await page.goto(BLINK);

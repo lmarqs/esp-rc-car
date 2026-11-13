@@ -70,6 +70,9 @@ export function boardMessage(
 /** What a press of the board's button asks of the session. */
 export type ConnectionEvent = 'connect' | 'flash';
 
+/** A press of the board's button as the connection did it: a connection, or a flash of the sketch `key`. */
+export type Press = { readonly event: 'connect' } | { readonly event: 'flash'; readonly key: string };
+
 /**
  * The board's one button: what it says, and, unless the session works, which icon it wears and what it sends. While
  * the session works, it says what the session does and cannot be pressed.
@@ -114,7 +117,7 @@ export interface ConnectionInput {
   /** The board the visitor picked, which the hints are for. */
   readonly pick: BoardModel | undefined;
   /** The visitor's last press of the button, which Try again repeats after a failure. */
-  readonly lastPress: ConnectionEvent | undefined;
+  readonly lastPress: Press | undefined;
   /** The site's sketches by key, which name the opened sketch and the one whose settings the session waits on. */
   readonly names: SketchNames;
 }
@@ -222,7 +225,7 @@ function actionFor(
   state: SessionState,
   opened: OpenedSketch | undefined,
   title: string,
-  lastPress: ConnectionEvent | undefined,
+  lastPress: Press | undefined,
 ): ConnectionAction | undefined {
   const flash: ConnectionAction | undefined =
     opened === undefined || opened.imageless
@@ -231,7 +234,7 @@ function actionFor(
   const connect = (label: string): ConnectionAction => ({ label, icon: 'plug', event: 'connect', disabled: false });
   if (state.kind === 'unsupported') return undefined;
   if (RETRYABLE.has(state.kind)) {
-    return { label: 'Try again', icon: 'again', event: lastPress ?? 'connect', disabled: false };
+    return { label: 'Try again', icon: 'again', event: lastPress?.event ?? 'connect', disabled: false };
   }
   const busy = busyWord(state);
   if (busy !== undefined) return { label: busy, disabled: true };
@@ -334,10 +337,13 @@ function barFor(
  */
 export function connectionView({ state, record, opened, pick, lastPress, names }: ConnectionInput): ConnectionView {
   const refusal = showsRefusal(state, opened);
-  const name = opened && nameOf(names, opened.use.sketch);
+  const title = opened === undefined ? '' : nameOf(names, opened.use.sketch).title;
+  // A missing image names the sketch the visitor tried to flash, whichever the page has open by now.
+  const tried = lastPress?.event === 'flash' ? lastPress.key : opened?.use.sketch;
+  const name = tried === undefined ? undefined : nameOf(names, tried);
   const sketch = { name: name?.title ?? record.pending ?? 'This sketch', step: name?.step === true };
   const panel = boardMessage(state, sketch, refusal, pick) ?? settingsMessage(state, record, opened, names);
-  const action = actionFor(state, opened, sketch.name, lastPress);
+  const action = actionFor(state, opened, title, lastPress);
   return {
     bar: barFor(state, record, names, pick, panel !== undefined),
     ...(action !== undefined && { action }),
@@ -366,7 +372,7 @@ export interface Connection {
  */
 export function createConnection(board: Board, pick: BoardPick, names: SketchNames): Connection {
   const listeners = new Set<() => void>();
-  let lastPress: ConnectionEvent | undefined;
+  let lastPress: Press | undefined;
 
   function notify() {
     for (const listener of [...listeners]) listener();
@@ -401,11 +407,15 @@ export function createConnection(board: Board, pick: BoardPick, names: SketchNam
 
   /** Starts `event`'s work; {@link Board.send} first points the session at the opened sketch. */
   async function start(event: ConnectionEvent): Promise<void> {
-    lastPress = event;
     const opened = board.opened;
     // A Flash repeated by Try again on a page with nothing to flash only reads the board, as Connect does.
-    const flashing = event === 'flash' && opened !== undefined && !opened.imageless;
-    await board.send(flashing ? flashEvent(board.session.state, opened, board.record) : restartConnection(pick.model));
+    if (event === 'flash' && opened !== undefined && !opened.imageless) {
+      lastPress = { event, key: opened.use.sketch };
+      await board.send(flashEvent(board.session.state, opened, board.record));
+    } else {
+      lastPress = { event: 'connect' };
+      await board.send(restartConnection(pick.model));
+    }
   }
 
   return {
