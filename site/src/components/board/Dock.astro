@@ -246,7 +246,7 @@ const manifest = readManifest();
     const barAction = dock.querySelector<HTMLButtonElement>('[data-dock-action="bar"]')!;
 
     const pick = thePick();
-    const connection = createConnection(board, pick);
+    const connection = createConnection(board, pick, names);
     const select = find<HTMLSelectElement>('pick');
     select.value = pick.model?.id ?? '';
     select.addEventListener('change', () => {
@@ -266,7 +266,7 @@ const manifest = readManifest();
     }
 
     for (const action of [panelAction, barAction]) action.addEventListener('click', () => void connection.press());
-    disconnect.addEventListener('click', () => void board.send({ type: 'disconnect' }));
+    disconnect.addEventListener('click', () => void connection.disconnect());
 
     function render() {
       const view = dockView(session.state, board.record, names, pick.model);

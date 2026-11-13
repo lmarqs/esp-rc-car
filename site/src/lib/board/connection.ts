@@ -3,6 +3,7 @@ import { settingsOf } from '../flash/settings';
 import type { Board } from './board';
 import { flashScene, type FlashScene } from './flashScene';
 import { restartConnection, type BoardModel } from './models';
+import type { SketchName } from './names';
 import type { BoardPick } from './pick';
 import { runs, type BoardRecord } from './record';
 
@@ -105,6 +106,8 @@ export interface ConnectionInput {
   readonly pressed?: ConnectionEvent;
   /** The press whose work the session last finished, as Try again repeats it after a failure. */
   readonly tried?: ConnectionEvent;
+  /** The site's sketches by key, which name the sketch whose settings the session waits on away from its card. */
+  readonly names?: Readonly<Record<string, SketchName>>;
 }
 
 /** What the board dock shows for the visitor's board. */
@@ -145,6 +148,46 @@ function showsRefusal(state: SessionState, opened: OpenedSketch | undefined): bo
  * board does not hold yet. Then it connects anew, which opens the settings form before the write, so a sketch such as
  * a hotspot never starts with its default password unasked.
  */
+/** Whether the session reads, waits on or sends the board's settings, which the card of their sketch shows. */
+function onSettings(state: SessionState): state is Extract<SessionState, { kind: 'settings' | 'reading' | 'applying' }> {
+  return state.kind === 'settings' || state.kind === 'reading' || state.kind === 'applying';
+}
+
+/**
+ * Where the settings the session works on are: in the card of `opened` on this page, or on the page of the sketch they
+ * belong to, the one the session flashes or the board runs. Away from the card, Disconnect lets the board go.
+ */
+function settingsMessage(
+  state: SessionState,
+  record: BoardRecord,
+  opened: OpenedSketch | undefined,
+  names: Readonly<Record<string, SketchName>>,
+): BoardMessage | undefined {
+  if (!onSettings(state)) return undefined;
+  const key = record.pending ?? runs(record);
+  if (opened !== undefined && opened.step !== true && opened.key === key) {
+    const card = `The ${opened.title} card on this page`;
+    switch (state.kind) {
+      case 'settings': {
+        const then = state.flashed ? 'send them' : 'flash the board';
+        return { text: `${card} asks for the settings. Check them, then ${then}.`, notice: false };
+      }
+      case 'reading':
+        return { text: `${card} is reading the board's settings.`, notice: false };
+      case 'applying':
+        return { text: `${card} is sending the settings to the board.`, notice: false };
+    }
+  }
+  const title = key !== undefined && Object.hasOwn(names, key) ? names[key]!.title : undefined;
+  return {
+    text:
+      title === undefined
+        ? 'Your board waits on its settings. Go back to the page that asked for them, or press Disconnect.'
+        : `Your board waits on the settings of ${title}. Go back to its page to finish them, or press Disconnect.`,
+    notice: false,
+  };
+}
+
 function flashFromRunning(opened: OpenedSketch, record: BoardRecord): ConnectionEvent {
   return opened.settings === true && runs(record) !== opened.key ? 'connect' : 'flash';
 }
@@ -191,7 +234,7 @@ function actionFor(
  * visitor picked. `pressed` and `tried` are the last press made while the session worked and the press whose work
  * ended in the session's failure, which Try again repeats.
  */
-export function connectionView({ state, record, opened, pick, pressed, tried }: ConnectionInput): ConnectionView {
+export function connectionView({ state, record, opened, pick, pressed, tried, names = {} }: ConnectionInput): ConnectionView {
   const refusal = showsRefusal(state, opened);
   const sketch = { name: opened?.title ?? record.pending ?? 'This sketch', step: opened?.step === true };
   const named = boardMessage(state, sketch, refusal, pick);
@@ -199,7 +242,7 @@ export function connectionView({ state, record, opened, pick, pressed, tried }: 
     state.kind === 'running' && !state.lost && runs(record) === undefined && pick?.flashSwitch === true
       ? ({ text: unnamedOnSwitch(opened), notice: false } satisfies BoardMessage)
       : undefined;
-  const message = named ?? unnamed;
+  const message = named ?? settingsMessage(state, record, opened, names) ?? unnamed;
   const action = actionFor(state, record, opened, pressed, tried);
   const lost = state.kind === 'running' && state.lost === true;
   const open = isBusy(state) || state.kind === 'flashMode' || FAILED.has(state.kind) || lost || refusal;
@@ -218,13 +261,23 @@ export interface Connection {
   subscribe(listener: () => void): () => void;
   /** Presses the view's button, unless there is none or the session works: resolves once its work is done. */
   press(): Promise<void>;
+  /**
+   * Lets the board go: a running one, or one whose settings form waits. A settings exchange runs to its end first,
+   * since the session takes no event until then.
+   */
+  disconnect(): Promise<void>;
 }
 
 /**
- * The connection of `board`, the site's, for the board the visitor picked, `pick`. It remembers what the visitor
- * pressed while the session works on it, and the press whose work last ended, as Try again repeats it.
+ * The connection of `board`, the site's, for the board the visitor picked, `pick`, with `names` naming the site's
+ * sketches. It remembers what the visitor pressed while the session works on it, and the press whose work last ended,
+ * as Try again repeats it.
  */
-export function createConnection(board: Board, pick: BoardPick): Connection {
+export function createConnection(
+  board: Board,
+  pick: BoardPick,
+  names: Readonly<Record<string, SketchName>> = {},
+): Connection {
   const listeners = new Set<() => void>();
   let state = board.session.state;
   let pressed: ConnectionEvent | undefined;
@@ -248,6 +301,20 @@ export function createConnection(board: Board, pick: BoardPick): Connection {
       pick: pick.model,
       ...(pressed !== undefined && { pressed }),
       ...(tried !== undefined && { tried }),
+      names,
+    });
+  }
+
+  /** Resolves once the session no longer reads or sends the board's settings. */
+  function exchanged(): Promise<void> {
+    const exchanging = () => board.session.state.kind === 'reading' || board.session.state.kind === 'applying';
+    return new Promise((resolve) => {
+      if (!exchanging()) return resolve();
+      const stop = board.subscribe(() => {
+        if (exchanging()) return;
+        stop();
+        resolve();
+      });
     });
   }
 
@@ -297,6 +364,13 @@ export function createConnection(board: Board, pick: BoardPick): Connection {
       const { action } = viewNow();
       if (action === undefined || action.disabled) return;
       await start(action.event);
+    },
+    async disconnect() {
+      await exchanged();
+      const { kind } = board.session.state;
+      if (kind === 'running') await board.send({ type: 'disconnect' });
+      // The session releases the port from the form on retry, as the card's Cancel before a flash does.
+      else if (kind === 'settings') await board.send({ type: 'retry' });
     },
   };
 }

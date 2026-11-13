@@ -151,7 +151,9 @@ sketch's baud. It sends `cfg get` until the board lists its values, `cfg set` fo
 
 The card holds only its sketch's settings, and the dock does the connecting and the flashing. The card shows the form
 while the session asks for the values, reads them from the board, applies them, and, while the board runs its sketch,
-a Change settings button; the dock's bar says the board is busy with its settings meanwhile. Otherwise the card shows
+a Change settings button. Meanwhile the dock's bar names and links the sketch whose settings hold the board and offers
+Disconnect, and the dock's panel says where the form is: in the card on this page, or on the sketch's page, to go back
+to. Disconnect lets the board go from the form, after a read or send of the values ends. Otherwise the card shows
 a line that points at the board bar, and where the browser has no Web Serial, links to the images and to the page's
 section on building the sketch with the tools. The card shows the session's state only while the session works on the
 card's sketch, which it is writing or the board runs.

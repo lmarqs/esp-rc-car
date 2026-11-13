@@ -276,6 +276,55 @@ describe('connectionView message', () => {
     expect(viewOf(running, { pick: boardModel('esp32') }).message).toBeUndefined();
   });
 
+  it('points at the card on this page that holds the settings, as it waits on them, reads them or sends them', () => {
+    const relay = { key: 'web-relay', title: 'Web-controlled relay', settings: true };
+    const record = { lines: [], pending: 'web-relay' };
+    const says = (state: SessionState, rest: Partial<ConnectionInput> = {}) =>
+      viewOf(state, { opened: relay, record, ...rest }).message;
+    expect(says({ kind: 'settings', chip: 'ESP8266', opened: {} })).toEqual({
+      text: 'The Web-controlled relay card on this page asks for the settings. Check them, then flash the board.',
+      notice: false,
+    });
+    const reopened: SessionState = { kind: 'settings', chip: 'ESP8266', opened: {}, flashed: true };
+    expect(says(reopened, { record: { lines: [], heard: 'web-relay' } })).toEqual({
+      text: 'The Web-controlled relay card on this page asks for the settings. Check them, then send them.',
+      notice: false,
+    });
+    expect(says({ kind: 'reading', chip: 'ESP8266' })).toEqual({
+      text: "The Web-controlled relay card on this page is reading the board's settings.",
+      notice: false,
+    });
+    expect(says({ kind: 'applying', chip: 'ESP8266' })).toEqual({
+      text: 'The Web-controlled relay card on this page is sending the settings to the board.',
+      notice: false,
+    });
+  });
+
+  it('sends the visitor back to the page of the sketch whose settings wait, or to Disconnect, away from its card', () => {
+    const names = { 'web-relay': { title: 'Web-controlled relay', path: '/robomania/projects/web-relay/' } };
+    const record = { lines: [], pending: 'web-relay' };
+    const away =
+      'Your board waits on the settings of Web-controlled relay. Go back to its page to finish them, or press Disconnect.';
+    const states: SessionState[] = [
+      { kind: 'settings', chip: 'ESP8266', opened: {} },
+      { kind: 'reading', chip: 'ESP8266' },
+      { kind: 'applying', chip: 'ESP8266' },
+    ];
+    for (const state of states) {
+      const elsewhere = [
+        undefined,
+        { key: 'blink/input', title: 'Blink · 3 input' },
+        { key: 'web-relay', title: 'Web relay · 1 x', step: true },
+      ];
+      for (const opened of elsewhere) {
+        expect(viewOf(state, { opened, record, names }).message, state.kind).toEqual({ text: away, notice: false });
+      }
+      expect(viewOf(state, { opened: undefined, record }).message?.text, state.kind).toBe(
+        'Your board waits on its settings. Go back to the page that asked for them, or press Disconnect.',
+      );
+    }
+  });
+
   it('shows a refusal only while the page has the refused sketch open', () => {
     const refused: SessionState = { ...running, flashRefused: { key: 'blink/input', available: ['ESP32-C3'] } };
     const shown = viewOf(refused);
@@ -454,6 +503,53 @@ describe('createConnection', () => {
     fake.enter({ kind: 'running', chip: 'ESP32', output: [] });
     fake.enter({ kind: 'flashing', chip: 'ESP32', pct: 10 });
     expect(connection.view.action).toMatchObject({ label: 'Flashing…', event: 'flash' });
+  });
+
+  it('disconnects a running board', async () => {
+    const { fake, connection } = connectionOver(() => {});
+    fake.enter({ kind: 'running', chip: 'ESP32', output: [] });
+
+    await connection.disconnect();
+
+    expect(fake.sent).toEqual([{ type: 'disconnect' }]);
+  });
+
+  it('lets go of a board whose settings form waits, from the form itself', async () => {
+    const { fake, connection } = connectionOver((event, enter) => {
+      if (event.type === 'retry') enter({ kind: 'idle' });
+    });
+    fake.enter({ kind: 'settings', chip: 'ESP32', opened: {} });
+
+    await connection.disconnect();
+
+    expect(fake.sent).toEqual([{ type: 'retry' }]);
+    expect(fake.session.state).toEqual({ kind: 'idle' });
+  });
+
+  it('waits for a settings exchange to end, then lets go of the board it left', async () => {
+    for (const [after, event] of [
+      [{ kind: 'settings', chip: 'ESP32', opened: {}, flashed: true }, 'retry'],
+      [{ kind: 'running', chip: 'ESP32', output: [] }, 'disconnect'],
+    ] as const) {
+      const { fake, connection } = connectionOver(() => {});
+      fake.enter({ kind: 'applying', chip: 'ESP32' });
+
+      const disconnected = connection.disconnect();
+      await Promise.resolve();
+      expect(fake.sent, after.kind).toEqual([]);
+      fake.enter(after);
+      await disconnected;
+
+      expect(fake.sent, after.kind).toEqual([{ type: event }]);
+    }
+  });
+
+  it('sends nothing on Disconnect with no board to let go of', async () => {
+    const { fake, connection } = connectionOver(() => {});
+
+    await connection.disconnect();
+
+    expect(fake.sent).toEqual([]);
   });
 
   it('tells its listeners when the board, the opened sketch or the pick changes', () => {

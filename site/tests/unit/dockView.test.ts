@@ -87,6 +87,35 @@ describe('the board dock', () => {
     });
   });
 
+  it('names and links the sketch whose settings hold the board, and offers Disconnect from any page', () => {
+    const states: SessionState[] = [
+      { kind: 'settings', chip: 'ESP32', opened: {} },
+      { kind: 'reading', chip: 'ESP32' },
+      { kind: 'applying', chip: 'ESP32' },
+    ];
+    for (const state of states) {
+      expect(dockView(state, { pending: 'blink/input', lines: [] }, names), state.kind).toEqual({
+        shown: true,
+        connected: true,
+        chip: 'ESP32',
+        doing: 'is busy with the settings of',
+        sketch: 'Blink · 2 input',
+        path: '/robomania/projects/blink/#input',
+        disconnect: true,
+        canSend: false,
+      });
+      expect(dockView(state, { heard: 'blink/input', lines: [] }, names).sketch, state.kind).toBe('Blink · 2 input');
+      expect(dockView(state, EMPTY_RECORD, names), state.kind).toEqual({
+        shown: true,
+        connected: true,
+        chip: 'ESP32',
+        doing: 'is busy with its settings',
+        disconnect: true,
+        canSend: false,
+      });
+    }
+  });
+
   it('says the board stopped talking when the port is lost', () => {
     expect(dockView({ ...running, lost: true }, heard, names)).toMatchObject({
       connected: false,

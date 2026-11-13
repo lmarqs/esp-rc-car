@@ -1,4 +1,4 @@
-import { dock, dockAction } from './dock';
+import { dock, dockAction, dockMessage } from './dock';
 import { expect, test } from './fake-flasher';
 
 const card = (page: import('@playwright/test').Page) => page.getByRole('region', { name: 'Put it on your board' });
@@ -306,6 +306,37 @@ test.describe('a project whose sketch has settings', () => {
     await expect(card(page).locator('[data-message]')).toBeFocused();
     await expect(field(page, 'Hotspot name')).toBeHidden();
     await expect(dockAction(page)).toHaveAccessibleName('Flash Balance beam');
+    expect(await fakeFlasher.calls()).toEqual(['connect', 'disconnect']);
+  });
+
+  test('points the dock at the card that holds the form, and lets the board go from another page', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ board: { values: DEFAULTS } });
+    await page.goto('/robomania/projects/balance-beam/');
+    await dockAction(page).click();
+    await expect(field(page, 'Hotspot name')).toBeVisible();
+    await expect(dockMessage(page)).toHaveText(
+      'The Balance beam card on this page asks for the settings. Check them, then flash the board.',
+    );
+    await expect(dock(page).getByRole('button', { name: 'Disconnect' })).toBeVisible();
+
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Learn' }).click();
+    await expect(page).toHaveURL(/\/learn\/$/);
+
+    await expect(dockMessage(page)).toHaveText(
+      'Your board waits on the settings of Balance beam. Go back to its page to finish them, or press Disconnect.',
+    );
+    await expect(dock(page).getByRole('link', { name: 'Balance beam' })).toHaveAttribute(
+      'href',
+      '/robomania/projects/balance-beam/',
+    );
+    await dock(page).getByRole('button', { name: 'Disconnect' }).click();
+
+    await expect(dock(page).getByRole('button', { name: 'Connect board' })).toBeVisible();
+    await expect(dock(page)).toContainText('No board');
+    await expect(dock(page).getByRole('button', { name: 'Disconnect' })).toBeHidden();
     expect(await fakeFlasher.calls()).toEqual(['connect', 'disconnect']);
   });
 

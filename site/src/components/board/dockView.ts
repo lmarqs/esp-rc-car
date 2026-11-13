@@ -21,7 +21,7 @@ export interface DockView {
   readonly last?: string;
   /** The flash's percentage while one writes. */
   readonly progress?: number;
-  /** Whether the dock offers Disconnect: while the site reads a board. */
+  /** Whether the dock offers Disconnect: while the site reads a board, or holds one for its settings. */
   readonly disconnect: boolean;
   /** Whether the serial monitor can send a line: only while the site reads a board that is not busy. */
   readonly canSend: boolean;
@@ -99,9 +99,23 @@ export function dockView(
     return { shown: true, connected: false, chip: 'Board', doing: 'is connecting', ...NOTHING };
   }
   if (isBusy(state)) {
-    // Settings, read or sent: the card that asked for them shows the form and what the board answered.
+    // Settings, read or sent: the card that asked for them shows the form and what the board answered, on the page the
+    // sketch's name links to. The board stays connected, so Disconnect lets it go from any page.
     const chip = 'chip' in state ? state.chip : 'Board';
-    return { shown: true, connected: true, chip, doing: 'is busy with its settings', ...NOTHING };
+    const name = nameOf(names, record.pending ?? runs(record));
+    const doing =
+      name === undefined
+        ? { doing: 'is busy with its settings' }
+        : { doing: 'is busy with the settings of', sketch: name.title };
+    return {
+      shown: true,
+      connected: true,
+      chip,
+      ...doing,
+      ...(name?.path && { path: name.path }),
+      disconnect: true,
+      canSend: false,
+    };
   }
   return {
     shown: true,
