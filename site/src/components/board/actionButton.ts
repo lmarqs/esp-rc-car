@@ -1,14 +1,7 @@
-/** What an `ActionButton` shows. */
-export interface ActionFace {
-  /** What the button is named. */
-  readonly label: string;
-  readonly icon: 'plug' | 'bolt' | 'again';
-  /** Set while the session works on the last press. */
-  readonly disabled: boolean;
-}
+import type { ConnectionAction } from '../../lib/board/connection';
 
 /** Writes `action` on `button`, an `ActionButton`, laid out by then, so a cut label can be told. */
-export function paintAction(button: HTMLButtonElement, action: ActionFace): void {
+export function paintAction(button: HTMLButtonElement, action: ConnectionAction): void {
   const label = button.querySelector<HTMLElement>('[data-action-label]')!;
   label.textContent = action.label;
   // A label cut to the button's width shows whole on hover.
