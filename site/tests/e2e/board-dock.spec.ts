@@ -14,6 +14,11 @@ async function connect(page: Page) {
 const nav = (page: Page) => page.getByRole('navigation', { name: 'Main' });
 const dock = (page: Page) => page.getByRole('complementary', { name: 'Your board' });
 const monitor = (page: Page) => dock(page).getByRole('log', { name: 'Board output' });
+/** The dock's panel: the computer, the cable and the chip, the board's button and what is happening. */
+const panel = (page: Page) => dock(page).locator('[data-dock-panel]');
+const panelMessage = (page: Page) => panel(page).locator('[data-dock-message]');
+/** The bar under the panel. */
+const bar = (page: Page) => dock(page).locator('.bar');
 
 test.describe('the board, from page to page', () => {
   test('stays connected while the visitor reads another page, and the workbench follows it again on return', async ({
@@ -223,6 +228,141 @@ test.describe('the board dock', () => {
 
     const after = (await serial.boundingBox())!;
     expect([after.x, after.width]).toEqual([before.x, before.width]);
+  });
+});
+
+test.describe('the board dock panel', () => {
+  test('opens with the progress while it flashes the open sketch, then folds away with Disconnect in the bar', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/simple'], announce: true, progress: [40], hold: true });
+    await page.goto(BLINK);
+    await expect(panel(page)).toBeHidden();
+    const serial = bar(page).getByRole('button', { name: 'Serial' });
+    const before = (await serial.boundingBox())!;
+
+    await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+
+    await expect(panel(page)).toBeVisible();
+    expect(await serial.boundingBox()).toEqual(before);
+    await expect(panel(page).getByRole('progressbar', { name: 'Flashing' })).toHaveAttribute('aria-valuenow', '40');
+    await expect(panelMessage(page)).toHaveText('Found ESP32. Keep the board plugged in.');
+    const busy = panel(page).locator('[data-dock-action]');
+    await expect(busy).toHaveAttribute('aria-disabled', 'true');
+    await expect(busy).toBeFocused();
+    await expect(bar(page).locator('[data-dock-action]')).toBeHidden();
+
+    await fakeFlasher.release();
+
+    await expect(panel(page)).toBeHidden();
+    await expect(bar(page).getByRole('button', { name: 'Disconnect' })).toBeVisible();
+    await expect(bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' })).toBeFocused();
+    await expect(dock(page)).toContainText('ESP32 is running Blink · 1 simple');
+    expect(await serial.boundingBox()).toEqual(before);
+    expect(await fakeFlasher.loaded()).toEqual([['blink/simple/esp32/simple.ino.bootloader.bin', 'blink/simple/esp32/simple.ino.bin']]);
+  });
+
+  test('tries a dropped flash again in one press: it connects, then flashes the open sketch', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/simple'], announce: true, failFirst: { write: 'NetworkError' } });
+    await page.goto(BLINK);
+    await connect(page);
+    await expect(tagWord(page)).toHaveText('Live');
+
+    await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+
+    await expect(panelMessage(page)).toContainText('The connection dropped');
+    await expect(panel(page).getByRole('button', { name: 'Try again' })).toBeVisible();
+
+    await panel(page).getByRole('button', { name: 'Try again' }).click();
+
+    await expect(panel(page)).toBeHidden();
+    await expect(dock(page)).toContainText('ESP32 is running Blink · 1 simple');
+    expect((await fakeFlasher.calls()).filter((call) => call === 'write')).toHaveLength(2);
+  });
+
+  test('says the board is still in flash mode after the write, and Connect again reads it as it runs', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    // An ESP8266 that prints nothing after the write is still in flash mode.
+    await fakeFlasher.install({ chip: 'ESP8266' });
+    await page.goto(BLINK);
+
+    await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+
+    await expect(panel(page).getByRole('button', { name: 'Connect again' })).toBeVisible({ timeout: 10_000 });
+    await expect(panelMessage(page)).toContainText('UART');
+    await expect(panel(page).locator('[data-hand-hint]')).toHaveAttribute('data-hint', 'uart');
+
+    await panel(page).getByRole('button', { name: 'Connect again' }).click();
+
+    await expect(panel(page)).toBeHidden();
+    await expect(bar(page).getByRole('button', { name: 'Disconnect' })).toBeVisible();
+    expect((await fakeFlasher.calls()).at(-2)).toBe('attach');
+  });
+
+  test('draws the switch to PROG beside the words when a picked ESP-01S does not answer', async ({ page, fakeFlasher }) => {
+    // esptool-js failing to sync with the bootloader throws a plain error.
+    await fakeFlasher.install({ lines: ['led on'], failFirst: { connect: 'Error' } });
+    await page.goto('/robomania/learn/');
+    await dock(page).getByRole('combobox', { name: 'My board' }).selectOption({ label: 'ESP-01S' });
+    await page.goto(BLINK);
+
+    await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+
+    await expect(panelMessage(page)).toContainText("Set the adapter's switch to PROG");
+    await expect(panel(page).locator('[data-hand-hint]')).toHaveAttribute('data-hint', 'prog');
+    await expect(panel(page).locator('[data-hand-hint]')).toBeVisible();
+    await expect(panel(page).getByRole('button', { name: 'Try again' })).toBeVisible();
+  });
+
+  test('connects without flashing on a page with no sketch open, whatever the last page opened', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/input'] });
+    await page.goto(BLINK);
+    await expect(bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' })).toBeVisible();
+    await nav(page).getByRole('link', { name: 'Learn' }).click();
+    await expect(page).toHaveURL(/\/learn\/$/);
+
+    await bar(page).getByRole('button', { name: 'Connect board' }).click();
+
+    await expect(dock(page)).toContainText('ESP32 is running Blink · 2 input');
+    expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
+  });
+
+  test('keeps Serial in place along the bar at 860 px, and the bar on one row before and while it flashes', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/simple'], announce: true, progress: [40], hold: true });
+    await page.setViewportSize({ width: 860, height: 700 });
+    await page.goto(BLINK);
+    const serial = bar(page).getByRole('button', { name: 'Serial' });
+    const picker = dock(page).getByRole('combobox', { name: 'My board' });
+    /** Whether each of the bar's buttons named sits on the picker's row. */
+    const onOneRow = async (...names: string[]) => {
+      const { y, height } = (await picker.boundingBox())!;
+      for (const name of names) {
+        expect((await bar(page).getByRole('button', { name }).boundingBox())!.y, name).toBeLessThan(y + height);
+      }
+    };
+    // The status wraps to fit beside the buttons, so Serial keeps its place along the bar.
+    const along = async () => {
+      const { x, width } = (await serial.boundingBox())!;
+      return { x, width };
+    };
+    const before = await along();
+    await onOneRow('Flash Blink · 1 simple', 'Serial');
+
+    await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+    await expect(panel(page)).toBeVisible();
+
+    expect(await along()).toEqual(before);
+    await onOneRow('Serial');
+    await dock(page).screenshot({ path: test.info().outputPath('dock.png') });
+    await fakeFlasher.release();
+    await expect(bar(page).getByRole('button', { name: 'Disconnect' })).toBeVisible();
+    expect(await along()).toEqual(before);
   });
 });
 
