@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { viewFor } from '../../src/components/flash/view';
 import { createBoard } from '../../src/lib/board/board';
 import { boardMessage, connectionView, createConnection, type ConnectionInput } from '../../src/lib/board/connection';
 import { flashScene } from '../../src/lib/board/flashScene';
@@ -17,9 +16,9 @@ describe('boardMessage', () => {
     expect(states.map((state) => boardMessage(state, 'blink/input', true))).toEqual([undefined, undefined, undefined]);
   });
 
-  it("says what the page does in the flash card's words, and to keep the board plugged in while flashing", () => {
+  it('says what the page does, and to keep the board plugged in while flashing', () => {
     expect(boardMessage({ kind: 'connecting' }, 'blink/input', true)).toEqual({
-      text: viewFor({ kind: 'connecting' }, { title: '' }).message,
+      text: 'Connecting to the board.',
       notice: false,
     });
     expect(boardMessage({ kind: 'flashing', chip: 'ESP32', pct: 40 }, 'blink/input', true)).toEqual({
@@ -28,19 +27,44 @@ describe('boardMessage', () => {
     });
   });
 
-  it("gives a failure to connect or a lost board the flash card's notice, naming the step for a missing image", () => {
-    const failures: SessionState[] = [
-      { kind: 'noPort' },
+  it.each<[SessionState, string]>([
+    [{ kind: 'noPort' }, 'No board was chosen. Plug it in and try again.'],
+    [
       { kind: 'portBusy' },
+      'Another program is using the board. Close the serial monitor or the Arduino IDE, then connect again.',
+    ],
+    [
       { kind: 'noAnswer' },
+      'The board did not answer. Hold its BOOT button and connect again. On an ESP-01S, set the USB adapter to flash mode first.',
+    ],
+    [
       { kind: 'running', chip: 'ESP32', output: [], lost: true },
-    ];
-    for (const state of failures) {
-      expect(boardMessage(state, 'blink/input', true)).toEqual({
-        text: viewFor(state, { title: 'blink/input' }).message,
-        notice: true,
-      });
-    }
+      'The board stopped talking to the page. Plug it back in and connect again.',
+    ],
+  ])('gives a failure to connect or a lost board, %j, a notice', (state, text) => {
+    expect(boardMessage(state, 'blink/input', true)).toEqual({ text, notice: true });
+  });
+
+  it('says how to make the picked board answer', () => {
+    expect(boardMessage({ kind: 'noAnswer' }, 'blink/input', true, boardModel('esp01s'))?.text).toBe(
+      "The board did not answer. Set the adapter's switch to PROG, the flash position, or put its jumper on. " +
+        'Then unplug the adapter, plug the adapter back in and connect again.',
+    );
+    expect(boardMessage({ kind: 'noAnswer' }, 'blink/input', true, boardModel('esp32'))?.text).toBe(
+      'The board did not answer. Hold its BOOT button and connect again.',
+    );
+  });
+
+  it('says how to get the board out of flash mode after the write', () => {
+    expect(boardMessage({ kind: 'flashMode', chip: 'ESP8266' }, 'blink/input', true)).toEqual({
+      text:
+        "The sketch is on the board, but the board is still in flash mode. To start it, set the adapter's switch to UART, " +
+        'the run position, or take its jumper off. Then unplug the adapter, plug the adapter back in and connect again.',
+      notice: true,
+    });
+  });
+
+  it('names the step that has no image for the board, and the chips it has images for', () => {
     expect(boardMessage({ kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] }, 'blink/input', true)?.text).toBe(
       'This board is an ESP8266. blink/input has images for: ESP32. Connect an ESP32, or pick another step.',
     );
