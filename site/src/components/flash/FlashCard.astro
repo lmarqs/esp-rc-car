@@ -166,6 +166,7 @@ const helpOf = (field: (typeof fields)[number]) =>
   import type { Manifest } from '../../lib/flash/manifest';
   import { isBusy, type SessionState } from '../../lib/flash/session';
   import { settingsOf } from '../../lib/flash/settings';
+  import { cardUse } from './cardUse';
   import { stepsFor, viewFor } from './view';
 
   /** The states the card draws the picture in: while it reaches and writes the board, and when that failed. */
@@ -186,16 +187,11 @@ const helpOf = (field: (typeof fields)[number]) =>
       const { sketch, title, next, baud: baudText, detailsHref } = card.dataset;
       const baud = baudText ? Number(baudText) : undefined;
       const manifest = JSON.parse(card.dataset.manifest!) as Manifest;
-      // The site's board, which may already be connected from another page. The card shows it only while the card
-      // is the board's owner, from the visitor's press or because the board runs the card's sketch.
+      // The site's board, which may already be connected from another page.
       const board = theBoard();
       const { session } = board;
-      const owner = `card:${sketch}`;
-      const use = { manifest, sketch: sketch!, baud };
-      const claim = () => board.owner === owner || board.use(owner, use);
-      if (runs(board.record) === sketch) claim();
-      // A card on the Flash page waits for its project to be picked, which names its sketch the opened one.
-      if (card.closest('[hidden]') === null) board.open(sketch!, signal);
+      // A card on the Flash page waits for its project to be picked, which opens its sketch.
+      if (card.closest('[hidden]') === null) board.open(cardUse(card), title!, signal);
       const settings = settingsOf(manifest, sketch!, baud);
       const context = {
         title: title!,
@@ -223,7 +219,6 @@ const helpOf = (field: (typeof fields)[number]) =>
       let filledWith: Readonly<Record<string, string>> | undefined;
 
       async function submitSettings(restoreDefaults = false) {
-        if (!claim()) return;
         await board.send({ type: 'submitSettings', values: formValues(), restoreDefaults });
         const state = session.state;
         if (state.kind === 'settings' && state.errors) {
@@ -258,15 +253,19 @@ const helpOf = (field: (typeof fields)[number]) =>
             event === 'changeSettings' ||
             event === 'closeSettings'
           ) {
-            if (claim()) void board.send({ type: event });
+            void board.send({ type: event });
           }
         });
       }
 
-      /** The session's state while the card owns the board; otherwise the card waits to be pressed, as if idle. */
+      /**
+       * The session's state, unless the board is being written with or runs another sketch: the card does not say what
+       * is on the board is its own, and waits to be pressed, as if idle.
+       */
       function shownState(): SessionState {
-        if (board.owner === owner || session.state.kind === 'unsupported') return session.state;
-        return { kind: 'idle' };
+        const { record } = board;
+        const target = record.pending ?? runs(record);
+        return target === undefined || target === sketch ? session.state : { kind: 'idle' };
       }
 
       function render() {

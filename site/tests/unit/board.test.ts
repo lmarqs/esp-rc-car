@@ -47,41 +47,34 @@ function fakeSession(start: SessionState = { kind: 'idle' }) {
 const manifest = { sketches: {} };
 
 describe('the site board', () => {
-  it('lets a page point the session at its sketch, and names that page its owner', () => {
+  it('does not point the session at a sketch when it is opened, but when the board is first asked for work', async () => {
     const fake = fakeSession();
     const board = createBoard(fake.session);
 
-    expect(board.use('card:servo', { manifest, sketch: 'servo', baud: 115200 })).toBe(true);
+    board.open({ manifest, sketch: 'servo', baud: 115200 }, 'Servo', new AbortController().signal);
+    expect(fake.configured).toEqual([]);
 
-    expect(board.owner).toBe('card:servo');
+    await board.send({ type: 'connect' });
     expect(fake.configured).toEqual([{ manifest, sketch: 'servo', baud: 115200 }]);
   });
 
-  it('refuses another page while the session is busy, keeping the owner of the work under way', () => {
+  it('keeps the session pointed where its work began while it is busy, whatever is opened meanwhile', async () => {
     const fake = fakeSession();
     const board = createBoard(fake.session);
-    board.use('card:servo', { manifest, sketch: 'servo' });
+    board.open({ manifest, sketch: 'servo' }, 'Servo', new AbortController().signal);
+    await board.send({ type: 'connect' });
     fake.enter({ kind: 'flashing', chip: 'ESP32', pct: 10 });
 
-    expect(board.use('workbench', { manifest, sketch: 'blink/simple' })).toBe(false);
-    expect(board.owner).toBe('card:servo');
+    board.open({ manifest, sketch: 'blink/simple' }, 'Blink', new AbortController().signal);
+    await board.send({ type: 'disconnect' });
+
+    expect(fake.configured).toEqual([{ manifest, sketch: 'servo' }]);
   });
 
-  it("tells its listeners when another page becomes the owner, so the last one shows it isn't its board", () => {
-    const board = createBoard(fakeSession().session);
-    let calls = 0;
-    board.subscribe(() => calls++);
-
-    board.use('card:servo', { manifest, sketch: 'servo' });
-    board.use('card:servo', { manifest, sketch: 'servo' });
-
-    expect(calls).toBe(1);
-  });
-
-  it("records the owner's sketch as what a connection flashes, and a flash's key, once the board runs it", async () => {
+  it("records the opened sketch as what a connection flashes, and a flash's key, once the board runs it", async () => {
     const fake = fakeSession();
     const board = createBoard(fake.session);
-    board.use('card:servo', { manifest, sketch: 'servo' });
+    board.open({ manifest, sketch: 'servo' }, 'Servo', new AbortController().signal);
 
     await board.send({ type: 'connect' });
     fake.enter({ kind: 'connecting' });
@@ -125,31 +118,58 @@ describe('the site board', () => {
 });
 
 describe('the sketch the visitor has open', () => {
-  it('names the opened sketch until the page that opened it goes', () => {
+  const use = (sketch: string) => ({ manifest, sketch, baud: 115200 });
+
+  it('is none until a page opens one', () => {
+    expect(createBoard(fakeSession().session).opened).toBeUndefined();
+  });
+
+  it('names the opened sketch and its title, until the page that opened it goes', () => {
     const board = createBoard(fakeSession().session);
     const page = new AbortController();
     let heard = 0;
     board.subscribe(() => heard++);
 
-    board.open('blink/simple', page.signal);
-    expect(board.opened).toBe('blink/simple');
-    board.open('blink/input', page.signal);
-    expect(board.opened).toBe('blink/input');
+    board.open(use('blink/simple'), 'Blink · 1 simple', page.signal);
+    expect(board.opened).toEqual({ use: use('blink/simple'), title: 'Blink · 1 simple' });
     page.abort();
 
     expect(board.opened).toBeUndefined();
-    expect(heard).toBe(3);
+    expect(heard).toBe(2);
+  });
+
+  it('replaces the opened sketch when the same page opens another', () => {
+    const board = createBoard(fakeSession().session);
+    const page = new AbortController();
+
+    board.open(use('blink/simple'), 'Blink · 1 simple', page.signal);
+    board.open(use('blink/input'), 'Blink · 2 input', page.signal);
+    expect(board.opened).toEqual({ use: use('blink/input'), title: 'Blink · 2 input' });
+    page.abort();
+
+    expect(board.opened).toBeUndefined();
   });
 
   it('keeps the sketch the next page opened when the last page goes after it', () => {
     const board = createBoard(fakeSession().session);
     const last = new AbortController();
-    board.open('blink/simple', last.signal);
-    board.open('servo/sweep', new AbortController().signal);
+    board.open(use('blink/simple'), 'Blink · 1 simple', last.signal);
+    board.open(use('servo/sweep'), 'Servo', new AbortController().signal);
 
     last.abort();
 
-    expect(board.opened).toBe('servo/sweep');
+    expect(board.opened).toEqual({ use: use('servo/sweep'), title: 'Servo' });
+  });
+
+  it('keeps the sketch opened again by the same page when an earlier signal of that page aborts', () => {
+    const board = createBoard(fakeSession().session);
+    const first = new AbortController();
+    board.open(use('blink/simple'), 'Blink · 1 simple', first.signal);
+    board.open(use('blink/simple'), 'Blink · 1 simple', new AbortController().signal);
+
+    first.abort();
+
+    expect(board.opened?.title).toBe('Blink · 1 simple');
   });
 });
 

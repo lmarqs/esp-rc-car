@@ -14,13 +14,15 @@ import { codeRows, crumbs, fileName } from './view';
 interface Props {
   /** The project's page id, such as `blink`; the project must have step definitions. */
   project: string;
+  /** The project's title, which names each step to the board dock: `<title> · <number> <id>`. */
+  title: string;
   /** The project's steps from its page, in order. */
   steps: readonly { id: string; sketch: string; idea: string }[];
   /** The speed the steps print at, which the page reads the visitor's board at. */
   baud?: number;
 }
 
-const { project, steps, baud } = Astro.props;
+const { project, title, steps, baud } = Astro.props;
 const workbench = workbenchFor(project);
 if (workbench === undefined) throw new Error(`The project ${project} has no step definitions for the workbench.`);
 
@@ -67,6 +69,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
   aria-label="Workbench"
   data-workbench
   data-project={project}
+  data-title={title}
   data-steps={stepData}
   data-manifest={JSON.stringify(manifest)}
   data-baud={baud}
@@ -176,13 +179,26 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     let frame = 0;
     let motionFrame = 0;
 
+    const manifest = JSON.parse(root.dataset.manifest ?? '{"sketches":{}}') as Manifest;
+    const baud = root.dataset.baud ? Number(root.dataset.baud) : DEFAULT_BAUD;
+
+    /** Opens the selected step on the site's board, named as the rail names it: its number and id, after the project. */
+    function openOnBoard() {
+      const step = paneProject.steps[pane.selected];
+      board.open(
+        { manifest, sketch: step.key, baud },
+        `${root.dataset.title} · ${pane.selected + 1} ${steps[pane.selected].id}`,
+        signal,
+      );
+    }
+
     /** Applies `event` to the pane, then does what its change asks of the page and paints it. */
     function dispatch(event: PaneEvent) {
       const before = pane;
       pane = reducePane(paneProject, pane, event);
       if (pane.selected !== before.selected) {
         openStep(pane.selected);
-        board.open(paneProject.steps[pane.selected].key, signal);
+        openOnBoard();
       }
       if (pane.mode !== before.mode) commandLine.dropTyping();
       if (pane.simulation !== before.simulation) {
@@ -349,13 +365,8 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     // The site's board, which may already be connected from another page, and running one of these steps.
     const board = theBoard();
     const { session } = board;
-    board.use('workbench', {
-      manifest: JSON.parse(root.dataset.manifest ?? '{"sketches":{}}') as Manifest,
-      sketch: paneProject.steps[0].key,
-      baud: root.dataset.baud ? Number(root.dataset.baud) : DEFAULT_BAUD,
-    });
     let pane: PaneState<unknown> = initialPane(paneProject, session.state, board.record.heard, openingStep());
-    board.open(paneProject.steps[pane.selected].key, signal);
+    openOnBoard();
     const boardLink = mountBoardLink(root, {
       // The board keeps running its step; the simulator starts it again in the pane.
       simulator() {

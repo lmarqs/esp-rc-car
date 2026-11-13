@@ -147,6 +147,7 @@ const ownCard = flashable.filter(({ ladder }) => !ladder);
 
 <script>
   import { theBoard } from '../../lib/board/board';
+  import { cardUse } from '../../components/flash/cardUse';
   import { onEveryPage } from '../../lib/page';
 
   onEveryPage((signal) => {
@@ -167,9 +168,10 @@ const ownCard = flashable.filter(({ ladder }) => !ladder);
       // The picked project's sketch is the one the visitor has open, until another pick or the page goes.
       pick.abort();
       pick = new AbortController();
-      const sketch = panels.find((panel) => panel.dataset.panel === id)?.querySelector<HTMLElement>('[data-flash-card]')
-        ?.dataset.sketch;
-      if (sketch !== undefined) theBoard().open(sketch, AbortSignal.any([signal, pick.signal]));
+      const card = panels.find((panel) => panel.dataset.panel === id)?.querySelector<HTMLElement>('[data-flash-card]');
+      if (card) {
+        theBoard().open(cardUse(card), card.dataset.title!, AbortSignal.any([signal, pick.signal]));
+      }
     }
 
     function shownHeading() {

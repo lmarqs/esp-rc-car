@@ -8,33 +8,39 @@ export const DEFAULT_BAUD = 115200;
 /** What a page points the board's session at: its images, the sketch its card flashes and the speed it prints at. */
 export type BoardUse = Omit<SessionOptions, 'flasher'>;
 
+/** The sketch a page part opened: what the session needs to work with it, and the name the visitor knows it by. */
+export interface OpenedSketch {
+  readonly use: BoardUse;
+  /** The sketch's name as the page shows it, such as `Blink · 2 input`. */
+  readonly title: string;
+}
+
 /**
  * The visitor's board, one for the whole site: the session that holds its port, and what the site knows of it. Pages
- * come and go around it, so each points it at its own sketches with {@link Board.use} and asks it for work with
+ * come and go around it, so each opens its sketch on it with {@link Board.open} and asks it for work with
  * {@link Board.send}, which keeps the record of what the board runs.
  */
 export interface Board {
   readonly session: FlashSession;
   readonly record: BoardRecord;
-  /** The page part that last pointed the session at its sketches, such as `card:blink/simple`. */
-  readonly owner: string | undefined;
-  /** The key of the sketch the visitor has open, such as the workbench's selected step, which the dock flashes. */
-  readonly opened: string | undefined;
+  /** The sketch the visitor has open, such as the workbench's selected step, which the dock flashes. */
+  readonly opened: OpenedSketch | undefined;
   /** Calls `listener` after the session's state or the record changed; returns a function that stops it. */
   subscribe(listener: () => void): () => void;
   /**
-   * Points the session at `use` on behalf of `owner`. Refused, returning `false`, while the session is busy, since
-   * the work under way belongs to the sketch it started with.
+   * Asks the session for `event`'s work, noting the key a flash writes. Unless the session is busy, whose work belongs
+   * to the sketch it started with, the session is first pointed at the opened sketch's {@link BoardUse}.
    */
-  use(owner: string, use: BoardUse): boolean;
-  /** Asks the session for `event`'s work, noting the key a flash writes. */
   send(event: SessionEvent): Promise<void>;
   /** Writes `text` to the board and keeps it among the lines; rejects as {@link FlashSession.sendLine} does. */
   sendLine(text: string): Promise<void>;
   /** Forgets the lines kept so far; what the board runs stays known. */
   clearLines(): void;
-  /** Names `key` the sketch the visitor has open, until `signal` aborts as its page goes or another is opened. */
-  open(key: string, signal: AbortSignal): void;
+  /**
+   * Names `use`, shown as `title`, the sketch the visitor has open, until `signal` aborts as its page goes or another
+   * is opened. Opening does not point the session at it; the next {@link Board.send} does.
+   */
+  open(use: BoardUse, title: string, signal: AbortSignal): void;
   /** Adds `manifest`'s images to the ones the session knows, so a key it names can be flashed again from any page. */
   know(manifest: Manifest): void;
 }
@@ -53,8 +59,7 @@ export function keyFlashedBy(event: SessionEvent, sketch: string): string | unde
 export function createBoard(session: FlashSession): Board {
   const listeners = new Set<() => void>();
   let record = EMPTY_RECORD;
-  let owner: string | undefined;
-  let opened: string | undefined;
+  let opened: OpenedSketch | undefined;
   let state: SessionState = session.state;
   let current: BoardUse = { manifest: { sketches: {} }, sketch: '', baud: DEFAULT_BAUD };
 
@@ -81,9 +86,6 @@ export function createBoard(session: FlashSession): Board {
     get record() {
       return record;
     },
-    get owner() {
-      return owner;
-    },
     get opened() {
       return opened;
     },
@@ -91,17 +93,11 @@ export function createBoard(session: FlashSession): Board {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    use(next, use) {
-      if (isBusy(session.state)) return false;
-      const changed = next !== owner;
-      owner = next;
-      current = use;
-      session.configure(use);
-      // Another part of the page may have shown the board as its own until now.
-      if (changed) notify();
-      return true;
-    },
     send(event) {
+      if (opened !== undefined && !isBusy(session.state)) {
+        current = opened.use;
+        session.configure(current);
+      }
       const key = keyFlashedBy(event, current.sketch);
       if (key !== undefined) change({ kind: 'flash', key });
       return session.send(event);
@@ -113,13 +109,14 @@ export function createBoard(session: FlashSession): Board {
     clearLines() {
       change({ kind: 'clear' });
     },
-    open(key, signal) {
-      opened = key;
+    open(use, title, signal) {
+      const sketch = { use, title };
+      opened = sketch;
       notify();
       signal.addEventListener(
         'abort',
         () => {
-          if (opened !== key) return;
+          if (opened !== sketch) return;
           opened = undefined;
           notify();
         },

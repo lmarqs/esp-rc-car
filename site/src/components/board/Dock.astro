@@ -229,11 +229,11 @@ const manifest = readManifest();
     connect.addEventListener('click', () => void board.send(restartConnection(pick.model)));
     disconnect.addEventListener('click', () => void board.send({ type: 'disconnect' }));
     flash.addEventListener('click', () => {
-      if (board.opened !== undefined) void board.send({ type: 'flash', key: board.opened });
+      if (board.opened !== undefined) void board.send({ type: 'flash', key: board.opened.use.sketch });
     });
 
     function render() {
-      const view = dockView(session.state, board.record, names, pick.model, board.opened);
+      const view = dockView(session.state, board.record, names, pick.model, board.opened?.use.sketch);
       dock.hidden = !view.shown;
       if (!view.shown) return;
       dot.classList.toggle('on', view.connected);
