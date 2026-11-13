@@ -149,27 +149,24 @@ function viewOf(state: SessionState, rest: Partial<ConnectionInput> = {}) {
 }
 
 describe('connectionView action', () => {
-  it('flashes the open sketch from idle, and only connects with none open', () => {
+  it('flashes the open sketch from idle, and offers no action with none open', () => {
     expect(viewOf({ kind: 'idle' }).action).toEqual({
       label: 'Flash Blink · input',
       icon: 'bolt',
       event: 'flash',
       disabled: false,
     });
-    expect(viewOf({ kind: 'idle', released: true }, { opened: undefined }).action).toEqual({
-      label: 'Connect board',
-      icon: 'plug',
-      event: 'connect',
-      disabled: false,
-    });
+    expect(viewOf({ kind: 'idle', released: true }, { opened: undefined }).action).toBeUndefined();
   });
 
-  it('offers Connect board beside Flash only while no board is connected', () => {
+  it('offers Connect board as its own button while no board is connected, with a sketch open or not', () => {
     const connect = { label: 'Connect board', icon: 'plug', event: 'connect', disabled: false };
     expect(viewOf({ kind: 'idle' }).connect).toEqual(connect);
-    expect(viewOf({ kind: 'idle', released: true }, { opened: undefined }).connect).toBeUndefined();
+    expect(viewOf({ kind: 'idle', released: true }, { opened: undefined }).connect).toEqual(connect);
     expect(viewOf({ kind: 'running', chip: 'ESP32', output: [] }).connect).toBeUndefined();
     expect(viewOf({ kind: 'connecting' }).connect).toBeUndefined();
+    expect(viewOf({ kind: 'noPort' }).connect).toBeUndefined();
+    expect(viewOf({ kind: 'settings', chip: 'ESP32', opened: {} }).connect).toBeUndefined();
   });
 
   it('is disabled while the session works, named by what the session does', () => {
@@ -207,7 +204,8 @@ describe('connectionView action', () => {
 
   it('offers no flash of an open sketch the page has no image of: it connects, as with no sketch open', () => {
     const imageless = { ...sketch, imageless: true };
-    expect(viewOf({ kind: 'idle' }, { opened: imageless }).action).toEqual({
+    expect(viewOf({ kind: 'idle' }, { opened: imageless }).action).toBeUndefined();
+    expect(viewOf({ kind: 'idle' }, { opened: imageless }).connect).toEqual({
       label: 'Connect board',
       icon: 'plug',
       event: 'connect',
@@ -227,8 +225,9 @@ describe('connectionView action', () => {
   it('connects again from flash mode and from a lost board, with a sketch open or not', () => {
     const again = { label: 'Connect again', icon: 'plug', event: 'connect', disabled: false };
     for (const opened of [sketch, undefined]) {
-      expect(viewOf({ kind: 'flashMode', chip: 'ESP8266' }, { opened }).action).toEqual(again);
-      expect(viewOf(lost, { opened }).action).toEqual(again);
+      expect(viewOf({ kind: 'flashMode', chip: 'ESP8266' }, { opened }).connect).toEqual(again);
+      expect(viewOf(lost, { opened }).connect).toEqual(again);
+      expect(viewOf(lost, { opened }).action).toBeUndefined();
     }
   });
 
@@ -254,13 +253,15 @@ describe('connectionView action', () => {
   it('connects another board when the sketch has no image for this one, and offers nothing without a browser for it', () => {
     const noImage: SessionState = { kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] };
     for (const opened of [sketch, undefined]) {
-      expect(viewOf(noImage, { opened }).action).toEqual({
+      expect(viewOf(noImage, { opened }).action).toBeUndefined();
+      expect(viewOf(noImage, { opened }).connect).toEqual({
         label: 'Connect board',
         icon: 'plug',
         event: 'connect',
         disabled: false,
       });
       expect(viewOf({ kind: 'unsupported' }, { opened }).action).toBeUndefined();
+      expect(viewOf({ kind: 'unsupported' }, { opened }).connect).toBeUndefined();
     }
   });
 });
@@ -429,9 +430,9 @@ describe('createConnection', () => {
   it('with no sketch open, restarts the picked board to read it, and flashes none', async () => {
     const { fake, connection, pick } = connectionOver(() => {}, false);
     pick.choose('esp01s');
-    expect(connection.view.action?.label).toBe('Connect board');
+    expect(connection.view.connect?.label).toBe('Connect board');
 
-    await connection.press();
+    await connection.pressConnect();
 
     expect(fake.sent).toEqual([{ type: 'connect', reset: true, listen: 'ESP8266' }]);
     expect(fake.configured).toEqual([]);
@@ -441,9 +442,9 @@ describe('createConnection', () => {
     const { fake, board, page, connection } = connectionOver(() => {});
     page.abort();
     board.open({ ...use, manifest: { sketches: {} } }, new AbortController().signal);
-    expect(connection.view.action?.label).toBe('Connect board');
+    expect(connection.view.connect?.label).toBe('Connect board');
 
-    await connection.press();
+    await connection.pressConnect();
 
     expect(fake.sent).toEqual([{ type: 'connect', reset: true }]);
   });
@@ -542,7 +543,7 @@ describe('createConnection', () => {
     const { fake, connection } = connectionOver((event, enter) => {
       if (event.type === 'connect') enter({ kind: 'noPort' });
     }, false);
-    await connection.press();
+    await connection.pressConnect();
     expect(connection.view.action).toMatchObject({ label: 'Try again', event: 'connect' });
 
     await connection.press();
@@ -561,9 +562,9 @@ describe('createConnection', () => {
     for (const [state, label] of states) {
       const { fake, connection } = connectionOver(() => {});
       fake.enter(state);
-      expect(connection.view.action, state.kind).toMatchObject({ label, event: 'connect' });
+      expect(connection.view.connect, state.kind).toMatchObject({ label, event: 'connect' });
 
-      await connection.press();
+      await connection.pressConnect();
 
       expect(fake.sent, state.kind).toEqual([{ type: 'connect', reset: true }]);
     }

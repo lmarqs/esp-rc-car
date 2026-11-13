@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { dock, dockAction, plugIn } from './dock';
+import { dock, dockAction, dockConnect, plugIn } from './dock';
 import { expect, test, type FakeFlasherOptions } from './fake-flasher';
 
 const BLINK = '/robomania/projects/blink/';
@@ -317,8 +317,8 @@ test.describe('the pane while the dock works on the board', () => {
     await page.goto(BLINK);
 
     await flashFromDock(page);
-    await expect(dockAction(page)).toHaveAccessibleName('Connect again', { timeout: 10_000 });
-    await dockAction(page).click();
+    await expect(dockConnect(page)).toHaveAccessibleName('Connect again', { timeout: 10_000 });
+    await dockConnect(page).click();
 
     await expect(tag(page)).toHaveText('Live Drawn from what your board prints');
   });

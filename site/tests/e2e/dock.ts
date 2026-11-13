@@ -7,6 +7,9 @@ export const dock = (page: Page) => page.getByRole('complementary', { name: 'You
 /** The dock's one action for the board, in its bar, while it offers one. */
 export const dockAction = (page: Page) => dock(page).locator('[data-dock-action="bar"]:visible');
 
+/** The dock's round Connect board or Connect again, while it offers one. */
+export const dockConnect = (page: Page) => dock(page).locator('[data-dock-action="connect"]:visible');
+
 /** The dock's panel, open while the session writes or after it failed. */
 export const dockPanel = (page: Page) => dock(page).locator('[data-dock-panel]');
 

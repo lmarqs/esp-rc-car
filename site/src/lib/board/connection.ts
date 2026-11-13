@@ -164,7 +164,7 @@ export interface ConnectionView {
   readonly bar: DockBar;
   /** The dock's main button; absent when there is nothing to press. */
   readonly action?: ConnectionAction;
-  /** Connect board beside a Flash that would connect and write in one press: present while no board is connected. */
+  /** Connect board, or Connect again, the dock's round plug: present while no board is read and none is being read. */
   readonly connect?: ConnectionAction;
   /**
    * What the dock's panel says, which opens it: while the session writes, waits in flash mode or on the board's
@@ -233,7 +233,6 @@ function flashEvent(state: SessionState, opened: OpenedSketch, record: BoardReco
   return { type: 'flash', key: opened.use.sketch };
 }
 
-const CONNECT: ConnectionAction = { label: 'Connect board', icon: 'plug', event: 'connect', disabled: false };
 
 function actionFor(
   state: SessionState,
@@ -245,7 +244,6 @@ function actionFor(
     opened === undefined || opened.imageless
       ? undefined
       : { label: `Flash ${title}`, icon: 'bolt', event: 'flash', disabled: false };
-  const connect = (label: string): ConnectionAction => ({ label, icon: 'plug', event: 'connect', disabled: false });
   // During the settings, the form in their card is the action.
   if (state.kind === 'unsupported' || onSettings(state)) return undefined;
   if (RETRYABLE.has(state.kind)) {
@@ -255,10 +253,26 @@ function actionFor(
   if (busy !== undefined) return { label: busy, disabled: true };
   switch (state.kind) {
     case 'idle':
-      return flash ?? connect('Connect board');
-    case 'running':
-      if (state.lost) return connect('Connect again');
       return flash;
+    case 'running':
+      return state.lost ? undefined : flash;
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * The round Connect button for the session's `state`: wherever the board can be read and none is, and no Try again or
+ * work is under way.
+ */
+function connectFor(state: SessionState): ConnectionAction | undefined {
+  if (state.kind === 'unsupported' || onSettings(state) || RETRYABLE.has(state.kind) || busyWord(state) !== undefined) {
+    return undefined;
+  }
+  const connect = (label: string): ConnectionAction => ({ label, icon: 'plug', event: 'connect', disabled: false });
+  switch (state.kind) {
+    case 'running':
+      return state.lost ? connect('Connect again') : undefined;
     case 'flashMode':
       return connect('Connect again');
     default:
@@ -384,10 +398,11 @@ export function connectionView({ state, record, opened, pick, lastPress, names }
     refusalOf(state, opened, names) ??
     settingsMessage(state, record, opened, names);
   const action = actionFor(state, opened, title, lastPress);
+  const connect = connectFor(state);
   return {
     bar: barFor(state, record, names, pick, panel !== undefined),
     ...(action !== undefined && { action }),
-    ...(action !== undefined && !action.disabled && action.event === 'flash' && state.kind === 'idle' && { connect: CONNECT }),
+    ...(connect !== undefined && { connect }),
     ...(panel !== undefined && { panel }),
     scene: flashScene(state, pick, lastPress?.event),
   };

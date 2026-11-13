@@ -184,21 +184,22 @@ Disconnect are round icons of one size, each named in its tooltip, tinted green,
 The dock is the one surface where the visitor connects, flashes and retries. It has one action for the board, from the
 Board connection, and a panel for what happens between the computer and the board:
 
-- The action says what a press does: Connect board, or Connect again once the board is lost or left in flash mode,
-  which restart the board into what it holds and read it, and write no sketch; Flash and the open sketch's title when
-  a page has a sketch open, the one action that writes a sketch; Try again after a failed connect or flash, which
+- The action says what a press does: Flash and the open sketch's title when a page has a sketch open, the one action
+  that writes a sketch; Try again after a failed connect or flash, which
   repeats that press; and, while the session works, what it does, Connecting… or Flashing…, which cannot be pressed
   and which the workbench's tag and the switch's dot say in the same words. While the board waits on its settings,
   read, asked for or sent, the dock offers no action: the settings form in the card of their sketch is the action, the
   panel says where that card is, the bar keeps Disconnect, and the tag and the dot say Waiting for its settings,
   Reading its settings or Sending its settings. A sketch with no image for the board opens the panel with its message,
   which names the sketch the visitor tried to flash, whichever is open by then, while the bar names the chip the
-  session found. The action is then Connect board after a connect, and stays Flash and the sketch's title after a
-  flash refused over a running board. The sketch is the one the visitor has open: the workbench's selected step, the
+  session found. The action then stays Flash and the sketch's title after a flash refused over a running board, and
+  is gone after a connect. The sketch is the one the visitor has open: the workbench's selected step, the
   project page's card, or the Flash page's pick, each opened with `board.open` until its page goes. A page with no
-  sketch, such as Learn, or with a sketch the page has no image of, offers Connect, which restarts and reads the
-  board, and no Flash. While no board is connected, a page with a sketch offers Connect board in the bar beside Flash,
-  in the place Disconnect takes once a board is connected.
+  sketch, such as Learn, or with a sketch the page has no image of, offers no Flash, and its action keeps its room
+  empty.
+- Connect board, or Connect again once the board is lost or left in flash mode, restarts the board into what it holds
+  and reads it, and writes no sketch. It is a round plug icon, offered on every page while no board is read and the
+  session neither works nor offers Try again, in the place Disconnect takes once a board is connected.
 - Flash flashes the open sketch from idle and from running in one press, and Try again after a failed flash connects and
   flashes in one press, also from another page, with one request for the port: the connection opens the settings form of
   a sketch that has settings before it writes. From running, a sketch with settings that the board does not already run

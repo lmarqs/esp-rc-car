@@ -132,6 +132,19 @@ test.describe('the board dock', () => {
     expect(await fakeFlasher.calls()).not.toContain('write');
   });
 
+  test('offers Connect board as the same round button in the same place with a sketch open or not', async ({ page }) => {
+    const connectBoard = () => bar(page).getByRole('button', { name: 'Connect board' });
+    await page.goto(BLINK);
+    await expect(connectBoard()).toHaveClass(/round/);
+    const withSketch = await connectBoard().boundingBox();
+
+    await page.goto('/robomania/learn/');
+
+    await expect(connectBoard()).toHaveClass(/round/);
+    await expect(bar(page).locator('[data-dock-action="bar"]')).toHaveAttribute('data-off');
+    expect(await connectBoard().boundingBox()).toEqual(withSketch);
+  });
+
   test('clears the serial monitor and goes on showing what the board prints next', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['sketch blink/input', 'HIGH', 'LOW'] });
     await page.goto('/robomania/learn/');
