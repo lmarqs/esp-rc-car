@@ -81,14 +81,20 @@ The site also puts the firmware on a board. Its parts:
 - **Flash slice**: `site/src/lib/flash/` holds the logic and `site/src/components/flash/` the card. The logic reads
   the manifest, talks to the board over Web Serial and walks one session through connecting, the settings form,
   flashing and running. The rest of the site takes from the slice the card, the manifest and its reader, and a
-  public module, `site/src/lib/flash/index.ts`, that gives the board slice the session and the flasher, and the
-  workbench the wording the card and the workbench share.
+  public module, `site/src/lib/flash/index.ts`, that gives the board slice the session, the flasher and the wording of
+  what the session says, and the workbench the wording for a browser without Web Serial.
 - **Board slice**: `site/src/lib/board/` holds the visitor's board, one for the whole site: the flash session that
-  holds its port, which page owns it, and what the site knows of the board beyond the session's state: the sketch it
-  runs and the lines it printed and was sent. It also holds the board models the site has images for, one per chip,
-  and the visitor's pick of one, kept in the browser. `site/src/components/board/` holds the dock, along the bottom of every
-  page, and the flash picture that the card and the workbench share. The card and the workbench point the board at
-  their own sketches instead of opening a session; the slice depends on the flash slice.
+  holds its port, the sketch the visitor has open on the page, and what the site knows of the board beyond the
+  session's state: the sketch it runs and the lines it printed and was sent. A page names its sketch with
+  `board.open(use, title, signal)`, and the board forgets it when the signal aborts as the page goes or when another
+  is opened. Opening points nothing: `board.send` configures the session with the opened sketch when a press comes,
+  unless the session is busy, whose work belongs to the sketch it started with. The Board connection, in
+  `connection.ts`, turns the session's state, that record and the opened sketch into what the dock shows, which is the
+  board's one action, its message, its picture and whether the dock's panel is open, and presses the action. It is the
+  one module that words what the session says. The slice also holds the board models the site has images for, one per
+  chip, and the visitor's pick of one, kept in the browser. `site/src/components/board/` holds the dock, along the
+  bottom of every page, and the flash picture its panel draws. The card, the workbench and the Flash page's pick open
+  their sketches on the board; the slice depends on the flash slice.
 - **Router**: the site swaps pages in place with Astro's client router, so the board keeps its port from page to page
   and the dock persists across the swap. A page's script runs once per visit to the site, so each one mounts on every
   page the router shows and stops what outlives its page, such as a timer or a subscription to the board, as the
@@ -109,9 +115,9 @@ The site also puts the firmware on a board. Its parts:
   statement unnamed, so the simulator and the sketch change together. The simulation, in `simulation.ts`, holds the
   simulator's run, the simulated board, the trace and whether the visitor wants the sketch running; the pane, in
   `pane.ts`, holds who has the board pane, and `paneView.ts` beside the component chooses what the pane shows from
-  whoever has it, and what the Board cell and its message say. `boardLink.ts`, `watchPanel.ts` and `commandLine.ts`
-  write the Board cell, the watch panel and the command line. The component's script only reads events and hands
-  them what to show.
+  whoever has it, and what the switch and the frame's tag say. `boardLink.ts`, `watchPanel.ts` and `commandLine.ts`
+  write the switch and the frame, the watch panel and the command line. The component's script only reads events and
+  hands them what to show.
 - **Pages**: the `/flash/` page lists the projects that have an image and shows the card of the one picked, except a
   project with a workbench, whose entry shows the chips of all its steps and links to the `#workbench` anchor of its
   page; each project page with a sketch shows the same card above its text, except a page with a workbench, which
@@ -137,36 +143,61 @@ flowchart TD
   session -->|Web Serial| board[Board]
 ```
 
-The card reads the manifest at build time and flashes in the visitor's browser, which Chrome and Edge allow on a
+The session reads the manifest at build time and flashes in the visitor's browser, which Chrome and Edge allow on a
 computer. It picks the image for the chip it finds on the port. For a sketch with settings and a baud, it asks for the
-values first, flashes the board, and once the board has reset reads its serial output at the sketch's baud. It sends
-`cfg get` until the board lists its values, `cfg set` for each one that differs, and `cfg restart` so the new values
-take effect. A sketch with no baud prints nothing, so its card flashes without settings.
+values first, on the sketch's card, flashes the board, and once the board has reset reads its serial output at the
+sketch's baud. It sends `cfg get` until the board lists its values, `cfg set` for each one that differs, and
+`cfg restart` so the new values take effect. A sketch with no baud prints nothing, so it flashes without settings.
 
-The site holds one session, and the page that pointed it at its sketch last owns it: the card shows the board only
-while it owns it, from the visitor's press or because the board runs the card's sketch, and a card that does not
-waits to be pressed as if no board were connected. Pointing the session at another sketch keeps the images it knew,
-so whatever the site flashed can be flashed again from any page, and is refused while the session is busy. The
-session can restart the board without flashing, hands every line the board prints, with its arrival time, to its
-listeners, writes a line, and flashes a manifest key onto the open port and keeps reading. After a write to an
-ESP8266 it waits 3 seconds for the `sketch <key>` line; without it, the board's adapter holds it in flash mode, which
-the port cannot undo, so the session releases the port and waits in `flashMode`. The next connect opens the port
-without the bootloader, reads the running board, and sends the settings the flash was asked with. The dock's and the
-workbench's Connect read a picked ESP-01S the same way: its adapter reaches the bootloader only in flash mode, so the
-board is read as it runs, named by the chip the pick gives, and needs flash mode only for a flash. The port cannot
-restart such a board, so it names its sketch once flashed or once the visitor presses the reset button on its
-adapter, which the dock and the workbench ask for; a pick that is wrong shows only when the flash finds the chip.
+The card holds only its sketch's settings, and the dock does the connecting and the flashing. The card shows the form
+while the session asks for the values, reads them from the board, applies them, and, while the board runs its sketch,
+a Change settings button; the dock's bar says the board is busy with its settings meanwhile. Otherwise the card shows
+a line that points at the board bar, and where the browser has no Web Serial, links to the images and to the page's
+section on building the sketch with the tools.
+It shows the session only while the session works on its sketch, whether it is being written or the board runs it.
+
+The site holds one session, and the sketch the visitor has open points it. Pointing the session at another sketch
+keeps the images it knew, so whatever the site flashed can be flashed again from any page, and is refused while the
+session is busy. The session can restart the board without flashing, hands every line the board prints, with its
+arrival time, to its listeners, writes a line, and flashes a manifest key onto the open port and keeps reading. After
+a write to an ESP8266 it waits 3 seconds for the `sketch <key>` line; without it, the board's adapter holds it in
+flash mode, which the port cannot undo, so the session releases the port and waits in `flashMode`. The next connect
+opens the port without the bootloader, reads the running board, and sends the settings the flash was asked with. The dock's Connect
+reads a picked ESP-01S the same way: its adapter reaches the bootloader only in flash mode, so the board is read as it
+runs, named by the chip the pick gives, and needs flash mode only for a flash. The port cannot restart such a board, so
+it names its sketch once flashed or once the visitor presses the reset button on its adapter, which the dock and the
+workbench's tag ask for; a pick that is wrong shows only when the flash finds the chip.
 
 The dock names the board's chip and the sketch it runs, by the `sketch <key>` line or the key the site last flashed,
 links the sketch's project, at the step's tab for a step, and shows the last line it printed in the Serial button that
-opens the rest. It connects a board, lets it go, and opens a serial monitor that shows the lines, sends one and
-clears them. Its Flash button names and flashes the sketch the visitor has open: the workbench's selected step, the
-project page's card, or the Flash page's pick. Each names it with `board.open` until its page goes, so a page with no
-sketch, such as Learn, offers no Flash. It also holds the visitor's pick of board, which the card, the workbench and the project cards follow:
-the card and the workbench give that board's hints, such as the flash switch of an ESP-01S adapter, and each project
-card says whether the project runs on it. Once a board connects, its chip is
-certain, so the pick follows the chip, without a word when the visitor picked another board.
-Every page carries the names of every project's sketches and the whole manifest for it.
+opens the rest. It lets a board go with Disconnect, in its bar whenever a board is connected, and opens a serial
+monitor that shows the lines, sends one and clears them.
+
+The dock is the one surface where the visitor connects, flashes and retries. It has one action for the board, from the
+Board connection, and a panel for what happens between the computer and the board:
+
+- The action says what a press does: Connect board, or Connect again once the board is lost or left in flash mode;
+  Flash and the open sketch's title when a page has a sketch open; Try again after a failure; and Connecting… or
+  Flashing…, which cannot be pressed, while the session works. The sketch is the one the visitor has open: the
+  workbench's selected step, the project page's card, or the Flash page's pick, each opened with `board.open` until its
+  page goes. A page with no sketch, such as Learn, offers Connect and no Flash.
+- Flash flashes the open sketch from idle and from running in one press, and Try again after a failed flash connects
+  and flashes in one press. From running, a sketch with settings that the board does not already run connects anew,
+  so its card's settings form comes before the write.
+- The panel opens while the session works, waits in flash mode, failed, is lost, or has no image of the open sketch for
+  the board, and closes when the session is idle or running. It draws the flash picture, the computer, the
+  cable and the board's chip with Find, Write and Restart under them, which marks where a failure happened, with the
+  action hanging above the cable; the hand hint, the BOOT button or the adapter's switch to PROG or to UART; and the
+  message, in a live region. The action is in the panel while the panel is open and in the bar otherwise, so the board
+  has one button at a time.
+- The bar's controls keep their room whether they show or not, so nothing moves as the action appears and goes, and
+  they wrap to a row of their own below 840 px.
+
+The dock also holds the visitor's pick of board, which the dock, the workbench and the project cards follow: the dock
+and the workbench give that board's hints, such as the flash switch of an ESP-01S adapter, and each project card says
+whether the project runs on it. Once a board connects, its chip is certain, so the pick follows the chip, without a
+word when the visitor picked another board. Every page carries the names of every project's sketches and the whole
+manifest for it.
 
 The workbench has a simulated board, and it hears from a real one through the `sketch <key>` line. Every step of a
 ladder prints a blank line and then `sketch <key>` first, where the key is the sketch's path under `sketches/`, such
@@ -181,17 +212,12 @@ to a step:
   and the arrow are drawn from the lines the board prints, and what the visitor sends goes to the board.
 - When the key is another step's or another sketch's, the tab of the step it runs is marked, and under My board the
   pane waits.
-- Waiting, the stage draws the flash picture in the picture's place, the computer, the cable and the board's chip
-  with the steps Find, Write and Restart under them, and says what the board runs and what to do under it. Its one
-  action hangs above the cable: Connect my board, Flash the selected step, Try again after a failure, or, while the
-  session works, a pill that cannot be pressed, Connecting… or Flashing…. Try again after a failed flash connects and
-  flashes in one press. The picture marks where a failure happened, at the computer, on the cable or at the board,
-  and draws the hands-on step beside the words: the BOOT button, or the adapter's switch to PROG or to UART. The
-  stage is one height in every view, as tall as the picture and the longest notice. The terminal is inert. What the
-  session says of the board, such as a failed flash, shows only under My board, so pressing Simulator leaves it.
+- Waiting, the pane shows the sketch only: the LED, the watch and the trace keep their place, dimmed, each value
+  reads `…`, and the terminal is inert. The frame's tag says why, as Not connected, Connecting…, Flashing…, what the
+  board runs, or that it has not named its sketch. The pane has the same layout and height in simulator, live and
+  waiting modes; the connecting, the flashing and the failures are the dock's.
 - Pause, Step or Restart outside the simulator hands the pane to a fresh simulator with the port still open, and
   choosing My board brings the pane back to the board.
-- A flash the session refuses while the board is live shows its notice over the live board.
 - The frame names its source with a tag, Simulated, Live or My board, and a sentence; its border is dashed for
   simulated and waiting and solid green for live. The switch's dark pill slides between its halves. Wider than
   480 px, each half is 104 px wide; at phone width, 480 px and narrower, each takes half the switch. The My board half
@@ -201,7 +227,8 @@ to a step:
 - A workbench opens on the step its address names, such as `#input`, else the first. On a board that the site kept
   connected from another page, it opens on My board, live, when the board runs that step.
 
-The tests, in `site/tests`, run the card, the workbench and the dock in a browser against a fake serial port.
+The tests, in `site/tests`, run the card, the workbench and the dock in a browser against a fake serial port, and
+`boardConnection.test.ts` pins what the Board connection says for each state of the session.
 
 The workflow publishes a new site version to GitHub Pages, at <https://lmarqs.github.io/robomania/>, when a push to
 `main` includes a commit whose message contains `#site-release`, or when someone runs it by hand. Other pushes leave the
