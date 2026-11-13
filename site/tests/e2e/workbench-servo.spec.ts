@@ -7,7 +7,6 @@ import { plugIn } from './dock';
 import { expect, test } from './fake-flasher';
 
 const SERVO = '/robomania/projects/servo/';
-const SHOTS = '/tmp/claude-1000/-home-lmarqs-Work-esp-rc-car/697aebf4-0991-46d4-9ca2-a30fc1d03b54/scratchpad/shots/task-17/';
 const source = (step: string) =>
   readFileSync(new URL(`../../../sketches/servo/${step}/${step}.ino`, import.meta.url), 'utf8');
 
@@ -330,7 +329,6 @@ test.describe('the Servo workbench', () => {
       .evaluate((label) => parseFloat(getComputedStyle(label).fontSize) * (label as SVGTextElement).getScreenCTM()!.a);
     expect(labelPx).toBeGreaterThanOrEqual(12);
     expect((await picture(page).boundingBox())!.width).toBe(132);
-    await bench(page).screenshot({ path: `${SHOTS}servo-speed-moving.png` });
   });
 
   test('on commands, sweeps from the angle it holds until stop', async ({ page }) => {
@@ -339,7 +337,6 @@ test.describe('the Servo workbench', () => {
     await send(page, 'sweep');
     await expect(serial(page)).toContainText('angle 100');
     await expect(watchValue(page, 'sweeping')).toHaveText('true');
-    await bench(page).screenshot({ path: `${SHOTS}servo-commands-sweeping.png` });
     await send(page, 'stop');
     await expect(serial(page)).toContainText('stopped');
     const held = await horn(page);
