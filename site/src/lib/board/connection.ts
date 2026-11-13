@@ -17,24 +17,29 @@ export interface BoardMessage {
 /** What to do after a flash failed: the session let go of the port, and the button tries it all again. */
 const RETRY = 'Then press Try again.';
 
-/** The sketch a missing image names: by `name`, and as a `step` of a workbench when the visitor can pick another. */
-export interface NamedSketch {
-  readonly name: string;
-  readonly step: boolean;
+function notice(text: string): BoardMessage {
+  return { text, notice: true };
 }
 
 /**
- * The board's message for the session's `state`, or `undefined` when the dock shows only the picture. `sketch` is the
- * sketch last flashed, which a missing image names. `showRefusal` keeps the refusal of a sketch with no image for the
- * board on screen; the page drops it once the visitor opens another.
+ * Why a board of `chip` cannot be flashed with the sketch `key`, named as the site names it, whose images are for the
+ * chips `available`, and what to do: use another board, or, on a workbench, pick another step.
  */
-export function boardMessage(
+function noImageNotice(chip: string, available: readonly string[], key: string | undefined, names: SketchNames): BoardMessage {
+  const name = key === undefined ? { title: 'This sketch', step: false } : nameOf(names, key);
+  return notice(`${wording.noImage(chip, available, name.title)} ${wording.otherBoardOrStep(available, name.step)}`);
+}
+
+/**
+ * The board's message for the session's `state`, or `undefined` when the dock shows only the picture. A missing image
+ * names the sketch `tried`, the one last flashed. `board` is the board the visitor picked, which the hints are for.
+ */
+function boardMessage(
   state: SessionState,
-  sketch: NamedSketch,
-  showRefusal: boolean,
-  board?: BoardModel,
+  tried: string | undefined,
+  names: SketchNames,
+  board: BoardModel | undefined,
 ): BoardMessage | undefined {
-  const notice = (text: string): BoardMessage => ({ text, notice: true });
   switch (state.kind) {
     case 'connecting':
       return { text: wording.CONNECTING, notice: false };
@@ -49,19 +54,13 @@ export function boardMessage(
     case 'noAnswer':
       return notice(wording.noAnswer(board));
     case 'noImage':
-      return notice(`${wording.noImage(state, sketch.name)} ${wording.otherBoardOrStep(state.available, sketch.step)}`);
+      return noImageNotice(state.chip, state.available, tried, names);
     case 'noDownload':
       return notice(`${wording.NO_DOWNLOAD}. ${RETRY}`);
     case 'dropped':
       return notice(`${wording.droppedAt(state.pct)} Plug the board back in. ${RETRY}`);
     case 'running':
-      if (state.lost) return notice(wording.LOST);
-      if (state.flashRefused !== undefined && showRefusal) {
-        const { available } = state.flashRefused;
-        const why = wording.noImage({ kind: 'noImage', chip: state.chip, available }, sketch.name);
-        return notice(`${why} ${wording.otherBoardOrStep(available, sketch.step)}`);
-      }
-      return undefined;
+      return state.lost ? notice(wording.LOST) : undefined;
     default:
       return undefined;
   }
@@ -163,8 +162,10 @@ export interface ConnectionView {
 const RETRYABLE: ReadonlySet<SessionState['kind']> = new Set(['noPort', 'portBusy', 'noAnswer', 'noDownload', 'dropped']);
 
 /** The session's refusal to flash `opened`, which the dock shows only while the page still has that sketch open. */
-function showsRefusal(state: SessionState, opened: OpenedSketch | undefined): boolean {
-  return state.kind === 'running' && state.flashRefused !== undefined && state.flashRefused.key === opened?.use.sketch;
+function refusalOf(state: SessionState, opened: OpenedSketch | undefined, names: SketchNames): BoardMessage | undefined {
+  if (state.kind !== 'running' || state.flashRefused === undefined) return undefined;
+  const { key, available } = state.flashRefused;
+  return key === opened?.use.sketch ? noImageNotice(state.chip, available, key, names) : undefined;
 }
 
 /** Whether the session reads, waits on or sends the board's settings, which the card of their sketch shows. */
@@ -336,13 +337,11 @@ function barFor(
  * visitor picked; `lastPress` the visitor's last press, which Try again repeats.
  */
 export function connectionView({ state, record, opened, pick, lastPress, names }: ConnectionInput): ConnectionView {
-  const refusal = showsRefusal(state, opened);
   const title = opened === undefined ? '' : nameOf(names, opened.use.sketch).title;
   // A missing image names the sketch the visitor tried to flash, whichever the page has open by now.
   const tried = lastPress?.event === 'flash' ? lastPress.key : opened?.use.sketch;
-  const name = tried === undefined ? undefined : nameOf(names, tried);
-  const sketch = { name: name?.title ?? record.pending ?? 'This sketch', step: name?.step === true };
-  const panel = boardMessage(state, sketch, refusal, pick) ?? settingsMessage(state, record, opened, names);
+  const panel =
+    boardMessage(state, tried, names, pick) ?? refusalOf(state, opened, names) ?? settingsMessage(state, record, opened, names);
   const action = actionFor(state, opened, title, lastPress);
   return {
     bar: barFor(state, record, names, pick, panel !== undefined),

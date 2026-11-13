@@ -1,5 +1,4 @@
 import type { BoardModel } from '../board/models';
-import type { SessionState } from './session';
 
 /**
  * The plain words for what a flash session is doing or why it stopped, which the board's connection and the dock show,
@@ -42,11 +41,13 @@ export function found(chip: string): string {
   return `Found ${chip}`;
 }
 
-/** `title` names what has no image for the chip: a project or a step as the page names it, or else a sketch's key. */
-export function noImage(state: Extract<SessionState, { kind: 'noImage' }>, title: string): string {
-  const images =
-    state.available.length === 0 ? 'has no image to flash from the browser' : `has images for: ${state.available.join(', ')}`;
-  return `This board is an ${state.chip}. ${title} ${images}.`;
+/**
+ * Why a board of `chip` cannot be flashed with the sketch `title` names, a project or a step as the site names it, or
+ * else a sketch's key: its images are for the chips `available`.
+ */
+export function noImage(chip: string, available: readonly string[], title: string): string {
+  const images = available.length === 0 ? 'has no image to flash from the browser' : `has images for: ${available.join(', ')}`;
+  return `This board is an ${chip}. ${title} ${images}.`;
 }
 
 /**
