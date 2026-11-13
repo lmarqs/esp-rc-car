@@ -37,9 +37,9 @@ without `delay()`, and takes commands by name.
 ## Run it on your board
 
 The workbench above runs each step on a simulated board until you connect yours. From Chrome or Edge on a computer,
-with no tools installed, its My board view connects to your board and flashes the step you picked; its Simulator view
-goes back to the simulated one. Once the board prints its `sketch <key>` line, the workbench follows your board, and
-what you send goes to it. To build and flash a step yourself, install the tools (the
+with no tools installed, the board bar at the bottom of the page connects to your board and flashes the step you
+picked. The workbench's My board view shows your board, and its Simulator view the simulated one. Once the board
+prints its `sketch <key>` line, the workbench follows your board under My board, and what you send goes to it. To build and flash a step yourself, install the tools (the
 [tooling page](../../learn/tooling/) says how), connect the board over USB and run, from the repository's root:
 
 ```sh
