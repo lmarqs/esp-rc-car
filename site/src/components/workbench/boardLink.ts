@@ -1,3 +1,4 @@
+import { paintAction } from '../board/actionButton';
 import { paintFlashPicture, paintHandHint } from '../board/flashPicture';
 import type { LinkView } from './paneView';
 
@@ -32,7 +33,6 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
   const message = root.querySelector<HTMLElement>('[data-board-message]')!;
   const link = root.querySelector<HTMLElement>('[data-board-link]')!;
   const actionButton = root.querySelector<HTMLButtonElement>('[data-board-action]');
-  const actionLabel = root.querySelector<HTMLElement>('[data-board-action-label]');
 
   simulatorButton.addEventListener('click', handlers.simulator);
   boardButton?.addEventListener('click', handlers.board);
@@ -75,20 +75,12 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
       paintFlashPicture(link, view.scene);
       paintHandHint(link, view.scene.hint);
 
-      if (actionButton !== null && actionLabel !== null) {
+      if (actionButton !== null) {
         actionButton.hidden = action === undefined;
         // Live, the board runs the step, and a refusal shows with no button. The button keeps its room, so the stage
         // keeps its height.
         actionButton.toggleAttribute('data-off', !waiting);
-        if (action !== undefined) {
-          actionLabel.textContent = action.short ?? action.label;
-          if (action.short === undefined) actionButton.removeAttribute('aria-label');
-          else actionButton.setAttribute('aria-label', action.label);
-          actionButton.dataset.icon = action.icon;
-          // aria-disabled, not disabled, so a button pressed from the keyboard keeps the focus while the session works.
-          if (action.disabled) actionButton.setAttribute('aria-disabled', 'true');
-          else actionButton.removeAttribute('aria-disabled');
-        }
+        if (action !== undefined) paintAction(actionButton, action);
         // The button goes as the pane goes live; the focus goes on to the switch's My board half, not to the page.
         if (!waiting && document.activeElement === actionButton) boardButton?.focus();
       }

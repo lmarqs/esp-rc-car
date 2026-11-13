@@ -1,5 +1,6 @@
 ---
 import type { WorkbenchProject } from '../../lib/workbench/projects';
+import ActionButton from '../board/ActionButton.astro';
 import FlashPicture from '../board/FlashPicture.astro';
 import HandHint from '../board/HandHint.astro';
 import Led from './pictures/Led.astro';
@@ -38,15 +39,7 @@ const Picture = { led: Led, servo: Servo }[picture];
     <FlashPicture>
       {
         flashable && (
-          <button class="action" type="button" data-icon="plug" data-board-action>
-            <svg class="i-plug" viewBox="0 0 16 16" aria-hidden="true">
-              <path d="M6 1.6v3M10 1.6v3M4 4.6h8v2.6a4 4 0 0 1-8 0zM8 11.2v3.2" />
-            </svg>
-            <svg class="i-bolt" viewBox="0 0 16 16" aria-hidden="true"><path d="M9.4 1 3.4 9.2h3.9L6.4 15l6.2-8.4H8.6z" /></svg>
-            <svg class="i-again" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.5v3h-3" /></svg>
-            <i class="spin" aria-hidden="true" />
-            <span data-board-action-label>Connect my board</span>
-          </button>
+          <ActionButton label="Connect my board" data-board-action />
         )
       }
     </FlashPicture>
@@ -69,21 +62,6 @@ const Picture = { led: Led, servo: Servo }[picture];
   .stage[data-message] .link { visibility: visible; }
   .words { display: flex; gap: 10px; align-items: flex-start; align-self: start; }
   .words p { flex: 1; min-width: 0; margin: 0; font-size: inherit; }
-  /* As wide as its longest label, Connect my board, so it keeps its width as its label changes. */
-  .action { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 164px; height: 32px; font: inherit; font-size: 13px; font-weight: 700; line-height: 1.5; white-space: nowrap; color: var(--card); background: var(--coral); border: 2px solid var(--ink); border-radius: 999px; box-shadow: 0 3px 0 var(--ink); cursor: pointer; }
-  /* While the session works, the button says what it does and cannot be pressed: a plain pill with a spinner. */
-  .action[aria-disabled="true"] { color: var(--ink); background: var(--card); box-shadow: none; cursor: default; }
-  .action[data-off] { visibility: hidden; }
-  .action:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
-  .action svg { width: 14px; height: 14px; flex: none; }
-  .action .i-plug path, .action .i-again path { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-  .action .i-bolt path { fill: currentColor; }
-  .action:not([data-icon="plug"]) .i-plug, .action:not([data-icon="bolt"]) .i-bolt, .action:not([data-icon="again"]) .i-again { display: none; }
-  .action[aria-disabled="true"] svg { display: none; }
-  .spin { display: none; width: 12px; height: 12px; flex: none; border-radius: 50%; border: 2.4px solid var(--line); border-top-color: var(--coral); box-sizing: border-box; animation: spin .8s linear infinite; }
-  .action[aria-disabled="true"] .spin { display: block; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
   .led-row { --picture: 96px; display: grid; grid-template-columns: var(--picture) 1fr 1fr; gap: 12px; align-items: center; }
   /* A horn and its scale need more room than an LED to read its angle and target. */
   .led-row.wide { --picture: 132px; }
