@@ -134,7 +134,7 @@ const lost: SessionState = { ...running, lost: true };
 
 /** The dock's view for `state`, with a sketch open unless `opened` says otherwise. */
 function viewOf(state: SessionState, rest: Partial<ConnectionInput> = {}) {
-  return connectionView({ state, record: EMPTY_RECORD, opened: sketch, pick: undefined, lastPress: undefined, names: NAMES, ...rest });
+  return connectionView({ state, record: EMPTY_RECORD, opened: sketch, pick: undefined, names: NAMES, ...rest });
 }
 
 describe('connectionView action', () => {
@@ -153,7 +153,7 @@ describe('connectionView action', () => {
     });
   });
 
-  it('is disabled while the session works, named by what the session does, whatever was pressed', () => {
+  it('is disabled while the session works, named by what the session does', () => {
     const busy: [SessionState, string][] = [
       [{ kind: 'connecting' }, 'Connecting…'],
       [{ kind: 'flashing', chip: 'ESP32', pct: 10 }, 'Flashing…'],
@@ -163,9 +163,7 @@ describe('connectionView action', () => {
     ];
     for (const [state, label] of busy) {
       for (const opened of [sketch, undefined]) {
-        for (const lastPress of [undefined, 'connect', 'flash', 'retry'] as const) {
-          expect(viewOf(state, { opened, lastPress }).action, state.kind).toEqual({ label, disabled: true });
-        }
+        expect(viewOf(state, { opened }).action, state.kind).toEqual({ label, disabled: true });
       }
     }
   });
@@ -206,7 +204,7 @@ describe('connectionView action', () => {
     }
   });
 
-  it('offers Try again after a failure, which repeats the whole flash only when a flash failed', () => {
+  it('offers Try again after a failure, which connects once, flashing the open sketch once the board answers', () => {
     const failures: SessionState[] = [
       { kind: 'noPort' },
       { kind: 'portBusy' },
@@ -216,12 +214,7 @@ describe('connectionView action', () => {
     ];
     for (const state of failures) {
       for (const opened of [sketch, undefined]) {
-        const press = (lastPress?: 'connect' | 'flash' | 'retry') => viewOf(state, { opened, lastPress }).action;
-        const again = { label: 'Try again', icon: 'again', disabled: false };
-        expect(press()).toEqual({ ...again, event: 'connect' });
-        expect(press('connect')).toEqual({ ...again, event: 'connect' });
-        expect(press('flash')).toEqual({ ...again, event: 'retry' });
-        expect(press('retry')).toEqual({ ...again, event: 'retry' });
+        expect(viewOf(state, { opened }).action).toEqual({ label: 'Try again', icon: 'again', event: 'connect', disabled: false });
       }
     }
   });
@@ -463,7 +456,7 @@ describe('createConnection', () => {
     expect(fake.sent).toEqual([]);
   });
 
-  it('offers Try again after a failed flash, which connects, then flashes the board that answered', async () => {
+  it('offers Try again after a failed flash, which connects once and flashes the board that answered', async () => {
     const running: SessionState = { kind: 'running', chip: 'ESP32', output: [] };
     let drops = 1;
     const { fake, connection } = connectionOver((event, enter) => {
@@ -478,18 +471,15 @@ describe('createConnection', () => {
     });
     fake.enter(running);
     await connection.press();
-    expect(connection.view.action).toEqual({ label: 'Try again', icon: 'again', event: 'retry', disabled: false });
+    expect(connection.view.action).toEqual({ label: 'Try again', icon: 'again', event: 'connect', disabled: false });
 
     await connection.press();
 
-    expect(fake.sent.slice(1)).toEqual([
-      { type: 'connect', reset: true },
-      { type: 'flash', key: 'blink/input' },
-    ]);
+    expect(fake.sent.slice(1)).toEqual([{ type: 'connect' }]);
     expect(fake.session.state).toEqual(running);
   });
 
-  it('asks for the settings first when Try again flashes a sketch with settings opened after the flash failed', async () => {
+  it('asks for the port once when Try again flashes a sketch with settings opened after the flash failed', async () => {
     const field = { key: 'ap_password', label: 'Hotspot password', type: 'password', default: 'web-relay-1234' } as const;
     const relay = { manifest: { sketches: { 'web-relay': { images: [image], settings: [field] } } }, sketch: 'web-relay', baud: 115200 };
     const running: SessionState = { kind: 'running', chip: 'ESP8266', output: [] };
@@ -504,15 +494,13 @@ describe('createConnection', () => {
     await connection.press();
     page.abort();
     board.open(relay, new AbortController().signal);
-    expect(connection.view.action).toMatchObject({ label: 'Try again', event: 'retry' });
+    expect(connection.view.action).toMatchObject({ label: 'Try again', event: 'connect' });
 
     await connection.press();
 
-    expect(fake.sent).toEqual([
-      { type: 'flash', key: 'blink/input' },
-      { type: 'connect', reset: true },
-      { type: 'connect' },
-    ]);
+    // The connection opens the settings form before it flashes: no restart first, which would ask for the port twice.
+    expect(fake.sent).toEqual([{ type: 'flash', key: 'blink/input' }, { type: 'connect' }]);
+    expect(fake.configured.at(-1)).toEqual(relay);
   });
 
   it('tries only the connection again when a connection failed', async () => {

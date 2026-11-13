@@ -1,4 +1,4 @@
-import { dock, dockAction, dockMessage } from './dock';
+import { dock, dockAction, dockMessage, plugIn } from './dock';
 import { expect, test } from './fake-flasher';
 
 const card = (page: import('@playwright/test').Page) => page.getByRole('region', { name: 'Put it on your board' });
@@ -70,6 +70,24 @@ test.describe('a project whose sketch has settings', () => {
       'send cfg set tilt_limit_deg 30',
       'send cfg restart',
     ]);
+  });
+
+  test('asks for the port once when Try again flashes it after a flash failed on another page', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/simple'], failFirst: { write: 'NetworkError' }, board: { values: DEFAULTS } });
+    await page.goto('/robomania/projects/blink/');
+    await plugIn(page);
+    // A flash from the running board, which writes on the port it holds, and drops.
+    await dockAction(page).click();
+    await expect(dockMessage(page)).toContainText('The connection dropped');
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Projects' }).click();
+    await page.getByRole('main').getByRole('link', { name: /Balance beam/ }).click();
+    await expect(dockAction(page)).toHaveAccessibleName('Try again');
+    const before = (await fakeFlasher.calls()).length;
+
+    await dockAction(page).click();
+
+    await expect(field(page, 'Hotspot password')).toBeVisible();
+    expect((await fakeFlasher.calls()).slice(before)).toEqual(['connect']);
   });
 
   test('keeps what the board stores in each field the visitor left as it opened', async ({ page, fakeFlasher }) => {

@@ -67,7 +67,7 @@ export function boardMessage(
 }
 
 /** What a press of the board's button asks of the session. */
-export type ConnectionEvent = 'connect' | 'flash' | 'retry';
+export type ConnectionEvent = 'connect' | 'flash';
 
 /**
  * The board's one button: what it says, and, unless the session works, which icon it wears and what it sends. While
@@ -79,8 +79,8 @@ export type ConnectionAction =
       readonly label: string;
       readonly icon: 'plug' | 'bolt' | 'again';
       /**
-       * `connect` connects to a board; `flash` flashes the opened sketch onto the connected one; `retry` does both,
-       * after a flash failed and the session let go of the port.
+       * `connect` connects to a board, and flashes the opened sketch once it answers; `flash` flashes the opened sketch
+       * onto the connected one. After a failure, the session let go of the port, so Try again connects.
        */
       readonly event: ConnectionEvent;
       readonly disabled: false;
@@ -111,8 +111,6 @@ export interface ConnectionInput {
   readonly opened: OpenedSketch | undefined;
   /** The board the visitor picked, which the hints are for. */
   readonly pick: BoardModel | undefined;
-  /** The visitor's last press of the button, which Try again repeats after a failure. */
-  readonly lastPress: ConnectionEvent | undefined;
   /** The site's sketches by key, which name the opened sketch and the one whose settings the session waits on. */
   readonly names: SketchNames;
 }
@@ -217,7 +215,6 @@ function actionFor(
   record: BoardRecord,
   opened: OpenedSketch | undefined,
   title: string,
-  lastPress: ConnectionEvent | undefined,
 ): ConnectionAction | undefined {
   const flash = (event: ConnectionEvent): ConnectionAction | undefined =>
     opened === undefined || opened.imageless
@@ -226,9 +223,9 @@ function actionFor(
   const connect = (label: string): ConnectionAction => ({ label, icon: 'plug', event: 'connect', disabled: false });
   if (state.kind === 'unsupported') return undefined;
   if (RETRYABLE.has(state.kind)) {
-    // A flash that failed is tried again in one press: the connection, then the flash.
-    const event = lastPress === 'flash' || lastPress === 'retry' ? 'retry' : 'connect';
-    return { label: 'Try again', icon: 'again', event, disabled: false };
+    // One connection, which flashes the opened sketch once the board answers: a single port request, which the
+    // browser grants only on the visitor's press.
+    return { label: 'Try again', icon: 'again', event: 'connect', disabled: false };
   }
   const busy = busyWord(state);
   if (busy !== undefined) return { label: busy, disabled: true };
@@ -327,14 +324,14 @@ function barFor(
 /**
  * The board dock for the session's `state`: its bar, its one button, and what its panel says and draws.
  * `record` is what the site knows of the board; `opened` the sketch the page has open, if any; `pick` the board the
- * visitor picked; `lastPress` the visitor's last press, which Try again repeats.
+ * visitor picked.
  */
-export function connectionView({ state, record, opened, pick, lastPress, names }: ConnectionInput): ConnectionView {
+export function connectionView({ state, record, opened, pick, names }: ConnectionInput): ConnectionView {
   const refusal = showsRefusal(state, opened);
   const name = opened && nameOf(names, opened.use.sketch);
   const sketch = { name: name?.title ?? record.pending ?? 'This sketch', step: name?.step === true };
   const panel = boardMessage(state, sketch, refusal, pick) ?? settingsMessage(state, record, opened, names);
-  const action = actionFor(state, record, opened, sketch.name, lastPress);
+  const action = actionFor(state, record, opened, sketch.name);
   return {
     bar: barFor(state, record, names, pick, panel !== undefined),
     ...(action !== undefined && { action }),
@@ -359,11 +356,10 @@ export interface Connection {
 
 /**
  * The connection of `board`, the site's, for the board the visitor picked, `pick`, with `names` naming the site's
- * sketches. It remembers the visitor's last press, as Try again repeats it.
+ * sketches.
  */
 export function createConnection(board: Board, pick: BoardPick, names: SketchNames): Connection {
   const listeners = new Set<() => void>();
-  let lastPress: ConnectionEvent | undefined;
 
   function notify() {
     for (const listener of [...listeners]) listener();
@@ -375,7 +371,6 @@ export function createConnection(board: Board, pick: BoardPick, names: SketchNam
       record: board.record,
       opened: board.opened,
       pick: pick.model,
-      lastPress,
       names,
     });
   }
@@ -398,7 +393,6 @@ export function createConnection(board: Board, pick: BoardPick, names: SketchNam
 
   /** Starts `event`'s work; {@link Board.send} first points the session at the opened sketch. */
   async function start(event: ConnectionEvent): Promise<void> {
-    lastPress = event;
     const opened = board.opened;
     switch (event) {
       case 'connect':
@@ -407,15 +401,6 @@ export function createConnection(board: Board, pick: BoardPick, names: SketchNam
         return board.send(opened?.imageless === false ? { type: 'connect' } : restartConnection(pick.model));
       case 'flash':
         if (opened !== undefined) await board.send({ type: 'flash', key: opened.use.sketch });
-        return;
-      case 'retry': {
-        await board.send(restartConnection(pick.model));
-        // The sketch open now may be another page's, with settings: it is flashed as from any running board.
-        const now = board.opened;
-        if (board.session.state.kind === 'running' && !board.session.state.lost && now?.imageless === false) {
-          await start(flashFromRunning(now, board.record));
-        }
-      }
     }
   }
 

@@ -188,7 +188,8 @@ Board connection, and a panel for what happens between the computer and the boar
   A page with no sketch, such as Learn, or with a sketch the page has no image of, offers Connect, which restarts and
   reads the board, and no Flash.
 - Flash flashes the open sketch from idle and from running in one press, and Try again after a failed flash connects
-  and flashes in one press. From running, a sketch with settings that the board does not already run connects anew,
+  and flashes in one press, with one request for the port: the connection opens the settings form of a sketch that has
+  settings before it writes. From running, a sketch with settings that the board does not already run connects anew,
   so its card's settings form comes before the write.
 - The panel opens while the session works, waits in flash mode, failed, is lost, or has no image of the open sketch for
   the board, and closes when the session is idle or running. It draws the flash picture, the computer, the
