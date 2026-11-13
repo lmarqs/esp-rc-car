@@ -444,6 +444,8 @@ test.describe('the board dock panel', () => {
 
     await expect(panelMessage(page)).toHaveText('The board stopped talking to the page. Plug it back in and connect again.');
     await expect(panel(page).getByRole('button', { name: 'Connect again' })).toBeVisible();
+    // The bar names the state; what to do is the panel's alone.
+    await expect(bar(page).locator('[data-dock-status]')).toHaveText('ESP32 lost the connection');
   });
 
   test('names the chips the open sketch has images for when the board has none, until another step is opened', async ({

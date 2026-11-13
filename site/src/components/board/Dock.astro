@@ -201,7 +201,7 @@ const manifest = readManifest();
 
 <script>
   import { theBoard } from '../../lib/board/board';
-  import { createConnection } from '../../lib/board/connection';
+  import { createConnection, type ConnectionView } from '../../lib/board/connection';
   import { modelAnswering } from '../../lib/board/models';
   import { thePick } from '../../lib/board/pick';
   import type { SketchName } from '../../lib/board/names';
@@ -209,7 +209,6 @@ const manifest = readManifest();
   import { paintAction } from './actionButton';
   import { mountDockMonitor } from './dockMonitor';
   import { paintFlashPicture, paintHandHint } from './flashPicture';
-  import { dockView } from './dockView';
 
   // The dock persists from page to page, so this runs once, on the first page the visitor opens.
   const dock = document.querySelector<HTMLElement>('[data-board-dock]');
@@ -269,53 +268,53 @@ const manifest = readManifest();
     disconnect.addEventListener('click', () => void connection.disconnect());
 
     function render() {
-      const view = dockView(session.state, board.record, names, pick.model);
-      dock.hidden = !view.shown;
-      if (!view.shown) return;
-      dot.classList.toggle('on', view.connected);
+      const view = connection.view;
+      const { bar } = view;
+      dock.hidden = !bar.shown;
+      if (!bar.shown) return;
+      dot.classList.toggle('on', bar.connected);
       // Set only on a change, since what the board does is a live region.
-      const linked = view.path !== undefined;
-      const name = view.sketch ?? '';
+      const linked = bar.path !== undefined;
+      const name = bar.sketch ?? '';
       if (
-        chip.textContent !== view.chip ||
-        doing.textContent !== view.doing ||
+        chip.textContent !== bar.chip ||
+        doing.textContent !== bar.doing ||
         link.hidden === linked ||
         (linked ? link.textContent : sketch.textContent) !== name
       ) {
-        chip.textContent = view.chip;
-        doing.textContent = view.doing;
+        chip.textContent = bar.chip;
+        doing.textContent = bar.doing;
         link.hidden = !linked;
         link.textContent = linked ? name : '';
         sketch.textContent = linked ? '' : name;
       }
-      if (linked) link.href = view.path!;
-      meter.hidden = view.progress === undefined;
-      if (view.progress !== undefined) {
-        track.setAttribute('aria-valuenow', String(view.progress));
-        fill.style.width = `${view.progress}%`;
-        pct.textContent = `${view.progress}%`;
+      if (linked) link.href = bar.path!;
+      meter.hidden = bar.progress === undefined;
+      if (bar.progress !== undefined) {
+        track.setAttribute('aria-valuenow', String(bar.progress));
+        fill.style.width = `${bar.progress}%`;
+        pct.textContent = `${bar.progress}%`;
       }
-      last.textContent = view.last ?? '';
-      paintConnection();
-      if (!view.disconnect && document.activeElement === disconnect) dock.focus();
-      disconnect.toggleAttribute('data-off', !view.disconnect);
+      last.textContent = bar.last ?? '';
+      paintPanel(view);
+      if (!bar.disconnect && document.activeElement === disconnect) dock.focus();
+      disconnect.toggleAttribute('data-off', !bar.disconnect);
       // The full status where two lines cut it.
       if (said.scrollHeight > said.clientHeight) status.title = said.textContent ?? '';
       else status.removeAttribute('title');
-      monitor.show(view.canSend);
+      monitor.show(bar.canSend);
     }
 
     /** Paints the panel and the one action, in the panel while it is open, else in the bar. */
-    function paintConnection() {
-      const { action, panel: said, scene } = connection.view;
-      const open = said !== undefined;
+    function paintPanel({ action, panel: told, scene }: ConnectionView) {
+      const open = told !== undefined;
       const focused = document.activeElement === panelAction || document.activeElement === barAction;
       panel.hidden = !open;
       paintFlashPicture(panel, scene);
       paintHandHint(panel, scene.hint);
       // Set only on a change, since the message is a live region.
-      if (message.textContent !== (said?.text ?? '')) message.textContent = said?.text ?? '';
-      message.toggleAttribute('data-notice', said?.notice ?? false);
+      if (message.textContent !== (told?.text ?? '')) message.textContent = told?.text ?? '';
+      message.toggleAttribute('data-notice', told?.notice ?? false);
       panelAction.hidden = action === undefined || !open;
       // The bar's button keeps its room, so the controls after it stay in place.
       barAction.toggleAttribute('data-off', action === undefined || open);

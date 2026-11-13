@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { dockView } from '../../src/components/board/dockView';
-import { boardModel } from '../../src/lib/board/models';
+import { connectionView } from '../../src/lib/board/connection';
+import { boardModel, type BoardModel } from '../../src/lib/board/models';
+import type { SketchNames } from '../../src/lib/board/names';
 import { EMPTY_RECORD, type BoardRecord } from '../../src/lib/board/record';
 import type { SessionState } from '../../src/lib/flash';
+
+/** The dock's bar for `state` and `record`, with no sketch open. */
+function dockView(state: SessionState, record: BoardRecord, names: SketchNames, pick?: BoardModel) {
+  return connectionView({ state, record, opened: undefined, pick, names }).bar;
+}
 
 const names = { 'blink/input': { title: 'Blink · 2 input', path: '/robomania/projects/blink/#input', step: true } };
 const running: SessionState = { kind: 'running', chip: 'ESP32', output: [] };
@@ -19,15 +25,29 @@ describe('the board dock', () => {
     expect(dockView({ kind: 'unsupported' }, EMPTY_RECORD, names).shown).toBe(false);
   });
 
-  it('says no board is connected with none, or after a failure', () => {
-    for (const state of [{ kind: 'idle' }, { kind: 'noPort' }, { kind: 'dropped', pct: 30 }] as SessionState[]) {
-      expect(dockView(state, EMPTY_RECORD, names)).toMatchObject({
-        shown: true,
+  it('says no board is connected with none, and how to plug one in', () => {
+    expect(dockView({ kind: 'idle' }, EMPTY_RECORD, names)).toEqual({
+      shown: true,
+      connected: false,
+      chip: 'No board',
+      doing: 'is connected. Plug one in over USB.',
+      disconnect: false,
+      canSend: false,
+    });
+  });
+
+  it('says only that no board is connected after a failure, whose panel says what to do', () => {
+    const failures: SessionState[] = [
+      { kind: 'noPort' },
+      { kind: 'dropped', pct: 30 },
+      { kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] },
+    ];
+    for (const state of failures) {
+      expect(dockView(state, EMPTY_RECORD, names, boardModel('esp01s')), state.kind).toMatchObject({
         connected: false,
         chip: 'No board',
-        doing: 'is connected. Plug one in over USB.',
+        doing: 'is connected.',
         disconnect: false,
-        canSend: false,
       });
     }
   });
@@ -116,11 +136,11 @@ describe('the board dock', () => {
     }
   });
 
-  it('says the board stopped talking when the port is lost', () => {
+  it('says the board lost the connection when the port is lost, which the panel says what to do about', () => {
     expect(dockView({ ...running, lost: true }, heard, names)).toMatchObject({
       connected: false,
       chip: 'ESP32',
-      doing: 'stopped talking to the page. Plug it back in and connect again.',
+      doing: 'lost the connection',
       disconnect: false,
       canSend: false,
     });
@@ -139,11 +159,34 @@ describe('the board dock for the board the visitor picked', () => {
     expect(view.doing).toBe('is running a sketch. Press reset on its adapter to name it.');
   });
 
-  it('says the board is still in flash mode after the write', () => {
+  it('says the board is in flash mode after the write, which the panel says how to leave', () => {
     expect(dockView({ kind: 'flashMode', chip: 'ESP8266' }, EMPTY_RECORD, names)).toMatchObject({
       chip: 'ESP8266',
-      doing: 'is still in flash mode. Set the adapter to UART and plug it in again.',
+      doing: 'is in flash mode',
       disconnect: false,
     });
+  });
+});
+
+describe('the board dock beside its open panel', () => {
+  it('names the state only, and leaves what to do to the panel, without repeating it', () => {
+    const open: SessionState[] = [
+      { ...running, lost: true },
+      { kind: 'flashMode', chip: 'ESP8266' },
+      { kind: 'noPort' },
+      { kind: 'portBusy' },
+      { kind: 'noAnswer' },
+      { kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] },
+      { kind: 'noDownload' },
+      { kind: 'dropped', pct: 40 },
+      { kind: 'connecting' },
+      { kind: 'flashing', chip: 'ESP32', pct: 40 },
+    ];
+    for (const state of open) {
+      const view = connectionView({ state, record: EMPTY_RECORD, opened: undefined, pick: boardModel('esp01s'), names });
+      expect(view.panel, state.kind).toBeDefined();
+      expect(view.bar.doing, state.kind).not.toMatch(/\.\s/);
+      expect(view.panel!.text, state.kind).not.toContain(view.bar.doing);
+    }
   });
 });

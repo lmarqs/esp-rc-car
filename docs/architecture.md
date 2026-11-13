@@ -89,8 +89,8 @@ The site also puts the firmware on a board. Its parts:
   `board.open(use, signal)`, and the board forgets it when the signal aborts as the page goes or when another is
   opened. The dock names an opened sketch as the site names it, from every project's titles and steps. Opening points nothing: `board.send` configures the session with the opened sketch when a press comes,
   unless the session is busy, whose work belongs to the sketch it started with. The Board connection, in
-  `connection.ts`, turns the session's state, that record and the opened sketch into what the dock shows, which is the
-  board's one action, its message, its picture and whether the dock's panel is open, and presses the action. It is the
+  `connection.ts`, turns the session's state, that record and the opened sketch into the dock's one view, which is
+  its bar, the board's one action, and the panel's message and picture, and presses the action. It is the
   one module that words the session's failures. The slice also holds the board models the site has images for, one per
   chip, and the visitor's pick of one, kept in the browser. `site/src/components/board/` holds the dock, along the
   bottom of every page, and the flash picture its panel draws. The card, the workbench and the Flash page's pick open
@@ -194,7 +194,8 @@ Board connection, and a panel for what happens between the computer and the boar
   cable and the board's chip with Find, Write and Restart under them, which marks where a failure happened, with the
   action hanging above the cable; the hand hint, the BOOT button or the adapter's switch to PROG or to UART; and the
   message, in a live region. The action is in the panel while the panel is open and in the bar otherwise, so the board
-  has one button at a time.
+  has one button at a time. While the panel is open, the bar names the state only, such as lost the connection, and
+  the panel alone says what to do.
 - The bar's controls keep their room whether they show or not, so nothing moves as the action appears and goes, and
   they wrap to a row of their own below 840 px.
 

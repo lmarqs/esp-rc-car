@@ -33,9 +33,8 @@ export function noAnswer(board: BoardModel | undefined): string {
 export const FLASH_MODE =
   'The sketch is on the board, but the board is still in flash mode. To start it, set the adapter\'s switch to UART, ' +
   'the run position, or take its jumper off. Then unplug the adapter, plug the adapter back in and connect again.';
-/** What a board whose port was lost did, after its name, and what to do; `LOST` says it of `The board`. */
-export const STOPPED_TALKING = 'stopped talking to the page. Plug it back in and connect again.';
-export const LOST = `The board ${STOPPED_TALKING}`;
+/** What a board whose port was lost did, and what to do. */
+export const LOST = 'The board stopped talking to the page. Plug it back in and connect again.';
 /** The download failed; the caller ends the sentence with what to do. */
 export const NO_DOWNLOAD = 'The image did not download. Check your internet connection';
 
