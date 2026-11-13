@@ -91,7 +91,7 @@ The site also puts the firmware on a board. Its parts:
   unless the session is busy, whose work belongs to the sketch it started with. The Board connection, in
   `connection.ts`, turns the session's state, that record and the opened sketch into what the dock shows, which is the
   board's one action, its message, its picture and whether the dock's panel is open, and presses the action. It is the
-  one module that words what the session says. The slice also holds the board models the site has images for, one per
+  one module that words the session's failures. The slice also holds the board models the site has images for, one per
   chip, and the visitor's pick of one, kept in the browser. `site/src/components/board/` holds the dock, along the
   bottom of every page, and the flash picture its panel draws. The card, the workbench and the Flash page's pick open
   their sketches on the board; the slice depends on the flash slice.
@@ -153,8 +153,8 @@ The card holds only its sketch's settings, and the dock does the connecting and 
 while the session asks for the values, reads them from the board, applies them, and, while the board runs its sketch,
 a Change settings button; the dock's bar says the board is busy with its settings meanwhile. Otherwise the card shows
 a line that points at the board bar, and where the browser has no Web Serial, links to the images and to the page's
-section on building the sketch with the tools.
-It shows the session only while the session works on its sketch, whether it is being written or the board runs it.
+section on building the sketch with the tools. The card shows the session's state only while the session works on the
+card's sketch, which it is writing or the board runs.
 
 The site holds one session, and the sketch the visitor has open points it. Pointing the session at another sketch
 keeps the images it knew, so whatever the site flashed can be flashed again from any page, and is refused while the
@@ -162,11 +162,11 @@ session is busy. The session can restart the board without flashing, hands every
 arrival time, to its listeners, writes a line, and flashes a manifest key onto the open port and keeps reading. After
 a write to an ESP8266 it waits 3 seconds for the `sketch <key>` line; without it, the board's adapter holds it in
 flash mode, which the port cannot undo, so the session releases the port and waits in `flashMode`. The next connect
-opens the port without the bootloader, reads the running board, and sends the settings the flash was asked with. The dock's Connect
-reads a picked ESP-01S the same way: its adapter reaches the bootloader only in flash mode, so the board is read as it
-runs, named by the chip the pick gives, and needs flash mode only for a flash. The port cannot restart such a board, so
-it names its sketch once flashed or once the visitor presses the reset button on its adapter, which the dock and the
-workbench's tag ask for; a pick that is wrong shows only when the flash finds the chip.
+opens the port without the bootloader, reads the running board, and sends the settings the flash was asked with. The
+dock's Connect reads a picked ESP-01S the same way: its adapter reaches the bootloader only in flash mode, so the
+board is read as it runs, named by the chip the pick gives, and needs flash mode only for a flash. The port cannot
+restart such a board, so it names its sketch once flashed or once the visitor presses the reset button on its adapter,
+which the dock and the workbench's tag ask for; a pick that is wrong shows only when the flash finds the chip.
 
 The dock names the board's chip and the sketch it runs, by the `sketch <key>` line or the key the site last flashed,
 links the sketch's project, at the step's tab for a step, and shows the last line it printed in the Serial button that
@@ -177,8 +177,9 @@ The dock is the one surface where the visitor connects, flashes and retries. It 
 Board connection, and a panel for what happens between the computer and the board:
 
 - The action says what a press does: Connect board, or Connect again once the board is lost or left in flash mode;
-  Flash and the open sketch's title when a page has a sketch open; Try again after a failure; and Connecting… or
-  Flashing…, which cannot be pressed, while the session works. The sketch is the one the visitor has open: the
+  Flash and the open sketch's title when a page has a sketch open; Try again after a failed connect or flash; and
+  Connecting… or Flashing…, which cannot be pressed, while the session works. A sketch with no image for the board
+  opens the panel with its message and leaves Connect board. The sketch is the one the visitor has open: the
   workbench's selected step, the project page's card, or the Flash page's pick, each opened with `board.open` until its
   page goes. A page with no sketch, such as Learn, offers Connect and no Flash.
 - Flash flashes the open sketch from idle and from running in one press, and Try again after a failed flash connects
@@ -212,8 +213,8 @@ to a step:
   and the arrow are drawn from the lines the board prints, and what the visitor sends goes to the board.
 - When the key is another step's or another sketch's, the tab of the step it runs is marked, and under My board the
   pane waits.
-- Waiting, the pane shows the sketch only: the LED, the watch and the trace keep their place, dimmed, each value
-  reads `…`, and the terminal is inert. The frame's tag says why, as Not connected, Connecting…, Flashing…, what the
+- Waiting, the pane shows the sketch only: the LED keeps its place, dimmed, each watch value reads `…`, and
+  the terminal is inert. The frame's tag says why, as Not connected, Connecting…, Flashing…, what the
   board runs, or that it has not named its sketch. The pane has the same layout and height in simulator, live and
   waiting modes; the connecting, the flashing and the failures are the dock's.
 - Pause, Step or Restart outside the simulator hands the pane to a fresh simulator with the port still open, and

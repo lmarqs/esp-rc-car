@@ -49,7 +49,7 @@ sources and as STL and 3MF files ready to slice.
 ## Run it on your board
 
 The board bar at the bottom of the page flashes this sketch onto your board from Chrome or Edge on a computer, with no
-tools installed. The card above asks for the throttle band, the angle offset, the tilt limit and the hotspot, and sends
+tools installed. The card above asks for the throttle band, the angle offset, the tilt limit and the hotspot, and the site sends
 them to the board.
 
 To build and flash it yourself: a fresh build cannot spin a motor, since the range of throttle the loop may use is

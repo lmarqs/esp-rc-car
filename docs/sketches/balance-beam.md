@@ -56,8 +56,8 @@ the other two's current values, stored or default, and answers `order` for a val
 that moves is sent in an order that keeps the rule at every step. `cfg get` shows the values the next boot uses. When
 the stored and default throttles break the rule, the boot log says so and the board runs with a band of 0.
 
-The website's flash card asks for the values that have a `cfg` key before it flashes the board, and sends them with the
-`cfg` commands below.
+The website's flash card asks for the values that have a `cfg` key before the board bar flashes the board, and the
+site sends them with the `cfg` commands below.
 
 The rig the sketch came from, with 1404 4600 KV motors on 3S and Gemfan 3523-3 propellers, balances with a band of
 0.080 to 0.090 around 0.085. The loop starts with `kp` 0.002, `ki` 0 and `kd` 0.0008, in throttle per degree.

@@ -37,8 +37,9 @@ command for 500 ms, so a robot whose input goes quiet does not drive on with its
 
 ## Run it on your board
 
-The card above flashes this sketch onto your board from Chrome or Edge on a computer, with no tools installed. To build
-and flash it yourself, install the tools (the [tooling page](../../learn/tooling/) says how) and run from the
+The board bar at the bottom of the page flashes this sketch onto your board from Chrome or Edge on a computer, with no
+tools installed. To build and flash it yourself, install the tools (the [tooling page](../../learn/tooling/) says
+how) and run from the
 repository's root:
 
 ```sh

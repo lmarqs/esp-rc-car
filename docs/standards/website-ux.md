@@ -63,4 +63,4 @@ A MUST does not vary. A SHOULD yields only to a reason written beside the code. 
     types (rule 8), so it shows the word alone. Example: Pause shows a pause icon, and once the sketch is paused the
     same button shows a play icon and reads Continue; the dock's action shows a plug and reads Connect board on a
     page with no sketch, a bolt and Flash Blink · 2 input on a page with one, and a circular arrow and Try again after
-    a failed flash.
+    a failed connect or flash.

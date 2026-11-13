@@ -72,7 +72,7 @@ The reasons are `unknown` for a key the sketch lacks, `length` for an SSID that 
 `too short` or `too long` for a password outside 8 to 63. A line longer than 126 characters, or a `cfg` line of any
 other shape, answers `cfg err - syntax`. A refused value leaves what the board stored as it was.
 
-The website's flash card sends the same lines: it reads the board with `cfg get`, sends each value that differs, and
+The website sends the same lines for the values its flash card asks for: it reads the board with `cfg get`, sends each value that differs, and
 restarts the board.
 
 ## Flashing
