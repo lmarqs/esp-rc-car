@@ -2,8 +2,9 @@ import type { BoardModel } from '../board/models';
 import type { SessionState } from './session';
 
 /**
- * The plain words for what a flash session is doing or why it stopped, which the flash card and the workbench both
- * show. A sentence that tells the visitor which button to press next is left to each, since their buttons differ.
+ * The plain words for what a flash session is doing or why it stopped, which the board's connection and the dock show,
+ * and the card for a browser that cannot flash. A sentence that tells the visitor which button to press next is left
+ * to the caller, which knows its buttons.
  */
 export const CONNECTING = 'Connecting to the board.';
 /** Why the page cannot flash in this browser, and what to do instead; `UNSUPPORTED` says both. */
@@ -28,16 +29,6 @@ export function noAnswer(board: BoardModel | undefined): string {
   return 'The board did not answer. Hold its BOOT button and connect again.';
 }
 
-/** How to plug in the board the visitor picked, if any, so that it answers the page. */
-export function plugIn(board: BoardModel | undefined): string {
-  if (board?.flashSwitch) {
-    return (
-      `Put the ${board.name} in its USB adapter and set the adapter's switch to PROG, the flash position, or put its ` +
-      'jumper on. Then plug the adapter in.'
-    );
-  }
-  return 'Plug the board in over USB.';
-}
 /** An ESP8266 that its adapter keeps in flash mode after the write. */
 export const FLASH_MODE =
   'The sketch is on the board, but the board is still in flash mode. To start it, set the adapter\'s switch to UART, ' +

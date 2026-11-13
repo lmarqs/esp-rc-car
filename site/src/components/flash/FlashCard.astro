@@ -1,18 +1,15 @@
 ---
-import FlashPicture from '../board/FlashPicture.astro';
-import HandHint from '../board/HandHint.astro';
 import { sketchKey } from '../../lib/flash/manifest';
 import { readManifest } from '../../lib/flash/readManifest';
 import { defaultValues, passwordHelp, settingsOf } from '../../lib/flash/settings';
-import { stepsFor, type Step } from './view';
 
 interface Props {
   /** The project's `sketch` field, such as `sketches/blink/simple`; the manifest names a sketch by its path under `sketches/`. */
   sketch: string;
   title: string;
-  /** Speed the sketch prints at; absent for a sketch that prints nothing, which gets no board output. */
+  /** Speed the sketch prints at, which the board is read at; absent for a sketch that prints nothing, which has no settings. */
   baud?: number;
-  /** What to do once the board runs. */
+  /** What to do once the board runs the sketch. */
   next?: string;
   /** The project's page, when the card is not on it: the link to the section `Run it on your board` goes there. */
   detailsHref?: string;
@@ -23,7 +20,6 @@ const name = sketchKey(sketch);
 const entry = readManifest().sketches[name];
 const manifest = entry && { sketches: { [name]: entry } };
 const fields = manifest ? settingsOf(manifest, name, baud) : [];
-const stepNames: Record<Step, string> = { connect: 'Connect', settings: 'Settings', flash: 'Flash', running: 'Running' };
 const fieldId = (key: string) => `flash-${name}-${key}`;
 const opening = defaultValues(fields);
 const helpOf = (field: (typeof fields)[number]) =>
@@ -43,20 +39,7 @@ const helpOf = (field: (typeof fields)[number]) =>
         data-details-href={detailsHref}
         data-manifest={JSON.stringify(manifest)}
       >
-        <ol class="steps">
-          {stepsFor(fields.length > 0).map((step) => (
-            <li data-step={step}>{stepNames[step]}</li>
-          ))}
-        </ol>
         <p data-message aria-live="polite" tabindex="-1" />
-        <div class="progress" data-progress hidden>
-          <FlashPicture />
-          <HandHint />
-        </div>
-        <div class="output" data-output hidden>
-          <div class="output-label" data-output-label aria-hidden="true" />
-          <pre data-lines tabindex="0" role="group" />
-        </div>
         {
           fields.length > 0 && (
             <form class="settings" data-settings novalidate hidden>
@@ -113,8 +96,6 @@ const helpOf = (field: (typeof fields)[number]) =>
         }
         <div class="actions">
           <button class="btn" type="button" data-action hidden />
-          <button class="btn ghost" type="button" data-action hidden />
-          <button class="btn ghost" type="button" data-action hidden />
         </div>
         <ul class="links" data-links hidden />
         <noscript><p class="notice">Flashing from the browser needs JavaScript.</p></noscript>
@@ -130,21 +111,10 @@ const helpOf = (field: (typeof fields)[number]) =>
 
 <style>
   .flash-card [hidden] { display: none !important; }
-  .steps { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0 0 12px; padding: 0; counter-reset: step; }
-  .steps li { counter-increment: step; font-size: 14px; font-weight: 700; color: var(--muted); padding: 2px 12px; border: 2px solid var(--line); border-radius: 999px; }
-  .steps li::before { content: counter(step) ". "; }
-  .steps li[data-state="done"] { background: var(--tint-green); border-color: var(--green); color: var(--ink); }
-  .steps li[aria-current="step"] { background: var(--tint-yellow); border-color: var(--ink); color: var(--ink); }
   [data-message] { margin: 0 0 12px; }
   [data-message].notice { margin: 0 0 12px; }
   .links { margin: 0; padding-left: 20px; }
-  .output { margin: 0 0 12px; }
-  .output-label { font-size: 14px; font-weight: 700; color: var(--muted); margin: 0 0 6px; }
-  .output pre { margin: 0; min-height: calc(6 * 1.55em + 32px); font-family: var(--mono); }
-  .output pre:empty::before { content: "Waiting for the board to print."; opacity: .7; }
   .actions { display: flex; flex-wrap: wrap; gap: 12px; }
-  .progress { display: flex; align-items: center; gap: 16px; max-width: 520px; margin: 0 0 12px; }
-  .progress > :first-child { flex: 1; min-width: 0; }
   .settings { margin: 0 0 12px; }
   .settings .field { margin: 0 0 12px; }
   .settings label { display: block; font-weight: 700; margin: 0 0 4px; }
@@ -157,61 +127,36 @@ const helpOf = (field: (typeof fields)[number]) =>
 
 <script>
   import { theBoard } from '../../lib/board/board';
-  import { thePick } from '../../lib/board/pick';
-  import { flashScene } from '../../lib/board/flashScene';
-  import { paintFlashPicture, paintHandHint } from '../board/flashPicture';
-  import { runs } from '../../lib/board/record';
   import { href } from '../../lib/href';
   import { onEveryPage } from '../../lib/page';
   import type { Manifest } from '../../lib/flash/manifest';
-  import { isBusy, type SessionState } from '../../lib/flash/session';
+  import { isBusy } from '../../lib/flash/session';
   import { settingsOf } from '../../lib/flash/settings';
   import { cardUse } from './cardUse';
-  import { stepsFor, viewFor } from './view';
-
-  /** The states the card draws the picture in: while it reaches and writes the board, and when that failed. */
-  const PICTURED: ReadonlySet<SessionState['kind']> = new Set([
-    'connecting',
-    'flashing',
-    'flashMode',
-    'noPort',
-    'portBusy',
-    'noAnswer',
-    'noImage',
-    'noDownload',
-    'dropped',
-  ]);
+  import { viewFor, worksOn } from './view';
 
   onEveryPage((signal) => {
     for (const card of document.querySelectorAll<HTMLElement>('[data-flash-card]')) {
-      const { sketch, title, next, baud: baudText, detailsHref } = card.dataset;
-      const baud = baudText ? Number(baudText) : undefined;
+      const { sketch, title, next, baud, detailsHref } = card.dataset;
       const manifest = JSON.parse(card.dataset.manifest!) as Manifest;
       // The site's board, which may already be connected from another page.
       const board = theBoard();
       const { session } = board;
       // A card on the Flash page waits for its project to be picked, which opens its sketch.
       if (card.closest('[hidden]') === null) board.open(cardUse(card), title!, signal);
-      const settings = settingsOf(manifest, sketch!, baud);
+      const settings = settingsOf(manifest, sketch!, baud ? Number(baud) : undefined);
       const context = {
         title: title!,
         next,
-        baud,
         images: manifest.sketches[sketch!]!.images,
         firmwareUrl: href('/firmware/'),
         detailsHref,
         settings,
       };
-      const stepOrder = stepsFor(settings.length > 0);
 
       const message = card.querySelector<HTMLElement>('[data-message]')!;
-      const progress = card.querySelector<HTMLElement>('[data-progress]')!;
-      const output = card.querySelector<HTMLElement>('[data-output]')!;
-      const outputLabel = output.querySelector<HTMLElement>('[data-output-label]')!;
-      const lines = output.querySelector<HTMLElement>('[data-lines]')!;
-      const buttons = [...card.querySelectorAll<HTMLButtonElement>('[data-action]')];
+      const action = card.querySelector<HTMLButtonElement>('[data-action]')!;
       const links = card.querySelector<HTMLElement>('[data-links]')!;
-      const steps = [...card.querySelectorAll<HTMLElement>('[data-step]')];
       const form = card.querySelector<HTMLFormElement>('[data-settings]');
       const inputs = [...card.querySelectorAll<HTMLInputElement>('[data-settings] input[data-key]')];
       const formHelp = card.querySelector<HTMLElement>('[data-form-help]');
@@ -243,64 +188,20 @@ const helpOf = (field: (typeof fields)[number]) =>
         });
       }
 
-      for (const button of buttons) {
-        button.addEventListener('click', () => {
-          const event = button.dataset.event;
-          if (
-            event === 'connect' ||
-            event === 'retry' ||
-            event === 'disconnect' ||
-            event === 'changeSettings' ||
-            event === 'closeSettings'
-          ) {
-            void board.send({ type: event });
-          }
-        });
-      }
-
-      /**
-       * The session's state, unless the board is being written with or runs another sketch: the card does not say what
-       * is on the board is its own, and waits to be pressed, as if idle.
-       */
-      function shownState(): SessionState {
-        const { record } = board;
-        const target = record.pending ?? runs(record);
-        return target === undefined || target === sketch ? session.state : { kind: 'idle' };
-      }
+      action.addEventListener('click', () => {
+        const event = action.dataset.event;
+        if (event === 'retry' || event === 'changeSettings' || event === 'closeSettings') {
+          void board.send({ type: event });
+        }
+      });
 
       function render() {
-        const state = shownState();
+        const state = session.state;
         // The page that lists several cards reads this to keep a visitor from leaving a write half-done.
         card.toggleAttribute('data-busy', isBusy(state));
-        const view = viewFor(state, { ...context, board: thePick().model });
-        // Only a change of text is announced: the progress bar carries the percentage.
+        const view = viewFor(state, worksOn(board.record, sketch!), context);
         if (message.textContent !== view.message) message.textContent = view.message;
         message.className = view.notice ? 'notice' : '';
-
-        const current = stepOrder.indexOf(view.step);
-        steps.forEach((li, index) => {
-          li.dataset.state = index < current ? 'done' : '';
-          if (index === current) li.setAttribute('aria-current', 'step');
-          else li.removeAttribute('aria-current');
-        });
-
-        // From the press to the board running the sketch, and after a failure, the picture shows where things are.
-        progress.hidden = !PICTURED.has(state.kind);
-        if (!progress.hidden) {
-          const scene = flashScene(state, thePick().model);
-          paintFlashPicture(progress, scene);
-          paintHandHint(progress, scene.hint);
-        }
-
-        // The output is not a live region: it changes with every line the board prints, and the status above says what
-        // the card is doing.
-        output.hidden = !view.output;
-        if (view.output) {
-          outputLabel.textContent = view.output.label;
-          lines.setAttribute('aria-label', view.output.label);
-          const text = view.output.lines.join('\n');
-          if (lines.textContent !== text) lines.textContent = text;
-        }
 
         if (form) {
           // A hidden form cannot keep the focus either.
@@ -327,16 +228,13 @@ const helpOf = (field: (typeof fields)[number]) =>
           }
         }
 
-        buttons.forEach((button, index) => {
-          const action = view.actions?.[index];
-          // A hidden button cannot keep the focus, which would fall to the page; the status is the next thing to read.
-          if (!action && document.activeElement === button) message.focus();
-          button.hidden = !action;
-          if (action) {
-            button.textContent = action.label;
-            button.dataset.event = action.event;
-          }
-        });
+        // A hidden button cannot keep the focus, which would fall to the page; the status is the next thing to read.
+        if (!view.action && document.activeElement === action) message.focus();
+        action.hidden = !view.action;
+        if (view.action) {
+          action.textContent = view.action.label;
+          action.dataset.event = view.action.event;
+        }
 
         links.hidden = !view.links;
         links.replaceChildren(
@@ -351,9 +249,9 @@ const helpOf = (field: (typeof fields)[number]) =>
         );
       }
 
-      const unsubscribe = [board.subscribe(render), thePick().subscribe(render)];
+      const unsubscribe = board.subscribe(render);
       // The router swaps the page out without unloading it; the board stays connected for the next page.
-      signal.addEventListener('abort', () => unsubscribe.forEach((stop) => stop()));
+      signal.addEventListener('abort', unsubscribe);
       render();
     }
   });

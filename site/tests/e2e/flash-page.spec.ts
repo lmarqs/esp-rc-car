@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { dock, dockAction, dockPanel } from './dock';
 import { expect, test } from './fake-flasher';
 
 /** The manifest the build of these tests reads, whose keys name the sketches that have an image. */
@@ -13,6 +14,9 @@ const heading = (page: import('@playwright/test').Page, title: 'Omnidirectional 
   page.getByRole('heading', { level: 2, name: title });
 const LOCKED = 'Finish or stop the current flash before picking another project.';
 const card = (page: import('@playwright/test').Page) => page.getByRole('region', { name: 'Put it on your board' });
+const TO_THE_BAR = 'Connect and flash it from the board bar below.';
+/** The flash's percentage in the dock's panel. */
+const progress = (page: import('@playwright/test').Page) => dockPanel(page).getByRole('progressbar', { name: 'Flashing' });
 
 test.describe('the Flash page', () => {
   test('is in the main navigation', async ({ page }) => {
@@ -65,7 +69,8 @@ test.describe('the Flash page', () => {
 
     await expect(pick(page, 'Omnidirectional robot')).toHaveAttribute('aria-pressed', 'true');
     await expect(card(page)).toHaveCount(1);
-    await expect(card(page).getByRole('button', { name: 'Connect board' })).toBeVisible();
+    await expect(card(page).locator('[data-message]')).toHaveText(TO_THE_BAR);
+    await expect(dockAction(page)).toHaveAccessibleName('Flash Omnidirectional robot');
     await expect(page.getByRole('link', { name: 'Wiring and details for Omnidirectional robot' })).toHaveAttribute(
       'href',
       '/robomania/projects/omnidirectional/',
@@ -126,7 +131,7 @@ test.describe('the Flash page', () => {
     await fakeFlasher.install({ chip: 'ESP32' });
     await page.goto('/robomania/flash/#omnidirectional');
 
-    await card(page).getByRole('button', { name: 'Connect board' }).click();
+    await dockAction(page).click();
 
     await expect(card(page).getByText('Your board is running Omnidirectional robot.')).toBeVisible();
     expect(await fakeFlasher.calls()).toEqual(['connect', 'load', 'write', 'reset', 'monitor 115200']);
@@ -136,9 +141,9 @@ test.describe('the Flash page', () => {
     await fakeFlasher.install({ progress: [40], hold: true });
     await page.goto('/robomania/flash/#omnidirectional');
 
-    await card(page).getByRole('button', { name: 'Connect board' }).click();
+    await dockAction(page).click();
 
-    await expect(card(page).getByText('40%')).toBeVisible();
+    await expect(progress(page)).toHaveAttribute('aria-valuenow', '40');
     await expect(pick(page, 'Balance beam')).toBeDisabled();
     await expect(pick(page, 'Omnidirectional robot')).toBeDisabled();
     await expect(page.getByText(LOCKED)).toBeVisible();
@@ -153,8 +158,8 @@ test.describe('the Flash page', () => {
   test('cannot change the project through the address while a board is flashing', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ progress: [40], hold: true });
     await page.goto('/robomania/flash/#omnidirectional');
-    await card(page).getByRole('button', { name: 'Connect board' }).click();
-    await expect(card(page).getByText('40%')).toBeVisible();
+    await dockAction(page).click();
+    await expect(progress(page)).toHaveAttribute('aria-valuenow', '40');
 
     await page.evaluate(() => (location.hash = '#balance-beam'));
 
@@ -165,27 +170,45 @@ test.describe('the Flash page', () => {
     await expect(card(page).getByText('Your board is running Omnidirectional robot.')).toBeVisible();
   });
 
-  test('keeps the board connected when another project is picked, and its card flashes it on a press', async ({
+  test('keeps the board connected when another project is picked, whose card points at the dock that flashes it', async ({
     page,
     fakeFlasher,
   }) => {
     await fakeFlasher.install({ lines: ['HIGH'] });
     await page.goto('/robomania/flash/#omnidirectional');
-    await card(page).getByRole('button', { name: 'Connect board' }).click();
+    await dockAction(page).click();
     await expect(card(page).getByText('Your board is running Omnidirectional robot.')).toBeVisible();
 
     await pick(page, 'Balance beam').click();
-    await expect(card(page).getByRole('button', { name: 'Connect board' })).toBeVisible();
-    await expect(card(page).getByText('Plug the board in over USB. This replaces whatever is on the board.')).toBeVisible();
+    await expect(card(page).locator('[data-message]')).toHaveText(TO_THE_BAR);
+    await expect(card(page).getByRole('button')).toHaveCount(0);
+    await expect(dockAction(page)).toHaveAccessibleName('Flash Balance beam');
+    await expect(dock(page)).toContainText('is running Omnidirectional robot');
     expect(await fakeFlasher.calls()).not.toContain('disconnect');
 
     await pick(page, 'Omnidirectional robot').click();
     await expect(card(page).getByText('Your board is running Omnidirectional robot.')).toBeVisible();
 
     await pick(page, 'Balance beam').click();
-    await card(page).getByRole('button', { name: 'Connect board' }).click();
+    await dockAction(page).click();
+    await expect(card(page).locator('[data-message]')).toContainText('Your board is running Balance beam.');
+    await expect(card(page).getByRole('button')).toHaveText(['Change settings']);
+    await expect(dock(page)).toContainText('is running Balance beam');
+  });
+
+  test("words the settings only on the card of the sketch being flashed, not on another project's", async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install();
+    await page.goto('/robomania/flash/#balance-beam');
+    await dockAction(page).click();
     await expect(card(page).getByText('Found ESP32. Check the settings, then flash the board.')).toBeVisible();
-    expect(await fakeFlasher.calls()).toContain('disconnect');
+
+    const messages = await page
+      .locator('[data-flash-card] [data-message]')
+      .evaluateAll((all) => all.map((each) => each.textContent));
+    expect(messages).toEqual([TO_THE_BAR, 'Found ESP32. Check the settings, then flash the board.']);
   });
 
   test('lists the sketches outside the manifest as flashed from the computer, and leaves out a project with no sketch', async ({
@@ -288,8 +311,8 @@ test.describe('a project with a workbench on the Flash page', () => {
   test('the link cannot be followed while a board is flashing', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ progress: [40], hold: true });
     await page.goto('/robomania/flash/#omnidirectional');
-    await card(page).getByRole('button', { name: 'Connect board' }).click();
-    await expect(card(page).getByText('40%')).toBeVisible();
+    await dockAction(page).click();
+    await expect(progress(page)).toHaveAttribute('aria-valuenow', '40');
 
     const link = page.getByRole('link', { name: 'Open the workbench for Blink' });
     await expect(link).toHaveAttribute('aria-disabled', 'true');

@@ -402,7 +402,8 @@ test.describe('the flash card', () => {
     await page.goto('/robomania/projects/balance-beam/');
 
     await expect(bench(page)).toHaveCount(0);
-    await expect(card(page).getByRole('button', { name: 'Connect board' })).toBeVisible();
+    await expect(card(page)).toContainText('Connect and flash it from the board bar below.');
+    await expect(dockAction(page)).toHaveAccessibleName('Flash Balance beam');
   });
 });
 
