@@ -21,7 +21,7 @@ motor. Drag a stick a little: while the knob's centre is inside the dashed circl
 The robot follows a Bluetooth gamepad or, when none is connected, an I2C master. It stops when neither has sent a
 command for 500 ms, so a robot whose input goes quiet does not drive on with its last command.
 
-- Each stick axis runs from -512 to 512. A value within 62 of zero, about 12% of the travel, counts as zero: this
+- Each stick axis runs from -512 to 512. A value under 62 from zero, about 12% of the travel, counts as zero: this
   dead zone keeps a stick at rest from creeping.
 - Pushing both sticks blends the two, each in proportion to how far it is pushed.
 - A wheel at full speed drives its motor at an 80% PWM duty cycle.

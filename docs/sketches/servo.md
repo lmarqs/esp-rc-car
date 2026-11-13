@@ -1,5 +1,5 @@
 ---
-description: Explains the four servo sketches, a ladder from a sweep of a hobby servo on GPIO 13 to one that moves at a speed you set: the serial lines each step prints and reads, and what each adds.
+description: Explains the four servo sketches, from a sweep of a servo on GPIO 13 to a move at a set speed: the serial lines each step prints and reads, and what each adds.
 audience: Whoever wires a hobby servo to a board, changes a servo step or the servo driver
 ---
 # Servo
@@ -70,7 +70,7 @@ An `angle` that is out of range prints `error angle must be 0-180`; any other li
 ## Not handled
 
 - A servo built for a narrower pulse range reaches its stop before 0° or 180° and strains against it there. Use a
-  servo that takes 544 µs to 2400 µs, or pass the range to the step's `PositionalServo` constructor.
+  servo that takes 544 µs to 2400 µs, or pass its `minPulseUs` and `maxPulseUs` to the step's `PositionalServo` constructor.
 - A continuous-rotation servo spins back and forth at changing speed instead of sweeping, since the pulse width sets
   its speed, not its angle.
 - `servo/speed` estimates the angle; it does not read the servo, and a real servo that cannot turn as fast as the

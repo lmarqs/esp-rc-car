@@ -78,7 +78,7 @@ the core's log, so each starts with a time, a level and a source position.
 | `kp <v>`, `ki <v>`, `kd <v>` | Sets a gain |
 | `sp <v>` | Sets the target tilt, in degrees |
 | `?` | Prints the state: tilt, correction, throttles and gains |
-| `cfg get`, `cfg set <key> <value>`, `cfg restart` | Reads and stores the settings above on the board by their `cfg` keys; `cfg set` is refused while armed, and a new value takes effect after the restart |
+| `cfg get`, `cfg set <key> <value>`, `cfg restart` | Reads and stores the settings above on the board by their `cfg` keys; `cfg set` is refused while the motors can run, armed or on the bench, and a new value takes effect after the restart |
 
 With `BALANCE_BEAM_BENCH_ENABLED` at 1, for work with the propellers off:
 

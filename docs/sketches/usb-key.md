@@ -11,7 +11,7 @@ unlocked.
 
 - The password is typed once, about a second after the computer recognizes the keyboard. Unplug the key and plug it
   again to type it again.
-- The onboard LED then blinks once a second, which shows the typing is over.
+- The onboard LED then blinks one second on and one off, which shows the typing is over.
 - The password is `USB_KEY_PASSWORD` in `sketches/usb-key/local.h`, a file Git ignores:
   `#define USB_KEY_PASSWORD "..."`. Without the file the key types `default_password`.
 

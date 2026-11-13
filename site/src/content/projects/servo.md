@@ -88,7 +88,7 @@ around at each end at that speed, and `stop` makes the target the current angle.
 ## Not handled
 
 - A servo built for a narrower pulse range reaches its stop before 0° or 180° and strains against it there. Use a
-  servo that takes 544 µs to 2400 µs, or pass the range to the step's `PositionalServo` constructor.
+  servo that takes 544 µs to 2400 µs, or pass its `minPulseUs` and `maxPulseUs` to the step's `PositionalServo` constructor.
 - A continuous-rotation servo spins back and forth at changing speed instead of sweeping, since the pulse width sets
   its speed, not its angle.
 

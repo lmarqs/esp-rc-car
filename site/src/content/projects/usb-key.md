@@ -16,7 +16,7 @@ typing, or a machine with no keyboard at hand.
 
 - The password is typed once, about a second after the computer recognizes the key. Unplug it and plug it again to
   type it again.
-- The onboard LED then blinks once a second, which shows the typing is over.
+- The onboard LED then blinks one second on and one off, which shows the typing is over.
 
 Whoever holds the key holds the password: it sits in the board's memory in the clear, and the key types it into
 whatever window has the focus. Build it to learn how USB keyboards work, and use it only for a password whose loss

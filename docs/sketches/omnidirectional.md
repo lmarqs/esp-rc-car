@@ -12,7 +12,7 @@ last command.
 
 ## Sticks
 
-- Each axis runs from -512 to 512, and a value beyond either end counts as that end. A value within 62 of zero,
+- Each axis runs from -512 to 512, and a value beyond either end counts as that end. A value under 62 from zero,
   about 12% of the travel, counts as zero: this dead zone keeps a stick at rest from creeping.
 - Pushing both sticks blends turning and moving, each in proportion to how far its stick is pushed: the left stick
   at half travel and the right at full give one third turning and two thirds moving.
