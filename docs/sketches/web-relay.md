@@ -78,9 +78,9 @@ restarts the board.
 ## Flashing
 
 The first upload to an ESP-01S goes through a USB serial adapter, with the module out of the relay carrier. The
-website's flash card puts the sketch on the module from Chrome or Edge on a computer, with no tools installed. A bare
-adapter cannot restart the module out of flash mode, so after the write the board dock asks for the switch back at UART and a
-replug, then reads the module and sends the settings. The
+website's board bar puts the sketch on the module from Chrome or Edge on a computer, with no tools installed. A bare
+adapter cannot restart the module out of flash mode, so after the write the board bar asks for the switch back at UART
+and a replug, then reads the module and sends the settings the flash card asked for. The
 firmware then accepts uploads over the hotspot with ArduinoOTA, under the OTA password.
 
 ## Not handled
