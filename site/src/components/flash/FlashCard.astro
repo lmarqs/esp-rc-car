@@ -129,7 +129,6 @@ const helpOf = (field: (typeof fields)[number]) =>
   import { theBoard } from '../../lib/board/board';
   import { href } from '../../lib/href';
   import { onEveryPage } from '../../lib/page';
-  import type { Manifest } from '../../lib/flash/manifest';
   import { isBusy } from '../../lib/flash/session';
   import { settingsOf } from '../../lib/flash/settings';
   import { cardUse } from './cardUse';
@@ -137,14 +136,15 @@ const helpOf = (field: (typeof fields)[number]) =>
 
   onEveryPage((signal) => {
     for (const card of document.querySelectorAll<HTMLElement>('[data-flash-card]')) {
-      const { sketch, title, next, baud, detailsHref } = card.dataset;
-      const manifest = JSON.parse(card.dataset.manifest!) as Manifest;
+      const { sketch, title, next, detailsHref } = card.dataset;
+      const use = cardUse(card);
+      const { manifest } = use;
       // The site's board, which may already be connected from another page.
       const board = theBoard();
       const { session } = board;
       // A card on the Flash page waits for its project to be picked, which opens its sketch.
-      if (card.closest('[hidden]') === null) board.open(cardUse(card), title!, signal);
-      const settings = settingsOf(manifest, sketch!, baud ? Number(baud) : undefined);
+      if (card.closest('[hidden]') === null) board.open(use, title!, signal);
+      const settings = settingsOf(manifest, sketch!, use.baud);
       const context = {
         title: title!,
         next,
