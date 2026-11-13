@@ -103,6 +103,7 @@ describe('connectionView panel words', () => {
       chip: 'ESP8266',
       doing: 'cannot be flashed with this sketch',
       disconnect: false,
+      restart: false,
       canSend: false,
     });
   });

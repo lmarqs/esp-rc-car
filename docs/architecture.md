@@ -175,7 +175,10 @@ which the dock and the workbench's tag ask for; a pick that is wrong shows only 
 The dock names the board's chip and the sketch it runs, by the `sketch <key>` line or the key the site last flashed,
 links the sketch's project, at the step's tab for a step, and shows the last line it printed in the Serial button that
 opens the rest. It lets a board go with Disconnect, in its bar whenever a board is connected, and then says the board
-was released and keeps running its sketch. It opens a serial monitor that shows the lines, sends one and clears them.
+is released and runs on; and restarts it into the sketch it holds with Restart board, while it reads a board the port
+can restart, which a board on a flash switch's adapter is not. The bar says all this on one line, cut where the room
+ends and shown whole on hover. Its main action is a pill tinted by what it does; Connect board, Restart board and
+Disconnect are round icons of one size, each named in its tooltip, tinted green, blue and coral. It opens a serial monitor that shows the lines, sends one and clears them.
 
 The dock is the one surface where the visitor connects, flashes and retries. It has one action for the board, from the
 Board connection, and a panel for what happens between the computer and the board:

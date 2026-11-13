@@ -152,6 +152,11 @@ export interface DockBar {
   readonly progress?: number;
   /** Whether the dock offers Disconnect: while the site reads a board, or holds one for its settings. */
   readonly disconnect: boolean;
+  /**
+   * Whether the dock offers Restart board: while the site reads a board the port can restart, which a board on a flash
+   * switch's adapter is not.
+   */
+  readonly restart: boolean;
   /** Whether the serial monitor can send a line: only while the site reads a board that is not busy. */
   readonly canSend: boolean;
 }
@@ -267,9 +272,9 @@ function actionFor(
  * A flash-switch board is reached without a restart, so it never printed its `sketch <key>` line; the reset button
  * on its adapter restarts it, and it prints the line as it starts.
  */
-const UNNAMED_ON_SWITCH = 'is running a sketch. Press reset on its adapter to name it.';
+const UNNAMED_ON_SWITCH = 'is running a sketch. Press reset to name it.';
 
-const NOTHING = { disconnect: false, canSend: false } as const;
+const NOTHING = { disconnect: false, restart: false, canSend: false } as const;
 
 /**
  * The dock's bar for the session's `state`, the `record` of the board and the board the visitor picked, `pick`. While
@@ -298,6 +303,7 @@ function barFor(
       ...doing,
       ...(name?.path && { path: name.path }),
       disconnect: true,
+      restart: false,
       canSend: false,
     };
   }
@@ -319,6 +325,7 @@ function barFor(
         ...(name?.path && { path: name.path }),
         ...(last !== undefined && { last }),
         disconnect: true,
+        restart: !pick?.flashSwitch,
         canSend: true,
       };
     }
@@ -338,7 +345,7 @@ function barFor(
     case 'idle':
       if (state.released) {
         // Disconnect let go of the port, not of the board, which goes on running what it holds.
-        const doing = 'was released and keeps running its sketch.';
+        const doing = 'is released and runs on.';
         return { shown: true, connected: false, chip: 'Your board', doing, ...NOTHING };
       }
       return noBoard(pick, open);
@@ -347,12 +354,12 @@ function barFor(
   }
 }
 
-/** The bar with no board read: one line, beside the buttons, how to plug a board in, unless the panel is `open`. */
+/** The bar with no board read, and how to plug a board in unless the panel is `open` and says it. */
 function noBoard(pick: BoardModel | undefined, open: boolean): DockBar {
   const plugIn = pick?.flashSwitch
-    ? `is connected. Plug the ${pick.name} in with its adapter set to PROG.`
-    : 'is connected. Plug one in over USB.';
-  return { shown: true, connected: false, chip: 'No board', doing: open ? 'is connected.' : plugIn, ...NOTHING };
+    ? `yet. Plug in the ${pick.name} set to PROG.`
+    : 'yet. Plug one in over USB.';
+  return { shown: true, connected: false, chip: 'No board', doing: open ? 'yet.' : plugIn, ...NOTHING };
 }
 
 /**
@@ -387,6 +394,8 @@ export interface Connection {
   press(): Promise<void>;
   /** Presses Connect board, which reads the board and writes no sketch; nothing while the view offers none. */
   pressConnect(): Promise<void>;
+  /** Restarts a running board into the sketch it holds and reads it again; nothing while the bar offers no Restart. */
+  restart(): Promise<void>;
   /**
    * Lets the board go: a running one, or one whose settings form waits. A settings exchange runs to its end first,
    * since the session takes no event until then.
@@ -461,6 +470,10 @@ export function createConnection(board: Board, pick: BoardPick, names: SketchNam
     },
     async pressConnect() {
       if (viewNow().connect === undefined) return;
+      await start('connect');
+    },
+    async restart() {
+      if (!viewNow().bar.restart) return;
       await start('connect');
     },
     async disconnect() {

@@ -95,10 +95,14 @@ const manifest = readManifest();
           <span class="pct" data-dock-pct></span>
         </span>
       </span>
-      {/* Connect board and Disconnect never show together, so they share a room, at the button's width. */}
-      <span class="slot ends">
-        <ActionButton label="Connect board" ghost data-dock-action="connect" data-off />
-        <ActionButton label="Disconnect" icon="power" ghost data-dock-disconnect data-off />
+      {/* The board's own controls, round icons of one size. Connect board shows only while no board is connected, so it
+          shares Restart's room. */}
+      <span class="ends">
+        <span class="slot">
+          <ActionButton label="Connect board" round data-dock-action="connect" data-off />
+          <ActionButton label="Restart board" icon="restart" round data-dock-restart data-off />
+        </span>
+        <ActionButton label="Disconnect" icon="power" round data-dock-disconnect data-off />
       </span>
       <button
         type="button"
@@ -130,15 +134,14 @@ const manifest = readManifest();
   .pick:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
   .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--faint); flex: none; }
   .dot.on { background: var(--green); box-shadow: 0 0 0 3px var(--green-halo); }
-  /* Takes the room the controls leave, two lines high whatever it says, and cut beyond them, so the bar keeps its
-     height and one row. */
-  .status { flex: 1 1 0; min-width: 0; min-height: 3em; display: flex; align-items: center; }
-  .said { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  /* Takes the room the controls leave, on one line cut where it runs out, so the bar keeps its height. */
+  .status { flex: 1 1 0; min-width: 0; display: flex; align-items: center; }
+  .said { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .chip { color: var(--card); white-space: nowrap; }
   .status a { color: var(--on-ink); }
   .slot { display: grid; align-items: center; }
   .slot > * { grid-area: 1 / 1; }
-  .ends > * { justify-self: end; }
+  .ends { display: flex; gap: 6px; }
   .meter { display: flex; align-items: center; gap: 8px; }
   .track { flex: 1; height: 6px; border-radius: 3px; background: var(--on-ink-line); overflow: hidden; }
   .track i { display: block; height: 100%; width: 0; background: var(--yellow); transition: width .15s; }
@@ -242,6 +245,7 @@ const manifest = readManifest();
     const pct = find<HTMLElement>('pct');
     const last = find<HTMLElement>('last');
     const disconnect = find<HTMLButtonElement>('disconnect');
+    const restart = find<HTMLButtonElement>('restart');
     const status = find<HTMLElement>('status');
     const said = find<HTMLElement>('said');
     const panel = find<HTMLElement>('panel');
@@ -273,6 +277,7 @@ const manifest = readManifest();
     for (const action of [panelAction, barAction]) action.addEventListener('click', () => void connection.press());
     connectAction.addEventListener('click', () => void connection.pressConnect());
     disconnect.addEventListener('click', () => void connection.disconnect());
+    restart.addEventListener('click', () => void connection.restart());
 
     function render() {
       const view = connection.view;
@@ -306,8 +311,10 @@ const manifest = readManifest();
       paintPanel(view);
       if (!bar.disconnect && document.activeElement === disconnect) dock.focus();
       disconnect.toggleAttribute('data-off', !bar.disconnect);
-      // The full status where two lines cut it.
-      if (said.scrollHeight > said.clientHeight) status.title = said.textContent ?? '';
+      if (!bar.restart && document.activeElement === restart) dock.focus();
+      restart.toggleAttribute('data-off', !bar.restart);
+      // The full status where the line cuts it.
+      if (said.scrollWidth > said.clientWidth) status.title = said.textContent ?? '';
       else status.removeAttribute('title');
       monitor.show(bar.canSend);
     }

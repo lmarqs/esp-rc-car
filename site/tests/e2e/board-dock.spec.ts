@@ -215,9 +215,57 @@ test.describe('the board dock', () => {
 
     await expect(dock(page).getByRole('button', { name: 'Connect board' })).toBeVisible();
     await expect(dock(page).locator('[data-dock-status]')).toHaveText(
-      'Your board was released and keeps running its sketch.',
+      'Your board is released and runs on.',
     );
     expect((await fakeFlasher.calls()).at(-1)).toBe('disconnect');
+  });
+
+  test('says the board on one line, and draws Connect board, Restart board and Disconnect as round icons of one size', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/input'] });
+    await page.setViewportSize({ width: 1100, height: 800 });
+    await page.goto(BLINK);
+    const said = dock(page).locator('[data-dock-said]');
+    const oneLine = async () => {
+      const { height, line } = await said.evaluate((el) => ({ height: el.getBoundingClientRect().height, line: parseFloat(getComputedStyle(el).lineHeight) }));
+      expect(height).toBeLessThanOrEqual(line + 1);
+    };
+    const size = async (name: string) => {
+      const { width, height } = (await bar(page).getByRole('button', { name }).boundingBox())!;
+      return { width, height };
+    };
+    await oneLine();
+    const connect = await size('Connect board');
+    expect(connect.width).toBe(connect.height);
+
+    await bar(page).getByRole('button', { name: 'Connect board' }).click();
+    await expect(bar(page).getByRole('button', { name: 'Disconnect' })).toBeVisible();
+    await oneLine();
+    expect(await size('Disconnect')).toEqual(connect);
+    expect(await size('Restart board')).toEqual(connect);
+    await expect(bar(page).getByRole('button', { name: 'Disconnect' })).toHaveAttribute('title', 'Disconnect');
+
+    await bar(page).getByRole('button', { name: 'Disconnect' }).click();
+    await expect(dock(page).locator('[data-dock-status]')).toHaveText('Your board is released and runs on.');
+    await oneLine();
+  });
+
+  test('restarts a running board into the sketch it holds, and writes nothing', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/input'] });
+    await page.goto('/robomania/learn/');
+    await dock(page).getByRole('button', { name: 'Connect board' }).click();
+    await expect(dock(page).getByRole('link', { name: 'Blink · input' })).toBeVisible();
+    const before = (await fakeFlasher.calls()).length;
+
+    await bar(page).getByRole('button', { name: 'Restart board' }).click();
+
+    await expect(dock(page).getByRole('link', { name: 'Blink · input' })).toBeVisible();
+    await expect(bar(page).getByRole('button', { name: 'Restart board' })).toBeVisible();
+    const calls = (await fakeFlasher.calls()).slice(before);
+    expect(calls).toContain('connect');
+    expect(calls).not.toContain('write');
   });
 
   test('stays at the bottom of the window, over no part of the page at its end', async ({ page, fakeFlasher }) => {
@@ -613,11 +661,11 @@ test.describe('the board dock panel', () => {
 
   test('shows the whole name of a sketch its bar button cuts on hover', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install();
-    await page.goto(BLINK);
+    await page.goto('/robomania/flash/#omnidirectional');
 
-    await expect(bar(page).getByRole('button', { name: 'Flash Blink · simple' })).toHaveAttribute(
+    await expect(bar(page).getByRole('button', { name: 'Flash Omnidirectional robot' })).toHaveAttribute(
       'title',
-      'Flash Blink · simple',
+      'Flash Omnidirectional robot',
     );
   });
 });

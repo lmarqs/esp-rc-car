@@ -30,19 +30,21 @@ describe('the board dock', () => {
       shown: true,
       connected: false,
       chip: 'No board',
-      doing: 'is connected. Plug one in over USB.',
+      doing: 'yet. Plug one in over USB.',
       disconnect: false,
+      restart: false,
       canSend: false,
     });
   });
 
-  it('says a board let go with Disconnect was released and keeps running its sketch', () => {
+  it('says a board let go with Disconnect is released and runs on', () => {
     expect(dockView({ kind: 'idle', released: true }, EMPTY_RECORD, names, boardModel('esp01s'))).toEqual({
       shown: true,
       connected: false,
       chip: 'Your board',
-      doing: 'was released and keeps running its sketch.',
+      doing: 'is released and runs on.',
       disconnect: false,
+      restart: false,
       canSend: false,
     });
   });
@@ -53,7 +55,7 @@ describe('the board dock', () => {
       expect(dockView(state, EMPTY_RECORD, names, boardModel('esp01s')), state.kind).toMatchObject({
         connected: false,
         chip: 'No board',
-        doing: 'is connected.',
+        doing: 'yet.',
         disconnect: false,
       });
     }
@@ -69,6 +71,7 @@ describe('the board dock', () => {
       path: '/robomania/projects/blink/#input',
       last: 'wait 1000',
       disconnect: true,
+      restart: true,
       canSend: true,
     });
   });
@@ -129,6 +132,7 @@ describe('the board dock', () => {
         sketch: 'Blink · input',
         path: '/robomania/projects/blink/#input',
         disconnect: true,
+        restart: false,
         canSend: false,
       });
       expect(dockView(state, { heard: 'blink/input', lines: [] }, names).sketch, state.kind).toBe('Blink · input');
@@ -138,6 +142,7 @@ describe('the board dock', () => {
         chip: 'ESP32',
         doing: 'is busy with its settings',
         disconnect: true,
+        restart: false,
         canSend: false,
       });
     }
@@ -149,6 +154,7 @@ describe('the board dock', () => {
       chip: 'ESP32',
       doing: 'lost the connection',
       disconnect: false,
+      restart: false,
       canSend: false,
     });
   });
@@ -157,13 +163,19 @@ describe('the board dock', () => {
 describe('the board dock for the board the visitor picked', () => {
   it('says to set an ESP-01S adapter to flash mode before plugging it in', () => {
     expect(dockView({ kind: 'idle' }, EMPTY_RECORD, names, boardModel('esp01s')).doing).toBe(
-      'is connected. Plug the ESP-01S in with its adapter set to PROG.',
+      'yet. Plug in the ESP-01S set to PROG.',
     );
   });
 
   it('asks to press reset on an ESP-01S running a sketch it has not named, which it names as it restarts', () => {
     const view = dockView({ kind: 'running', chip: 'ESP8266', output: [] }, EMPTY_RECORD, names, boardModel('esp01s'));
-    expect(view.doing).toBe('is running a sketch. Press reset on its adapter to name it.');
+    expect(view.doing).toBe('is running a sketch. Press reset to name it.');
+  });
+
+  it('offers no Restart for an ESP-01S on its adapter, which the port cannot restart', () => {
+    const state = { kind: 'running', chip: 'ESP8266', output: [] } as const;
+    expect(dockView(state, EMPTY_RECORD, names, boardModel('esp01s')).restart).toBe(false);
+    expect(dockView(state, EMPTY_RECORD, names, boardModel('esp32')).restart).toBe(true);
   });
 
   it('says the board is in flash mode after the write, which the panel says how to leave', () => {

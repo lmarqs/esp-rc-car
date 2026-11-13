@@ -14,8 +14,8 @@ A MUST does not vary. A SHOULD yields only to a reason written beside the code. 
 
 1. **Nothing shifts.** A state change MUST NOT move or resize a neighbour, and anything whose text changes MUST
    reserve the width of its longest text. A visitor aims at a control and presses it; if the control moves under the
-   pointer, the press lands on something else. Example: the dock's action is 164 px wide whether it reads
-   Connect board, Flash Blink · input or Flashing…, the switch's halves are 104 px each whichever is pressed, and the
+   pointer, the press lands on something else. Example: the dock panel's action is 164 px wide whether it reads
+   Connect board, Flash Blink · input or Flashing…, the bar's pill 196 px, the switch's halves are 104 px each whichever is pressed, and the
    debugger's Pause button keeps its width when it reads Continue.
 2. **Group by direction.** What the board reports MUST sit together, and what the visitor sends MUST sit together,
    next to where the reply appears. A visitor who sends a value looks for its effect, and the nearer the two are,
