@@ -189,8 +189,8 @@ to a step:
   session says of the board, such as a failed flash, shows only under My board, so pressing Simulator leaves it.
 - Pause, Step or Restart outside the simulator hands the pane to a fresh simulator with the port still open, and
   choosing My board brings the pane back to the board.
-- Flash again is a small button on the Live frame, which flashes the step the board runs; a flash the session
-  refuses shows its notice over the live board.
+- A flash the session refuses while the board is live, such as one from the dock's Flash again, shows its notice
+  over the live board.
 - The frame names its source with a tag, Simulated, Live or My board, and a sentence; its border is dashed for
   simulated and waiting and solid green for live. The switch's dark pill slides between its halves. Wider than
   480 px, each half is 104 px wide; at phone width, 480 px and narrower, each takes half the switch. The My board half

@@ -132,7 +132,6 @@ describe('linkView', () => {
       chosen: 'simulator',
       mode: 'simulator',
       dot: 'off',
-      flashAgain: false,
       onBoard: undefined,
     });
     expect(shown.action).toMatchObject({ event: 'connect', disabled: false });
@@ -147,30 +146,28 @@ describe('linkView', () => {
       text: 'No board connected. Plug it in with a USB cable, then connect.',
       notice: false,
     });
-    expect(shown.flashAgain).toBe(false);
   });
 
-  it('marks the step the board runs and offers Flash again once the pane follows the board', () => {
+  it('marks the step the board runs once the pane follows the board', () => {
     const shown = linkView(blink, pane(...live));
     expect(shown).toMatchObject({
       kind: 'live',
       tag: { word: 'Live' },
       mode: 'live',
       dot: 'on',
-      flashAgain: true,
       onBoard: blink.steps[INPUT].key,
     });
     expect(shown.message).toBeUndefined();
   });
 
-  it('says the board runs this step while the visitor chose the simulator, with no Flash again', () => {
+  it('says the board runs this step while the visitor chose the simulator', () => {
     const shown = linkView(blink, reducePane(blink, pane(...live), { kind: 'choose', chosen: 'simulator' }));
-    expect(shown).toMatchObject({ kind: 'live', mode: 'simulator', flashAgain: false });
+    expect(shown).toMatchObject({ kind: 'live', mode: 'simulator' });
     expect(shown.tag.title).toContain('My board');
     expect(shown.message).toBeUndefined();
   });
 
-  it('shows a refused Flash again over the live board, which stays live, until another step is picked', () => {
+  it('shows a refused flash over the live board, which stays live, until another step is picked', () => {
     const refused: SessionState = { ...running, flashRefused: { key: 'blink/input', available: ['ESP32'] } };
     const pressed: PaneEvent = { kind: 'press', action: 'flash' };
     const shown = linkView(blink, pane(...live, pressed, { kind: 'session', state: refused }));
@@ -185,10 +182,10 @@ describe('linkView', () => {
     });
   });
 
-  it('shows the message and the percentage while the session flashes, and holds Flash again back', () => {
+  it('shows the message and the percentage while the session flashes, and holds the button back', () => {
     const flashing: SessionState = { kind: 'flashing', chip: 'ESP32', pct: 40 };
     const shown = linkView(blink, pane(...live, { kind: 'session', state: flashing }));
-    expect(shown).toMatchObject({ mode: 'waiting', dot: 'busy', flashAgain: false, tag: { word: 'My board' } });
+    expect(shown).toMatchObject({ mode: 'waiting', dot: 'busy', tag: { word: 'My board' } });
     expect(shown.message).toMatchObject({ notice: false });
     expect(shown.scene).toMatchObject({ cable: 'packets', pct: 40 });
     expect(shown.action?.disabled).toBe(true);

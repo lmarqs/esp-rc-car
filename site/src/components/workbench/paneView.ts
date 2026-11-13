@@ -149,8 +149,6 @@ export interface LinkView {
   readonly onBoard: string | undefined;
   /** The My board view's button; absent in a browser that cannot reach a board. */
   readonly action: BoardAction | undefined;
-  /** Whether Flash again shows on the frame, so the visitor can flash the step onto the board that is live. */
-  readonly flashAgain: boolean;
   /** What the board pane says in place of the picture: while My board waits, or over the live board a refused flash. */
   readonly message: BoardMessage | undefined;
   /** What the My board view draws of the computer, the cable and the board. */
@@ -170,7 +168,6 @@ export function linkView<B>(project: PaneProject<B>, pane: PaneState<B>, board?:
     dot: boardDot(pane.session),
     onBoard: status.kind === 'live' || status.kind === 'step' ? pane.heard : undefined,
     action,
-    flashAgain: mode === 'live' && action?.disabled === false,
     message: linkMessage(project, pane, status, board),
     scene: flashScene(pane.session, board),
   };

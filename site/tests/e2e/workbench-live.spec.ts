@@ -392,7 +392,7 @@ test.describe('a board that runs another step', () => {
     await boardButton(page).click();
 
     await expect(tagWord(page)).toHaveText('Live');
-    await expect(bench(page).getByRole('button', { name: 'Flash again' })).toBeVisible();
+    await expect(bench(page).getByRole('button', { name: 'Flash again' })).toHaveCount(0);
     await expect(commandLine(page)).toBeEnabled();
     await expect(serial(page)).toHaveText('sketch blink/input');
     await fakeFlasher.print('HIGH');

@@ -9,7 +9,6 @@ export interface BoardLinkHandlers {
   board(): void;
   /** The My board view's button. */
   action(): void;
-  flashAgain(): void;
 }
 
 const DOT_TITLES: Readonly<Record<LinkView['dot'], string>> = {
@@ -29,7 +28,6 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
   const tag = root.querySelector<HTMLElement>('[data-pane-tag]')!;
   let tagWord = root.querySelector<HTMLElement>('[data-tag-word]')!;
   let tagTitle = root.querySelector<HTMLElement>('[data-tag-title]')!;
-  const flashAgain = root.querySelector<HTMLButtonElement>('[data-flash-again]')!;
   const stage = root.querySelector<HTMLElement>('[data-stage]')!;
   const message = root.querySelector<HTMLElement>('[data-board-message]')!;
   const link = root.querySelector<HTMLElement>('[data-board-link]')!;
@@ -39,7 +37,6 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
   simulatorButton.addEventListener('click', handlers.simulator);
   boardButton?.addEventListener('click', handlers.board);
   actionButton?.addEventListener('click', handlers.action);
-  flashAgain.addEventListener('click', handlers.flashAgain);
 
   return {
     show(view: LinkView) {
@@ -68,12 +65,6 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
         tagWord = word;
         tagTitle = title;
       }
-      // The press hides Flash again as the flash starts: the focus goes on to the button that says what it does. The
-      // My board view's button goes as the pane goes live, and the focus goes back to Flash again.
-      const refocus = !view.flashAgain && document.activeElement === flashAgain;
-      const toFlashAgain = view.flashAgain && actionButton !== null && document.activeElement === actionButton;
-      flashAgain.hidden = !view.flashAgain;
-
       const waiting = view.mode === 'waiting';
       stage.toggleAttribute('data-message', view.message !== undefined);
       const shown = view.message;
@@ -86,8 +77,8 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
 
       if (actionButton !== null && actionLabel !== null) {
         actionButton.hidden = action === undefined;
-        // Live, the board runs the step: Flash again on the frame flashes it, and a refusal shows with no button. The
-        // button keeps its room, so the stage keeps its height.
+        // Live, the board runs the step, and a refusal shows with no button. The button keeps its room, so the stage
+        // keeps its height.
         actionButton.toggleAttribute('data-off', !waiting);
         if (action !== undefined) {
           actionLabel.textContent = action.short ?? action.label;
@@ -98,9 +89,9 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
           if (action.disabled) actionButton.setAttribute('aria-disabled', 'true');
           else actionButton.removeAttribute('aria-disabled');
         }
-        if (refocus && waiting && !actionButton.hidden) actionButton.focus();
+        // The button goes as the pane goes live; the focus goes on to the switch's My board half, not to the page.
+        if (!waiting && document.activeElement === actionButton) boardButton?.focus();
       }
-      if (toFlashAgain) flashAgain.focus();
     },
     /** Gives the focus to the My board view's button, or to the switch's My board half while the view shows none. */
     takeFocus() {

@@ -364,7 +364,6 @@ const flashable = Object.keys(manifest.sketches).length > 0;
         if (action === undefined || action.disabled) return;
         press(action.event);
       },
-      flashAgain: () => press('flash'),
     });
 
     /** Paints the switch, the board pane's frame and the My board view, and marks the rail's step the board runs. */
@@ -397,7 +396,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       simulation.dispose();
     });
 
-    /** Presses the My board view's button, or Flash again, then asks the session for what the press starts. */
+    /** Presses the My board view's button, then asks the session for what the press starts. */
     function press(action: BoardAction['event']) {
       dispatch({ kind: 'press', action });
       if (action === 'connect') void board.send(restartConnection(thePick().model));

@@ -23,7 +23,6 @@ const simulated = paneTag('simulator', { kind: 'simulated' }, undefined);
     <p class="tag" aria-live="polite" title={`${simulated.word} ${simulated.title}`} data-pane-tag>
       <b data-tag-word>{simulated.word}</b> <span data-tag-title>{simulated.title}</span>
     </p>
-    <button class="mini" type="button" data-flash-again hidden>Flash again</button>
     <Stage project={project} firstKey={steps[0].key} flashable={flashable} />
     <Scope trace={project.trace} />
   </div>
@@ -49,15 +48,11 @@ const simulated = paneTag('simulator', { kind: 'simulated' }, undefined);
   /* Dashed while the pane shows a stand-in for the board, solid green while it shows the board itself. */
   .frame { position: relative; display: grid; gap: 10px; margin-top: 8px; padding: 20px 12px 12px; border: 2px dashed var(--quiet); border-radius: 12px; transition: border-color .25s ease; }
   .frame[data-mode="live"] { border-style: solid; border-color: var(--green); }
-  /* On the frame's top border; live, it leaves room on the right for Flash again, which shows only then. */
+  /* On the frame's top border. */
   .tag { position: absolute; top: 0; left: 10px; max-width: calc(100% - 20px); transform: translateY(-50%); margin: 0; padding: 0 6px; background: var(--card); font-size: 12px; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .frame[data-mode="live"] .tag { max-width: calc(100% - 132px); }
   .tag b { font-family: var(--mono); font-size: 11px; font-weight: 700; text-transform: uppercase; transition: color .25s ease; }
   .frame[data-mode="live"] .tag b { color: var(--green-text); }
   .tag span { color: var(--muted); }
-  .mini { position: absolute; top: 0; right: 10px; transform: translateY(-50%); font: inherit; font-size: 12px; font-weight: 700; line-height: 1.5; color: var(--ink); background: var(--card); border: 1.5px solid var(--ink); border-radius: 999px; padding: 1px 10px; cursor: pointer; }
-  .mini:hover { background: var(--wash-yellow); }
-  .mini:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
   .hint { font-size: 13px; color: var(--muted); margin: 0; }
   /* A problem takes the hint's place, which says how to send and does not apply then, so nothing moves. */
   .say { display: grid; }

@@ -48,7 +48,7 @@ export interface PaneState<B> {
   readonly following: number;
   /** Counts the times a fresh simulator took the pane from the board; the page then starts its run again. */
   readonly simulation: number;
-  /** What the visitor pressed in the My board view, or Flash again, while the session works on it. */
+  /** What the visitor pressed in the My board view while the session works on it. */
   readonly pressed?: BoardAction['event'];
   /** What the visitor pressed whose work the session last finished, as Try again repeats it after a failure. */
   readonly tried?: BoardAction['event'];
@@ -74,7 +74,7 @@ export type PaneEvent =
    * simulator takes the pane with the board keeping its port; My board shows the board, or what it takes to show it.
    */
   | { readonly kind: 'choose'; readonly chosen: PaneChoice }
-  /** The My board view's button or Flash again pressed: starts the session's work, which the page asks of it. */
+  /** The My board view's button pressed: starts the session's work, which the page asks of it. */
   | { readonly kind: 'press'; readonly action: BoardAction['event'] }
   /** The visitor sent `text` to the board at `at`. */
   | { readonly kind: 'sent'; readonly text: string; readonly at: number }
