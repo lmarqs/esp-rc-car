@@ -455,29 +455,6 @@ test.describe('flashing from the workbench', () => {
     await expect(message(page)).toHaveText('Your board runs simple. Flash timer to see it here.');
   });
 
-  test("shows a refused flash from the dock's Flash again over the live board, which stays Live", async ({
-    page,
-    fakeFlasher,
-  }) => {
-    await fakeFlasher.install({ chip: 'ESP32-C3', lines: ['sketch blink/simple'] });
-    await page.goto(BLINK);
-    await connect(page);
-    await expect(tagWord(page)).toHaveText('Live');
-
-    await page.getByRole('complementary', { name: 'Your board' }).getByRole('button', { name: 'Flash again' }).click();
-
-    await expect(message(page)).toHaveText(
-      'This board is an ESP32-C3. blink/simple has images for: ESP32, ESP8266. ' +
-        'Connect an ESP32 or ESP8266, or pick another step.',
-    );
-    await expect(message(page)).toBeVisible();
-    await expect(message(page)).toHaveClass(/notice/);
-    await expect(picture(page)).toBeHidden();
-    await expect(boardButton(page)).toBeHidden();
-    await expect(tagWord(page)).toHaveText('Live');
-    expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
-  });
-
   for (const width of [821, 400]) {
     test(`keeps the reports in place when the no-image message shows at ${width} px`, async ({ page, fakeFlasher }) => {
       await fakeFlasher.install({ chip: 'ESP32-C3', lines: ['sketch blink/simple'] });

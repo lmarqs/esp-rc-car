@@ -159,10 +159,10 @@ adapter, which the dock and the workbench ask for; a pick that is wrong shows on
 
 The dock names the board's chip and the sketch it runs, by the `sketch <key>` line or the key the site last flashed,
 links the sketch's project, at the step's tab for a step, and shows the last line it printed in the Serial button that
-opens the rest. It connects a board, flashes the sketch it runs again, lets it go, and opens a serial monitor that
-shows the lines, sends one and clears them. It also holds the visitor's pick of board, which the card, the workbench
-and the project cards follow: the card and the workbench give that board's hints, such as the flash switch of an
-ESP-01S adapter, and each project card says whether the project runs on it. Once a board connects, its chip is
+opens the rest. It connects a board, lets it go, and opens a serial monitor that shows the lines, sends one and
+clears them. It also holds the visitor's pick of board, which the card, the workbench and the project cards follow:
+the card and the workbench give that board's hints, such as the flash switch of an ESP-01S adapter, and each project
+card says whether the project runs on it. Once a board connects, its chip is
 certain, so the pick follows the chip and the dock says so when the visitor picked another board.
 Every page carries the names of every project's sketches and the whole manifest for it.
 
@@ -189,8 +189,7 @@ to a step:
   session says of the board, such as a failed flash, shows only under My board, so pressing Simulator leaves it.
 - Pause, Step or Restart outside the simulator hands the pane to a fresh simulator with the port still open, and
   choosing My board brings the pane back to the board.
-- A flash the session refuses while the board is live, such as one from the dock's Flash again, shows its notice
-  over the live board.
+- A flash the session refuses while the board is live shows its notice over the live board.
 - The frame names its source with a tag, Simulated, Live or My board, and a sentence; its border is dashed for
   simulated and waiting and solid green for live. The switch's dark pill slides between its halves. Wider than
   480 px, each half is 104 px wide; at phone width, 480 px and narrower, each takes half the switch. The My board half

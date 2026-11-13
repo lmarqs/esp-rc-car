@@ -23,7 +23,6 @@ export interface DockView {
   readonly progress?: number;
   /** Which buttons the dock offers. */
   readonly connect: boolean;
-  readonly flashAgain: boolean;
   readonly disconnect: boolean;
   /** Whether the serial monitor can send a line: only while the site reads a board that is not busy. */
   readonly canSend: boolean;
@@ -35,7 +34,7 @@ export interface DockView {
  */
 const UNNAMED_ON_SWITCH = 'is running a sketch. Press reset on its adapter to name it.';
 
-const NOTHING = { connect: false, flashAgain: false, disconnect: false, canSend: false } as const;
+const NOTHING = { connect: false, disconnect: false, canSend: false } as const;
 
 /** The name of the sketch `key`, or a plain one for a sketch outside the site. */
 function nameOf(names: Readonly<Record<string, SketchName>>, key: string | undefined): SketchName | undefined {
@@ -45,14 +44,12 @@ function nameOf(names: Readonly<Record<string, SketchName>>, key: string | undef
 }
 
 /**
- * The dock for the session's `state`, the record of the board, the names of the site's sketches and the keys of those
- * it has images of, `flashable`.
+ * The dock for the session's `state`, the record of the board and the names of the site's sketches.
  */
 export function dockView(
   state: SessionState,
   record: BoardRecord,
   names: Readonly<Record<string, SketchName>>,
-  flashable: ReadonlySet<string>,
   board?: BoardModel,
 ): DockView {
   if (state.kind === 'unsupported') {
@@ -81,7 +78,6 @@ export function dockView(
       ...(name?.path && { path: name.path }),
       ...(last !== undefined && { last }),
       connect: false,
-      flashAgain: key !== undefined && flashable.has(key),
       disconnect: true,
       canSend: true,
     };

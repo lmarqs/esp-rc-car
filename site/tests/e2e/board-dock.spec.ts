@@ -160,22 +160,6 @@ test.describe('the board dock', () => {
     await expect(monitor(page)).toHaveText('sketch blink/input\nHIGH\nLOW');
   });
 
-  test('flashes the sketch the board runs again from another page, showing the progress', async ({ page, fakeFlasher }) => {
-    await fakeFlasher.install({ lines: ['sketch blink/simple'], progress: [40], hold: true });
-    await page.goto(BLINK);
-    await connect(page);
-    await expect(tagWord(page)).toHaveText('Live');
-    await nav(page).getByRole('link', { name: 'Learn' }).click();
-
-    await dock(page).getByRole('button', { name: 'Flash again' }).click();
-
-    await expect(dock(page)).toContainText('ESP32 is writing Blink · 1 simple');
-    await expect(dock(page).getByRole('progressbar', { name: 'Flashing' })).toHaveAttribute('aria-valuenow', '40');
-    await fakeFlasher.release();
-    await expect(dock(page).getByRole('link', { name: 'Blink · 1 simple' })).toBeVisible();
-    expect(await fakeFlasher.loaded()).toEqual([['blink/simple/esp32/simple.ino.bootloader.bin', 'blink/simple/esp32/simple.ino.bin']]);
-  });
-
   test('lets the board go on Disconnect, and offers to connect again', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['sketch blink/input'] });
     await page.goto('/robomania/learn/');

@@ -5,8 +5,8 @@ import { readManifest } from '../../lib/flash/readManifest';
 import { href } from '../../lib/href';
 import { getCollection } from 'astro:content';
 
-// Every page carries every name and image, so the dock can name and flash again whatever the board runs, wherever the
-// visitor is.
+// Every page carries every name and image, so the dock can name whatever the board runs, and the session can flash any
+// sketch it flashed before, wherever the visitor is.
 const names = Object.fromEntries(
   Object.entries(sketchNames(await getCollection('projects'))).map(([key, name]) => [key, { ...name, path: href(name.path) }]),
 );
@@ -79,10 +79,6 @@ const manifest = readManifest();
       <button type="button" class="primary" data-dock-connect hidden>
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 1.6v3M10 1.6v3M4 4.6h8v2.6a4 4 0 0 1-8 0zM8 11.2v3.2"></path></svg>
         Connect board
-      </button>
-      <button type="button" data-dock-again hidden>
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.5v3h-3"></path></svg>
-        Flash again
       </button>
       <button type="button" data-dock-disconnect hidden>
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v5M4.6 4.2a5 5 0 1 0 6.8 0"></path></svg>
@@ -175,7 +171,6 @@ const manifest = readManifest();
   import { thePick } from '../../lib/board/pick';
   import type { SketchName } from '../../lib/board/names';
   import type { Manifest } from '../../lib/flash';
-  import { runs } from '../../lib/board/record';
   import { mountDockMonitor } from './dockMonitor';
   import { dockView } from './dockView';
 
@@ -189,7 +184,6 @@ const manifest = readManifest();
   function mountDock(dock: HTMLElement) {
     const names: Record<string, SketchName> = JSON.parse(dock.dataset.names ?? '{}');
     const manifest: Manifest = JSON.parse(dock.dataset.manifest ?? '{"sketches":{}}');
-    const flashable = new Set(Object.keys(manifest.sketches));
     const board = theBoard();
     const { session } = board;
     board.know(manifest);
@@ -206,7 +200,6 @@ const manifest = readManifest();
     const fill = find<HTMLElement>('fill');
     const pct = find<HTMLElement>('pct');
     const last = find<HTMLElement>('last');
-    const again = find<HTMLButtonElement>('again');
     const disconnect = find<HTMLButtonElement>('disconnect');
     const connect = find<HTMLButtonElement>('connect');
 
@@ -241,13 +234,9 @@ const manifest = readManifest();
 
     connect.addEventListener('click', () => void board.send(restartConnection(pick.model)));
     disconnect.addEventListener('click', () => void board.send({ type: 'disconnect' }));
-    again.addEventListener('click', () => {
-      const key = runs(board.record);
-      if (key !== undefined) void board.send({ type: 'flash', key });
-    });
 
     function render() {
-      const view = dockView(session.state, board.record, names, flashable, pick.model);
+      const view = dockView(session.state, board.record, names, pick.model);
       dock.hidden = !view.shown;
       if (!view.shown) return;
       dot.classList.toggle('on', view.connected);
@@ -276,7 +265,6 @@ const manifest = readManifest();
       last.textContent = view.last ?? '';
       // A hidden button cannot keep the focus, which would fall to the page; the dock keeps it.
       for (const [button, shown] of [
-        [again, view.flashAgain],
         [disconnect, view.disconnect],
         [connect, view.connect],
       ] as const) {
