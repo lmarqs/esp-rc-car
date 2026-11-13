@@ -8,20 +8,23 @@ import { EMPTY_RECORD } from '../../src/lib/board/record';
 import type { SessionEvent, SessionState } from '../../src/lib/flash/session';
 import { fakeSession } from './fakeSession';
 
+/** A workbench's step, which a missing image names by its key here. */
+const STEP = { name: 'blink/input', step: true };
+
 describe('boardMessage', () => {
   const running: SessionState = { kind: 'running', chip: 'ESP32', output: [] };
 
   it('shows the picture while idle, while running and in a browser that cannot reach a board', () => {
     const states: SessionState[] = [{ kind: 'idle' }, running, { kind: 'unsupported' }];
-    expect(states.map((state) => boardMessage(state, 'blink/input', true))).toEqual([undefined, undefined, undefined]);
+    expect(states.map((state) => boardMessage(state, STEP, true))).toEqual([undefined, undefined, undefined]);
   });
 
   it('says what the page does, and to keep the board plugged in while flashing', () => {
-    expect(boardMessage({ kind: 'connecting' }, 'blink/input', true)).toEqual({
+    expect(boardMessage({ kind: 'connecting' }, STEP, true)).toEqual({
       text: 'Connecting to the board.',
       notice: false,
     });
-    expect(boardMessage({ kind: 'flashing', chip: 'ESP32', pct: 40 }, 'blink/input', true)).toEqual({
+    expect(boardMessage({ kind: 'flashing', chip: 'ESP32', pct: 40 }, STEP, true)).toEqual({
       text: 'Found ESP32. Keep the board plugged in.',
       notice: false,
     });
@@ -42,21 +45,21 @@ describe('boardMessage', () => {
       'The board stopped talking to the page. Plug it back in and connect again.',
     ],
   ])('gives a failure to connect or a lost board, %j, a notice', (state, text) => {
-    expect(boardMessage(state, 'blink/input', true)).toEqual({ text, notice: true });
+    expect(boardMessage(state, STEP, true)).toEqual({ text, notice: true });
   });
 
   it('says how to make the picked board answer', () => {
-    expect(boardMessage({ kind: 'noAnswer' }, 'blink/input', true, boardModel('esp01s'))?.text).toBe(
+    expect(boardMessage({ kind: 'noAnswer' }, STEP, true, boardModel('esp01s'))?.text).toBe(
       "The board did not answer. Set the adapter's switch to PROG, the flash position, or put its jumper on. " +
         'Then unplug the adapter, plug the adapter back in and connect again.',
     );
-    expect(boardMessage({ kind: 'noAnswer' }, 'blink/input', true, boardModel('esp32'))?.text).toBe(
+    expect(boardMessage({ kind: 'noAnswer' }, STEP, true, boardModel('esp32'))?.text).toBe(
       'The board did not answer. Hold its BOOT button and connect again.',
     );
   });
 
   it('says how to get the board out of flash mode after the write', () => {
-    expect(boardMessage({ kind: 'flashMode', chip: 'ESP8266' }, 'blink/input', true)).toEqual({
+    expect(boardMessage({ kind: 'flashMode', chip: 'ESP8266' }, STEP, true)).toEqual({
       text:
         "The sketch is on the board, but the board is still in flash mode. To start it, set the adapter's switch to UART, " +
         'the run position, or take its jumper off. Then unplug the adapter, plug the adapter back in and connect again.',
@@ -65,39 +68,53 @@ describe('boardMessage', () => {
   });
 
   it('names the step that has no image for the board, and the chips it has images for', () => {
-    expect(boardMessage({ kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] }, 'blink/input', true)?.text).toBe(
+    expect(boardMessage({ kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] }, STEP, true)?.text).toBe(
       'This board is an ESP8266. blink/input has images for: ESP32. Connect an ESP32, or pick another step.',
     );
-    expect(boardMessage({ kind: 'noImage', chip: 'ESP8266', available: ['ESP32', 'ESP32-C3'] }, 'blink/input', true)?.text).toBe(
+    expect(boardMessage({ kind: 'noImage', chip: 'ESP8266', available: ['ESP32', 'ESP32-C3'] }, STEP, true)?.text).toBe(
       'This board is an ESP8266. blink/input has images for: ESP32, ESP32-C3. Connect an ESP32 or ESP32-C3, or pick another step.',
     );
-    expect(boardMessage({ kind: 'noImage', chip: 'ESP8266', available: [] }, 'blink/input', true)?.text).toMatch(
+    expect(boardMessage({ kind: 'noImage', chip: 'ESP8266', available: [] }, STEP, true)?.text).toMatch(
       /\. Pick another step\.$/,
     );
   });
 
+  it('names a project that has no image for the board, and offers no step to pick, which its page has none of', () => {
+    const project = { name: 'Omnidirectional robot', step: false };
+    expect(boardMessage({ kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] }, project, true)?.text).toBe(
+      'This board is an ESP8266. Omnidirectional robot has images for: ESP32. Connect an ESP32.',
+    );
+    expect(boardMessage({ kind: 'noImage', chip: 'ESP8266', available: [] }, project, true)?.text).toMatch(
+      /\. Build and flash it from your computer instead\.$/,
+    );
+    const refused: SessionState = { ...running, flashRefused: { key: 'omnidirectional', available: ['ESP32-C3'] } };
+    expect(boardMessage(refused, project, true)?.text).toBe(
+      'This board is an ESP32. Omnidirectional robot has images for: ESP32-C3. Connect an ESP32-C3.',
+    );
+  });
+
   it('tells the visitor to press Try again after a failed flash, as its button reads', () => {
-    expect(boardMessage({ kind: 'noDownload' }, 'blink/input', true)).toEqual({
+    expect(boardMessage({ kind: 'noDownload' }, STEP, true)).toEqual({
       text: 'The image did not download. Check your internet connection. Then press Try again.',
       notice: true,
     });
-    expect(boardMessage({ kind: 'dropped', pct: 40 }, 'blink/input', true)).toEqual({
+    expect(boardMessage({ kind: 'dropped', pct: 40 }, STEP, true)).toEqual({
       text: 'The connection dropped at 40%. Nothing is broken. Plug the board back in. Then press Try again.',
       notice: true,
     });
   });
 
   it('shows a refused flash until the page drops it', () => {
-    const refused: SessionState = { ...running, flashRefused: { key: 'blink/timer', available: ['ESP32'] } };
-    expect(boardMessage(refused, 'blink/input', true)).toEqual({
-      text: 'This board is an ESP32. blink/timer has images for: ESP32. Connect an ESP32, or pick another step.',
+    const refused: SessionState = { ...running, flashRefused: { key: 'blink/input', available: ['ESP32'] } };
+    expect(boardMessage(refused, STEP, true)).toEqual({
+      text: 'This board is an ESP32. blink/input has images for: ESP32. Connect an ESP32, or pick another step.',
       notice: true,
     });
-    expect(boardMessage(refused, 'blink/input', false)).toBeUndefined();
+    expect(boardMessage(refused, STEP, false)).toBeUndefined();
   });
 });
 
-const sketch = { key: 'blink/input', title: 'Blink · 3 input' };
+const sketch = { key: 'blink/input', title: 'Blink · 3 input', step: true };
 const esp01s = boardModel('esp01s');
 const running: SessionState = { kind: 'running', chip: 'ESP32', output: [] };
 const lost: SessionState = { ...running, lost: true };
@@ -203,16 +220,25 @@ describe('connectionView action', () => {
 });
 
 describe('connectionView message', () => {
-  it('words each state as the board message does, naming the pending sketch for a missing image', () => {
+  it('words each state as the board message does, naming the open sketch by its title for a missing image', () => {
     const noImage: SessionState = { kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] };
     expect(viewOf(noImage, { record: { lines: [], pending: 'blink/timer' } }).message).toEqual(
-      boardMessage(noImage, 'blink/timer', true),
+      boardMessage(noImage, { name: 'Blink · 3 input', step: true }, true),
     );
-    expect(viewOf(noImage).message?.text).toContain('blink/input has images for: ESP32');
+    expect(viewOf(noImage).message?.text).toBe(
+      'This board is an ESP8266. Blink · 3 input has images for: ESP32. Connect an ESP32, or pick another step.',
+    );
+    const card = { key: 'omnidirectional', title: 'Omnidirectional robot', step: false };
+    expect(viewOf(noImage, { opened: card }).message?.text).toBe(
+      'This board is an ESP8266. Omnidirectional robot has images for: ESP32. Connect an ESP32.',
+    );
+    expect(viewOf(noImage, { opened: undefined, record: { lines: [], pending: 'blink/timer' } }).message?.text).toContain(
+      'blink/timer has images for: ESP32',
+    );
     expect(viewOf(noImage, { opened: undefined }).message?.text).toContain('This sketch has images for: ESP32');
-    expect(viewOf({ kind: 'noAnswer' }, { pick: esp01s }).message).toEqual(boardMessage({ kind: 'noAnswer' }, '', true, esp01s));
+    expect(viewOf({ kind: 'noAnswer' }, { pick: esp01s }).message).toEqual(boardMessage({ kind: 'noAnswer' }, STEP, true, esp01s));
     expect(viewOf({ kind: 'flashMode', chip: 'ESP8266' }).message?.notice).toBe(true);
-    expect(viewOf(lost).message).toEqual(boardMessage(lost, '', true));
+    expect(viewOf(lost).message).toEqual(boardMessage(lost, STEP, true));
   });
 
   it('says nothing while idle, while a board runs, and in a browser that cannot reach one', () => {
@@ -242,7 +268,7 @@ describe('connectionView message', () => {
     const refused: SessionState = { ...running, flashRefused: { key: 'blink/input', available: ['ESP32-C3'] } };
     const shown = viewOf(refused);
     expect(shown.message).toEqual({
-      text: 'This board is an ESP32. blink/input has images for: ESP32-C3. Connect an ESP32-C3, or pick another step.',
+      text: 'This board is an ESP32. Blink · 3 input has images for: ESP32-C3. Connect an ESP32-C3, or pick another step.',
       notice: true,
     });
     expect(shown.open).toBe(true);

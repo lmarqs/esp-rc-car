@@ -96,6 +96,14 @@ describe('the sketch the visitor has open', () => {
     expect(heard).toBe(2);
   });
 
+  it('marks an opened workbench step as a step', () => {
+    const board = createBoard(fakeSession().session);
+
+    board.open(use('blink/input'), 'Blink · 2 input', new AbortController().signal, { step: true });
+
+    expect(board.opened).toEqual({ use: use('blink/input'), title: 'Blink · 2 input', step: true });
+  });
+
   it('replaces the opened sketch when the same page opens another', () => {
     const board = createBoard(fakeSession().session);
     const page = new AbortController();

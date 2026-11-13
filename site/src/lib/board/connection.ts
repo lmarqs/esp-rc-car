@@ -15,14 +15,20 @@ export interface BoardMessage {
 /** What to do after a flash failed: the session let go of the port, and the button tries it all again. */
 const RETRY = 'Then press Try again.';
 
+/** The sketch a missing image names: by `name`, and as a `step` of a workbench when the visitor can pick another. */
+export interface NamedSketch {
+  readonly name: string;
+  readonly step: boolean;
+}
+
 /**
- * The board pane's message for the session's `state`, or `undefined` when the pane shows the picture. `key` is the
- * step last flashed, which a missing image names. `showRefusal` keeps the refusal of a step with no image for the
- * board on screen; the page drops it once the visitor picks another step.
+ * The board's message for the session's `state`, or `undefined` when the dock shows only the picture. `sketch` is the
+ * sketch last flashed, which a missing image names. `showRefusal` keeps the refusal of a sketch with no image for the
+ * board on screen; the page drops it once the visitor opens another.
  */
 export function boardMessage(
   state: SessionState,
-  key: string,
+  sketch: NamedSketch,
   showRefusal: boolean,
   board?: BoardModel,
 ): BoardMessage | undefined {
@@ -41,7 +47,7 @@ export function boardMessage(
     case 'noAnswer':
       return notice(wording.noAnswer(board));
     case 'noImage':
-      return notice(`${wording.noImage(state, key)} ${wording.otherBoardOrStep(state.available)}`);
+      return notice(`${wording.noImage(state, sketch.name)} ${wording.otherBoardOrStep(state.available, sketch.step)}`);
     case 'noDownload':
       return notice(`${wording.NO_DOWNLOAD}. ${RETRY}`);
     case 'dropped':
@@ -49,9 +55,9 @@ export function boardMessage(
     case 'running':
       if (state.lost) return notice(wording.LOST);
       if (state.flashRefused !== undefined && showRefusal) {
-        const { key: refused, available } = state.flashRefused;
-        const why = wording.noImage({ kind: 'noImage', chip: state.chip, available }, refused);
-        return notice(`${why} ${wording.otherBoardOrStep(available)}`);
+        const { available } = state.flashRefused;
+        const why = wording.noImage({ kind: 'noImage', chip: state.chip, available }, sketch.name);
+        return notice(`${why} ${wording.otherBoardOrStep(available, sketch.step)}`);
       }
       return undefined;
     default:
@@ -80,6 +86,8 @@ export interface ConnectionAction {
 export interface OpenedSketch {
   readonly key: string;
   readonly title: string;
+  /** Set for a step of a workbench, whose page lets the visitor pick another step. */
+  readonly step?: boolean;
 }
 
 /** What {@link connectionView} reads: the session, what the site knows of the board and what the visitor has done. */
@@ -171,7 +179,8 @@ function actionFor(
  */
 export function connectionView({ state, record, opened, pick, pressed, tried }: ConnectionInput): ConnectionView {
   const refusal = showsRefusal(state, opened);
-  const named = boardMessage(state, record.pending ?? opened?.key ?? 'This sketch', refusal, pick);
+  const sketch = { name: opened?.title ?? record.pending ?? 'This sketch', step: opened?.step === true };
+  const named = boardMessage(state, sketch, refusal, pick);
   const unnamed =
     state.kind === 'running' && !state.lost && runs(record) === undefined && pick?.flashSwitch === true
       ? ({ text: unnamedOnSwitch(opened), notice: false } satisfies BoardMessage)
@@ -216,7 +225,11 @@ export function createConnection(board: Board, pick: BoardPick): Connection {
     return connectionView({
       state: board.session.state,
       record: board.record,
-      opened: opened && { key: opened.use.sketch, title: opened.title },
+      opened: opened && {
+        key: opened.use.sketch,
+        title: opened.title,
+        step: opened.step === true,
+      },
       pick: pick.model,
       ...(pressed !== undefined && { pressed }),
       ...(tried !== undefined && { tried }),

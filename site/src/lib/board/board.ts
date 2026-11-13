@@ -13,6 +13,8 @@ export interface OpenedSketch {
   readonly use: BoardUse;
   /** The sketch's name as the page shows it, such as `Blink · 2 input`. */
   readonly title: string;
+  /** Set for a step of a workbench, whose page lets the visitor pick another step. */
+  readonly step?: true;
 }
 
 /**
@@ -38,9 +40,10 @@ export interface Board {
   clearLines(): void;
   /**
    * Names `use`, shown as `title`, the sketch the visitor has open, until `signal` aborts as its page goes or another
-   * is opened. Opening does not point the session at it; the next {@link Board.send} does.
+   * is opened; `step` marks a workbench's step. Opening does not point the session at it; the next {@link Board.send}
+   * does.
    */
-  open(use: BoardUse, title: string, signal: AbortSignal): void;
+  open(use: BoardUse, title: string, signal: AbortSignal, options?: { step?: boolean }): void;
   /** Adds `manifest`'s images to the ones the session knows, so a key it names can be flashed again from any page. */
   know(manifest: Manifest): void;
 }
@@ -109,8 +112,8 @@ export function createBoard(session: FlashSession): Board {
     clearLines() {
       change({ kind: 'clear' });
     },
-    open(use, title, signal) {
-      const sketch = { use, title };
+    open(use, title, signal, options) {
+      const sketch: OpenedSketch = { use, title, ...(options?.step === true && { step: true }) };
       opened = sketch;
       notify();
       signal.addEventListener(

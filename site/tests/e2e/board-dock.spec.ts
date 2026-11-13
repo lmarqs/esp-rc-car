@@ -436,7 +436,7 @@ test.describe('the board dock panel', () => {
     await dock(page).getByRole('button', { name: 'Flash Blink · 2 input' }).click();
 
     await expect(panelMessage(page)).toHaveText(
-      'This board is an ESP32-C3. blink/input has images for: ESP32. Connect an ESP32, or pick another step.',
+      'This board is an ESP32-C3. Blink · 2 input has images for: ESP32. Connect an ESP32, or pick another step.',
     );
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
 

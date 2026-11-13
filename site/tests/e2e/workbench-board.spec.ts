@@ -354,7 +354,7 @@ test.describe('the pane while the dock works on the board', () => {
 
     await dockAction(page).click();
 
-    await expect(dock(page).locator('[data-dock-message]')).toContainText('blink/input has images for: ESP32');
+    await expect(dock(page).locator('[data-dock-message]')).toContainText('Blink · 2 input has images for: ESP32');
     await expect(tag(page)).toHaveText('My board Runs simple');
     await expect(picture(page)).toBeVisible();
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);

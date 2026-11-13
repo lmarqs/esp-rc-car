@@ -180,6 +180,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
         { manifest, sketch: step.key, baud },
         `${root.dataset.title} · ${pane.selected + 1} ${steps[pane.selected].id}`,
         signal,
+        { step: true },
       );
     }
 

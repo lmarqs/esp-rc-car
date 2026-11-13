@@ -164,7 +164,7 @@ test.describe('a failure', () => {
     {
       name: 'noImage',
       install: { chip: ['ESP8266', 'ESP32'] },
-      said: /^This board is an ESP8266\. omnidirectional has images for: ESP32\./,
+      said: 'This board is an ESP8266. Omnidirectional robot has images for: ESP32. Connect an ESP32.',
       button: 'Connect board',
       calls: ['connect', 'disconnect', ...flashed],
     },

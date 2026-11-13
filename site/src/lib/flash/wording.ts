@@ -43,14 +43,19 @@ export function found(chip: string): string {
   return `Found ${chip}`;
 }
 
-/** `title` names what has no image for the chip: a project or a sketch's key. */
+/** `title` names what has no image for the chip: a project or a step as the page names it, or else a sketch's key. */
 export function noImage(state: Extract<SessionState, { kind: 'noImage' }>, title: string): string {
   return `This board is an ${state.chip}. ${title} has images for: ${state.available.join(', ')}.`;
 }
 
-/** What to do when a step has no image for the board: use a board it has images for, `available`, or another step. */
-export function otherBoardOrStep(available: readonly string[]): string {
-  return available.length === 0 ? 'Pick another step.' : `Connect an ${available.join(' or ')}, or pick another step.`;
+/**
+ * What to do when a sketch has no image for the board: use a board it has images for, `available`, or, for a `step` of
+ * a workbench, another step.
+ */
+export function otherBoardOrStep(available: readonly string[], step: boolean): string {
+  if (available.length === 0) return step ? 'Pick another step.' : 'Build and flash it from your computer instead.';
+  const board = `Connect an ${available.join(' or ')}`;
+  return step ? `${board}, or pick another step.` : `${board}.`;
 }
 
 /** The flash dropped part way; the caller adds what to do. */
