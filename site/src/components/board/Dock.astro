@@ -162,9 +162,12 @@ const manifest = readManifest();
   .serial[aria-expanded="false"] .hide, .serial[aria-expanded="true"] .last { display: none; }
   .last:empty::before { content: "Nothing printed yet"; opacity: .7; }
   .serial .caret { flex: none; }
-  @media (max-width: 560px) {
+  /* Below 840 px the controls do not fit on the status's row with room for the status: they take a row of their own. */
+  @media (max-width: 839px) {
     .bar { flex-wrap: wrap; }
     .acts { flex: 1 1 100%; flex-wrap: wrap; }
+  }
+  @media (max-width: 560px) {
     .acts .serial { flex: 1 1 100%; width: auto; }
   }
 

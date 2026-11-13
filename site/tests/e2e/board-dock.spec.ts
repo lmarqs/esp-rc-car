@@ -370,6 +370,41 @@ test.describe('the board dock panel', () => {
     });
   }
 
+  for (const width of [560, 561, 700, 839]) {
+    test(`keeps the status in view, the page from scrolling sideways and the controls in place at ${width} px`, async ({
+      page,
+      fakeFlasher,
+    }) => {
+      await fakeFlasher.install({ lines: ['sketch blink/simple'], announce: true, progress: [40], hold: true });
+      await page.setViewportSize({ width, height: 700 });
+      await page.goto(BLINK);
+      /** Where the bar's controls sit, shown or keeping their room, after checking the status and the page's width. */
+      const controls = async () => {
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+        expect((await bar(page).locator('[data-dock-status]').boundingBox())!.width).toBeGreaterThan(0);
+        return Promise.all(
+          ['[data-dock-action="bar"]', '[data-dock-disconnect]', '[data-dock-serial]'].map((selector) =>
+            bar(page)
+              .locator(selector)
+              .evaluate((element) => {
+                const { x, y, width } = element.getBoundingClientRect();
+                return { x, y, width };
+              }),
+          ),
+        );
+      };
+      const idle = await controls();
+
+      await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+      await expect(bar(page).getByRole('progressbar', { name: 'Flashing' })).toBeVisible();
+      expect(await controls()).toEqual(idle);
+
+      await fakeFlasher.release();
+      await expect(bar(page).getByRole('button', { name: 'Disconnect' })).toBeVisible();
+      expect(await controls()).toEqual(idle);
+    });
+  }
+
   test('shows the whole name of a sketch its bar button cuts on hover', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install();
     await page.goto(BLINK);
