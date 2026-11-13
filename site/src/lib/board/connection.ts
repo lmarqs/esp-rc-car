@@ -412,7 +412,7 @@ export function createConnection(board: Board, pick: BoardPick, names: SketchNam
 
   /** Resolves once the session no longer reads or sends the board's settings. */
   function exchanged(): Promise<void> {
-    const exchanging = () => onSettings(board.session.state) && board.session.state.kind !== 'settings';
+    const exchanging = () => board.session.state.kind === 'reading' || board.session.state.kind === 'applying';
     return new Promise((resolve) => {
       if (!exchanging()) return resolve();
       const stop = board.subscribe(() => {
