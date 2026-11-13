@@ -1,9 +1,15 @@
 import type { ConnectionAction } from '../../lib/board/connection';
 
-/** Writes `action` on `button`, an `ActionButton`, laid out by then, so a cut label can be told. */
-export function paintAction(button: HTMLButtonElement, action: ConnectionAction): void {
+/**
+ * Writes `action` on `button`, an `ActionButton`, laid out by then, so a cut label can be told. With `progress`, the
+ * percentage of a write, the button shows it after its word and fills that far.
+ */
+export function paintAction(button: HTMLButtonElement, action: ConnectionAction, progress?: number): void {
   const label = button.querySelector<HTMLElement>('[data-action-label]')!;
-  label.textContent = action.label;
+  if (label.textContent !== action.label) label.textContent = action.label;
+  const written = action.disabled ? progress : undefined;
+  button.querySelector('[data-action-pct]')!.textContent = written === undefined ? '' : `${written}%`;
+  button.style.setProperty('--p', `${written ?? 0}%`);
   // A label cut to the button's width shows whole on hover.
   if (label.scrollWidth > label.clientWidth) button.title = action.label;
   else button.removeAttribute('title');

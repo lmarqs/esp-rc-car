@@ -59,15 +59,18 @@ const manifest = readManifest();
       <p class="problem" role="alert" data-dock-problem hidden></p>
     </div>
   </div>
-  {/* What happens between the computer and the board while the session works, waits in flash mode or failed. */}
-  <div class="panel" data-dock-panel hidden>
+  {/* What happens between the computer and the board: the steps and, beside them, what to do. It opens with a new
+      message and closes on its cross; Details in the bar opens it again. Every button stays in the bar. */}
+  <div class="panel" id="board-panel" data-dock-panel hidden>
     <div class="row wrap">
       <FlashRail />
       <div class="words">
         <HandHint />
         <p class="message" aria-live="polite" data-dock-message></p>
       </div>
-      <ActionButton label="Connect board" data-dock-action="panel" />
+      <button type="button" class="shut" aria-label="Close details" title="Close details" data-dock-shut>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"></path></svg>
+      </button>
     </div>
   </div>
   <div class="bar wrap">
@@ -76,34 +79,23 @@ const manifest = readManifest();
       {BOARD_MODELS.map((model) => <option value={model.id}>{model.name}</option>)}
     </select>
     <span class="dot" aria-hidden="true" data-dock-dot></span>
-    <span class="status" aria-live="polite" data-dock-status>
-      <span class="said" data-dock-said
+    <span class="status" data-dock-status>
+      <span class="said" aria-live="polite" data-dock-said
         ><b class="chip" data-dock-chip>No board</b>{' '}<span data-dock-doing></span>{' '}<a data-dock-link hidden></a><span
           data-dock-sketch
         ></span></span
       >
     </span>
-    {/* Each control keeps its room while it does not show, so none moves as the board's state changes. */}
+    <button type="button" class="details" aria-controls="board-panel" data-dock-details hidden>Details</button>
+    {/* Each control has one place and keeps its room while it does not show, so none moves as the board's state changes:
+        the action, then Connect board or Disconnect, which are never both offered, then Restart board, then Serial. */}
     <span class="acts">
-      {/* The meter takes the button's room while the button is in the panel. */}
+      <ActionButton label="Connect board" data-dock-action="bar" data-off />
       <span class="slot">
-        <ActionButton label="Connect board" ghost data-dock-action="bar" data-off />
-        <span class="meter" data-dock-meter hidden>
-          <span class="track" role="progressbar" aria-label="Flashing" aria-valuemin="0" aria-valuemax="100" data-dock-track>
-            <i data-dock-fill></i>
-          </span>
-          <span class="pct" data-dock-pct></span>
-        </span>
-      </span>
-      {/* The board's own controls, round icons of one size. Connect board shows only while no board is connected, so it
-          shares Restart's room. */}
-      <span class="ends">
-        <span class="slot">
-          <ActionButton label="Connect board" round data-dock-action="connect" data-off />
-          <ActionButton label="Restart board" icon="restart" round data-dock-restart data-off />
-        </span>
+        <ActionButton label="Connect board" round data-dock-action="connect" data-off />
         <ActionButton label="Disconnect" icon="power" round data-dock-disconnect data-off />
       </span>
+      <ActionButton label="Restart board" icon="restart" round data-dock-restart data-off />
       <button
         type="button"
         class="serial"
@@ -132,23 +124,24 @@ const manifest = readManifest();
   .pick { flex: none; font: inherit; font-weight: 700; font-size: 12px; color: var(--card); background: var(--ink-raised); border: 1px solid var(--on-ink-edge); border-radius: 999px; padding: 3px 8px; cursor: pointer; }
   .pick:hover { border-color: var(--yellow); }
   .pick:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  /* Grey with no board, pulsing while the session works, green once a board is read, coral on a problem. */
   .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--faint); flex: none; }
-  .dot.on { background: var(--green); box-shadow: 0 0 0 3px var(--green-halo); }
+  .dot[data-tone="on"] { background: var(--green); box-shadow: 0 0 0 3px var(--green-halo); }
+  .dot[data-tone="busy"] { background: var(--yellow); animation: busy 1s ease-in-out infinite alternate; }
+  .dot[data-tone="problem"] { background: var(--coral-on-ink); }
+  @keyframes busy { to { opacity: .35; } }
+  @media (prefers-reduced-motion: reduce) { .dot { animation: none !important; } }
   /* Takes the room the controls leave, on one line cut where it runs out, so the bar keeps its height. */
-  .status { flex: 1 1 0; min-width: 0; display: flex; align-items: center; }
+  .status { flex: 0 1 auto; min-width: 0; display: flex; align-items: center; }
+  .details { flex: none; padding: 0; font: inherit; font-weight: 700; color: var(--yellow); background: none; border: 0; text-decoration: underline; cursor: pointer; }
   .said { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Two lines on a phone, where one would cut what to do. */
+  @media (max-width: 560px) { .said { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; } }
   .chip { color: var(--card); white-space: nowrap; }
   .status a { color: var(--on-ink); }
   .slot { display: grid; align-items: center; }
   .slot > * { grid-area: 1 / 1; }
-  .ends { display: flex; gap: 6px; }
-  .meter { display: flex; align-items: center; gap: 8px; }
-  .track { flex: 1; height: 6px; border-radius: 3px; background: var(--on-ink-line); overflow: hidden; }
-  .track i { display: block; height: 100%; width: 0; background: var(--yellow); transition: width .15s; }
-  .pct { font-family: var(--mono); color: var(--yellow); min-width: 4ch; text-align: right; }
-  /* As tall as the board's button whether it shows or not, so Serial stays in place as the button moves between the
-     bar and the panel. */
-  .acts { display: flex; flex: none; gap: 6px; margin-left: auto; align-items: center; justify-content: flex-end; min-height: 35px; }
+  .acts { display: flex; flex: none; gap: 6px; margin-left: auto; align-items: center; justify-content: flex-end; }
   .acts [data-off] { visibility: hidden; }
   .acts button:not(.action), .head button { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-weight: 700; font-size: 12px; color: var(--on-ink); background: transparent; border: 1px solid var(--on-ink-edge); border-radius: 999px; padding: 3px 11px; cursor: pointer; white-space: nowrap; }
   .acts button:not(.action):hover, .head button:hover { border-color: var(--yellow); color: var(--yellow); }
@@ -160,7 +153,7 @@ const manifest = readManifest();
   .dock button:focus-visible, .dock a:focus-visible, .lines:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
   .cmd:has(input:focus-visible) { box-shadow: inset 0 0 0 2px var(--blue); }
   /* The same width whatever the board last printed, so the bar never shifts as lines arrive. */
-  .acts .serial { width: 300px; gap: 8px; padding: 3px 12px; }
+  .acts .serial { width: 260px; gap: 8px; padding: 3px 12px; }
   /* Narrower where the bar would not hold every control on one row. */
   @media (max-width: 1000px) { .acts .serial { width: 220px; } }
   .last, .hide { flex: 1 1 0; min-width: 0; padding-left: 8px; border-left: 1px solid var(--on-ink-line); text-align: left; font-size: 13px; font-weight: 400; }
@@ -178,15 +171,23 @@ const manifest = readManifest();
   }
 
   .panel { border-bottom: 1px solid var(--on-ink-line); }
-  /* The steps, the message and the action on one row; each under the one before where the row would squeeze the message. */
-  .row { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr) auto; gap: 10px 24px; align-items: center; padding-top: 12px; padding-bottom: 12px; }
-  @media (max-width: 999px) { .row { grid-template-columns: minmax(0, 1fr); justify-items: start; } }
+  /* The steps, what to do right beside them, and the cross at the end; the words under the steps where a row would
+     squeeze them. */
+  .row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px 24px; align-items: center; padding-top: 10px; padding-bottom: 10px; }
+  @media (max-width: 839px) {
+    .row { grid-template-columns: minmax(0, 1fr) auto; }
+    .words { grid-column: 1 / -1; grid-row: 2; }
+  }
   /* The hand hint draws in ink on a card: here, light on the dark dock. */
   .words :global(.hand-hint) { --ink: var(--on-ink); --card: var(--ink-raised); --muted: var(--quiet-light); }
-  .words { display: flex; gap: 10px; align-items: flex-start; }
-  /* Room for the longest message, four lines, so the dock keeps its height as the message changes. */
-  .message { flex: 1; min-width: 0; min-height: calc(4 * 1.5em); margin: 0; font-size: 14px; line-height: 1.5; }
+  .words { display: flex; gap: 10px; align-items: center; min-width: 0; }
+  /* Room for two lines from 840 px, where no message takes more, so the dock keeps its height as the message changes. */
+  .message { flex: 1; min-width: 0; margin: 0; display: flex; align-items: center; font-size: 14px; line-height: 1.5; color: var(--card); }
+  @media (min-width: 840px) { .message { min-height: 3em; } }
   .message[data-notice] { padding-left: 12px; border-left: 2px solid var(--yellow); }
+  .shut { display: grid; place-items: center; width: 28px; height: 28px; flex: none; padding: 0; color: var(--on-ink); background: transparent; border: 1px solid var(--on-ink-edge); border-radius: 50%; cursor: pointer; }
+  .shut:hover { border-color: var(--yellow); color: var(--yellow); }
+  .shut svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 
   .monitor { background: var(--ink-raised); border-bottom: 1px solid var(--on-ink-line); }
   .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0 6px; border-bottom: 1px solid var(--on-ink-line); }
@@ -239,10 +240,6 @@ const manifest = readManifest();
     const link = find<HTMLAnchorElement>('link');
     const doing = find<HTMLElement>('doing');
     const sketch = find<HTMLElement>('sketch');
-    const meter = find<HTMLElement>('meter');
-    const track = find<HTMLElement>('track');
-    const fill = find<HTMLElement>('fill');
-    const pct = find<HTMLElement>('pct');
     const last = find<HTMLElement>('last');
     const disconnect = find<HTMLButtonElement>('disconnect');
     const restart = find<HTMLButtonElement>('restart');
@@ -250,7 +247,10 @@ const manifest = readManifest();
     const said = find<HTMLElement>('said');
     const panel = find<HTMLElement>('panel');
     const message = find<HTMLElement>('message');
-    const panelAction = dock.querySelector<HTMLButtonElement>('[data-dock-action="panel"]')!;
+    const details = find<HTMLButtonElement>('details');
+    const shut = find<HTMLButtonElement>('shut');
+    /** The message the visitor closed the panel on: it stays closed until the board says something else. */
+    let shutOn: string | undefined;
     const barAction = dock.querySelector<HTMLButtonElement>('[data-dock-action="bar"]')!;
     const connectAction = dock.querySelector<HTMLButtonElement>('[data-dock-action="connect"]')!;
 
@@ -274,7 +274,17 @@ const manifest = readManifest();
       if (answering !== undefined && answering !== pick.model) pick.choose(answering.id);
     }
 
-    for (const action of [panelAction, barAction]) action.addEventListener('click', () => void connection.press());
+    barAction.addEventListener('click', () => void connection.press());
+    shut.addEventListener('click', () => {
+      shutOn = connection.view.panel?.text;
+      render();
+      details.focus();
+    });
+    details.addEventListener('click', () => {
+      shutOn = undefined;
+      render();
+      shut.focus();
+    });
     connectAction.addEventListener('click', () => void connection.pressConnect());
     disconnect.addEventListener('click', () => void connection.disconnect());
     restart.addEventListener('click', () => void connection.restart());
@@ -284,7 +294,8 @@ const manifest = readManifest();
       const { bar } = view;
       dock.hidden = !bar.shown;
       if (!bar.shown) return;
-      dot.classList.toggle('on', bar.connected);
+      const busy = view.action?.disabled === true;
+      dot.dataset.tone = busy ? 'busy' : view.panel?.notice ? 'problem' : bar.connected ? 'on' : 'off';
       // Set only on a change, since what the board does is a live region.
       const linked = bar.path !== undefined;
       const name = bar.sketch ?? '';
@@ -301,12 +312,6 @@ const manifest = readManifest();
         sketch.textContent = linked ? '' : name;
       }
       if (linked) link.href = bar.path!;
-      meter.hidden = bar.progress === undefined;
-      if (bar.progress !== undefined) {
-        track.setAttribute('aria-valuenow', String(bar.progress));
-        fill.style.width = `${bar.progress}%`;
-        pct.textContent = `${bar.progress}%`;
-      }
       last.textContent = bar.last ?? '';
       paintPanel(view);
       if (!bar.disconnect && document.activeElement === disconnect) dock.focus();
@@ -314,33 +319,29 @@ const manifest = readManifest();
       if (!bar.restart && document.activeElement === restart) dock.focus();
       restart.toggleAttribute('data-off', !bar.restart);
       // The full status where the line cuts it.
-      if (said.scrollWidth > said.clientWidth) status.title = said.textContent ?? '';
+      if (said.scrollWidth > said.clientWidth || said.scrollHeight > said.clientHeight) status.title = said.textContent ?? '';
       else status.removeAttribute('title');
       monitor.show(bar.canSend);
     }
 
-    /** Paints the panel and the one action, in the panel while it is open, else in the bar. */
-    function paintPanel({ action, connect, panel: told, scene }: ConnectionView) {
-      const open = told !== undefined;
-      const focused = [panelAction, barAction, connectAction].includes(document.activeElement as HTMLButtonElement);
+    /** Paints the panel, open on a message the visitor has not closed, and the bar's action and Connect board. */
+    function paintPanel({ bar, action, connect, panel: told, scene }: ConnectionView) {
+      if (told?.text !== shutOn) shutOn = undefined;
+      const open = told !== undefined && shutOn === undefined;
       panel.hidden = !open;
+      details.hidden = told === undefined || open;
       paintFlashRail(panel, scene);
       paintHandHint(panel, scene.hint);
       // Set only on a change, since the message is a live region.
       if (message.textContent !== (told?.text ?? '')) message.textContent = told?.text ?? '';
       message.toggleAttribute('data-notice', told?.notice ?? false);
-      panelAction.hidden = action === undefined || !open;
-      // The bar's button keeps its room, so the controls after it stay in place.
-      barAction.toggleAttribute('data-off', action === undefined || open);
-      if (action !== undefined) for (const button of [panelAction, barAction]) paintAction(button, action);
-      connectAction.toggleAttribute('data-off', connect === undefined || open);
-      if (connect !== undefined) paintAction(connectAction, connect);
-      // The focus follows the action between the bar and the panel; with no action, the dock keeps it.
-      if (focused) {
-        const shown = open ? panelAction : barAction;
-        if (shown.hidden || shown.hasAttribute('data-off')) dock.focus();
-        else if (document.activeElement !== shown) shown.focus();
+      for (const [button, shown] of [[barAction, action], [connectAction, connect]] as const) {
+        // With no action left, the dock keeps the focus.
+        if (shown === undefined && document.activeElement === button) dock.focus();
+        button.toggleAttribute('data-off', shown === undefined);
       }
+      if (action !== undefined) paintAction(barAction, action, bar.progress);
+      if (connect !== undefined) paintAction(connectAction, connect);
     }
 
     board.subscribe(followChip);

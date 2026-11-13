@@ -163,7 +163,7 @@ describe('the board dock', () => {
 describe('the board dock for the board the visitor picked', () => {
   it('says to set an ESP-01S adapter to flash mode before plugging it in', () => {
     expect(dockView({ kind: 'idle' }, EMPTY_RECORD, names, boardModel('esp01s')).doing).toBe(
-      'yet. Plug in the ESP-01S set to PROG.',
+      'yet. Plug in the ESP-01S on PROG.',
     );
   });
 
@@ -198,7 +198,6 @@ describe('the board dock beside its open panel', () => {
       { kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] },
       { kind: 'noDownload' },
       { kind: 'dropped', pct: 40 },
-      { kind: 'connecting' },
       { kind: 'flashing', chip: 'ESP32', pct: 40 },
     ];
     for (const state of open) {

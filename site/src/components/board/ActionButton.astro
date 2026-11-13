@@ -2,28 +2,25 @@
 import type { HTMLAttributes } from 'astro/types';
 
 /**
- * The dock's button for the board: a plug, a bolt, an arrow or a power symbol beside its word, and a spinner in their
- * place while the session works. `paintAction` writes what it says. It is solid yellow where it is the one thing to do,
- * a ghost pill where it sits among the bar's controls, and a round icon with its word as its name and tooltip where it
- * is one of the board's own controls. A ghost or round button is tinted by what it does: green to connect, yellow to
- * flash or try again, blue to restart, coral to disconnect. Its other attributes, such as the `data-` one a script
- * finds it by, go on the button.
+ * A button of the dock's bar for the board: a pill with a plug, a bolt, an arrow or a power symbol beside its word, or,
+ * `round`, the icon alone in a circle with its word as its name and tooltip. It is tinted by what it does: green to
+ * connect, yellow to flash or try again, blue to restart, coral to disconnect. While the session works it shows a
+ * spinner, cannot be pressed, and fills as far as a write has gone. `paintAction` writes what it says. Its other
+ * attributes, such as the `data-` one a script finds it by, go on the button.
  */
 interface Props extends HTMLAttributes<'button'> {
   /** The word it opens with, before a script paints it. */
   label: string;
   /** The icon it opens with, before a script paints it. */
   icon?: 'plug' | 'bolt' | 'again' | 'restart' | 'power';
-  /** An outline among the bar's controls, not the solid button. */
-  ghost?: boolean;
   /** The icon alone in a circle, its word read out and shown on hover. */
   round?: boolean;
 }
 
-const { label, icon = 'plug', ghost = false, round = false, ...attributes } = Astro.props;
+const { label, icon = 'plug', round = false, ...attributes } = Astro.props;
 ---
 
-<button class:list={['action', { ghost: ghost || round, round }]} type="button" data-icon={icon} title={round ? label : undefined} {...attributes}>
+<button class:list={['action', { round }]} type="button" data-icon={icon} title={round ? label : undefined} {...attributes}>
   <svg class="i-plug" viewBox="0 0 16 16" aria-hidden="true">
     <path d="M6 1.6v3M10 1.6v3M4 4.6h8v2.6a4 4 0 0 1-8 0zM8 11.2v3.2"></path>
   </svg>
@@ -33,39 +30,37 @@ const { label, icon = 'plug', ghost = false, round = false, ...attributes } = As
   <svg class="i-power" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v5M4.6 4.2a5 5 0 1 0 6.8 0"></path></svg>
   <i class="spin" aria-hidden="true"></i>
   <span class="label" data-action-label>{label}</span>
+  <span class="pct" aria-hidden="true" data-action-pct></span>
 </button>
 
 <style>
-  /* As wide as its longest fixed label, such as Connect board, so it keeps its width as its label changes; a sketch's name
-     longer than that is cut, and read out whole. */
-  .action { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 164px; height: 32px; font: inherit; font-size: 13px; font-weight: 700; line-height: 1.5; white-space: nowrap; color: var(--ink); background: var(--yellow); border: 0; border-radius: 6px; cursor: pointer; }
-  .action:hover { filter: brightness(1.08); }
-  .action[hidden] { display: none; }
-  .label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-  /* While the session works, the button says what it does and cannot be pressed: an outline with a spinner. */
-  .action[aria-disabled="true"] { color: var(--on-ink); background: transparent; box-shadow: inset 0 0 0 1px var(--on-ink-edge); filter: none; cursor: default; }
+  /* As tall as the bar's other controls, and wide enough for a step's Flash such as Flash Blink · simple, so it keeps
+     its width as its word changes; a longer name is cut, and shown whole on hover. */
+  .action { --tone: var(--on-ink); position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 196px; height: 28px; padding: 0 11px; overflow: hidden; font: inherit; font-size: 12px; font-weight: 700; line-height: 1.5; white-space: nowrap; color: var(--tone); background: color-mix(in srgb, var(--tone) 10%, transparent); border: 1px solid color-mix(in srgb, var(--tone) 45%, transparent); border-radius: 999px; cursor: pointer; }
+  .action[data-icon="plug"] { --tone: var(--green-on-ink); }
+  .action:is([data-icon="bolt"], [data-icon="again"]) { --tone: var(--yellow); }
+  .action[data-icon="restart"] { --tone: var(--blue-on-ink); }
+  .action[data-icon="power"] { --tone: var(--coral-on-ink); }
+  .action:hover:not([aria-disabled="true"]) { background: color-mix(in srgb, var(--tone) 22%, transparent); border-color: var(--tone); }
   .action[data-off] { visibility: hidden; }
   .action:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-  .action svg { width: 14px; height: 14px; flex: none; }
+  .label { position: relative; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .action svg { position: relative; width: 12px; height: 12px; flex: none; }
   .action .i-plug path, .action .i-again path, .action .i-restart path, .action .i-power path { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .action .i-bolt path { fill: currentColor; }
   .action:not([data-icon="plug"]) .i-plug, .action:not([data-icon="bolt"]) .i-bolt, .action:not([data-icon="again"]) .i-again, .action:not([data-icon="restart"]) .i-restart, .action:not([data-icon="power"]) .i-power { display: none; }
-  /* The bar's pill, as tall as its other controls, and wide enough for a step's Flash such as Flash Blink · simple. */
-  .ghost { --tone: var(--on-ink); gap: 5px; width: 196px; height: 26px; font-size: 12px; color: var(--tone); background: color-mix(in srgb, var(--tone) 10%, transparent); border: 1px solid color-mix(in srgb, var(--tone) 45%, transparent); border-radius: 999px; padding: 3px 11px; }
-  .ghost[data-icon="plug"] { --tone: var(--green-on-ink); }
-  .ghost:is([data-icon="bolt"], [data-icon="again"]) { --tone: var(--yellow); }
-  .ghost[data-icon="restart"] { --tone: var(--blue-on-ink); }
-  .ghost[data-icon="power"] { --tone: var(--coral-on-ink); }
-  .round { width: 28px; height: 28px; padding: 0; }
-  .round svg { width: 14px; height: 14px; }
-  /* Named for screen readers and in the tooltip, not drawn. */
-  .round .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .ghost:hover:not([aria-disabled="true"]) { filter: none; background: color-mix(in srgb, var(--tone) 22%, transparent); border-color: var(--tone); }
-  .ghost[aria-disabled="true"] { --tone: var(--on-ink); background: transparent; box-shadow: none; }
-  .ghost svg { width: 12px; height: 12px; }
+  /* While the session works, the button says what it does and cannot be pressed; a write fills it from the left. */
+  .action[aria-disabled="true"] { --tone: var(--on-ink); background: transparent; cursor: default; }
+  .action[aria-disabled="true"]::before { content: ""; position: absolute; inset: 0; width: var(--p, 0%); background: color-mix(in srgb, var(--yellow) 30%, transparent); transition: width .15s; }
   .action[aria-disabled="true"] svg { display: none; }
-  .spin { display: none; width: 12px; height: 12px; flex: none; border-radius: 50%; border: 1.5px solid var(--on-ink-line); border-top-color: var(--yellow); box-sizing: border-box; animation: spin .8s linear infinite; }
+  .spin { position: relative; display: none; width: 12px; height: 12px; flex: none; border-radius: 50%; border: 1.5px solid var(--on-ink-line); border-top-color: var(--yellow); box-sizing: border-box; animation: spin .8s linear infinite; }
   .action[aria-disabled="true"] .spin { display: block; }
   @keyframes spin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+  .pct { position: relative; font-family: var(--mono); font-weight: 400; color: var(--yellow); }
+  .pct:empty { display: none; }
+  .round { width: 28px; padding: 0; }
+  .round svg { width: 14px; height: 14px; }
+  /* Named for screen readers and in the tooltip, not drawn. */
+  .round .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 </style>

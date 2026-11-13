@@ -4,10 +4,10 @@ import { expect } from './fake-flasher';
 /** The board dock at the bottom of every page. */
 export const dock = (page: Page) => page.getByRole('complementary', { name: 'Your board' });
 
-/** The dock's one button for the board: in its panel while the panel is open, else in its bar. */
-export const dockAction = (page: Page) => dock(page).locator('[data-dock-action]:not([data-dock-action="connect"]):visible');
+/** The dock's one action for the board, in its bar, while it offers one. */
+export const dockAction = (page: Page) => dock(page).locator('[data-dock-action="bar"]:visible');
 
-/** The dock's panel, open while the session works or after it failed. */
+/** The dock's panel, open while the session writes or after it failed. */
 export const dockPanel = (page: Page) => dock(page).locator('[data-dock-panel]');
 
 /** What the dock's panel says the board does, or why it stopped. */

@@ -302,7 +302,7 @@ test.describe('the board dock', () => {
 });
 
 test.describe('the board dock panel', () => {
-  test('opens with the progress while it flashes the open sketch, then folds away with Disconnect in the bar', async ({
+  test('opens with the progress while it flashes the open sketch, its button in the bar all along, then folds away', async ({
     page,
     fakeFlasher,
   }) => {
@@ -311,6 +311,7 @@ test.describe('the board dock panel', () => {
     await expect(panel(page)).toBeHidden();
     const serial = bar(page).getByRole('button', { name: 'Serial' });
     const before = (await serial.boundingBox())!;
+    const action = await bar(page).locator('[data-dock-action="bar"]').boundingBox();
 
     await bar(page).getByRole('button', { name: 'Flash Blink · simple' }).click();
 
@@ -318,10 +319,12 @@ test.describe('the board dock panel', () => {
     expect(await serial.boundingBox()).toEqual(before);
     await expect(panel(page).getByRole('progressbar', { name: 'Flashing' })).toHaveAttribute('aria-valuenow', '40');
     await expect(panelMessage(page)).toHaveText('Found ESP32. Keep the board plugged in.');
-    const busy = panel(page).locator('[data-dock-action]');
+    const busy = bar(page).locator('[data-dock-action="bar"]');
     await expect(busy).toHaveAttribute('aria-disabled', 'true');
+    await expect(busy).toHaveAccessibleName('Flashing…');
+    await expect(busy.locator('[data-action-pct]')).toHaveText('40%');
     await expect(busy).toBeFocused();
-    await expect(bar(page).locator('[data-dock-action="bar"]')).toBeHidden();
+    expect(await busy.boundingBox()).toEqual(action);
 
     await fakeFlasher.release();
 
@@ -338,7 +341,7 @@ test.describe('the board dock panel', () => {
     await page.goto(BLINK);
 
     await bar(page).getByRole('button', { name: 'Flash Blink · simple' }).click();
-    const busy = panel(page).locator('[data-dock-action]');
+    const busy = bar(page).locator('[data-dock-action="bar"]');
     await expect(busy).toHaveAttribute('aria-disabled', 'true');
     // Playwright waits for an aria-disabled button to be enabled, so the press is dispatched.
     await busy.dispatchEvent('click');
@@ -349,49 +352,57 @@ test.describe('the board dock panel', () => {
     expect((await fakeFlasher.calls()).filter((call) => call === 'load')).toHaveLength(1);
   });
 
-  test('shows a connection as its one step, Connect, with no step of a flash', async ({ page, fakeFlasher }) => {
+  test('says a connection in the bar alone, with its panel shut', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ holdConnect: true });
     await page.goto(BLINK);
 
     await bar(page).getByRole('button', { name: 'Connect board' }).click();
-    await expect(panelMessage(page)).toHaveText('Connecting to the board.');
 
-    await expect(panel(page).locator('[data-connect-step]')).toHaveAttribute('data-mark', 'now');
+    await expect(dock(page)).toContainText('Board is connecting');
+    await expect(bar(page).locator('[data-dock-action="bar"]')).toHaveText('Connecting…');
+    await expect(panel(page)).toBeHidden();
+  });
+
+  test('shows a lost board as its one step, Connect, with no step of a flash', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/simple'], monitorEnds: true });
+    await page.goto(BLINK);
+
+    await bar(page).getByRole('button', { name: 'Connect board' }).click();
+    await expect(panelMessage(page)).toContainText('stopped talking');
+
+    await expect(panel(page).locator('[data-connect-step]')).toHaveAttribute('data-mark', 'failed');
     await expect(panel(page).locator('[data-connect-step]')).toHaveText('Connect');
     await expect(panel(page).locator('[data-flash-step]:visible')).toHaveCount(0);
-    await expect(panel(page).locator('[data-flash-rail]')).toHaveAttribute('aria-label', 'Connecting');
   });
 
   for (const width of [380, 1100]) {
-    test(`puts the steps, the message and the button in a row where it is wide and in a column where it is not, at ${width} px`, async ({
+    test(`puts what to do right beside the step that failed where it is wide, and under it where it is not, at ${width} px`, async ({
       page,
       fakeFlasher,
     }) => {
-      await fakeFlasher.install({ holdConnect: true });
+      await fakeFlasher.install({ failFirst: { connect: 'NotFoundError' } });
       await page.setViewportSize({ width, height: 900 });
       await page.goto(BLINK);
 
       await bar(page).getByRole('button', { name: 'Flash Blink · simple' }).click();
-      await expect(panelMessage(page)).toHaveText('Connecting to the board.');
+      await expect(panelMessage(page)).toContainText('No board was chosen');
 
       const box = async (selector: string) => (await panel(page).locator(selector).first().boundingBox())!;
       const rail = await box('[data-flash-rail]');
       const words = await box('[data-dock-message]');
-      const button = await box('[data-dock-action]');
-      if (width >= 1000) {
+      if (width >= 840) {
         expect(words.x).toBeGreaterThanOrEqual(rail.x + rail.width);
-        expect(button.x).toBeGreaterThanOrEqual(words.x + words.width);
+        expect(words.x - (rail.x + rail.width)).toBeLessThanOrEqual(40);
       } else {
         expect(words.y).toBeGreaterThanOrEqual(rail.y + rail.height);
-        expect(button.y).toBeGreaterThanOrEqual(words.y + words.height);
       }
-      // Find is under way, so the rail marks it and nothing after it.
+      // Find failed, so the rail marks it and nothing after it.
       const marks = await panel(page).locator('[data-flash-step]').evaluateAll((all) => all.map((step) => (step as HTMLElement).dataset.mark));
-      expect(marks).toEqual(['now', 'todo', 'todo']);
+      expect(marks).toEqual(['failed', 'todo', 'todo']);
       await expect(panel(page).locator('[data-connect-step]')).toBeHidden();
     });
 
-    test(`keeps its button where it is as the message grows from one line to more at ${width} px`, async ({
+    test(`keeps the bar's button where it is as the session goes from connecting to a failure at ${width} px`, async ({
       page,
       fakeFlasher,
     }) => {
@@ -399,27 +410,45 @@ test.describe('the board dock panel', () => {
       await fakeFlasher.install({ holdConnect: true, failFirst: { connect: 'Error' } });
       await page.setViewportSize({ width, height: 900 });
       await page.goto(BLINK);
-      const action = panel(page).locator('[data-dock-action]');
-      // The text's own height, since the message keeps room for four lines whatever it says.
-      const lines = () =>
-        panelMessage(page).evaluate((message) => {
-          const text = document.createRange();
-          text.selectNodeContents(message);
-          return Math.round(text.getBoundingClientRect().height / 21);
-        });
+      const action = bar(page).locator('[data-dock-action="bar"]');
+      const place = async () => {
+        const { x, width, height } = (await action.boundingBox())!;
+        const foot = await dock(page).evaluate((element) => element.getBoundingClientRect().bottom);
+        const { y } = (await action.boundingBox())!;
+        return { x, width, height, fromFoot: Math.round(foot - y) };
+      };
+      const idle = await place();
 
-      await bar(page).getByRole('button', { name: 'Flash Blink · simple' }).click();
-      await expect(panelMessage(page)).toHaveText('Connecting to the board.');
-      const fewLines = await lines();
-      const before = await action.boundingBox();
+      await action.click();
+      await expect(action).toHaveText('Connecting…');
+      expect(await place()).toEqual(idle);
 
       await fakeFlasher.release();
 
       await expect(action).toHaveAccessibleName('Try again');
-      expect(await lines()).toBeGreaterThan(fewLines);
-      expect(await action.boundingBox()).toEqual(before);
+      await expect(panel(page)).toBeVisible();
+      expect(await place()).toEqual(idle);
     });
   }
+
+  test('closes its panel on the cross, and opens it again from Details in the bar', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ failFirst: { connect: 'NotFoundError' } });
+    await page.goto(BLINK);
+    await bar(page).getByRole('button', { name: 'Flash Blink · simple' }).click();
+    await expect(panel(page)).toBeVisible();
+
+    await panel(page).getByRole('button', { name: 'Close details' }).click();
+
+    await expect(panel(page)).toBeHidden();
+    await expect(bar(page).getByRole('button', { name: 'Try again' })).toBeVisible();
+    const details = bar(page).getByRole('button', { name: 'Details' });
+    await expect(details).toBeFocused();
+
+    await details.click();
+
+    await expect(panelMessage(page)).toContainText('No board was chosen');
+    await expect(details).toBeHidden();
+  });
 
   test('tries a dropped flash again in one press: it connects, then flashes the open sketch', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['sketch blink/simple'], announce: true, failFirst: { write: 'NetworkError' } });
@@ -430,9 +459,9 @@ test.describe('the board dock panel', () => {
     await bar(page).getByRole('button', { name: 'Flash Blink · simple' }).click();
 
     await expect(panelMessage(page)).toContainText('The connection dropped');
-    await expect(panel(page).getByRole('button', { name: 'Try again' })).toBeVisible();
+    await expect(dock(page).locator('.bar').getByRole('button', { name: 'Try again' })).toBeVisible();
 
-    await panel(page).getByRole('button', { name: 'Try again' }).click();
+    await dock(page).locator('.bar').getByRole('button', { name: 'Try again' }).click();
 
     await expect(panel(page)).toBeHidden();
     await expect(dock(page)).toContainText('ESP32 is running Blink · simple');
@@ -449,11 +478,11 @@ test.describe('the board dock panel', () => {
 
     await bar(page).getByRole('button', { name: 'Flash Blink · simple' }).click();
 
-    await expect(panel(page).getByRole('button', { name: 'Connect again' })).toBeVisible({ timeout: 10_000 });
+    await expect(dock(page).locator('.bar').getByRole('button', { name: 'Connect again' })).toBeVisible({ timeout: 10_000 });
     await expect(panelMessage(page)).toContainText('UART');
     await expect(panel(page).locator('[data-hand-hint]')).toHaveAttribute('data-hint', 'uart');
 
-    await panel(page).getByRole('button', { name: 'Connect again' }).click();
+    await dock(page).locator('.bar').getByRole('button', { name: 'Connect again' }).click();
 
     await expect(panel(page)).toBeHidden();
     await expect(bar(page).getByRole('button', { name: 'Disconnect' })).toBeVisible();
@@ -472,7 +501,7 @@ test.describe('the board dock panel', () => {
     await expect(panelMessage(page)).toContainText("Set the adapter's switch to PROG");
     await expect(panel(page).locator('[data-hand-hint]')).toHaveAttribute('data-hint', 'prog');
     await expect(panel(page).locator('[data-hand-hint]')).toBeVisible();
-    await expect(panel(page).getByRole('button', { name: 'Try again' })).toBeVisible();
+    await expect(dock(page).locator('.bar').getByRole('button', { name: 'Try again' })).toBeVisible();
   });
 
   test('tries a failed connect again in one press, which connects and flashes the open sketch', async ({
@@ -485,10 +514,10 @@ test.describe('the board dock panel', () => {
 
     await bar(page).getByRole('button', { name: 'Flash Blink · simple' }).click();
 
-    await expect(panelMessage(page)).toHaveText('No board was chosen. Plug it in and try again.');
+    await expect(panelMessage(page)).toHaveText('No board was chosen. Plug it in and press Try again.');
     await expect(panelMessage(page)).toHaveAttribute('data-notice');
 
-    await panel(page).getByRole('button', { name: 'Try again' }).click();
+    await dock(page).locator('.bar').getByRole('button', { name: 'Try again' }).click();
 
     await expect(panel(page)).toBeHidden();
     await expect(tagWord(page)).toHaveText('Live');
@@ -524,11 +553,11 @@ test.describe('the board dock panel', () => {
     await bar(page).getByRole('button', { name: 'Flash Blink · simple' }).click();
 
     await expect(panelMessage(page)).toHaveText('The board stopped talking to the page. Plug it back in and connect again.');
-    await expect(panel(page).getByRole('button', { name: 'Connect again' })).toBeVisible();
+    await expect(dock(page).locator('.bar').getByRole('button', { name: 'Connect again' })).toBeVisible();
     // The bar names the state; what to do is the panel's alone.
     await expect(bar(page).locator('[data-dock-status]')).toHaveText('ESP32 lost the connection');
 
-    await panel(page).getByRole('button', { name: 'Connect again' }).click();
+    await dock(page).locator('.bar').getByRole('button', { name: 'Connect again' }).click();
 
     // Connect again reads what the board holds: only Flash writes it.
     await expect(dock(page)).toContainText('ESP32 is running Blink · simple');
@@ -614,7 +643,7 @@ test.describe('the board dock panel', () => {
 
       await bar(page).getByRole('button', { name: 'Flash Blink · simple' }).click();
       await expect(panel(page)).toBeVisible();
-      await expect(bar(page).getByRole('progressbar', { name: 'Flashing' })).toBeVisible();
+      await expect(bar(page).locator('[data-action-pct]').first()).toHaveText('40%');
       expect(await controls()).toEqual(idle);
 
       await fakeFlasher.release();
@@ -650,7 +679,7 @@ test.describe('the board dock panel', () => {
       const idle = await controls();
 
       await bar(page).getByRole('button', { name: 'Flash Blink · simple' }).click();
-      await expect(bar(page).getByRole('progressbar', { name: 'Flashing' })).toBeVisible();
+      await expect(bar(page).locator('[data-action-pct]').first()).toHaveText('40%');
       expect(await controls()).toEqual(idle);
 
       await fakeFlasher.release();
@@ -713,7 +742,7 @@ test.describe('the board pick', () => {
     await page.goto('/robomania/learn/');
     await pick(page).selectOption({ label: 'ESP-01S' });
 
-    await expect(dock(page)).toContainText('set to PROG');
+    await expect(dock(page)).toContainText('on PROG');
     const picker = await pick(page).boundingBox();
     const connect = await dock(page).getByRole('button', { name: 'Connect board' }).boundingBox();
     const serial = await dock(page).getByRole('button', { name: 'Serial' }).boundingBox();

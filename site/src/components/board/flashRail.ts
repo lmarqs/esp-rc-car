@@ -20,7 +20,6 @@ export function paintFlashRail(root: HTMLElement, scene: FlashScene): void {
   rail.querySelectorAll<HTMLElement>('[data-flash-step]').forEach((step, index) => {
     step.dataset.mark = scene.steps[index]!;
   });
-  rail.querySelector('[data-flash-percent]')!.textContent = scene.fill === undefined ? '' : `${scene.fill.pct}%`;
 
   const [first, second] = rail.querySelectorAll<HTMLElement>('[data-flash-seg]') as unknown as [HTMLElement, HTMLElement];
   fillSegment(first, find === 'done' ? 100 : 0, undefined, find === 'now');

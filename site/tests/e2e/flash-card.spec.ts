@@ -114,7 +114,7 @@ test.describe('the Running step', () => {
     await expect(message(page)).toHaveText(TO_THE_BAR);
     await expect(message(page)).not.toHaveClass('notice');
 
-    await dockPanel(page).getByRole('button', { name: 'Connect again' }).click();
+    await dock(page).locator('.bar').getByRole('button', { name: 'Connect again' }).click();
 
     // The board restarts into what it holds and is read: only the dock's Flash writes it.
     await expect(dock(page)).toContainText('ESP32 is running Omnidirectional robot');
@@ -148,14 +148,14 @@ test.describe('a failure', () => {
     {
       name: 'noPort',
       install: { failFirst: { connect: 'NotFoundError' } },
-      said: 'No board was chosen. Plug it in and try again.',
+      said: 'No board was chosen. Plug it in and press Try again.',
       button: 'Try again',
       calls: ['connect', 'disconnect', ...flashed],
     },
     {
       name: 'portBusy',
       install: { failFirst: { connect: 'InvalidStateError' } },
-      said: 'Another program is using the board. Close the serial monitor or the Arduino IDE, then connect again.',
+      said: 'Another program is using the board. Close the serial monitor or the Arduino IDE, then press Try again.',
       button: 'Try again',
       calls: ['connect', 'disconnect', ...flashed],
     },
@@ -204,7 +204,7 @@ test.describe('a failure', () => {
       await expect(dockMessage(page)).toHaveText(said);
       await expect(message(page)).toHaveText(TO_THE_BAR);
       await expect(card(page).getByRole('button')).toHaveCount(0);
-      await dockPanel(page).getByRole('button', { name: button }).click();
+      await dock(page).locator('.bar').getByRole('button', { name: button }).click();
       await expect(message(page)).toHaveText(RUNNING);
       expect(await fakeFlasher.calls()).toEqual(calls);
     });

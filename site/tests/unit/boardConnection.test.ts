@@ -22,11 +22,8 @@ describe('connectionView panel words', () => {
     expect(states.map((state) => viewOf(state).panel)).toEqual([undefined, undefined, undefined]);
   });
 
-  it('says what the page does, and to keep the board plugged in while flashing', () => {
-    expect(viewOf({ kind: 'connecting' }).panel).toEqual({
-      text: 'Connecting to the board.',
-      notice: false,
-    });
+  it('leaves a connection to the bar, and says to keep the board plugged in while flashing', () => {
+    expect(viewOf({ kind: 'connecting' }).panel).toBeUndefined();
     expect(viewOf({ kind: 'flashing', chip: 'ESP32', pct: 40 }).panel).toEqual({
       text: 'Found ESP32. Keep the board plugged in.',
       notice: false,
@@ -34,14 +31,14 @@ describe('connectionView panel words', () => {
   });
 
   it.each<[SessionState, string]>([
-    [{ kind: 'noPort' }, 'No board was chosen. Plug it in and try again.'],
+    [{ kind: 'noPort' }, 'No board was chosen. Plug it in and press Try again.'],
     [
       { kind: 'portBusy' },
-      'Another program is using the board. Close the serial monitor or the Arduino IDE, then connect again.',
+      'Another program is using the board. Close the serial monitor or the Arduino IDE, then press Try again.',
     ],
     [
       { kind: 'noAnswer' },
-      'The board did not answer. Hold its BOOT button and connect again. On an ESP-01S, set the USB adapter to flash mode first.',
+      'The board did not answer. Hold its BOOT button and press Try again. On an ESP-01S, set the USB adapter to flash mode first.',
     ],
     [
       { kind: 'running', chip: 'ESP32', output: [], lost: true },
@@ -54,10 +51,10 @@ describe('connectionView panel words', () => {
   it('says how to make the picked board answer', () => {
     expect(viewOf({ kind: 'noAnswer' }, { pick: boardModel('esp01s') }).panel?.text).toBe(
       "The board did not answer. Set the adapter's switch to PROG, the flash position, or put its jumper on. " +
-        'Then unplug the adapter, plug the adapter back in and connect again.',
+        'Then unplug the adapter, plug the adapter back in and press Try again.',
     );
     expect(viewOf({ kind: 'noAnswer' }, { pick: boardModel('esp32') }).panel?.text).toBe(
-      'The board did not answer. Hold its BOOT button and connect again.',
+      'The board did not answer. Hold its BOOT button and press Try again.',
     );
   });
 
@@ -101,7 +98,7 @@ describe('connectionView panel words', () => {
       shown: true,
       connected: false,
       chip: 'ESP8266',
-      doing: 'cannot be flashed with this sketch',
+      doing: 'cannot run this sketch',
       disconnect: false,
       restart: false,
       canSend: false,
@@ -360,9 +357,8 @@ describe('connectionView panel message', () => {
 });
 
 describe('connectionView panel', () => {
-  it('opens while the session works, waits in flash mode, failed or lost', () => {
+  it('opens while the session writes, waits in flash mode, failed or lost', () => {
     const open: SessionState[] = [
-      { kind: 'connecting' },
       { kind: 'flashing', chip: 'ESP32', pct: 50 },
       { kind: 'settings', chip: 'ESP32', opened: {} },
       { kind: 'reading', chip: 'ESP32' },
@@ -379,8 +375,8 @@ describe('connectionView panel', () => {
     for (const state of open) expect(viewOf(state).panel, state.kind).toBeDefined();
   });
 
-  it('stays closed while idle, while a board runs and in a browser that cannot reach one', () => {
-    for (const state of [{ kind: 'idle' }, running, { kind: 'unsupported' }] as const) {
+  it('stays closed while idle, while it connects, while a board runs and in a browser that cannot reach one', () => {
+    for (const state of [{ kind: 'idle' }, { kind: 'connecting' }, running, { kind: 'unsupported' }] as const) {
       expect(viewOf(state).panel, state.kind).toBeUndefined();
     }
   });

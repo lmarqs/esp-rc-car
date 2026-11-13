@@ -32,7 +32,6 @@ const STEPS = [
             <svg class="failed" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"></path></svg>
           </i>
           <span class="word">{word}</span>
-          {index === 1 && <em class="pct" data-flash-percent />}
         </span>
       </>
     ))
@@ -46,10 +45,9 @@ const STEPS = [
   svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
   .done, .failed { display: none; }
   [data-work="connect"] :is([data-flash-step], .seg), [data-work="flash"] [data-connect-step] { display: none; }
-  .pct { min-width: 4ch; font: 400 12px var(--mono); font-style: normal; color: var(--yellow); }
 
   /* A line that fills from the left as far as its step has gone. */
-  .seg { position: relative; flex: 1 1 16px; min-width: 16px; height: 1px; overflow: hidden; background: var(--on-ink-line); }
+  .seg { position: relative; flex: none; width: 24px; height: 1px; overflow: hidden; background: var(--on-ink-line); }
   .seg::before { content: ""; position: absolute; inset: 0; width: var(--p, 0%); background: var(--yellow); transition: width .2s; }
   .seg[data-tone="written"]::before { background: var(--green-on-ink); }
   .seg[data-tone="failed"]::before { background: var(--coral-on-ink); }

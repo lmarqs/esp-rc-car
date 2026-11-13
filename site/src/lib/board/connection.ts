@@ -36,7 +36,7 @@ function noImageNotice(
 }
 
 /**
- * The board's message for the session's `state`, or `undefined` when the dock shows only the picture. A missing image
+ * The board's message for the session's `state`, or `undefined` when the bar says it all, as while it connects. A missing image
  * names the sketch `tried`, the one last flashed. `board` is the board the visitor picked, which the hints are for.
  */
 function boardMessage(
@@ -46,8 +46,6 @@ function boardMessage(
   board: BoardModel | undefined,
 ): BoardMessage | undefined {
   switch (state.kind) {
-    case 'connecting':
-      return { text: wording.CONNECTING, notice: false };
     case 'flashing':
       return { text: `${wording.found(state.chip)}. Keep the board plugged in.`, notice: false };
     case 'flashMode':
@@ -169,8 +167,8 @@ export interface ConnectionView {
   /** Connect board beside a Flash that would connect and write in one press: present while no board is connected. */
   readonly connect?: ConnectionAction;
   /**
-   * What the dock's panel says, which opens it: while the session works, waits in flash mode, failed, lost or refused.
-   * Absent while the dock shows only its bar.
+   * What the dock's panel says, which opens it: while the session writes, waits in flash mode or on the board's
+   * settings, failed, lost or refused. Absent while the bar says it all, as while the session connects.
    */
   readonly panel?: BoardMessage;
   readonly scene: FlashScene;
@@ -341,7 +339,7 @@ function barFor(
       return { shown: true, connected: false, chip: 'Board', doing: 'is connecting', ...NOTHING };
     case 'noImage':
       // The session found the chip, then let go of the port: the board is plugged in, but not read.
-      return { shown: true, connected: false, chip: state.chip, doing: 'cannot be flashed with this sketch', ...NOTHING };
+      return { shown: true, connected: false, chip: state.chip, doing: 'cannot run this sketch', ...NOTHING };
     case 'idle':
       if (state.released) {
         // Disconnect let go of the port, not of the board, which goes on running what it holds.
@@ -357,7 +355,7 @@ function barFor(
 /** The bar with no board read, and how to plug a board in unless the panel is `open` and says it. */
 function noBoard(pick: BoardModel | undefined, open: boolean): DockBar {
   const plugIn = pick?.flashSwitch
-    ? `yet. Plug in the ${pick.name} set to PROG.`
+    ? `yet. Plug in the ${pick.name} on PROG.`
     : 'yet. Plug one in over USB.';
   return { shown: true, connected: false, chip: 'No board', doing: open ? 'yet.' : plugIn, ...NOTHING };
 }

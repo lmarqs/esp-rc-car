@@ -2,19 +2,18 @@ import type { BoardModel } from '../board/models';
 
 /**
  * The plain words for what a flash session is doing or why it stopped, which the board's connection and the dock show,
- * and the card for a browser that cannot flash. A sentence that tells the visitor which button to press next is left
- * to the caller, which knows its buttons.
+ * and the card for a browser that cannot flash. A sentence that sends the visitor to a button names the dock's: Try
+ * again after a failure to connect, Connect again once a board is lost or left in flash mode.
  */
-export const CONNECTING = 'Connecting to the board.';
 /** Why the page cannot flash in this browser, and what to do instead; `UNSUPPORTED` says both. */
 export const NO_WEB_SERIAL = 'This browser cannot reach a USB board.';
 export const USE_CHROME_OR_EDGE = 'Open this page in Chrome or Edge on a computer.';
 export const UNSUPPORTED = `${NO_WEB_SERIAL} ${USE_CHROME_OR_EDGE}`;
-export const NO_PORT = 'No board was chosen. Plug it in and try again.';
+export const NO_PORT = 'No board was chosen. Plug it in and press Try again.';
 export const PORT_BUSY =
-  'Another program is using the board. Close the serial monitor or the Arduino IDE, then connect again.';
+  'Another program is using the board. Close the serial monitor or the Arduino IDE, then press Try again.';
 export const NO_ANSWER =
-  'The board did not answer. Hold its BOOT button and connect again. On an ESP-01S, set the USB adapter to flash mode first.';
+  'The board did not answer. Hold its BOOT button and press Try again. On an ESP-01S, set the USB adapter to flash mode first.';
 
 /** Why the board did not answer and what to do, for the board the visitor picked, if any. */
 export function noAnswer(board: BoardModel | undefined): string {
@@ -22,10 +21,10 @@ export function noAnswer(board: BoardModel | undefined): string {
   if (board.flashSwitch) {
     return (
       "The board did not answer. Set the adapter's switch to PROG, the flash position, or put its jumper on. " +
-      'Then unplug the adapter, plug the adapter back in and connect again.'
+      'Then unplug the adapter, plug the adapter back in and press Try again.'
     );
   }
-  return 'The board did not answer. Hold its BOOT button and connect again.';
+  return 'The board did not answer. Hold its BOOT button and press Try again.';
 }
 
 /** An ESP8266 that its adapter keeps in flash mode after the write. */

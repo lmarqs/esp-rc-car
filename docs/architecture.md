@@ -92,7 +92,7 @@ The site also puts the firmware on a board. Its parts:
   every project's titles and steps. Opening points nothing: `board.send` configures the session with the opened sketch
   when a press comes, unless the session is busy, whose work belongs to the sketch it started with. The Board
   connection, in `connection.ts`, turns the session's state, that record and the opened sketch into the dock's one view,
-  which is its bar, the board's one action, and the panel's message and picture, and presses the action. It is the one
+  which is its bar, the board's one action, and the panel's message and rail, and presses the action. It is the one
   module that words the session's failures. The slice also holds the board models the site has images for, one per chip,
   and the visitor's pick of one, kept in the browser. `site/src/components/board/` holds the dock, along the bottom of
   every page, and the flash rail its panel draws. The card, the workbench and the Flash page's pick open their
@@ -197,22 +197,27 @@ Board connection, and a panel for what happens between the computer and the boar
   project page's card, or the Flash page's pick, each opened with `board.open` until its page goes. A page with no
   sketch, such as Learn, or with a sketch the page has no image of, offers Connect, which restarts and reads the
   board, and no Flash. While no board is connected, a page with a sketch offers Connect board in the bar beside Flash,
-  in the room Disconnect takes once a board is connected.
+  in the place Disconnect takes once a board is connected.
 - Flash flashes the open sketch from idle and from running in one press, and Try again after a failed flash connects and
   flashes in one press, also from another page, with one request for the port: the connection opens the settings form of
   a sketch that has settings before it writes. From running, a sketch with settings that the board does not already run
   connects anew, so its card's settings form comes before the write.
-- The panel opens while the session works, waits in flash mode or on the board's settings, failed, has no image of the
-  open sketch for the board, or is running a board it lost or refused to flash; it closes while the session is idle or
-  runs a board that answers and refused nothing. It draws the flash rail: a flash as Find, Write and Restart, and a
-  connection that writes nothing as Connect alone, nodes on a line, each
-  with its icon, a spinner while it runs, a check once done and a cross where a failure happened, the line filling as
-  the image goes down; the hand hint, the BOOT button or the adapter's switch to PROG or to UART; the message, in a
-  live region; and the action, on one row with them from 1000 px and one under the other below it. The action is in the panel while the panel is open and in the bar otherwise, so the board has one button at
-  a time. While the panel is open, the bar names the state only, such as lost the connection, and the panel alone says
-  what to do.
-- The bar's controls keep their room whether they show or not, so nothing moves as the action appears and goes, and
-  they wrap to a row of their own below 840 px.
+- The panel opens while the session writes, waits in flash mode or on the board's settings, failed, has no image of
+  the open sketch for the board, or is running a board it lost or refused to flash; it stays shut while the session is
+  idle, connects, or runs a board that answers and refused nothing, since the bar says those. It draws the flash rail: a
+  flash as Find, Write and Restart, and a connection that writes nothing as Connect alone, nodes on a line, each with
+  its icon, a spinner while it runs, a check once done and a cross where a failure happened, the line filling as the
+  image goes down; right beside it, the hand hint, the BOOT button or the adapter's switch to PROG or to UART, and the
+  message, in a live region, which names the bar's button to press; and a cross that closes it. Closed, the bar offers
+  Details, which opens it again, and a new message opens it by itself. Below 840 px the message goes under the rail.
+  While the panel is open, the bar names the state only, such as lost the connection, and the panel alone says what to
+  do.
+- The bar holds every button, each in one place: the action, which while the session works says what it does, fills as
+  far as a write has gone and shows its percentage; Connect board or Disconnect, which share a place since they are
+  never both offered; Restart board; and Serial. They keep their room whether they show or not, so nothing moves as the
+  board's state changes, and they wrap to a row of their own below 840 px. The dot before the status is grey with no
+  board, pulses yellow while the session works, is green while the site reads a board and coral on a problem. The
+  status is one line, and two at most below 560 px.
 
 The dock also holds the visitor's pick of board, which the dock, the workbench and the project cards follow: the dock
 and the workbench give that board's hints, such as the flash switch of an ESP-01S adapter, and each project card says
