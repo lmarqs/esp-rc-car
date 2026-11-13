@@ -4,8 +4,7 @@ import type { WatchRow } from '../../lib/workbench/board';
 import type { OutputLine, RunnerView, RunStatus } from '../../lib/workbench/simulator';
 import { sketchSourcePath } from '../../lib/workbench/source';
 import type { SessionState } from '../../lib/flash';
-import { boardMessage, type BoardMessage } from '../../lib/board/connection';
-import type { BoardAction, BoardStatus, PaneMode } from '../../lib/workbench/link';
+import type { BoardStatus, PaneMode } from '../../lib/workbench/link';
 import type { SliderShortcut } from '../../lib/workbench/step';
 
 /** How many lines of serial output the terminal shows, the newest at the bottom. */
@@ -224,13 +223,14 @@ export function changedRows(
 
 /**
  * The tag on the board pane's frame: a word that names what the pane shows, and a sentence that says more, as the
- * pane's `mode` and the board's `status` have it. While the session works on the My board view's `action`, the
- * sentence names what it does.
+ * pane's `mode` and the board's `status` have it. While My board waits, the sentence names what the `session` works
+ * on, or else what the board runs; `board` is the board the visitor picked, whose adapter may need its reset pressed.
  */
 export function paneTag(
   mode: PaneMode,
   status: BoardStatus,
-  action: BoardAction | undefined,
+  session?: SessionState,
+  board?: BoardModel,
 ): { readonly word: string; readonly title: string } {
   switch (mode) {
     case 'simulator':
@@ -244,55 +244,29 @@ export function paneTag(
     case 'live':
       return { word: 'Live', title: 'Drawn from what your board prints' };
     case 'waiting':
-      return { word: 'My board', title: action?.disabled ? action.label : waitingTitle(status) };
+      return { word: 'My board', title: busyTitle(session) ?? waitingTitle(status, board) };
   }
 }
 
-function waitingTitle(status: BoardStatus): string {
+function busyTitle(session: SessionState | undefined): string | undefined {
+  if (session?.kind === 'connecting') return 'Connecting…';
+  if (session?.kind === 'flashing') return 'Flashing…';
+  return undefined;
+}
+
+function waitingTitle(status: BoardStatus, board: BoardModel | undefined): string {
   switch (status.kind) {
     case 'simulated':
       return 'Not connected';
     case 'connected':
-      return 'Waiting for it to name its sketch';
+      return board?.flashSwitch
+        ? 'Waiting for it to name its sketch: press reset on its adapter'
+        : 'Waiting for it to name its sketch';
     case 'live':
       return 'Runs this step';
     case 'step':
       return `Runs ${status.id}`;
     case 'sketch':
       return `Runs ${status.key}`;
-  }
-}
-
-/**
- * What the My board view says while the board does not run the selected step: what the session does or what failed,
- * as {@link boardMessage} has it, else what the board runs and what to do. `selectedId` is the selected step's id, as
- * its tab names it; the other arguments are {@link boardMessage}'s. `undefined` for a board that runs the step.
- */
-export function waitingMessage(
-  session: SessionState,
-  status: BoardStatus,
-  selectedId: string,
-  flashed: string,
-  showRefusal: boolean,
-  board?: BoardModel,
-): BoardMessage | undefined {
-  const message = boardMessage(session, flashed, showRefusal, board);
-  if (message !== undefined) return message;
-  const say = (text: string): BoardMessage => ({ text, notice: false });
-  switch (status.kind) {
-    case 'simulated':
-      return say('No board connected. Plug it in with a USB cable, then connect.');
-    case 'connected':
-      return say(
-        board?.flashSwitch
-          ? `Your board has not named its sketch. Press reset on its adapter, or flash ${selectedId} to use it here.`
-          : `Your board is connected but has not named its sketch. Flash ${selectedId} to use it here.`,
-      );
-    case 'live':
-      return undefined;
-    case 'step':
-      return say(`Your board runs ${status.id}. Flash ${selectedId} to see it here.`);
-    case 'sketch':
-      return say(`Your board runs ${status.key}. Flash ${selectedId} to see it here.`);
   }
 }

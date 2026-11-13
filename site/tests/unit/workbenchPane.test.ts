@@ -3,9 +3,7 @@ import type { SessionState } from '../../src/lib/flash/session';
 import type { BlinkBoard } from '../../src/lib/workbench/blinkBoard';
 import {
   initialPane,
-  paneAction,
   paneStatus,
-  showsRefusal,
   reducePane,
   type PaneEvent,
   type PaneProject,
@@ -216,54 +214,12 @@ describe('the board pane', () => {
     });
   });
 
-  describe("a press of the My board view's button or Flash again", () => {
-    it('names the first step as flashed until the visitor flashes another', () => {
-      expect(after().flashed).toBe('blink/simple');
-      expect(after(connected, tab(COMMANDS), { kind: 'press', action: 'flash' }).flashed).toBe('blink/commands');
-    });
-
-    it('says what the session works on after a press, until it is done', () => {
-      const flashing: SessionState = { kind: 'flashing', chip: 'ESP32', pct: 10 };
-      const pressed = after(connected, { kind: 'press', action: 'flash' }, { kind: 'session', state: flashing });
-      expect(paneAction(blink, pressed)).toEqual({ label: 'Flashing…', icon: 'bolt', event: 'flash', disabled: true });
-      expect(paneAction(blink, after(connected))).toMatchObject({ label: 'Flash simple to board', disabled: false });
-    });
-
-    it('offers to try a failed flash again in one press, and a failed connect as a connect', () => {
-      const connecting: PaneEvent = { kind: 'session', state: { kind: 'connecting' } };
-      const noAnswer: PaneEvent = { kind: 'session', state: { kind: 'noAnswer' } };
-      const flashFailed = after(connected, { kind: 'press', action: 'flash' }, connecting, noAnswer);
-      expect(paneAction(blink, flashFailed)).toMatchObject({ label: 'Try again', event: 'retry' });
-      const connectFailed = after({ kind: 'press', action: 'connect' }, connecting, noAnswer);
-      expect(paneAction(blink, connectFailed)).toMatchObject({ label: 'Try again', event: 'connect' });
-    });
-
-    it('names a flash started elsewhere after a connect the visitor pressed here', () => {
-      const flashing: SessionState = { kind: 'flashing', chip: 'ESP32', pct: 10 };
-      const connecting: SessionState = { kind: 'connecting' };
-      const pane = after({ kind: 'press', action: 'connect' }, { kind: 'session', state: connecting }, connected, {
-        kind: 'session',
-        state: flashing,
-      });
-      expect(paneAction(blink, pane)).toEqual({ label: 'Flashing…', icon: 'bolt', event: 'flash', disabled: true });
-    });
-
-    it('shows a refused flash until the visitor picks another step', () => {
-      const refused: SessionState = { ...running, flashRefused: { key: 'blink/simple', available: ['ESP32'] } };
-      const pane = after({ kind: 'session', state: refused });
-      expect(showsRefusal(pane)).toBe(true);
-      expect(showsRefusal(reducePane(blink, pane, tab(INPUT)))).toBe(false);
-      expect(showsRefusal(after(connected))).toBe(false);
-    });
-  });
-
   it('forgets what it heard and knew as the session connects again, and waits once the board is lost', () => {
     const live = after(myBoard, tab(INPUT), connected, line('sketch blink/input'), line('delay 700'));
     const lost = reducePane(blink, live, { kind: 'session', state: { ...running, lost: true } });
     expect(lost).toMatchObject({ chosen: 'board', mode: 'waiting', simulation: live.simulation });
     expect(lost.followed).toBeUndefined();
     expect(paneStatus(blink, lost)).toEqual({ kind: 'simulated' });
-    expect(paneAction(blink, lost)).toMatchObject({ event: 'connect', label: 'Connect my board' });
 
     const again = reducePane(blink, lost, { kind: 'session', state: { kind: 'connecting' } });
     expect(again.heard).toBeUndefined();
@@ -273,14 +229,13 @@ describe('the board pane', () => {
 
 describe('a board left in flash mode after a flash', () => {
   const esp8266: SessionState = { kind: 'running', chip: 'ESP8266', output: [] };
-  const flashMode: PaneEvent = { kind: 'session', state: { kind: 'flashMode', chip: 'ESP8266' } };
+  const flashMode: PaneEvent = { kind: 'session', state: { kind: 'flashMode', chip: 'ESP8266' }, flashed: 'blink/input' };
   const connecting: PaneEvent = { kind: 'session', state: { kind: 'connecting' } };
 
   it('is live on the written step once read again, though the port opened too late to hear it', () => {
     const state = after(
       { kind: 'session', state: esp8266 },
       tab(INPUT),
-      { kind: 'press', action: 'flash' },
       flashMode,
       connecting,
       { kind: 'session', state: esp8266 },
@@ -294,7 +249,6 @@ describe('a board left in flash mode after a flash', () => {
     const state = after(
       { kind: 'session', state: esp8266 },
       tab(INPUT),
-      { kind: 'press', action: 'flash' },
       flashMode,
       connecting,
       noPort,
@@ -305,9 +259,13 @@ describe('a board left in flash mode after a flash', () => {
     expect(paneStatus(blink, state)).toEqual({ kind: 'live' });
   });
 
-  it('offers to connect while the board waits in flash mode', () => {
-    const state = after({ kind: 'session', state: esp8266 }, { kind: 'press', action: 'flash' }, flashMode);
+  it('runs the key the site flashed, though the visitor picked another step since', () => {
+    const commands: PaneEvent = { ...flashMode, flashed: 'blink/commands' };
+    const state = after({ kind: 'session', state: esp8266 }, tab(INPUT), commands, connecting, {
+      kind: 'session',
+      state: esp8266,
+    });
 
-    expect(paneAction(blink, state)).toMatchObject({ event: 'connect', label: 'Connect my board' });
+    expect(paneStatus(blink, state)).toEqual({ kind: 'step', key: 'blink/commands', id: 'commands' });
   });
 });

@@ -1,4 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
+import { dock, dockAction, plugIn } from './dock';
 import { expect, test, type FakeFlasherOptions } from './fake-flasher';
 
 const BLINK = '/robomania/projects/blink/';
@@ -11,20 +12,19 @@ const tag = (page: Page) => bench(page).locator('[data-pane-tag]');
 const boardSwitch = (page: Page) => bench(page).getByRole('group', { name: 'What the board pane shows' });
 const simulatorButton = (page: Page) => bench(page).locator('[data-pane-simulator]');
 const myBoardButton = (page: Page) => bench(page).locator('[data-pane-board]');
-/** The My board view's button, which connects the board or flashes the step. */
-const boardButton = (page: Page) => bench(page).locator('[data-board-action]');
-const message = (page: Page) => bench(page).locator('[data-board-message]');
 const picture = (page: Page) => bench(page).locator('[data-picture]');
 const serial = (page: Page) => bench(page).getByRole('log', { name: 'Serial output' });
 const card = (page: Page) => page.getByRole('region', { name: 'Put it on your board' });
 
-/** The icon the My board view's button shows: `plug` or `bolt`. */
-async function icon(page: Page) {
-  for (const name of ['plug', 'bolt']) {
-    if (await boardButton(page).locator(`.i-${name}`).isVisible()) return name;
-  }
-  return 'none';
-}
+/**
+ * Where `locator` sits on the page rather than in the window, so a scroll does not count as a move: the page may
+ * come back from another one scrolled.
+ */
+const onPage = (locator: Locator) =>
+  locator.evaluate((element) => {
+    const { x, y, width, height } = element.getBoundingClientRect();
+    return { x: x + scrollX, y: y + scrollY, width, height };
+  });
 
 /** Which half of the switch is pressed, as each reads it out. */
 async function pressed(page: Page) {
@@ -32,28 +32,20 @@ async function pressed(page: Page) {
   return Promise.all(halves.map((half) => half.getAttribute('aria-pressed')));
 }
 
-/**
- * Where the scope sits in the board pane's frame. The page scrolls the My board view's button into view as it is
- * pressed, so a box on screen would move with the page.
- */
-async function scopeInFrame(page: Page) {
-  return bench(page)
-    .locator('.scope')
-    .evaluate((scope) => {
-      const frame = scope.closest('[data-frame]')!.getBoundingClientRect();
-      const box = scope.getBoundingClientRect();
-      return { x: box.x - frame.x, y: box.y - frame.y, width: box.width, height: box.height };
-    });
+/** Connects the board without flashing it, then opens My board. */
+async function connect(page: Page) {
+  await plugIn(page);
+  await myBoardButton(page).click();
 }
 
-/** Opens My board and connects the board from its view. */
-async function connect(page: Page) {
+/** Opens My board and presses the dock's button, which connects the board and flashes the selected step. */
+async function flashFromDock(page: Page) {
   await myBoardButton(page).click();
-  await boardButton(page).click();
+  await dockAction(page).click();
 }
 
 test.describe('the switch', () => {
-  test('has the simulator pressed before a board is connected, and My board offers to connect, with a plug', async ({
+  test('has the simulator pressed before a board is connected, and My board says no board is connected', async ({
     page,
     fakeFlasher,
   }) => {
@@ -66,57 +58,57 @@ test.describe('the switch', () => {
     await expect(myBoardButton(page)).toHaveAttribute('title', 'My board: not connected');
     expect(await pressed(page)).toEqual(['true', 'false']);
     await expect(tag(page)).toHaveText('Simulated Running in the browser');
-    await expect(boardButton(page)).toBeHidden();
 
     await myBoardButton(page).click();
 
     expect(await pressed(page)).toEqual(['false', 'true']);
-    await expect(boardButton(page)).toHaveAccessibleName('Connect my board');
-    expect(await icon(page)).toBe('plug');
+    await expect(tag(page)).toHaveText('My board Not connected');
     expect(await fakeFlasher.calls()).toEqual([]);
   });
 
-  test('shows what to do under My board before a board is connected, and Simulator brings the LED back', async ({
+  test('keeps the LED and the watch in place, dimmed, under My board, and Simulator brings them back', async ({
     page,
     fakeFlasher,
   }) => {
     await fakeFlasher.install();
     await page.goto(BLINK);
+    const ledRow = bench(page).locator('.led-row');
+    const opacity = () => ledRow.evaluate((row) => getComputedStyle(row).opacity);
+    const before = await ledRow.boundingBox();
+    expect(await opacity()).toBe('1');
 
     await myBoardButton(page).click();
 
-    await expect(message(page)).toHaveText('No board connected. Plug it in with a USB cable, then connect.');
-    await expect(boardButton(page)).toHaveAccessibleName('Connect my board');
-    await expect(picture(page)).toBeHidden();
     await expect(tag(page)).toHaveText('My board Not connected');
+    await expect(picture(page)).toBeVisible();
+    expect(await opacity()).toBe('0.4');
+    expect(await ledRow.boundingBox()).toEqual(before);
+    await expect(bench(page).locator('[data-watch-row="LED"] dd')).toHaveText('…');
 
     await simulatorButton(page).click();
 
-    await expect(picture(page)).toBeVisible();
-    await expect(message(page)).toBeHidden();
     await expect(tagWord(page)).toHaveText('Simulated');
+    expect(await opacity()).toBe('1');
     await expect(serial(page)).toContainText('sketch blink/simple');
   });
 
-  test('goes live once the board names the selected step', async ({
-    page,
-    fakeFlasher,
-  }) => {
-    await fakeFlasher.install({ lines: ['sketch blink/simple'] });
+  test('goes live once the board names the selected step', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install();
     await page.goto(BLINK);
-
     await connect(page);
+    await expect(tag(page)).toHaveText('My board Waiting for it to name its sketch');
+
+    await fakeFlasher.print('sketch blink/simple');
 
     await expect(tag(page)).toHaveText('Live Drawn from what your board prints');
     await expect(bench(page).locator('[data-frame]')).toHaveAttribute('data-mode', 'live');
-    await expect(boardButton(page)).toBeHidden();
     await expect(myBoardButton(page)).toHaveAttribute('title', 'My board: connected');
     expect(await pressed(page)).toEqual(['false', 'true']);
-    // The workbench connects by restarting the board into what it holds: nothing is downloaded or written.
+    // Connecting from a page with no sketch open restarts the board into what it holds: nothing is written.
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
   });
 
-  test('waits under My board and offers to flash the selected step when the board runs another step', async ({
+  test('waits under My board when the board runs another step, and the dock offers to flash the selected one', async ({
     page,
     fakeFlasher,
   }) => {
@@ -126,13 +118,11 @@ test.describe('the switch', () => {
     await connect(page);
 
     await expect(tag(page)).toHaveText('My board Runs commands');
-    await expect(message(page)).toHaveText('Your board runs commands. Flash simple to see it here.');
-    await expect(boardButton(page)).toHaveAccessibleName('Flash simple to board');
-    expect(await icon(page)).toBe('bolt');
+    await expect(dockAction(page)).toHaveAccessibleName('Flash Blink · 1 simple');
     expect(await pressed(page)).toEqual(['false', 'true']);
   });
 
-  test('names a board that runs simple on the commands step, and offers to flash commands', async ({
+  test('names a board that runs simple on the commands step, and the dock offers to flash commands', async ({
     page,
     fakeFlasher,
   }) => {
@@ -143,27 +133,26 @@ test.describe('the switch', () => {
     await connect(page);
 
     await expect(tag(page)).toHaveText('My board Runs simple');
-    await expect(boardButton(page)).toHaveText('Flash commands');
-    await expect(boardButton(page)).toHaveAccessibleName('Flash commands to board');
+    await expect(dockAction(page)).toHaveAccessibleName('Flash Blink · 4 commands');
   });
 
-  test('names a sketch from outside the project, and offers to flash the step', async ({ page, fakeFlasher }) => {
+  test('names a sketch from outside the project', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['sketch servo/sweep'] });
     await page.goto(BLINK);
 
     await connect(page);
 
     await expect(tag(page)).toHaveText('My board Runs servo/sweep');
-    await expect(message(page)).toHaveText('Your board runs servo/sweep. Flash simple to see it here.');
-    await expect(boardButton(page)).toHaveAccessibleName('Flash simple to board');
   });
 
   test('changes the tag, a live region, in one change, so a screen reader announces it once', async ({
     page,
     fakeFlasher,
   }) => {
-    await fakeFlasher.install({ lines: ['sketch blink/simple'] });
+    await fakeFlasher.install({ lines: ['sketch blink/commands'] });
     await page.goto(BLINK);
+    await connect(page);
+    await expect(tag(page)).toHaveText('My board Runs commands');
     await tag(page).evaluate((region) => {
       const changes: string[] = [];
       (window as unknown as { tagChanges: string[] }).tagChanges = changes;
@@ -172,7 +161,7 @@ test.describe('the switch', () => {
       }).observe(region, { childList: true, characterData: true, subtree: true });
     });
 
-    await connect(page);
+    await tab(page, '4 commands').click();
 
     await expect(tagWord(page)).toHaveText('Live');
     const changes = await page.evaluate(() => (window as unknown as { tagChanges: string[] }).tagChanges);
@@ -180,17 +169,31 @@ test.describe('the switch', () => {
     expect(changes.every((change) => change === 'childList')).toBe(true);
   });
 
-  test('offers to flash the step on a board that has not named its sketch', async ({ page, fakeFlasher }) => {
+  test('says it waits for a board that has not named its sketch, and the dock offers to flash the step', async ({
+    page,
+    fakeFlasher,
+  }) => {
     await fakeFlasher.install({ lines: ['HIGH'] });
     await page.goto(BLINK);
 
     await connect(page);
 
-    await expect(boardButton(page)).toHaveAccessibleName('Flash simple to board');
     await expect(tag(page)).toHaveText('My board Waiting for it to name its sketch');
-    await expect(message(page)).toHaveText(
-      'Your board is connected but has not named its sketch. Flash simple to use it here.',
-    );
+    await expect(dockAction(page)).toHaveAccessibleName('Flash Blink · 1 simple');
+  });
+
+  test('asks to press reset on the adapter of a picked ESP-01S that has not named its sketch', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ chip: 'ESP8266', lines: ['HIGH'] });
+    await page.goto('/robomania/learn/');
+    await page.getByRole('combobox', { name: 'My board' }).selectOption({ label: 'ESP-01S' });
+    await page.goto(BLINK);
+
+    await connect(page);
+
+    await expect(tag(page)).toHaveText('My board Waiting for it to name its sketch: press reset on its adapter');
   });
 
   test('Simulator hands the pane to the simulator while the board keeps its step, and My board takes it back', async ({
@@ -212,21 +215,6 @@ test.describe('the switch', () => {
     expect(await pressed(page)).toEqual(['false', 'true']);
     await expect(tagWord(page)).toHaveText('Live');
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
-  });
-
-  test('gives the focus to the My board half once a connect pressed from the keyboard ends live', async ({
-    page,
-    fakeFlasher,
-  }) => {
-    await fakeFlasher.install({ lines: ['sketch blink/simple'] });
-    await page.goto(BLINK);
-    await myBoardButton(page).click();
-
-    await boardButton(page).focus();
-    await page.keyboard.press('Enter');
-
-    await expect(tagWord(page)).toHaveText('Live');
-    await expect(myBoardButton(page)).toBeFocused();
   });
 
   test('outlines each half in blue when it has the keyboard focus', async ({ page, fakeFlasher }) => {
@@ -258,11 +246,54 @@ test.describe('the switch', () => {
   });
 });
 
-test.describe('flashing from the workbench', () => {
-  test("Flash step flashes the selected step's image on the open port and ends live", async ({
-    page,
-    fakeFlasher,
-  }) => {
+test.describe('the pane while the dock works on the board', () => {
+  const layout = async (page: Page) => ({
+    frame: await onPage(bench(page).locator('[data-frame]')),
+    picture: await onPage(picture(page)),
+    watch: await onPage(bench(page).locator('.watch')),
+    scope: await onPage(bench(page).locator('.scope')),
+  });
+
+  const flash = 'Flash Blink · 4 commands';
+  /** What the board does after the dock's button is pressed under My board, and what the tag and the button then say. */
+  const states: { name: string; options: FakeFlasherOptions; tag: string; action: string }[] = [
+    { name: 'connects', options: { holdConnect: true }, tag: 'My board Connecting…', action: 'Connecting…' },
+    { name: 'flashes', options: { progress: [40], hold: true }, tag: 'My board Flashing…', action: 'Flashing…' },
+    { name: 'fails', options: { failFirst: { connect: 'NotFoundError' } }, tag: 'My board Not connected', action: 'Try again' },
+    { name: 'runs another step', options: { lines: ['sketch blink/simple'] }, tag: 'My board Runs simple', action: flash },
+    { name: 'runs the step', options: { announce: true }, tag: 'Live Drawn from what your board prints', action: flash },
+  ];
+
+  for (const state of states) {
+    test(`keeps its layout and height while the board ${state.name}`, async ({ page, fakeFlasher }) => {
+      await fakeFlasher.install(state.options);
+      await page.goto(BLINK);
+      await tab(page, '4 commands').click();
+      await myBoardButton(page).click();
+      await expect(tag(page)).toHaveText('My board Not connected');
+      const waiting = await layout(page);
+
+      await dockAction(page).click();
+
+      await expect(dockAction(page)).toHaveAccessibleName(state.action);
+      await expect(tag(page)).toHaveText(state.tag);
+      await expect(picture(page)).toBeVisible();
+      expect(await layout(page)).toEqual(waiting);
+    });
+  }
+
+  test('names the work on the switch while the board connects', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ holdConnect: true, announce: true });
+    await page.goto(BLINK);
+
+    await flashFromDock(page);
+
+    await expect(myBoardButton(page)).toHaveAttribute('title', 'My board: connecting…');
+    await fakeFlasher.release();
+    await expect(tagWord(page)).toHaveText('Live');
+  });
+
+  test('goes Live once the dock flashes the selected step onto the board', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['sketch blink/simple'], announce: true });
     await page.goto(BLINK);
     await connect(page);
@@ -270,206 +301,64 @@ test.describe('flashing from the workbench', () => {
 
     await tab(page, '2 input').click();
     await expect(tag(page)).toHaveText('My board Runs simple');
-    await boardButton(page).click();
+    await dockAction(page).click();
 
     await expect(tagWord(page)).toHaveText('Live');
     expect(await fakeFlasher.loaded()).toEqual([['blink/input/esp32/input.ino.bootloader.bin', 'blink/input/esp32/input.ino.bin']]);
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200', 'connect reuse', 'load', 'write', 'monitor 115200']);
   });
 
-  test('shows the progress in place of the picture, and the picture once the board runs', async ({ page, fakeFlasher }) => {
-    await fakeFlasher.install({ lines: ['sketch blink/simple'], announce: true, progress: [40], hold: true });
-    await page.goto(BLINK);
-    await connect(page);
-    await tab(page, '3 timer').click();
-    const scope = bench(page).locator('.scope');
-    const before = await scope.boundingBox();
-
-    await boardButton(page).click();
-
-    await expect(message(page)).toHaveText('Found ESP32. Keep the board plugged in.');
-    expect(await scope.boundingBox()).toEqual(before);
-    await expect(bench(page).getByRole('progressbar', { name: 'Flashing' })).toHaveAttribute('aria-valuenow', '40');
-    await expect(bench(page).getByText('40%')).toBeVisible();
-    await expect(picture(page)).toBeHidden();
-    await expect(tag(page)).toHaveText('My board Flashing…');
-    await expect(boardButton(page)).toHaveAttribute('aria-disabled', 'true');
-    // Playwright waits for an aria-disabled button to be enabled, so the press is dispatched.
-    await boardButton(page).dispatchEvent('click');
-    expect((await fakeFlasher.calls()).filter((call) => call === 'load')).toHaveLength(1);
-
-    await fakeFlasher.release();
-
-    await expect(picture(page)).toBeVisible();
-    await expect(message(page)).toBeHidden();
-    await expect(tagWord(page)).toHaveText('Live');
-  });
-
-  test('says it is connecting in place of the picture', async ({ page, fakeFlasher }) => {
-    await fakeFlasher.install({ lines: ['sketch blink/simple'], holdConnect: true });
+  test('goes Live on the step the dock wrote once a board left in flash mode is read again', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    // An ESP8266 that prints nothing after the write is still in flash mode, and never names its sketch.
+    await fakeFlasher.install({ chip: 'ESP8266' });
     await page.goto(BLINK);
 
-    await connect(page);
+    await flashFromDock(page);
+    await expect(dockAction(page)).toHaveAccessibleName('Connect again', { timeout: 10_000 });
+    await dockAction(page).click();
 
-    await expect(message(page)).toHaveText('Connecting to the board.');
-    await expect(picture(page)).toBeHidden();
-    await expect(boardButton(page)).toHaveAccessibleName('Connecting…');
-    await expect(boardButton(page)).toHaveAttribute('aria-disabled', 'true');
-    await expect(myBoardButton(page)).toHaveAttribute('title', 'My board: connecting…');
-    await fakeFlasher.release();
-    await expect(picture(page)).toBeVisible();
-    await expect(tagWord(page)).toHaveText('Live');
+    await expect(tag(page)).toHaveText('Live Drawn from what your board prints');
   });
 
-  test('keeps the port open while the visitor switches steps', async ({ page, fakeFlasher }) => {
+  test('keeps the port open while the visitor switches steps, and the dock names the step to flash', async ({
+    page,
+    fakeFlasher,
+  }) => {
     await fakeFlasher.install({ lines: ['sketch blink/timer'] });
     await page.goto(BLINK);
     await connect(page);
     await expect(tag(page)).toHaveText('My board Runs timer');
 
-    const seen: [string, string][] = [];
-    for (const name of ['2 input', '3 timer', '4 commands', '1 simple', '3 timer']) {
+    for (const [name, word, action] of [
+      ['2 input', 'My board', 'Flash Blink · 2 input'],
+      ['3 timer', 'Live', 'Flash Blink · 3 timer'],
+      ['4 commands', 'My board', 'Flash Blink · 4 commands'],
+      ['1 simple', 'My board', 'Flash Blink · 1 simple'],
+      ['3 timer', 'Live', 'Flash Blink · 3 timer'],
+    ]) {
       await tab(page, name).click();
-      const button = (await boardButton(page).isVisible()) ? (await boardButton(page).textContent())!.trim() : 'hidden';
-      seen.push([(await tagWord(page).textContent())!, button]);
+      await expect(tagWord(page), name).toHaveText(word);
+      await expect(dockAction(page), name).toHaveAccessibleName(action);
     }
-
-    // The button shows the short label; its name, read out, ends in "to board".
-    expect(seen).toEqual([
-      ['My board', 'Flash input'],
-      ['Live', 'hidden'],
-      ['My board', 'Flash commands'],
-      ['My board', 'Flash simple'],
-      ['Live', 'hidden'],
-    ]);
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
   });
 
-  test('keeps the button as wide as its longest label whatever it reads', async ({ page, fakeFlasher }) => {
-    await fakeFlasher.install({ lines: ['sketch blink/simple'], holdConnect: true });
-    await page.goto(BLINK);
-    await myBoardButton(page).click();
-    const width = async () => (await boardButton(page).boundingBox())!.width;
-    const connectWidth = await width();
-
-    await boardButton(page).click();
-    await expect(boardButton(page)).toHaveAccessibleName('Connecting…');
-    expect(await width()).toBe(connectWidth);
-    await fakeFlasher.release();
-    await expect(tagWord(page)).toHaveText('Live');
-    await tab(page, '4 commands').click();
-
-    await expect(boardButton(page)).toHaveAccessibleName('Flash commands to board');
-    expect(await width()).toBe(connectWidth);
-    expect(await boardButton(page).evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
-  });
-
-  test("shows a failure in the flash card's words in place of the picture, and Try again connects again", async ({
-    page,
-    fakeFlasher,
-  }) => {
-    await fakeFlasher.install({ lines: ['sketch blink/simple'], failFirst: { connect: 'NotFoundError' } });
-    await page.goto(BLINK);
-    const scopeBefore = await bench(page).locator('.scope').boundingBox();
-
-    await connect(page);
-
-    await expect(message(page)).toHaveText('No board was chosen. Plug it in and try again.');
-    expect(await bench(page).locator('.scope').boundingBox()).toEqual(scopeBefore);
-    await expect(message(page)).toHaveClass(/notice/);
-    await expect(picture(page)).toBeHidden();
-    await expect(tag(page)).toHaveText('My board Not connected');
-    await expect(boardButton(page)).toHaveAccessibleName('Try again');
-
-    await boardButton(page).click();
-
-    await expect(tagWord(page)).toHaveText('Live');
-    await expect(picture(page)).toBeVisible();
-    expect((await fakeFlasher.calls()).filter((call) => call === 'load')).toHaveLength(0);
-  });
-
-  test('tries a dropped flash again in one press: it connects, then flashes the step', async ({ page, fakeFlasher }) => {
-    await fakeFlasher.install({ lines: ['sketch blink/simple'], announce: true, failFirst: { write: 'NetworkError' } });
-    await page.goto(BLINK);
-    await connect(page);
-    await tab(page, '3 timer').click();
-
-    await boardButton(page).click();
-
-    await expect(message(page)).toContainText('The connection dropped');
-    await expect(boardButton(page)).toHaveAccessibleName('Try again');
-
-    await boardButton(page).click();
-
-    await expect(tagWord(page)).toHaveText('Live');
-    expect((await fakeFlasher.calls()).filter((call) => call === 'write')).toHaveLength(2);
-  });
-
-  test('draws the switch to PROG beside the words when a picked ESP-01S does not answer', async ({ page, fakeFlasher }) => {
-    // esptool-js failing to sync with the bootloader throws a plain error.
-    await fakeFlasher.install({ lines: ['led on'], failFirst: { connect: 'Error' } });
-    await page.goto('/robomania/learn/');
-    await page.getByRole('combobox', { name: 'My board' }).selectOption({ label: 'ESP-01S' });
-    await page.goto(BLINK);
-    await connect(page);
-    await expect(boardButton(page)).toHaveAccessibleName('Flash simple to board');
-
-    await boardButton(page).click();
-
-    await expect(message(page)).toContainText("Set the adapter's switch to PROG");
-    await expect(bench(page).locator('[data-hand-hint]')).toHaveAttribute('data-hint', 'prog');
-    await expect(bench(page).locator('[data-hand-hint]')).toBeVisible();
-  });
-
-  test('says the board stopped talking once the port is lost, and offers Connect', async ({ page, fakeFlasher }) => {
-    await fakeFlasher.install({ lines: ['sketch blink/simple'], monitorEnds: true });
-    await page.goto(BLINK);
-
-    await connect(page);
-
-    await expect(message(page)).toHaveText('The board stopped talking to the page. Plug it back in and connect again.');
-    await expect(tag(page)).toHaveText('My board Not connected');
-    await expect(boardButton(page)).toHaveAccessibleName('Connect my board');
-  });
-
-  test('names the chips a step has images for when the board has none, until another step is picked', async ({
-    page,
-    fakeFlasher,
-  }) => {
+  test('stays on the board the dock refused to flash, which keeps running its step', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ chip: 'ESP32-C3', lines: ['sketch blink/simple'] });
     await page.goto(BLINK);
     await connect(page);
     await tab(page, '2 input').click();
 
-    await boardButton(page).click();
+    await dockAction(page).click();
 
-    await expect(message(page)).toHaveText(
-      'This board is an ESP32-C3. blink/input has images for: ESP32. Connect an ESP32, or pick another step.',
-    );
-    await expect(picture(page)).toBeHidden();
+    await expect(dock(page).locator('[data-dock-message]')).toContainText('blink/input has images for: ESP32');
     await expect(tag(page)).toHaveText('My board Runs simple');
+    await expect(picture(page)).toBeVisible();
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
-
-    await tab(page, '3 timer').click();
-
-    await expect(message(page)).toHaveText('Your board runs simple. Flash timer to see it here.');
   });
-
-  for (const width of [821, 400]) {
-    test(`keeps the reports in place when the no-image message shows at ${width} px`, async ({ page, fakeFlasher }) => {
-      await fakeFlasher.install({ chip: 'ESP32-C3', lines: ['sketch blink/simple'] });
-      await page.setViewportSize({ width, height: 900 });
-      await page.goto(BLINK);
-      await connect(page);
-      await tab(page, '2 input').click();
-      const scopeBefore = await scopeInFrame(page);
-
-      await boardButton(page).click();
-
-      await expect(message(page)).toContainText('pick another step');
-      expect(await scopeInFrame(page)).toEqual(scopeBefore);
-    });
-  }
 
   test('in a browser without Web Serial, simulates and shows the note in place of My board', async ({ page }) => {
     await page.addInitScript(() => {
@@ -478,7 +367,6 @@ test.describe('flashing from the workbench', () => {
     await page.goto(BLINK);
 
     await expect(myBoardButton(page)).toBeHidden();
-    await expect(boardButton(page)).toBeHidden();
     const note = bench(page).locator('[data-needs-browser]');
     await expect(note).toBeVisible();
     await expect(note).toHaveText('This browser cannot reach a USB board. Open this page in Chrome or Edge on a computer.');
@@ -500,14 +388,13 @@ test.describe('the flash card', () => {
     await expect(card(page)).toHaveCount(0);
   });
 
-  test('is gone from Servo, whose workbench flashes each step', async ({ page, fakeFlasher }) => {
+  test('is gone from Servo, whose selected step the dock flashes', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install();
     await page.goto('/robomania/projects/servo/');
 
     await expect(bench(page)).toBeVisible();
     await expect(card(page)).toHaveCount(0);
-    await myBoardButton(page).click();
-    await expect(boardButton(page)).toHaveAccessibleName('Connect my board');
+    await expect(dockAction(page)).toHaveAccessibleName(/^Flash Servo · 1 /);
   });
 
   test('stays on a single-sketch project', async ({ page, fakeFlasher }) => {
@@ -521,7 +408,7 @@ test.describe('the flash card', () => {
 
 test.describe('the rail', () => {
   type Box = { x: number; y: number; width: number; height: number };
-  const box = async (locator: Locator): Promise<Box> => (await locator.boundingBox())!;
+  const box = (locator: Locator): Promise<Box> => onPage(locator);
   const middle = (b: Box) => b.y + b.height / 2;
 
   async function railBoxes(page: Page) {
@@ -538,8 +425,8 @@ test.describe('the rail', () => {
       name: 'connecting',
       options: { holdConnect: true },
       reach: async (page) => {
-        await connect(page);
-        await expect(message(page)).toHaveText('Connecting to the board.');
+        await flashFromDock(page);
+        await expect(tag(page)).toHaveText('My board Connecting…');
       },
     },
     {
@@ -569,15 +456,6 @@ test.describe('the rail', () => {
       },
     },
     {
-      name: 'the longest label',
-      options: { lines: ['sketch blink/simple'] },
-      reach: async (page) => {
-        await connect(page);
-        await tab(page, '4 commands').click();
-        await expect(boardButton(page)).toHaveAccessibleName('Flash commands to board');
-      },
-    },
-    {
       name: 'Runs commands',
       options: { lines: ['sketch blink/commands'] },
       reach: async (page) => {
@@ -598,9 +476,9 @@ test.describe('the rail', () => {
       options: { lines: ['sketch blink/commands'], progress: [40], hold: true },
       reach: async (page) => {
         await connect(page);
-        await expect(boardButton(page)).toHaveAccessibleName('Flash simple to board');
-        await boardButton(page).click();
-        await expect(message(page)).toHaveText('Found ESP32. Keep the board plugged in.');
+        await expect(tag(page)).toHaveText('My board Runs commands');
+        await dockAction(page).click();
+        await expect(tag(page)).toHaveText('My board Flashing…');
       },
     },
   ];
@@ -665,8 +543,8 @@ test.describe('the finish of the switch and the frame', () => {
       name: 'connecting',
       options: { holdConnect: true },
       reach: async (page) => {
-        await connect(page);
-        await expect(message(page)).toHaveText('Connecting to the board.');
+        await flashFromDock(page);
+        await expect(tag(page)).toHaveText('My board Connecting…');
       },
     },
     {
@@ -703,14 +581,14 @@ test.describe('the finish of the switch and the frame', () => {
     });
   }
 
-  test('has no horizontal scroll at 380 px with My board chosen and a message shown', async ({ page, fakeFlasher }) => {
+  test('has no horizontal scroll at 380 px with My board chosen', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install();
     await page.setViewportSize({ width: 380, height: 900 });
     await page.goto(BLINK);
 
     await myBoardButton(page).click();
 
-    await expect(message(page)).toBeVisible();
+    await expect(tag(page)).toHaveText('My board Not connected');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(380);
   });
 
@@ -754,7 +632,7 @@ test.describe('the finish of the switch and the frame', () => {
     expect(await duration(frame)).toBe('0.25s');
 
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await connect(page);
+    await flashFromDock(page);
     await expect(dot).toHaveAttribute('data-link', 'busy');
 
     expect(await duration(pill)).toBe('0s');
@@ -767,14 +645,14 @@ test.describe('the finish of the switch and the frame', () => {
     page,
     fakeFlasher,
   }) => {
-    await fakeFlasher.install({ lines: ['sketch blink/simple'], holdConnect: true });
+    await fakeFlasher.install({ announce: true, holdConnect: true });
     await page.goto(BLINK);
     const dot = bench(page).locator('[data-board-dot]');
     const background = () => dot.evaluate((element) => getComputedStyle(element).backgroundColor);
     expect(await background()).toBe('rgba(0, 0, 0, 0)');
     expect(await duration(dot, 'animation-name')).toBe('none');
 
-    await connect(page);
+    await flashFromDock(page);
     await expect(dot).toHaveAttribute('data-link', 'busy');
     expect(await duration(dot, 'animation-name')).not.toBe('none');
 
@@ -785,16 +663,16 @@ test.describe('the finish of the switch and the frame', () => {
     await expect.poll(background).not.toBe('rgba(0, 0, 0, 0)');
   });
 
-  test('names the busy action on the dot: connecting, then flashing', async ({ page, fakeFlasher }) => {
+  test('names the work on the dot: connected, then flashing', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['sketch blink/commands'], progress: [40], hold: true });
     await page.goto(BLINK);
 
     await connect(page);
-    await expect(boardButton(page)).toHaveAccessibleName('Flash simple to board');
+    await expect(tag(page)).toHaveText('My board Runs commands');
     expect(await myBoardButton(page).getAttribute('title')).toBe('My board: connected');
-    await boardButton(page).click();
+    await dockAction(page).click();
 
-    await expect(message(page)).toHaveText('Found ESP32. Keep the board plugged in.');
+    await expect(tag(page)).toHaveText('My board Flashing…');
     await expect(myBoardButton(page)).toHaveAttribute('title', 'My board: flashing…');
   });
 
@@ -803,24 +681,21 @@ test.describe('the finish of the switch and the frame', () => {
       page,
       fakeFlasher,
     }) => {
-      await fakeFlasher.install({ lines: ['sketch blink/simple'] });
+      await fakeFlasher.install({ announce: true });
       await page.goto(BLINK);
       await expect(tag(page)).toHaveAttribute('title', 'Simulated Running in the browser');
 
       await state.reach(page);
       await expect(tag(page)).toHaveAttribute('title', 'My board Not connected');
 
-      await boardButton(page).click();
+      await dockAction(page).click();
       await expect(tagWord(page)).toHaveText('Live');
       await expect(tag(page)).toHaveAttribute('title', 'Live Drawn from what your board prints');
     });
   }
 
-  test('keeps the stage one height in every step and view, with the button above the cable and the words under it', async ({
-    page,
-    fakeFlasher,
-  }) => {
-    await fakeFlasher.install();
+  test('keeps the stage one height in every step and view', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ announce: true });
     await page.setViewportSize({ width: 1100, height: 900 });
     await page.goto(BLINK);
     const stage = bench(page).locator('.stage');
@@ -835,51 +710,11 @@ test.describe('the finish of the switch and the frame', () => {
     await tab(page, '4 commands').click();
 
     await myBoardButton(page).click();
-
-    await expect(message(page)).toBeVisible();
+    await expect(tag(page)).toHaveText('My board Not connected');
     expect(await height(stage)).toBe(simulatedHeight);
-    const cable = (await bench(page).locator('[data-board-link] .cable').boundingBox())!;
-    const button = (await boardButton(page).boundingBox())!;
-    const words = (await message(page).boundingBox())!;
-    expect(button.y + button.height).toBeLessThanOrEqual(cable.y + cable.height / 2);
-    expect(button.x).toBeGreaterThan(cable.x);
-    expect(button.x + button.width).toBeLessThan(cable.x + cable.width);
-    expect(words.y).toBeGreaterThan(cable.y + cable.height);
-    // Each step's word sits centred under its part of the drawing: Find, Write and Restart.
-    const link = bench(page).locator('[data-board-link]');
-    for (const [part, step] of [['.computer', 0], ['.cable', 1], ['.chip', 2]] as const) {
-      const drawn = (await link.locator(part).boundingBox())!;
-      const word = (await link.locator('[data-flash-step]').nth(step).boundingBox())!;
-      expect(Math.abs(word.x + word.width / 2 - (drawn.x + drawn.width / 2)), part).toBeLessThan(2);
-    }
+
+    await dockAction(page).click();
+    await expect(tagWord(page)).toHaveText('Live');
+    expect(await height(stage)).toBe(simulatedHeight);
   });
-
-  for (const width of [380, 1100]) {
-    test(`keeps the button where it is as the message grows from one line to more at ${width} px`, async ({
-      page,
-      fakeFlasher,
-    }) => {
-      await fakeFlasher.install({ holdConnect: true });
-      await page.setViewportSize({ width, height: 900 });
-      await page.goto(BLINK);
-      // Relative to the frame, since the page scrolls the button into view as it is pressed.
-      const buttonInFrame = () =>
-        boardButton(page).evaluate((button) => {
-          const frame = button.closest('[data-frame]')!.getBoundingClientRect();
-          return button.getBoundingClientRect().y - frame.y;
-        });
-      const lines = () => message(page).evaluate((text) => text.getBoundingClientRect().height / 21);
-
-      await myBoardButton(page).click();
-      await expect(message(page)).toHaveText('No board connected. Plug it in with a USB cable, then connect.');
-      const manyLines = await lines();
-      const before = await buttonInFrame();
-
-      await boardButton(page).click();
-
-      await expect(message(page)).toHaveText('Connecting to the board.');
-      expect(await lines()).toBeLessThan(manyLines);
-      expect(await buttonInFrame()).toBe(before);
-    });
-  }
 });

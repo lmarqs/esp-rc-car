@@ -1,8 +1,5 @@
 ---
 import type { WorkbenchProject } from '../../lib/workbench/projects';
-import ActionButton from '../board/ActionButton.astro';
-import FlashPicture from '../board/FlashPicture.astro';
-import HandHint from '../board/HandHint.astro';
 import Led from './pictures/Led.astro';
 import Servo from './pictures/Servo.astro';
 
@@ -10,18 +7,16 @@ interface Props {
   project: Pick<WorkbenchProject<unknown, unknown, unknown>, 'board' | 'picture'>;
   /** The key of the first step, whose watch values the stage opens with. */
   firstKey: string;
-  /** Whether any step has an image to flash, which gives the My board view its button. */
-  flashable: boolean;
 }
 
-const { project, firstKey, flashable } = Astro.props;
+const { project, firstKey } = Astro.props;
 const { board, picture } = project;
 const openingRows = board.watch(firstKey, board.initial(), 0);
 const valueOf = (name: string) => openingRows.find((row) => row.name === name)?.value;
 const Picture = { led: Led, servo: Servo }[picture];
 ---
 
-<div class="stage" style={`--rows: ${board.fields.length}`} data-stage>
+<div class="stage" style={`--rows: ${board.fields.length}`}>
   <div class:list={['led-row', { wide: picture === 'servo' }]}>
     <Picture />
     <dl class="watch" aria-label="Watch">
@@ -35,36 +30,17 @@ const Picture = { led: Led, servo: Servo }[picture];
       }
     </dl>
   </div>
-  <div class="link" data-board-link>
-    <FlashPicture>
-      {
-        flashable && (
-          <ActionButton label="Connect my board" data-board-action />
-        )
-      }
-    </FlashPicture>
-    <div class="words">
-      <HandHint />
-      <p aria-live="polite" data-board-message></p>
-    </div>
-  </div>
 </div>
 
 <style>
   [hidden] { display: none !important; }
-  /* The My board view takes the picture's place, and the stage is as tall as the tallest of its states, so the reports
-     below do not move between them: the watch with a row for each field of the project, and the view, which keeps
-     room for the longest notice, five lines. */
-  .stage { --watch-size: 13px; --watch-line: 1.5; --watch-pad: 3px; --watch-row: calc(var(--watch-size) * var(--watch-line) + 2 * var(--watch-pad)); --link-size: 14px; --link-line: 1.5; --link-lines: 5; display: grid; min-height: calc(var(--rows) * var(--watch-row) + var(--rows) * 1px + 1px); }
-  .stage > * { grid-area: 1 / 1; }
-  .link { visibility: hidden; align-self: start; display: grid; grid-template-rows: auto minmax(calc(var(--link-lines) * var(--link-size) * var(--link-line)), auto); gap: 8px; font-size: var(--link-size); line-height: var(--link-line); }
-  .stage[data-message] .led-row { visibility: hidden; }
-  .stage[data-message] .link { visibility: visible; }
-  .words { display: flex; gap: 10px; align-items: flex-start; align-self: start; }
-  .words p { flex: 1; min-width: 0; margin: 0; font-size: inherit; }
+  /* As tall as the watch with a row for each field of the project, so the reports below do not move between steps. */
+  .stage { --watch-size: 13px; --watch-line: 1.5; --watch-pad: 3px; --watch-row: calc(var(--watch-size) * var(--watch-line) + 2 * var(--watch-pad)); display: grid; min-height: calc(var(--rows) * var(--watch-row) + var(--rows) * 1px + 1px); }
   .led-row { --picture: 96px; display: grid; grid-template-columns: var(--picture) 1fr 1fr; gap: 12px; align-items: center; }
   /* A horn and its scale need more room than an LED to read its angle and target. */
   .led-row.wide { --picture: 132px; }
+  /* While My board waits for the board to run the step, the picture and the watch stay in place, dimmed. */
+  :global([data-mode="waiting"]) .led-row { opacity: .4; }
   @media (max-width: 480px) { .led-row { grid-template-columns: var(--picture) 1fr; } }
   /* Across both columns, so a value such as 1000 ms (fixed) stays on one line. */
   .watch { grid-column: 2 / -1; margin: 0; border: 1px solid var(--line); border-radius: 10px; font-family: var(--mono); font-size: var(--watch-size); line-height: var(--watch-line); overflow: hidden; }

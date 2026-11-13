@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { plugIn } from './dock';
 import { expect, test } from './fake-flasher';
 
 const BLINK = '/robomania/projects/blink/';
@@ -6,10 +7,10 @@ const bench = (page: Page) => page.getByRole('region', { name: 'Workbench' });
 /** The word on the board pane's frame, which names what the pane shows. */
 const tagWord = (page: Page) => bench(page).locator('[data-tag-word]');
 
-/** Opens the workbench's My board view and connects the board from it. */
+/** Connects the board without flashing it, then opens the workbench's My board. */
 async function connect(page: Page) {
+  await plugIn(page);
   await bench(page).locator('[data-pane-board]').click();
-  await bench(page).locator('[data-board-action]').click();
 }
 const nav = (page: Page) => page.getByRole('navigation', { name: 'Main' });
 const dock = (page: Page) => page.getByRole('complementary', { name: 'Your board' });
@@ -315,6 +316,57 @@ test.describe('the board dock panel', () => {
     await expect(panel(page).locator('[data-hand-hint]')).toHaveAttribute('data-hint', 'prog');
     await expect(panel(page).locator('[data-hand-hint]')).toBeVisible();
     await expect(panel(page).getByRole('button', { name: 'Try again' })).toBeVisible();
+  });
+
+  test('tries a failed connect again in one press, which connects and flashes the open sketch', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ announce: true, failFirst: { connect: 'NotFoundError' } });
+    await page.goto(BLINK);
+    await bench(page).locator('[data-pane-board]').click();
+
+    await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+
+    await expect(panelMessage(page)).toHaveText('No board was chosen. Plug it in and try again.');
+    await expect(panelMessage(page)).toHaveAttribute('data-notice');
+
+    await panel(page).getByRole('button', { name: 'Try again' }).click();
+
+    await expect(panel(page)).toBeHidden();
+    await expect(tagWord(page)).toHaveText('Live');
+    expect((await fakeFlasher.calls()).filter((call) => call === 'load')).toHaveLength(1);
+  });
+
+  test('says the board stopped talking once the port is lost, and offers Connect again', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ announce: true, monitorEnds: true });
+    await page.goto(BLINK);
+
+    await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+
+    await expect(panelMessage(page)).toHaveText('The board stopped talking to the page. Plug it back in and connect again.');
+    await expect(panel(page).getByRole('button', { name: 'Connect again' })).toBeVisible();
+  });
+
+  test('names the chips the open sketch has images for when the board has none, until another step is opened', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ chip: 'ESP32-C3', lines: ['sketch blink/simple'] });
+    await page.goto(BLINK);
+    await connect(page);
+    await bench(page).getByRole('tab', { name: /^2 input/ }).click();
+
+    await dock(page).getByRole('button', { name: 'Flash Blink · 2 input' }).click();
+
+    await expect(panelMessage(page)).toHaveText(
+      'This board is an ESP32-C3. blink/input has images for: ESP32. Connect an ESP32, or pick another step.',
+    );
+    expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
+
+    await bench(page).getByRole('tab', { name: /^3 timer/ }).click();
+
+    await expect(panel(page)).toBeHidden();
   });
 
   test('connects without flashing on a page with no sketch open, whatever the last page opened', async ({ page, fakeFlasher }) => {

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { linkView, paneMotion, paneView } from '../../src/components/workbench/paneView';
-import { boardMessage } from '../../src/lib/board/connection';
 import { boardModel } from '../../src/lib/board/models';
 import type { SessionState } from '../../src/lib/flash/session';
 import type { BlinkBoard } from '../../src/lib/workbench/blinkBoard';
@@ -80,10 +79,12 @@ describe('paneView', () => {
     expect(shown.live).toEqual({});
   });
 
-  it('shows nothing of the simulator while My board waits, with the toolbar it has live', () => {
+  it('shows nothing of the simulator while My board waits, the watch rows unknown, with the toolbar it has live', () => {
     const { snapshot } = simulated(3000);
     const shown = paneView(blink, pane(myBoard), snapshot, source);
-    expect(shown.rows).toEqual([]);
+    const rows = paneView(blink, pane(), snapshot, source).rows;
+    expect(rows.length).toBeGreaterThan(0);
+    expect(shown.rows).toEqual(rows.map((row) => ({ ...row, value: '…' })));
     expect(shown.serial).toEqual([]);
     expect(shown.arrow).toBeUndefined();
     expect(shown.live).toEqual({ blinkDelay: '…' });
@@ -124,80 +125,66 @@ describe('paneMotion', () => {
 });
 
 describe('linkView', () => {
-  it('shows the simulator with no board: tagged Simulated, a dot off, no mark on the rail, no message', () => {
-    const shown = linkView(blink, pane());
-    expect(shown).toMatchObject({
+  it('shows the simulator with no board: tagged Simulated, a dot off, no mark on the rail', () => {
+    expect(linkView(blink, pane())).toEqual({
       kind: 'simulated',
       tag: { word: 'Simulated', title: 'Running in the browser' },
       chosen: 'simulator',
       mode: 'simulator',
+      reachable: true,
       dot: 'off',
+      flashing: false,
       onBoard: undefined,
     });
-    expect(shown.action).toMatchObject({ event: 'connect', disabled: false });
-    expect(shown.message).toBeUndefined();
   });
 
-  it('says what to do under My board before a board is connected', () => {
+  it('has no My board half in a browser that cannot reach a board', () => {
+    const unsupported = pane({ kind: 'session', state: { kind: 'unsupported' } });
+    expect(linkView(blink, unsupported)).toMatchObject({ reachable: false, mode: 'simulator', tag: { word: 'Simulated' } });
+  });
+
+  it('says under My board that no board is connected', () => {
     const shown = linkView(blink, pane(myBoard));
     expect(shown).toMatchObject({ chosen: 'board', mode: 'waiting' });
     expect(shown.tag).toEqual({ word: 'My board', title: 'Not connected' });
-    expect(shown.message).toEqual({
-      text: 'No board connected. Plug it in with a USB cable, then connect.',
-      notice: false,
-    });
   });
 
   it('marks the step the board runs once the pane follows the board', () => {
-    const shown = linkView(blink, pane(...live));
-    expect(shown).toMatchObject({
+    expect(linkView(blink, pane(...live))).toMatchObject({
       kind: 'live',
       tag: { word: 'Live' },
       mode: 'live',
       dot: 'on',
       onBoard: blink.steps[INPUT].key,
     });
-    expect(shown.message).toBeUndefined();
   });
 
   it('says the board runs this step while the visitor chose the simulator', () => {
     const shown = linkView(blink, reducePane(blink, pane(...live), { kind: 'choose', chosen: 'simulator' }));
     expect(shown).toMatchObject({ kind: 'live', mode: 'simulator' });
     expect(shown.tag.title).toContain('My board');
-    expect(shown.message).toBeUndefined();
   });
 
-  it('shows a refused flash over the live board, which stays live, until another step is picked', () => {
+  it('stays live while the session refuses a flash of the step the board runs', () => {
     const refused: SessionState = { ...running, flashRefused: { key: 'blink/input', available: ['ESP32'] } };
-    const pressed: PaneEvent = { kind: 'press', action: 'flash' };
-    const shown = linkView(blink, pane(...live, pressed, { kind: 'session', state: refused }));
-    expect(shown).toMatchObject({ mode: 'live', tag: { word: 'Live' } });
-    expect(shown.message).toEqual(boardMessage(refused, 'blink/input', true));
-    expect(shown.message?.notice).toBe(true);
-
-    const other = pane(...live, { kind: 'session', state: refused }, { kind: 'tab', index: SIMPLE });
-    expect(linkView(blink, other).message).toEqual({
-      text: 'Your board runs input. Flash simple to see it here.',
-      notice: false,
+    expect(linkView(blink, pane(...live, { kind: 'session', state: refused }))).toMatchObject({
+      mode: 'live',
+      tag: { word: 'Live' },
     });
   });
 
-  it('shows the message and the percentage while the session flashes, and holds the button back', () => {
+  it('waits under My board while the session flashes, naming the work on the tag and the dot', () => {
     const flashing: SessionState = { kind: 'flashing', chip: 'ESP32', pct: 40 };
-    const shown = linkView(blink, pane(...live, { kind: 'session', state: flashing }));
-    expect(shown).toMatchObject({ mode: 'waiting', dot: 'busy', tag: { word: 'My board' } });
-    expect(shown.message).toMatchObject({ notice: false });
-    expect(shown.scene).toMatchObject({ cable: 'packets', pct: 40 });
-    expect(shown.action?.disabled).toBe(true);
+    expect(linkView(blink, pane(...live, { kind: 'session', state: flashing }))).toMatchObject({
+      mode: 'waiting',
+      dot: 'busy',
+      flashing: true,
+      tag: { word: 'My board', title: 'Flashing…' },
+    });
   });
 
-  it("draws the hint for the picked board's hands-on step when it does not answer", () => {
-    const shown = linkView(blink, pane(myBoard, { kind: 'session', state: { kind: 'noAnswer' } }), boardModel('esp01s'));
-    expect(shown.scene).toMatchObject({ broken: 'chip', hint: 'prog' });
-  });
-
-  it('shows no message in the simulator, whatever the session does', () => {
-    const flashing: SessionState = { kind: 'flashing', chip: 'ESP32', pct: 40 };
-    expect(linkView(blink, pane({ kind: 'session', state: flashing })).message).toBeUndefined();
+  it("asks to press reset on the picked board's adapter while it has not named its sketch", () => {
+    const shown = linkView(blink, pane(myBoard, connected), boardModel('esp01s'));
+    expect(shown.tag).toEqual({ word: 'My board', title: 'Waiting for it to name its sketch: press reset on its adapter' });
   });
 });

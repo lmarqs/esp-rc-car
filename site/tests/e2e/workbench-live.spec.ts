@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 import { lineNumber } from '../../src/lib/workbench/source';
 import { HIGH_Y, LOW_Y } from '../../src/lib/workbench/trace';
+import { dockAction, plugIn } from './dock';
 import { expect, test, type FakeFlasher } from './fake-flasher';
 
 const BLINK = '/robomania/projects/blink/';
@@ -16,8 +17,6 @@ const tagWord = (page: Page) => bench(page).locator('[data-tag-word]');
 const tag = (page: Page) => bench(page).locator('[data-pane-tag]');
 const simulatorButton = (page: Page) => bench(page).locator('[data-pane-simulator]');
 const myBoardButton = (page: Page) => bench(page).locator('[data-pane-board]');
-/** The My board view's button, which connects the board or flashes the step. */
-const boardButton = (page: Page) => bench(page).locator('[data-board-action]');
 const picture = (page: Page) => bench(page).locator('[data-picture]');
 const watchValue = (page: Page, name: string) => bench(page).locator(`[data-watch-row="${name}"] dd`);
 const serial = (page: Page) => bench(page).getByRole('log', { name: 'Serial output' });
@@ -42,23 +41,25 @@ const nextFrame = (page: Page) => page.clock.runFor(20);
 const levelNow = async (page: Page) =>
   Number([...(await tracePath(page, 'level')).matchAll(/(?:^M[\d.]+ |V)(\d+)/g)].at(-1)?.[1]);
 
-/** Opens My board and connects the board from its view. */
+/** Connects the board without flashing it, then opens My board. */
 async function connect(page: Page) {
+  await plugIn(page);
   await myBoardButton(page).click();
-  await boardButton(page).click();
 }
 
 /**
- * Connects under My board from the `name` tab to a board that prints `sketch <key>` first, then waits for the frame's
- * tag to read `shown`, such as `Live` or `Runs input`.
+ * Connects a board, picks the step tab `name`, with `slow` turns Slow on, as the visitor can, and opens My board. The
+ * board then restarts into `key`, printing `sketch <key>`, and the frame's tag reads `shown`, such as `Live` or
+ * `Runs input`.
  */
-/** Connects a board that runs `key` on the step tab `name`; with `slow`, turns Slow on first, as the visitor can. */
 async function connectTo(page: Page, fakeFlasher: FakeFlasher, key: string, name: string, shown: string, slow = false) {
-  await fakeFlasher.install({ lines: ['', `sketch ${key}`] });
+  await fakeFlasher.install();
   await page.goto(BLINK);
+  await plugIn(page);
   await tab(page, name).click();
   if (slow) await debuggerButton(page, 'Slow').click();
-  await connect(page);
+  await myBoardButton(page).click();
+  await fakeFlasher.print('', `sketch ${key}`);
   await expect(tag(page)).toContainText(shown);
 }
 
@@ -200,10 +201,11 @@ test.describe('live mode', () => {
   });
 
   test('takes back a line the port refused, and says the board did not get it', async ({ page, fakeFlasher }) => {
-    await fakeFlasher.install({ lines: ['', 'sketch blink/input'], failFirst: { send: 'NetworkError' } });
+    await fakeFlasher.install({ failFirst: { send: 'NetworkError' } });
     await page.goto(BLINK);
     await tab(page, '2 input').click();
     await connect(page);
+    await fakeFlasher.print('', 'sketch blink/input');
     await expect(tagWord(page)).toHaveText('Live');
 
     const heightBefore = (await bench(page).boundingBox())!.height;
@@ -228,10 +230,11 @@ test.describe('live mode', () => {
     page,
     fakeFlasher,
   }) => {
-    await fakeFlasher.install({ lines: ['', 'sketch blink/input', 'delay 700'], failFirst: { send: 'NetworkError' } });
+    await fakeFlasher.install({ failFirst: { send: 'NetworkError' } });
     await page.goto(BLINK);
     await tab(page, '2 input').click();
     await connect(page);
+    await fakeFlasher.print('', 'sketch blink/input', 'delay 700');
     await expect(watchValue(page, 'wait')).toHaveText('700 ms');
     await commandLine(page).fill('500');
     await commandLine(page).press('Enter');
@@ -307,7 +310,7 @@ test.describe('live mode', () => {
     await expect(serial(page).locator('[data-sent]')).toHaveCount(0);
   });
 
-  test('moves the focus from the command line to the My board view as the terminal goes inert', async ({
+  test('moves the focus from the command line to the My board half as the terminal goes inert', async ({
     page,
     fakeFlasher,
   }) => {
@@ -318,8 +321,7 @@ test.describe('live mode', () => {
     await fakeFlasher.print('sketch blink/commands');
 
     await expect(bench(page).locator('[data-terminal]')).toHaveJSProperty('inert', true);
-    await expect(boardButton(page)).toHaveAccessibleName('Flash input to board');
-    await expect(boardButton(page)).toBeFocused();
+    await expect(myBoardButton(page)).toBeFocused();
   });
 
   test('drops a line a chip is typing when the visitor pauses, rather than sending it to the simulator', async ({
@@ -381,7 +383,7 @@ test.describe('a board that runs another step', () => {
     expect(await fakeFlasher.calls()).not.toContainEqual(expect.stringMatching(/^send /));
   });
 
-  test('Flash step puts the selected step on the board and follows it live, with the Send area back', async ({
+  test("the dock's Flash puts the selected step on the board, which the pane follows live, with the Send area back", async ({
     page,
     fakeFlasher,
   }) => {
@@ -391,10 +393,9 @@ test.describe('a board that runs another step', () => {
     await connect(page);
     await expect(tag(page)).toHaveText('My board Runs simple');
 
-    await boardButton(page).click();
+    await dockAction(page).click();
 
     await expect(tagWord(page)).toHaveText('Live');
-    await expect(bench(page).getByRole('button', { name: 'Flash again' })).toHaveCount(0);
     await expect(commandLine(page)).toBeEnabled();
     await expect(serial(page)).toHaveText('sketch blink/input');
     await fakeFlasher.print('HIGH');

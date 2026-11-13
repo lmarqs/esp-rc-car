@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SessionState } from '../../src/lib/flash/session';
 import { sketchOf } from '../../src/lib/flash/lines';
-import { boardAction, boardDot, boardStatus, isConnected, paneMode } from '../../src/lib/workbench/link';
+import { boardDot, boardStatus, isConnected, paneMode } from '../../src/lib/workbench/link';
 
 const running: SessionState = { kind: 'running', chip: 'ESP32', output: [] };
 const lost: SessionState = { kind: 'running', chip: 'ESP32', output: [], lost: true };
@@ -62,99 +62,6 @@ describe('boardStatus', () => {
 
   it('is Simulated again once the board is lost', () => {
     expect(boardStatus(lost, 'blink/input', 'blink/input', STEPS, IDS)).toEqual({ kind: 'simulated' });
-  });
-});
-
-describe('boardAction', () => {
-  const connect = { label: 'Connect my board', icon: 'plug', event: 'connect', disabled: false };
-  const input = { key: 'blink/input', id: 'input' };
-
-  it('offers no board half in a browser that cannot reach a board', () => {
-    expect(boardAction({ kind: 'unsupported' }, undefined, input)).toBeUndefined();
-  });
-
-  it('connects with a plug from idle, a lost board, a board left in flash mode or one with no image', () => {
-    const states: SessionState[] = [
-      { kind: 'idle' },
-      lost,
-      { kind: 'flashMode', chip: 'ESP8266' },
-      { kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] },
-    ];
-    for (const state of states) expect(boardAction(state, undefined, input)).toEqual(connect);
-  });
-
-  it('tries a failed connect again as a connect', () => {
-    const failures: SessionState[] = [{ kind: 'noPort' }, { kind: 'portBusy' }, { kind: 'noAnswer' }];
-    for (const state of failures) {
-      for (const tried of [undefined, 'connect'] as const) {
-        expect(boardAction(state, undefined, input, undefined, tried)).toEqual({
-          label: 'Try again',
-          icon: 'again',
-          event: 'connect',
-          disabled: false,
-        });
-      }
-    }
-  });
-
-  it('tries a failed flash again in one press, which connects and then flashes', () => {
-    const failures: SessionState[] = [{ kind: 'noAnswer' }, { kind: 'noDownload' }, { kind: 'dropped', pct: 40 }];
-    for (const state of failures) {
-      for (const tried of ['flash', 'retry'] as const) {
-        expect(boardAction(state, undefined, input, undefined, tried)).toEqual({
-          label: 'Try again',
-          icon: 'again',
-          event: 'retry',
-          disabled: false,
-        });
-      }
-    }
-  });
-
-  it('names a retry under way as a connection', () => {
-    expect(boardAction({ kind: 'connecting' }, undefined, input, 'retry')).toEqual({
-      label: 'Connecting…',
-      icon: 'again',
-      event: 'retry',
-      disabled: true,
-    });
-  });
-
-  it('flashes the step, by the id its tab names it by, on a board that runs another sketch or has not named one', () => {
-    const flashStep = { label: 'Flash input to board', short: 'Flash input', icon: 'bolt', event: 'flash', disabled: false };
-    expect(boardAction(running, 'blink/simple', input)).toEqual(flashStep);
-    expect(boardAction(running, undefined, input)).toEqual(flashStep);
-  });
-
-  it('flashes the step again on a board that runs the selected step', () => {
-    expect(boardAction(running, 'blink/input', input)).toEqual({
-      label: 'Flash again',
-      icon: 'bolt',
-      event: 'flash',
-      disabled: false,
-    });
-  });
-
-  it('names a flash pressed elsewhere on the site, such as in the board dock, by what the session does', () => {
-    expect(boardAction({ kind: 'flashing', chip: 'ESP32', pct: 40 }, undefined, input)).toMatchObject({
-      label: 'Flashing…',
-      event: 'flash',
-      disabled: true,
-    });
-  });
-
-  it('says what the session works on, disabled, while it is busy', () => {
-    expect(boardAction({ kind: 'flashing', chip: 'ESP32', pct: 40 }, undefined, input, 'flash')).toEqual({
-      label: 'Flashing…',
-      icon: 'bolt',
-      event: 'flash',
-      disabled: true,
-    });
-    expect(boardAction({ kind: 'connecting' }, undefined, input)).toEqual({ ...connect, label: 'Connecting…', disabled: true });
-  });
-
-  it('connects again, not Flash again, once the board is lost', () => {
-    expect(boardAction(lost, 'blink/input', input)).toEqual(connect);
   });
 });
 

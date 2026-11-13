@@ -8,7 +8,6 @@ import {
   notSent,
   toolbar,
   paneTag,
-  waitingMessage,
   crumbs,
   fileName,
   serialRows,
@@ -17,7 +16,6 @@ import {
   followSlider,
 } from '../../src/components/workbench/view';
 import type { SessionState } from '../../src/lib/flash/session';
-import { boardMessage } from '../../src/lib/board/connection';
 import { boardModel } from '../../src/lib/board/models';
 
 describe('codeRows', () => {
@@ -154,91 +152,67 @@ describe('changedRows', () => {
 });
 
 describe('paneTag', () => {
-  const connect = { label: 'Connect my board', icon: 'plug', event: 'connect', disabled: false } as const;
-  const flash = { label: 'Flash input to board', icon: 'bolt', event: 'flash', disabled: false } as const;
+  const running: SessionState = { kind: 'running', chip: 'ESP32', output: [] };
 
   it('reads Simulated in the simulator, and says so when the board runs this step', () => {
-    expect(paneTag('simulator', { kind: 'simulated' }, connect)).toEqual({
+    expect(paneTag('simulator', { kind: 'simulated' }, { kind: 'idle' })).toEqual({
       word: 'Simulated',
       title: 'Running in the browser',
     });
-    expect(paneTag('simulator', { kind: 'step', key: 'blink/simple', id: 'simple' }, flash)).toEqual({
+    expect(paneTag('simulator', { kind: 'step', key: 'blink/simple', id: 'simple' }, running)).toEqual({
       word: 'Simulated',
       title: 'Running in the browser',
     });
-    expect(paneTag('simulator', { kind: 'live' }, undefined)).toEqual({
+    expect(paneTag('simulator', { kind: 'live' }, running)).toEqual({
       word: 'Simulated',
       title: 'Running in the browser; your board runs this step under My board',
     });
   });
 
   it('reads Live, drawn from what the board prints, while the pane follows the board', () => {
-    expect(paneTag('live', { kind: 'live' }, undefined)).toEqual({
+    expect(paneTag('live', { kind: 'live' }, running)).toEqual({
       word: 'Live',
       title: 'Drawn from what your board prints',
     });
   });
 
   it('reads My board and what the board runs while it waits', () => {
-    expect(paneTag('waiting', { kind: 'simulated' }, connect)).toEqual({ word: 'My board', title: 'Not connected' });
-    expect(paneTag('waiting', { kind: 'connected' }, flash)).toEqual({
+    expect(paneTag('waiting', { kind: 'simulated' }, { kind: 'idle' })).toEqual({ word: 'My board', title: 'Not connected' });
+    expect(paneTag('waiting', { kind: 'connected' }, running)).toEqual({
       word: 'My board',
       title: 'Waiting for it to name its sketch',
     });
-    expect(paneTag('waiting', { kind: 'step', key: 'blink/commands', id: 'commands' }, flash)).toEqual({
+    expect(paneTag('waiting', { kind: 'step', key: 'blink/commands', id: 'commands' }, running)).toEqual({
       word: 'My board',
       title: 'Runs commands',
     });
-    expect(paneTag('waiting', { kind: 'sketch', key: 'servo/sweep' }, flash)).toEqual({
+    expect(paneTag('waiting', { kind: 'sketch', key: 'servo/sweep' }, running)).toEqual({
       word: 'My board',
       title: 'Runs servo/sweep',
     });
   });
 
-  it('names what the session works on while it is busy', () => {
-    const connecting = { ...connect, label: 'Connecting…', disabled: true };
-    const flashing = { label: 'Flashing…', icon: 'bolt', event: 'flash', disabled: true } as const;
-    expect(paneTag('waiting', { kind: 'simulated' }, connecting)).toEqual({ word: 'My board', title: 'Connecting…' });
-    expect(paneTag('waiting', { kind: 'simulated' }, flashing)).toEqual({ word: 'My board', title: 'Flashing…' });
-  });
-});
-
-describe('waitingMessage', () => {
-  const running: SessionState = { kind: 'running', chip: 'ESP32', output: [] };
-
-  it('says what the session does or what failed, as the board message does', () => {
-    expect(waitingMessage({ kind: 'connecting' }, { kind: 'simulated' }, 'input', 'blink/input', true)).toEqual(
-      boardMessage({ kind: 'connecting' }, 'blink/input', true),
-    );
-    const lost: SessionState = { ...running, lost: true };
-    expect(waitingMessage(lost, { kind: 'simulated' }, 'input', 'blink/input', true)).toEqual(
-      boardMessage(lost, 'blink/input', true),
-    );
-  });
-
-  it('asks to press reset on an ESP-01S that has not named its sketch', () => {
-    expect(waitingMessage(running, { kind: 'connected' }, 'input', 'blink/simple', true, boardModel('esp01s'))).toEqual({
-      text: 'Your board has not named its sketch. Press reset on its adapter, or flash input to use it here.',
-      notice: false,
+  it('asks to press reset on the adapter of a board that has not named its sketch', () => {
+    expect(paneTag('waiting', { kind: 'connected' }, running, boardModel('esp01s'))).toEqual({
+      word: 'My board',
+      title: 'Waiting for it to name its sketch: press reset on its adapter',
+    });
+    expect(paneTag('waiting', { kind: 'connected' }, running, boardModel('esp32'))).toEqual({
+      word: 'My board',
+      title: 'Waiting for it to name its sketch',
     });
   });
 
-  it('says what to do next for each board status', () => {
-    expect(waitingMessage({ kind: 'idle' }, { kind: 'simulated' }, 'input', 'blink/simple', true)).toEqual({
-      text: 'No board connected. Plug it in with a USB cable, then connect.',
-      notice: false,
+  it('names what the session works on while it connects or flashes', () => {
+    expect(paneTag('waiting', { kind: 'simulated' }, { kind: 'connecting' })).toEqual({
+      word: 'My board',
+      title: 'Connecting…',
     });
-    expect(waitingMessage(running, { kind: 'connected' }, 'input', 'blink/simple', true)).toEqual({
-      text: 'Your board is connected but has not named its sketch. Flash input to use it here.',
-      notice: false,
+    expect(paneTag('waiting', { kind: 'simulated' }, { kind: 'flashing', chip: 'ESP32', pct: 40 })).toEqual({
+      word: 'My board',
+      title: 'Flashing…',
     });
-    expect(
-      waitingMessage(running, { kind: 'step', key: 'blink/commands', id: 'commands' }, 'input', 'blink/simple', true),
-    ).toEqual({ text: 'Your board runs commands. Flash input to see it here.', notice: false });
-    expect(waitingMessage(running, { kind: 'sketch', key: 'servo/sweep' }, 'input', 'blink/simple', true)).toEqual({
-      text: 'Your board runs servo/sweep. Flash input to see it here.',
-      notice: false,
-    });
+    expect(paneTag('waiting', { kind: 'simulated' }, { kind: 'noPort' })).toEqual({ word: 'My board', title: 'Not connected' });
   });
 });
 

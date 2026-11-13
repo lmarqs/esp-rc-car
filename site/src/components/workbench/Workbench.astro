@@ -77,7 +77,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
   <Rail project={project} steps={rail} flashable={flashable} />
   <div class="panes" role="tabpanel" id={id('panel')} aria-labelledby={id(`tab-${first.id}`)}>
     <Editor steps={rail} />
-    <Board project={workbench} steps={rail} flashable={flashable} />
+    <Board project={workbench} steps={rail} />
   </div>
 </section>
 
@@ -96,17 +96,8 @@ const flashable = Object.keys(manifest.sketches).length > 0;
   import type { PictureView } from '../../lib/workbench/board';
   import type { Manifest } from '../../lib/flash';
   import { DEFAULT_BAUD, theBoard } from '../../lib/board/board';
-  import { restartConnection } from '../../lib/board/models';
   import { thePick } from '../../lib/board/pick';
-  import { isConnected, type BoardAction } from '../../lib/workbench/link';
-  import {
-    initialPane,
-    paneAction,
-    reducePane,
-    type PaneEvent,
-    type PaneProject,
-    type PaneState,
-  } from '../../lib/workbench/pane';
+  import { initialPane, reducePane, type PaneEvent, type PaneProject, type PaneState } from '../../lib/workbench/pane';
   import { CLOCK_DASH } from './view';
   import { mountBoardLink } from './boardLink';
   import { mountCommandLine } from './commandLine';
@@ -374,20 +365,15 @@ const flashable = Object.keys(manifest.sketches).length > 0;
         chooseSimulator(true);
       },
       board: () => dispatch({ kind: 'choose', chosen: 'board' }),
-      action() {
-        const action = paneAction(paneProject, pane);
-        if (action === undefined || action.disabled) return;
-        press(action.event);
-      },
     });
 
-    /** Paints the switch, the board pane's frame and the My board view, and marks the rail's step the board runs. */
+    /** Paints the switch and the board pane's frame, and marks the rail's step the board runs. */
     function showLink() {
       const link = linkView(paneProject, pane, thePick().model);
       boardLink.show(link);
       // What the visitor would send has no board to reach until it runs the step.
       const inert = pane.mode === 'waiting';
-      // An inert terminal drops the focus to the page: it goes on to what the My board view offers instead.
+      // An inert terminal drops the focus to the page: it goes on to the switch's My board half instead.
       const refocus = inert && !terminal.inert && terminal.contains(document.activeElement);
       terminal.inert = inert;
       if (refocus) boardLink.takeFocus();
@@ -397,7 +383,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     }
 
     const unsubscribe = [
-      session.subscribe((state) => dispatch({ kind: 'session', state })),
+      session.subscribe((state) => dispatch({ kind: 'session', state, flashed: board.record.flashed })),
       session.subscribeLines(({ text, at }) => dispatch({ kind: 'line', text, at })),
       thePick().subscribe(showLink),
     ];
@@ -410,20 +396,6 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       commandLine.reset();
       simulation.dispose();
     });
-
-    /** Presses the My board view's button, then asks the session for what the press starts. */
-    function press(action: BoardAction['event']) {
-      dispatch({ kind: 'press', action });
-      if (action === 'connect') void board.send(restartConnection(thePick().model));
-      if (action === 'flash') void board.send({ type: 'flash', key: pane.flashed });
-      if (action === 'retry') void retry();
-    }
-
-    /** Connects again after a flash failed, then flashes the selected step onto the board that answered. */
-    async function retry() {
-      await board.send(restartConnection(thePick().model));
-      if (isConnected(session.state)) press('flash');
-    }
 
     /** Opens step `index` and names it in the address, such as `#input`, so the address opens the step on screen. */
     function select(index: number) {

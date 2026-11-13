@@ -1,15 +1,11 @@
-import { paintAction } from '../board/actionButton';
-import { paintFlashPicture, paintHandHint } from '../board/flashPicture';
 import type { LinkView } from './paneView';
 
-/** What the visitor can press of the switch, the board pane's frame and the My board view. */
+/** What the visitor can press of the switch. */
 export interface BoardLinkHandlers {
   /** The switch's Simulator half. */
   simulator(): void;
   /** The switch's My board half. */
   board(): void;
-  /** The My board view's button. */
-  action(): void;
 }
 
 const DOT_TITLES: Readonly<Record<LinkView['dot'], string>> = {
@@ -19,7 +15,7 @@ const DOT_TITLES: Readonly<Record<LinkView['dot'], string>> = {
 };
 const FLASHING_TITLE = 'My board: flashing…';
 
-/** The switch, the board pane's frame and the My board view in `root`: writes what `linkView` says. */
+/** The switch and the board pane's frame in `root`: writes what `linkView` says. */
 export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
   const simulatorButton = root.querySelector<HTMLButtonElement>('[data-pane-simulator]')!;
   const boardButton = root.querySelector<HTMLButtonElement>('[data-pane-board]');
@@ -29,26 +25,19 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
   const tag = root.querySelector<HTMLElement>('[data-pane-tag]')!;
   let tagWord = root.querySelector<HTMLElement>('[data-tag-word]')!;
   let tagTitle = root.querySelector<HTMLElement>('[data-tag-title]')!;
-  const stage = root.querySelector<HTMLElement>('[data-stage]')!;
-  const message = root.querySelector<HTMLElement>('[data-board-message]')!;
-  const link = root.querySelector<HTMLElement>('[data-board-link]')!;
-  const actionButton = root.querySelector<HTMLButtonElement>('[data-board-action]');
 
   simulatorButton.addEventListener('click', handlers.simulator);
   boardButton?.addEventListener('click', handlers.board);
-  actionButton?.addEventListener('click', handlers.action);
 
   return {
     show(view: LinkView) {
-      const { action } = view;
       // A browser that cannot reach a board has the note in the My board half's place.
-      needsBrowser.hidden = action !== undefined;
+      needsBrowser.hidden = view.reachable;
       simulatorButton.setAttribute('aria-pressed', String(view.chosen === 'simulator'));
       if (boardButton !== null && dot !== null) {
-        boardButton.hidden = action === undefined;
+        boardButton.hidden = !view.reachable;
         boardButton.setAttribute('aria-pressed', String(view.chosen === 'board'));
-        // The busy action's event says which work it is.
-        boardButton.title = view.dot === 'busy' && action?.event === 'flash' ? FLASHING_TITLE : DOT_TITLES[view.dot];
+        boardButton.title = view.dot === 'busy' && view.flashing ? FLASHING_TITLE : DOT_TITLES[view.dot];
         dot.dataset.link = view.dot;
       }
 
@@ -65,30 +54,10 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
         tagWord = word;
         tagTitle = title;
       }
-      const waiting = view.mode === 'waiting';
-      stage.toggleAttribute('data-message', view.message !== undefined);
-      const shown = view.message;
-      const words = shown?.text ?? '';
-      // Only a change of text is announced: the picture carries the percentage.
-      if (message.textContent !== words) message.textContent = words;
-      message.classList.toggle('notice', shown?.notice ?? false);
-      paintFlashPicture(link, view.scene);
-      paintHandHint(link, view.scene.hint);
-
-      if (actionButton !== null) {
-        actionButton.hidden = action === undefined;
-        // Live, the board runs the step, and a refusal shows with no button. The button keeps its room, so the stage
-        // keeps its height.
-        actionButton.toggleAttribute('data-off', !waiting);
-        if (action !== undefined) paintAction(actionButton, action);
-        // The button goes as the pane goes live; the focus goes on to the switch's My board half, not to the page.
-        if (!waiting && document.activeElement === actionButton) boardButton?.focus();
-      }
     },
-    /** Gives the focus to the My board view's button, or to the switch's My board half while the view shows none. */
+    /** Gives the focus to the switch's My board half. */
     takeFocus() {
-      if (actionButton !== null && !actionButton.hidden && !actionButton.hasAttribute('data-off')) actionButton.focus();
-      else boardButton?.focus();
+      boardButton?.focus();
     },
   };
 }

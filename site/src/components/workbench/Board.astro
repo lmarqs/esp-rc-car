@@ -9,12 +9,10 @@ import { paneTag } from './view';
 interface Props {
   project: WorkbenchProject<unknown, unknown, unknown>;
   steps: readonly Pick<RailStep, 'key' | 'hint' | 'placeholder' | 'shortcuts'>[];
-  /** Whether any step has an image to flash, which gives the My board view its button. */
-  flashable: boolean;
 }
 
-const { project, steps, flashable } = Astro.props;
-const simulated = paneTag('simulator', { kind: 'simulated' }, undefined);
+const { project, steps } = Astro.props;
+const simulated = paneTag('simulator', { kind: 'simulated' });
 ---
 
 <div class="board">
@@ -23,7 +21,7 @@ const simulated = paneTag('simulator', { kind: 'simulated' }, undefined);
     <p class="tag" aria-live="polite" title={`${simulated.word} ${simulated.title}`} data-pane-tag>
       <b data-tag-word>{simulated.word}</b> <span data-tag-title>{simulated.title}</span>
     </p>
-    <Stage project={project} firstKey={steps[0].key} flashable={flashable} />
+    <Stage project={project} firstKey={steps[0].key} />
     <Scope trace={project.trace} />
   </div>
   <Terminal steps={steps} placeholder={steps[0].placeholder} />

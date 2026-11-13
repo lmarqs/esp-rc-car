@@ -1,10 +1,8 @@
-import { boardMessage, type BoardMessage } from '../../lib/board/connection';
-import { flashScene, type FlashScene } from '../../lib/board/flashScene';
 import type { PictureView, WatchRow } from '../../lib/workbench/board';
 import type { BoardModel } from '../../lib/board/models';
 import type { Followed } from '../../lib/workbench/live';
-import { boardDot, type BoardAction, type BoardStatus, type PaneChoice, type PaneMode } from '../../lib/workbench/link';
-import { paneAction, paneStatus, showsRefusal, type PaneProject, type PaneState } from '../../lib/workbench/pane';
+import { boardDot, type BoardStatus, type PaneChoice, type PaneMode } from '../../lib/workbench/link';
+import { paneStatus, type PaneProject, type PaneState } from '../../lib/workbench/pane';
 import type { Snapshot } from '../../lib/workbench/simulation';
 import { lineNumber } from '../../lib/workbench/source';
 import { emptyTrace, traceShape, traceTime, type TraceShape } from '../../lib/workbench/trace';
@@ -15,7 +13,6 @@ import {
   paneTag,
   serialRows,
   toolbar,
-  waitingMessage,
   type ClockFace,
   type SerialRow,
   type Toolbar,
@@ -58,11 +55,11 @@ export function paneView<B>(
   const board = followed?.board ?? run.board;
   const controls = toolbar(pane.mode, view.status, view.error, view.slow);
   if (pane.mode === 'waiting') {
-    // The pane hides the picture behind what to do, and claims no value of a board it does not follow.
+    // The picture and the watch keep their place, dimmed, and claim no value of a board the pane does not follow.
     return {
       board,
       picture: project.board.picture(step.key, board),
-      rows: [],
+      rows: project.board.watch(step.key, board, undefined).map((row) => ({ ...row, value: '…' })),
       serial: [],
       controls,
       problem: undefined,
@@ -132,7 +129,7 @@ export function paneMotion<B>(
   };
 }
 
-/** What the switch, the board pane's frame and the My board view show for the pane. */
+/** What the switch and the board pane's frame show for the pane. */
 export interface LinkView {
   /** What the visitor's board runs. */
   readonly kind: BoardStatus['kind'];
@@ -142,53 +139,28 @@ export interface LinkView {
   readonly chosen: PaneChoice;
   /** What the frame's styles select on. */
   readonly mode: PaneMode;
+  /** Whether the browser can reach a board, which gives the switch its My board half. */
+  readonly reachable: boolean;
   /** The dot on the switch's My board half. */
   readonly dot: 'off' | 'busy' | 'on';
+  /** Whether the session writes the board, which the busy dot names. */
+  readonly flashing: boolean;
   /** The key of the step the board runs, which the rail marks; absent when the board runs none of them. */
   readonly onBoard: string | undefined;
-  /** The My board view's button; absent in a browser that cannot reach a board. */
-  readonly action: BoardAction | undefined;
-  /** What the board pane says in place of the picture: while My board waits, or over the live board a refused flash. */
-  readonly message: BoardMessage | undefined;
-  /** What the My board view draws of the computer, the cable and the board. */
-  readonly scene: FlashScene;
 }
 
-/** What the page shows of the link between the pane and the visitor's board. */
+/** What the page shows of the link between the pane and the visitor's board, picked as `board`. */
 export function linkView<B>(project: PaneProject<B>, pane: PaneState<B>, board?: BoardModel): LinkView {
   const status = paneStatus(project, pane);
-  const action = paneAction(project, pane);
-  const { mode } = pane;
+  const { mode, session } = pane;
   return {
     kind: status.kind,
-    tag: paneTag(mode, status, action),
+    tag: paneTag(mode, status, session, board),
     chosen: pane.chosen,
     mode,
-    dot: boardDot(pane.session),
+    reachable: session.kind !== 'unsupported',
+    dot: boardDot(session),
+    flashing: session.kind === 'flashing',
     onBoard: status.kind === 'live' || status.kind === 'step' ? pane.heard : undefined,
-    action,
-    message: linkMessage(project, pane, status, board),
-    scene: flashScene(pane.session, board),
   };
-}
-
-/**
- * What the board pane says in the picture's place: while My board waits, what to do; while live, only a flash the
- * session refused, which leaves the board running the step.
- */
-function linkMessage<B>(
-  project: PaneProject<B>,
-  pane: PaneState<B>,
-  status: BoardStatus,
-  board: BoardModel | undefined,
-): BoardMessage | undefined {
-  const refusal = showsRefusal(pane);
-  switch (pane.mode) {
-    case 'waiting':
-      return waitingMessage(pane.session, status, project.ids[pane.selected], pane.flashed, refusal, board);
-    case 'live':
-      return refusal ? boardMessage(pane.session, pane.flashed, refusal, board) : undefined;
-    case 'simulator':
-      return undefined;
-  }
 }

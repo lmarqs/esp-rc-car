@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { lineNumber } from '../../src/lib/workbench/source';
 import { HIGH_Y, LOW_Y } from '../../src/lib/workbench/trace';
 import { HOLD_MS } from '../../src/lib/workbench/typist';
+import { plugIn } from './dock';
 import { expect, test } from './fake-flasher';
 
 const SERVO = '/robomania/projects/servo/';
@@ -32,13 +33,10 @@ const tag = (page: Page) => bench(page).locator('[data-pane-tag]');
 const boardSwitch = (page: Page) => bench(page).getByRole('group', { name: 'What the board pane shows' });
 const simulatorButton = (page: Page) => bench(page).locator('[data-pane-simulator]');
 const myBoardButton = (page: Page) => bench(page).locator('[data-pane-board]');
-/** The My board view's button, which connects the board or flashes the step. */
-const boardButton = (page: Page) => bench(page).locator('[data-board-action]');
-
-/** Opens My board and connects the board from its view. */
+/** Connects the board without flashing it, then opens My board. */
 async function connect(page: Page) {
+  await plugIn(page);
   await myBoardButton(page).click();
-  await boardButton(page).click();
 }
 const trace = (page: Page) => bench(page).getByRole('img', { name: /^The servo angle on GPIO 13/ });
 const tracePath = (page: Page, part: 'sent' | 'applied' | 'level') =>
@@ -358,11 +356,17 @@ test.describe('the Servo workbench', () => {
       page,
       fakeFlasher,
     }) => {
+      // On the page rather than in the window: the page may come back from another one scrolled.
+      const onPage = (locator: Locator) =>
+        locator.evaluate((element) => {
+          const { x, y, width, height } = element.getBoundingClientRect();
+          return { x: x + scrollX, y: y + scrollY, width, height };
+        });
       const boxes = async () => ({
-        tabs: await Promise.all((await bench(page).getByRole('tab').all()).map((each) => each.boundingBox())),
-        board: await boardSwitch(page).boundingBox(),
-        simulator: await simulatorButton(page).boundingBox(),
-        myBoard: await myBoardButton(page).boundingBox(),
+        tabs: await Promise.all((await bench(page).getByRole('tab').all()).map(onPage)),
+        board: await onPage(boardSwitch(page)),
+        simulator: await onPage(simulatorButton(page)),
+        myBoard: await onPage(myBoardButton(page)),
       });
       await fakeFlasher.install({ lines: [...lines] });
       await page.goto(SERVO);
@@ -394,10 +398,11 @@ test.describe('the Servo workbench, live', () => {
     page,
     fakeFlasher,
   }) => {
-    await fakeFlasher.install({ lines: ['', 'sketch servo/angle', 'angle 120'] });
+    await fakeFlasher.install();
     await page.goto(SERVO);
     await tab(page, '2 angle').click();
     await connect(page);
+    await fakeFlasher.print('', 'sketch servo/angle', 'angle 120');
 
     await expect(tagWord(page)).toHaveText('Live');
     await expect(serial(page)).toHaveText('sketch servo/angle\nangle 120');
@@ -428,10 +433,11 @@ test.describe('the Servo workbench, live', () => {
     page,
     fakeFlasher,
   }) => {
-    await fakeFlasher.install({ lines: ['sketch servo/speed', 'angle 90'] });
+    await fakeFlasher.install();
     await page.goto(SERVO);
     await tab(page, '4 speed').click();
     await connect(page);
+    await fakeFlasher.print('sketch servo/speed', 'angle 90');
     await expect(tagWord(page)).toHaveText('Live');
     await expect(watchValue(page, 'target')).toHaveText('90°');
 

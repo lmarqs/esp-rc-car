@@ -1,15 +1,7 @@
-import { awaitsRun, isBusy, type SessionState } from '../flash';
+import { awaitsRun, type SessionState } from '../flash';
 import type { BoardModel } from './board';
 import { sketchOf } from '../flash/lines';
-import {
-  boardAction,
-  boardStatus,
-  paneMode,
-  type BoardAction,
-  type BoardStatus,
-  type PaneChoice,
-  type PaneMode,
-} from './link';
+import { boardStatus, paneMode, type BoardStatus, type PaneChoice, type PaneMode } from './link';
 import { follow, receive, send, withdraw, type Followed } from './live';
 import type { StepDefinition } from './step';
 
@@ -48,34 +40,24 @@ export interface PaneState<B> {
   readonly following: number;
   /** Counts the times a fresh simulator took the pane from the board; the page then starts its run again. */
   readonly simulation: number;
-  /** What the visitor pressed in the My board view while the session works on it. */
-  readonly pressed?: BoardAction['event'];
-  /** What the visitor pressed whose work the session last finished, as Try again repeats it after a failure. */
-  readonly tried?: BoardAction['event'];
-  /** The key of the step last flashed, or of the first step until one is: the step a missing image names. */
-  readonly flashed: string;
-  /** The refused flash the visitor moved on from by picking another step, which the pane no longer shows. */
-  readonly dismissed?: FlashRefusal;
 }
-
-/** A flash the session refused for want of an image for the board. */
-type FlashRefusal = Extract<SessionState, { kind: 'running' }>['flashRefused'];
 
 /** What happens to the board pane. */
 export type PaneEvent =
   /** The visitor picked the step at `index` in rail order. */
   | { readonly kind: 'tab'; readonly index: number }
-  /** The session with the visitor's board changed. */
-  | { readonly kind: 'session'; readonly state: SessionState }
+  /**
+   * The session with the visitor's board changed. `flashed` is the key the site last flashed onto the board, which a
+   * board left in flash mode runs once it restarts.
+   */
+  | { readonly kind: 'session'; readonly state: SessionState; readonly flashed?: string }
   /** The board printed `text` at `at` milliseconds of the page's clock. */
   | { readonly kind: 'line'; readonly text: string; readonly at: number }
   /**
    * The visitor pressed a half of the switch, or Pause, Step or Restart outside the simulator, which choose it. The
-   * simulator takes the pane with the board keeping its port; My board shows the board, or what it takes to show it.
+   * simulator takes the pane with the board keeping its port; My board shows the board, or waits for it.
    */
   | { readonly kind: 'choose'; readonly chosen: PaneChoice }
-  /** The My board view's button pressed: starts the session's work, which the page asks of it. */
-  | { readonly kind: 'press'; readonly action: BoardAction['event'] }
   /** The visitor sent `text` to the board at `at`. */
   | { readonly kind: 'sent'; readonly text: string; readonly at: number }
   /** The port refused the line `id`, `text`, sent while the pane followed the board for the `pane`-th time. */
@@ -91,27 +73,15 @@ export function initialPane<B>(
   heard?: string,
   selected = 0,
 ): PaneState<B> {
-  const flashed = project.steps[0].key;
   const chosen = heard === project.steps[selected].key ? 'board' : 'simulator';
   const opening = { session, selected, chosen, mode: 'simulator', following: 0, simulation: 0 } as const;
-  return sync(project, { ...opening, flashed, heard });
+  return sync(project, { ...opening, heard });
 }
 
 /** What the visitor's board runs for `state`. */
 export function paneStatus<B>(project: PaneProject<B>, state: PaneState<B>): BoardStatus {
   const keys = project.steps.map((step) => step.key);
   return boardStatus(state.session, state.heard, keys[state.selected], keys, project.ids);
-}
-
-/** The My board view's button for the pane; `undefined` in a browser that cannot reach a board. */
-export function paneAction<B>(project: PaneProject<B>, state: PaneState<B>): BoardAction | undefined {
-  const step = { key: selectedStep(project, state).key, id: project.ids[state.selected] };
-  return boardAction(state.session, state.heard, step, state.pressed, state.tried);
-}
-
-/** Whether the pane shows the session's refusal to flash: until the visitor picks another step. */
-export function showsRefusal<B>(state: PaneState<B>): boolean {
-  return state.session.kind === 'running' && state.session.flashRefused !== state.dismissed;
 }
 
 /** The pane after `event`. */
@@ -122,24 +92,19 @@ export function reducePane<B>(project: PaneProject<B>, state: PaneState<B>, even
         ...handBack(state),
         selected: event.index,
         mode: state.chosen === 'simulator' ? 'simulator' : 'waiting',
-        dismissed: state.session.kind === 'running' ? state.session.flashRefused : state.dismissed,
       });
     case 'session': {
       if (event.state.kind === 'flashMode') {
         // The board runs the step just written once it leaves flash mode, and the port then opens too late to hear
         // it say so.
-        return sync(project, { ...state, session: event.state, heard: state.flashed, known: project.board.initial() });
+        return sync(project, { ...state, session: event.state, heard: event.flashed, known: project.board.initial() });
       }
       const connecting = event.state.kind === 'connecting' && !awaitsRun(state.session);
-      const busy = isBusy(event.state);
       return sync(project, {
         ...state,
         session: event.state,
         heard: connecting ? undefined : state.heard,
         known: connecting ? undefined : state.known,
-        // Once the session is done with the press, a press elsewhere, such as the dock's Flash again, starts its work.
-        pressed: busy ? state.pressed : undefined,
-        tried: busy || !isBusy(state.session) ? state.tried : state.pressed,
       });
     }
     case 'line':
@@ -148,9 +113,6 @@ export function reducePane<B>(project: PaneProject<B>, state: PaneState<B>, even
       if (event.chosen === 'board') return sync(project, { ...state, chosen: 'board' });
       if (state.mode === 'simulator') return state;
       return startSimulator({ ...state, chosen: 'simulator', mode: 'simulator' });
-    case 'press':
-      if (event.action === 'flash') return { ...state, pressed: event.action, flashed: selectedStep(project, state).key };
-      return { ...state, pressed: event.action };
     case 'sent':
       if (state.mode !== 'live' || state.followed === undefined) return state;
       return {
