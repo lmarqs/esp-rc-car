@@ -18,9 +18,9 @@ import sys
 import time
 
 try:
-    import serial  # pyserial — bundled with PlatformIO
+    import serial
 except ImportError:
-    sys.exit("pyserial not found — run through mise (e.g. `mise run probe`).")
+    sys.exit("pyserial not found — run it with `mise exec -- python`.")
 
 DEFAULT_PORT = "/dev/ttyACM0"
 BAUD = 115200
@@ -32,7 +32,7 @@ def open_port(port):
     except serial.SerialException as e:
         sys.exit(
             f"could not open {port}: {e}\n"
-            f"If it is busy, a monitor likely holds it — close `mise run monitor`/`run`, "
+            f"If it is busy, a monitor likely holds it — close `mise run arduino:monitor` or `arduino:run`, "
             f"or find the holder: `lsof {port}`, `fuser {port}`, or scan /proc/*/fd."
         )
 
