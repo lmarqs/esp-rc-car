@@ -515,7 +515,6 @@ test.describe('the board dock panel', () => {
       await fakeFlasher.release();
       await expect(bar(page).getByRole('button', { name: 'Disconnect' })).toBeVisible();
       await expect(bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' })).toBeVisible();
-      await dock(page).screenshot({ path: test.info().outputPath('dock.png') });
       expect(await controls()).toEqual(idle);
     });
   }
@@ -610,7 +609,6 @@ test.describe('the board pick', () => {
     await pick(page).selectOption({ label: 'ESP-01S' });
 
     await expect(dock(page)).toContainText('set to PROG');
-    await dock(page).screenshot({ path: test.info().outputPath('dock.png') });
     const picker = await pick(page).boundingBox();
     const connect = await dock(page).getByRole('button', { name: 'Connect board' }).boundingBox();
     const serial = await dock(page).getByRole('button', { name: 'Serial' }).boundingBox();
