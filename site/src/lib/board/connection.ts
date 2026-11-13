@@ -329,6 +329,10 @@ function barFor(
       canSend: false,
     };
   }
+  if (state.kind === 'noImage') {
+    // The session found the chip, then let go of the port: the board is plugged in, but not read.
+    return { shown: true, connected: false, chip: state.chip, doing: 'cannot be flashed with this sketch', ...NOTHING };
+  }
   if (state.kind === 'idle' && state.released) {
     // Disconnect let go of the port, not of the board, which goes on running what it holds.
     const doing = 'was released and keeps running its sketch.';

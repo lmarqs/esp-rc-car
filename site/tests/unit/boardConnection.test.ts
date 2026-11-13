@@ -96,6 +96,17 @@ describe('connectionView panel words', () => {
     );
   });
 
+  it('names the chip it found in the bar when the board has no image of the sketch, which the port was let go of for', () => {
+    expect(viewOf({ kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] }).bar).toEqual({
+      shown: true,
+      connected: false,
+      chip: 'ESP8266',
+      doing: 'cannot be flashed with this sketch',
+      disconnect: false,
+      canSend: false,
+    });
+  });
+
   it('tells the visitor to press Try again after a failed flash, as its button reads', () => {
     expect(viewOf({ kind: 'noDownload' }).panel).toEqual({
       text: 'The image did not download. Check your internet connection. Then press Try again.',

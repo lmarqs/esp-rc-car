@@ -48,11 +48,7 @@ describe('the board dock', () => {
   });
 
   it('says only that no board is connected after a failure, whose panel says what to do', () => {
-    const failures: SessionState[] = [
-      { kind: 'noPort' },
-      { kind: 'dropped', pct: 30 },
-      { kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] },
-    ];
+    const failures: SessionState[] = [{ kind: 'noPort' }, { kind: 'dropped', pct: 30 }];
     for (const state of failures) {
       expect(dockView(state, EMPTY_RECORD, names, boardModel('esp01s')), state.kind).toMatchObject({
         connected: false,
