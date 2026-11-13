@@ -1,4 +1,4 @@
-# esp-rc-car
+# Robomania
 
 Firmware for an ESP32 RC car: drivers in `lib/` and sketches in `sketches/`, and Robomania, its website,
 in `site/`. The [README](README.md) says how to build and flash.

@@ -1,5 +1,5 @@
 ---
-description: Maps the parts of the esp-rc-car monorepo, firmware and website, what each is for, and which way they depend on each other.
+description: Maps the parts of the Robomania monorepo, firmware and website, what each is for, and which way they depend on each other.
 audience: Whoever adds a driver or a sketch, or changes how they connect; knows Arduino sketches and libraries
 ---
 # Architecture

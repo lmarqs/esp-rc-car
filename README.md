@@ -1,4 +1,4 @@
-# esp-rc-car
+# Robomania
 
 Firmware for a 1:10 RC car run by an ESP32, built with arduino-cli on the
 [Bluepad32](https://github.com/ricardoquesada/bluepad32) ESP32 core. The repository holds a library of drivers in

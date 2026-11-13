@@ -1,10 +1,10 @@
 ---
 description: Maps the kinds of page in docs/, when a fact belongs to each, and what a good page of each achieves.
-audience: Whoever writes down a fact about the esp-rc-car firmware, or looks for one
+audience: Whoever writes down a fact about the Robomania firmware, or looks for one
 ---
 # Docs
 
-`docs/` holds what the code and its history show nowhere else about the esp-rc-car firmware. Building and flashing
+`docs/` holds what the code and its history show nowhere else about the Robomania firmware. Building and flashing
 a sketch is in the [README](../README.md); what agents run and must not do is in [AGENTS.md](../AGENTS.md).
 
 ## Kinds
