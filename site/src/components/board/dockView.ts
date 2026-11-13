@@ -1,6 +1,6 @@
 import { isBusy, wording, type SessionState } from '../../lib/flash';
 import type { BoardModel } from '../../lib/board/models';
-import type { SketchName } from '../../lib/board/names';
+import { nameOf as siteNameOf, type SketchName, type SketchNames } from '../../lib/board/names';
 import { runs, type BoardRecord } from '../../lib/board/record';
 
 /** What the board dock shows for the visitor's board. */
@@ -35,11 +35,9 @@ const UNNAMED_ON_SWITCH = 'is running a sketch. Press reset on its adapter to na
 
 const NOTHING = { disconnect: false, canSend: false } as const;
 
-/** The name of the sketch `key`, or a plain one for a sketch outside the site. */
-function nameOf(names: Readonly<Record<string, SketchName>>, key: string | undefined): SketchName | undefined {
-  if (key === undefined) return undefined;
-  // The key is whatever the board printed, so a key such as `constructor` must not reach the object's prototype.
-  return Object.hasOwn(names, key) ? names[key] : { title: key, path: '' };
+/** The name of the sketch `key`, if any. */
+function nameOf(names: SketchNames, key: string | undefined): SketchName | undefined {
+  return key === undefined ? undefined : siteNameOf(names, key);
 }
 
 /**
@@ -49,7 +47,7 @@ function nameOf(names: Readonly<Record<string, SketchName>>, key: string | undef
 export function dockView(
   state: SessionState,
   record: BoardRecord,
-  names: Readonly<Record<string, SketchName>>,
+  names: SketchNames,
   board?: BoardModel,
 ): DockView {
   if (state.kind === 'unsupported') {

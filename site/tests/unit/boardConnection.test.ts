@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createBoard } from '../../src/lib/board/board';
+import { createBoard, type OpenedSketch } from '../../src/lib/board/board';
 import { boardMessage, connectionView, createConnection, type ConnectionInput } from '../../src/lib/board/connection';
 import { flashScene } from '../../src/lib/board/flashScene';
 import { boardModel } from '../../src/lib/board/models';
@@ -115,20 +115,32 @@ describe('boardMessage', () => {
   });
 });
 
-const sketch = { key: 'blink/input', title: 'Blink · 3 input', step: true };
+const NAMES = {
+  'blink/input': { title: 'Blink · 2 input', path: '/robomania/projects/blink/#input', step: true },
+  'blink/timer': { title: 'Blink · 3 timer', path: '/robomania/projects/blink/#timer', step: true },
+  omnidirectional: { title: 'Omnidirectional robot', path: '/robomania/projects/omnidirectional/', step: false },
+  'web-relay': { title: 'Web-controlled relay', path: '/robomania/projects/web-relay/', step: false },
+};
+
+/** The sketch `key` as a page opens it on the board: with an image and no settings unless `rest` says otherwise. */
+function opening(key: string, rest: Partial<OpenedSketch> = {}): OpenedSketch {
+  return { use: { manifest: { sketches: {} }, sketch: key, baud: 115200 }, settings: false, imageless: false, ...rest };
+}
+
+const sketch = opening('blink/input');
 const esp01s = boardModel('esp01s');
 const running: SessionState = { kind: 'running', chip: 'ESP32', output: [] };
 const lost: SessionState = { ...running, lost: true };
 
 /** The dock's view for `state`, with a sketch open unless `opened` says otherwise. */
 function viewOf(state: SessionState, rest: Partial<ConnectionInput> = {}) {
-  return connectionView({ state, record: EMPTY_RECORD, opened: sketch, pick: undefined, ...rest });
+  return connectionView({ state, record: EMPTY_RECORD, opened: sketch, pick: undefined, names: NAMES, ...rest });
 }
 
 describe('connectionView action', () => {
   it('connects from idle, and flashes the open sketch in the same press', () => {
     expect(viewOf({ kind: 'idle' }).action).toEqual({
-      label: 'Flash Blink · 3 input',
+      label: 'Flash Blink · 2 input',
       icon: 'bolt',
       event: 'connect',
       disabled: false,
@@ -174,7 +186,7 @@ describe('connectionView action', () => {
   });
 
   it('flashes the open sketch from a running board in one press, and offers nothing without a sketch', () => {
-    expect(viewOf(running).action).toEqual({ label: 'Flash Blink · 3 input', icon: 'bolt', event: 'flash', disabled: false });
+    expect(viewOf(running).action).toEqual({ label: 'Flash Blink · 2 input', icon: 'bolt', event: 'flash', disabled: false });
     expect(viewOf(running, { opened: undefined }).action).toBeUndefined();
   });
 
@@ -192,7 +204,7 @@ describe('connectionView action', () => {
   it('connects anew to flash a sketch with settings the running board does not run, so its form comes first', () => {
     const withSettings = { ...sketch, settings: true };
     expect(viewOf(running, { opened: withSettings }).action).toEqual({
-      label: 'Flash Blink · 3 input',
+      label: 'Flash Blink · 2 input',
       icon: 'bolt',
       event: 'connect',
       disabled: false,
@@ -247,12 +259,12 @@ describe('connectionView panel message', () => {
   it('words each state as the board message does, naming the open sketch by its title for a missing image', () => {
     const noImage: SessionState = { kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] };
     expect(viewOf(noImage, { record: { lines: [], pending: 'blink/timer' } }).panel).toEqual(
-      boardMessage(noImage, { name: 'Blink · 3 input', step: true }, true),
+      boardMessage(noImage, { name: 'Blink · 2 input', step: true }, true),
     );
     expect(viewOf(noImage).panel?.text).toBe(
-      'This board is an ESP8266. Blink · 3 input has images for: ESP32. Connect an ESP32, or pick another step.',
+      'This board is an ESP8266. Blink · 2 input has images for: ESP32. Connect an ESP32, or pick another step.',
     );
-    const card = { key: 'omnidirectional', title: 'Omnidirectional robot', step: false };
+    const card = opening('omnidirectional');
     expect(viewOf(noImage, { opened: card }).panel?.text).toBe(
       'This board is an ESP8266. Omnidirectional robot has images for: ESP32. Connect an ESP32.',
     );
@@ -279,7 +291,7 @@ describe('connectionView panel message', () => {
   });
 
   it('points at the card on this page that holds the settings, as it waits on them, reads them or sends them', () => {
-    const relay = { key: 'web-relay', title: 'Web-controlled relay', settings: true };
+    const relay = opening('web-relay', { settings: true });
     const record = { lines: [], pending: 'web-relay' };
     const says = (state: SessionState, rest: Partial<ConnectionInput> = {}) =>
       viewOf(state, { opened: relay, record, ...rest }).panel;
@@ -303,7 +315,6 @@ describe('connectionView panel message', () => {
   });
 
   it('sends the visitor back to the page of the sketch whose settings wait, or to Disconnect, away from its card', () => {
-    const names = { 'web-relay': { title: 'Web-controlled relay', path: '/robomania/projects/web-relay/' } };
     const record = { lines: [], pending: 'web-relay' };
     const away =
       'Your board waits on the settings of Web-controlled relay. Go back to its page to finish them, or press Disconnect.';
@@ -313,15 +324,10 @@ describe('connectionView panel message', () => {
       { kind: 'applying', chip: 'ESP8266' },
     ];
     for (const state of states) {
-      const elsewhere = [
-        undefined,
-        { key: 'blink/input', title: 'Blink · 3 input' },
-        { key: 'web-relay', title: 'Web relay · 1 x', step: true },
-      ];
-      for (const opened of elsewhere) {
-        expect(viewOf(state, { opened, record, names }).panel, state.kind).toEqual({ text: away, notice: false });
+      for (const opened of [undefined, opening('blink/input')]) {
+        expect(viewOf(state, { opened, record }).panel, state.kind).toEqual({ text: away, notice: false });
       }
-      expect(viewOf(state, { opened: undefined, record }).panel?.text, state.kind).toBe(
+      expect(viewOf(state, { opened: undefined, record, names: {} }).panel?.text, state.kind).toBe(
         'Your board waits on its settings. Go back to the page that asked for them, or press Disconnect.',
       );
     }
@@ -331,12 +337,12 @@ describe('connectionView panel message', () => {
     const refused: SessionState = { ...running, flashRefused: { key: 'blink/input', available: ['ESP32-C3'] } };
     const shown = viewOf(refused);
     expect(shown.panel).toEqual({
-      text: 'This board is an ESP32. Blink · 3 input has images for: ESP32-C3. Connect an ESP32-C3, or pick another step.',
+      text: 'This board is an ESP32. Blink · 2 input has images for: ESP32-C3. Connect an ESP32-C3, or pick another step.',
       notice: true,
     });
     expect(shown.action?.event).toBe('flash');
 
-    for (const opened of [{ key: 'blink/timer', title: 'Blink · 4 timer' }, undefined]) {
+    for (const opened of [opening('blink/timer'), undefined]) {
       const dropped = viewOf(refused, { opened });
       expect(dropped.panel).toBeUndefined();
     }
@@ -390,9 +396,9 @@ describe('createConnection', () => {
     const fake = fakeSession({ kind: 'idle' }, (event) => answer(event, fake.enter));
     const board = createBoard(fake.session);
     const page = new AbortController();
-    if (opened) board.open(use, 'Blink · 2 input', page.signal);
+    if (opened) board.open(use, page.signal);
     const pick = createPick(undefined);
-    return { fake, board, page, pick, connection: createConnection(board, pick) };
+    return { fake, board, page, pick, connection: createConnection(board, pick, NAMES) };
   }
 
   it('labels its action from the opened title, and connects and flashes the opened sketch in one press', async () => {
@@ -422,7 +428,7 @@ describe('createConnection', () => {
   it('restarts the picked board to read it when the opened sketch has no image, and flashes none', async () => {
     const { fake, board, page, connection } = connectionOver(() => {});
     page.abort();
-    board.open({ ...use, manifest: { sketches: {} } }, 'Blink · 2 input', new AbortController().signal);
+    board.open({ ...use, manifest: { sketches: {} } }, new AbortController().signal);
     expect(connection.view.action?.label).toBe('Connect board');
 
     await connection.press();
@@ -443,7 +449,7 @@ describe('createConnection', () => {
     const field = { key: 'ap_password', label: 'Hotspot password', type: 'password', default: 'web-relay-1234' } as const;
     const relay = { manifest: { sketches: { 'web-relay': { images: [image], settings: [field] } } }, sketch: 'web-relay', baud: 115200 };
     const { fake, board, connection } = connectionOver(() => {}, false);
-    board.open(relay, 'Web-controlled relay', new AbortController().signal);
+    board.open(relay, new AbortController().signal);
     fake.enter({ kind: 'running', chip: 'ESP8266', output: [] });
     expect(connection.view.action).toMatchObject({ label: 'Flash Web-controlled relay', event: 'connect' });
 
@@ -512,7 +518,7 @@ describe('createConnection', () => {
     fake.enter(running);
     await connection.press();
     page.abort();
-    board.open(relay, 'Web-controlled relay', new AbortController().signal);
+    board.open(relay, new AbortController().signal);
     expect(connection.view.action).toMatchObject({ label: 'Try again', event: 'retry' });
 
     await connection.press();

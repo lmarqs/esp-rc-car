@@ -32,7 +32,7 @@ const code = project.data.steps ? sketchesFolder(project.data.steps.map((step) =
     <p class="lead">{project.data.summary}</p>
     {
       steps ? (
-        <Workbench project={project.id} title={project.data.title} steps={steps} baud={project.data.flash?.baud} />
+        <Workbench project={project.id} steps={steps} baud={project.data.flash?.baud} />
       ) : (
         <Example name={project.data.example} />
       )

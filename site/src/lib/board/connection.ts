@@ -1,9 +1,8 @@
 import { isBusy, wording, type SessionState } from '../flash';
-import { settingsOf } from '../flash/settings';
-import type { Board } from './board';
+import type { Board, OpenedSketch } from './board';
 import { flashScene, type FlashScene } from './flashScene';
 import { restartConnection, type BoardModel } from './models';
-import type { SketchName } from './names';
+import { nameOf, type SketchNames } from './names';
 import type { BoardPick } from './pick';
 import { runs, type BoardRecord } from './record';
 
@@ -84,18 +83,6 @@ export interface ConnectionAction {
   readonly disabled: boolean;
 }
 
-/** The sketch the visitor has open on the page, as the board's button names it. */
-export interface OpenedSketch {
-  readonly key: string;
-  readonly title: string;
-  /** Set for a step of a workbench, whose page lets the visitor pick another step. */
-  readonly step?: boolean;
-  /** Set for a sketch with settings, whose form comes before its flash. */
-  readonly settings?: boolean;
-  /** Set for a sketch the page has no image of, which the board's button only connects to and reads. */
-  readonly imageless?: boolean;
-}
-
 /** What {@link connectionView} reads: the session, what the site knows of the board and what the visitor has done. */
 export interface ConnectionInput {
   readonly state: SessionState;
@@ -108,8 +95,8 @@ export interface ConnectionInput {
   readonly pressed?: ConnectionEvent;
   /** The press whose work the session last finished, as Try again repeats it after a failure. */
   readonly tried?: ConnectionEvent;
-  /** The site's sketches by key, which name the sketch whose settings the session waits on away from its card. */
-  readonly names?: Readonly<Record<string, SketchName>>;
+  /** The site's sketches by key, which name the opened sketch and the one whose settings the session waits on. */
+  readonly names: SketchNames;
 }
 
 /** What the board dock shows for the visitor's board. */
@@ -135,7 +122,7 @@ const ICONS: Readonly<Record<ConnectionEvent, ConnectionAction['icon']>> = {
 
 /** The session's refusal to flash `opened`, which the dock shows only while the page still has that sketch open. */
 function showsRefusal(state: SessionState, opened: OpenedSketch | undefined): boolean {
-  return state.kind === 'running' && state.flashRefused !== undefined && state.flashRefused.key === opened?.key;
+  return state.kind === 'running' && state.flashRefused !== undefined && state.flashRefused.key === opened?.use.sketch;
 }
 
 /** Whether the session reads, waits on or sends the board's settings, which the card of their sketch shows. */
@@ -151,12 +138,13 @@ function settingsMessage(
   state: SessionState,
   record: BoardRecord,
   opened: OpenedSketch | undefined,
-  names: Readonly<Record<string, SketchName>>,
+  names: SketchNames,
 ): BoardMessage | undefined {
   if (!onSettings(state)) return undefined;
   const key = record.pending ?? runs(record);
-  if (opened !== undefined && opened.step !== true && opened.key === key) {
-    const card = `The ${opened.title} card on this page`;
+  const own = key !== undefined && opened?.use.sketch === key ? nameOf(names, key) : undefined;
+  if (own !== undefined && !own.step) {
+    const card = `The ${own.title} card on this page`;
     switch (state.kind) {
       case 'settings': {
         const then = state.flashed ? 'send them' : 'flash the board';
@@ -184,20 +172,21 @@ function settingsMessage(
  * a hotspot never starts with its default password unasked.
  */
 function flashFromRunning(opened: OpenedSketch, record: BoardRecord): ConnectionEvent {
-  return opened.settings === true && runs(record) !== opened.key ? 'connect' : 'flash';
+  return opened.settings && runs(record) !== opened.use.sketch ? 'connect' : 'flash';
 }
 
 function actionFor(
   state: SessionState,
   record: BoardRecord,
   opened: OpenedSketch | undefined,
+  title: string,
   pressed: ConnectionEvent | undefined,
   tried: ConnectionEvent | undefined,
 ): ConnectionAction | undefined {
   const flash = (event: ConnectionEvent): ConnectionAction | undefined =>
-    opened === undefined || opened.imageless === true
+    opened === undefined || opened.imageless
       ? undefined
-      : { label: `Flash ${opened.title}`, icon: 'bolt', event, disabled: false };
+      : { label: `Flash ${title}`, icon: 'bolt', event, disabled: false };
   const connect = (label: string): ConnectionAction => ({ label, icon: 'plug', event: 'connect', disabled: false });
   if (state.kind === 'unsupported') return undefined;
   if (RETRYABLE.has(state.kind)) {
@@ -231,11 +220,12 @@ function actionFor(
  * visitor picked. `pressed` and `tried` are the last press made while the session worked and the press whose work
  * ended in the session's failure, which Try again repeats.
  */
-export function connectionView({ state, record, opened, pick, pressed, tried, names = {} }: ConnectionInput): ConnectionView {
+export function connectionView({ state, record, opened, pick, pressed, tried, names }: ConnectionInput): ConnectionView {
   const refusal = showsRefusal(state, opened);
-  const sketch = { name: opened?.title ?? record.pending ?? 'This sketch', step: opened?.step === true };
+  const name = opened && nameOf(names, opened.use.sketch);
+  const sketch = { name: name?.title ?? record.pending ?? 'This sketch', step: name?.step === true };
   const panel = boardMessage(state, sketch, refusal, pick) ?? settingsMessage(state, record, opened, names);
-  const action = actionFor(state, record, opened, pressed, tried);
+  const action = actionFor(state, record, opened, sketch.name, pressed, tried);
   return {
     ...(action !== undefined && { action }),
     ...(panel !== undefined && { panel }),
@@ -262,11 +252,7 @@ export interface Connection {
  * sketches. It remembers what the visitor pressed while the session works on it, and the press whose work last ended,
  * as Try again repeats it.
  */
-export function createConnection(
-  board: Board,
-  pick: BoardPick,
-  names: Readonly<Record<string, SketchName>> = {},
-): Connection {
+export function createConnection(board: Board, pick: BoardPick, names: SketchNames): Connection {
   const listeners = new Set<() => void>();
   let state = board.session.state;
   let pressed: ConnectionEvent | undefined;
@@ -276,25 +262,11 @@ export function createConnection(
     for (const listener of [...listeners]) listener();
   }
 
-  /** The sketch the page has open, as the board's button names it. */
-  function openedNow(): OpenedSketch | undefined {
-    const opened = board.opened;
-    return (
-      opened && {
-        key: opened.use.sketch,
-        title: opened.title,
-        step: opened.step === true,
-        settings: settingsOf(opened.use.manifest, opened.use.sketch, opened.use.baud).length > 0,
-        imageless: (opened.use.manifest.sketches[opened.use.sketch]?.images.length ?? 0) === 0,
-      }
-    );
-  }
-
   function viewNow(): ConnectionView {
     return connectionView({
       state: board.session.state,
       record: board.record,
-      opened: openedNow(),
+      opened: board.opened,
       pick: pick.model,
       ...(pressed !== undefined && { pressed }),
       ...(tried !== undefined && { tried }),
@@ -337,14 +309,14 @@ export function createConnection(
       case 'connect':
         // A connection that is not a restart flashes the opened sketch; with none, the session's sketch is another
         // page's, and with one the page has no image of, nothing can be flashed: the board is only restarted and read.
-        return board.send(openedNow()?.imageless === false ? { type: 'connect' } : restartConnection(pick.model));
+        return board.send(opened?.imageless === false ? { type: 'connect' } : restartConnection(pick.model));
       case 'flash':
         if (opened !== undefined) await board.send({ type: 'flash', key: opened.use.sketch });
         return;
       case 'retry': {
         await board.send(restartConnection(pick.model));
         // The sketch open now may be another page's, with settings: it is flashed as from any running board.
-        const now = openedNow();
+        const now = board.opened;
         if (board.session.state.kind === 'running' && !board.session.state.lost && now?.imageless === false) {
           await start(flashFromRunning(now, board.record));
         }

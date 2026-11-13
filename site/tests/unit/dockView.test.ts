@@ -4,7 +4,7 @@ import { boardModel } from '../../src/lib/board/models';
 import { EMPTY_RECORD, type BoardRecord } from '../../src/lib/board/record';
 import type { SessionState } from '../../src/lib/flash';
 
-const names = { 'blink/input': { title: 'Blink · 2 input', path: '/robomania/projects/blink/#input' } };
+const names = { 'blink/input': { title: 'Blink · 2 input', path: '/robomania/projects/blink/#input', step: true } };
 const running: SessionState = { kind: 'running', chip: 'ESP32', output: [] };
 const heard: BoardRecord = {
   heard: 'blink/input',

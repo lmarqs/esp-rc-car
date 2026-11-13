@@ -1,5 +1,6 @@
 import { createFlasher, createSession, isBusy, type FlashSession, type Manifest, type SessionState } from '../flash';
 import type { SessionEvent, SessionOptions } from '../flash/session';
+import { settingsOf } from '../flash/settings';
 import { EMPTY_RECORD, recordBoard, type BoardRecord, type RecordEvent } from './record';
 
 /** The speed a board connected from a page with no sketch of its own is read at: every ladder step prints at it. */
@@ -8,13 +9,13 @@ export const DEFAULT_BAUD = 115200;
 /** What a page points the board's session at: its images, the sketch it has open and the speed it prints at. */
 export type BoardUse = Omit<SessionOptions, 'flasher'>;
 
-/** The sketch a page part opened: what the session needs to work with it, and the name the visitor knows it by. */
+/** The sketch a page part opened: what the session needs to work with it, and what that asks of a flash. */
 export interface OpenedSketch {
   readonly use: BoardUse;
-  /** The sketch's name as the page shows it, such as `Blink · 2 input`. */
-  readonly title: string;
-  /** Set for a step of a workbench, whose page lets the visitor pick another step. */
-  readonly step?: true;
+  /** Whether the sketch has settings, whose form comes before its flash. */
+  readonly settings: boolean;
+  /** Whether the page has no image of the sketch, which the board can then only be connected to and read. */
+  readonly imageless: boolean;
 }
 
 /**
@@ -39,11 +40,10 @@ export interface Board {
   /** Forgets the lines kept so far; what the board runs stays known. */
   clearLines(): void;
   /**
-   * Names `use`, shown as `title`, the sketch the visitor has open, until `signal` aborts as its page goes or another
-   * is opened; `step` marks a workbench's step. Opening does not point the session at it; the next {@link Board.send}
-   * does.
+   * Names `use` the sketch the visitor has open, until `signal` aborts as its page goes or another is opened. Opening
+   * does not point the session at it; the next {@link Board.send} does.
    */
-  open(use: BoardUse, title: string, signal: AbortSignal, options?: { step?: boolean }): void;
+  open(use: BoardUse, signal: AbortSignal): void;
   /** Adds `manifest`'s images to the ones the session knows, so a key it names can be flashed again from any page. */
   know(manifest: Manifest): void;
 }
@@ -112,8 +112,12 @@ export function createBoard(session: FlashSession): Board {
     clearLines() {
       change({ kind: 'clear' });
     },
-    open(use, title, signal, options) {
-      const sketch: OpenedSketch = { use, title, ...(options?.step === true && { step: true }) };
+    open(use, signal) {
+      const sketch: OpenedSketch = {
+        use,
+        settings: settingsOf(use.manifest, use.sketch, use.baud).length > 0,
+        imageless: (use.manifest.sketches[use.sketch]?.images.length ?? 0) === 0,
+      };
       opened = sketch;
       notify();
       signal.addEventListener(

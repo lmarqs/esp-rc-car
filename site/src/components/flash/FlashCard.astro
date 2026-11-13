@@ -143,7 +143,7 @@ const helpOf = (field: (typeof fields)[number]) =>
       const board = theBoard();
       const { session } = board;
       // A card on the Flash page waits for its project to be picked, which opens its sketch.
-      if (card.closest('[hidden]') === null) board.open(use, title!, signal);
+      if (card.closest('[hidden]') === null) board.open(use, signal);
       const settings = settingsOf(manifest, sketch!, use.baud);
       const context = {
         title: title!,

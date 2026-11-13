@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createBoard, keyFlashedBy } from '../../src/lib/board/board';
+import { createBoard, keyFlashedBy, type BoardUse } from '../../src/lib/board/board';
+import type { ManifestImage } from '../../src/lib/flash/manifest';
 import { fakeSession } from './fakeSession';
 
 const manifest = { sketches: {} };
@@ -9,7 +10,7 @@ describe('the site board', () => {
     const fake = fakeSession();
     const board = createBoard(fake.session);
 
-    board.open({ manifest, sketch: 'servo', baud: 115200 }, 'Servo', new AbortController().signal);
+    board.open({ manifest, sketch: 'servo', baud: 115200 }, new AbortController().signal);
     expect(fake.configured).toEqual([]);
 
     await board.send({ type: 'connect' });
@@ -19,11 +20,11 @@ describe('the site board', () => {
   it('keeps the session pointed where its work began while it is busy, whatever is opened meanwhile', async () => {
     const fake = fakeSession();
     const board = createBoard(fake.session);
-    board.open({ manifest, sketch: 'servo' }, 'Servo', new AbortController().signal);
+    board.open({ manifest, sketch: 'servo' }, new AbortController().signal);
     await board.send({ type: 'connect' });
     fake.enter({ kind: 'flashing', chip: 'ESP32', pct: 10 });
 
-    board.open({ manifest, sketch: 'blink/simple' }, 'Blink', new AbortController().signal);
+    board.open({ manifest, sketch: 'blink/simple' }, new AbortController().signal);
     await board.send({ type: 'disconnect' });
 
     expect(fake.configured).toEqual([{ manifest, sketch: 'servo' }]);
@@ -32,7 +33,7 @@ describe('the site board', () => {
   it("records the opened sketch as what a connection flashes, and a flash's key, once the board runs it", async () => {
     const fake = fakeSession();
     const board = createBoard(fake.session);
-    board.open({ manifest, sketch: 'servo' }, 'Servo', new AbortController().signal);
+    board.open({ manifest, sketch: 'servo' }, new AbortController().signal);
 
     await board.send({ type: 'connect' });
     fake.enter({ kind: 'connecting' });
@@ -82,35 +83,40 @@ describe('the sketch the visitor has open', () => {
     expect(createBoard(fakeSession().session).opened).toBeUndefined();
   });
 
-  it('names the opened sketch and its title, until the page that opened it goes', () => {
+  it('names the opened sketch, until the page that opened it goes', () => {
     const board = createBoard(fakeSession().session);
     const page = new AbortController();
     let heard = 0;
     board.subscribe(() => heard++);
 
-    board.open(use('blink/simple'), 'Blink · 1 simple', page.signal);
-    expect(board.opened).toEqual({ use: use('blink/simple'), title: 'Blink · 1 simple' });
+    board.open(use('blink/simple'), page.signal);
+    expect(board.opened).toEqual({ use: use('blink/simple'), settings: false, imageless: true });
     page.abort();
 
     expect(board.opened).toBeUndefined();
     expect(heard).toBe(2);
   });
 
-  it('marks an opened workbench step as a step', () => {
+  it('notes whether the opened sketch has settings, and whether the page has an image of it', () => {
     const board = createBoard(fakeSession().session);
+    const field = { key: 'ap_password', label: 'Hotspot password', type: 'password', default: 'web-relay-1234' } as const;
+    const image: ManifestImage = { profile: 'esp01', chipFamily: 'ESP8266', parts: [] };
+    const relay: BoardUse = { manifest: { sketches: { 'web-relay': { images: [image], settings: [field] } } }, sketch: 'web-relay', baud: 115200 };
 
-    board.open(use('blink/input'), 'Blink · 2 input', new AbortController().signal, { step: true });
-
-    expect(board.opened).toEqual({ use: use('blink/input'), title: 'Blink · 2 input', step: true });
+    board.open(relay, new AbortController().signal);
+    expect(board.opened).toEqual({ use: relay, settings: true, imageless: false });
+    // A sketch that prints nothing has no baud to read its settings at.
+    board.open({ ...relay, baud: undefined }, new AbortController().signal);
+    expect(board.opened).toMatchObject({ settings: false, imageless: false });
   });
 
   it('replaces the opened sketch when the same page opens another', () => {
     const board = createBoard(fakeSession().session);
     const page = new AbortController();
 
-    board.open(use('blink/simple'), 'Blink · 1 simple', page.signal);
-    board.open(use('blink/input'), 'Blink · 2 input', page.signal);
-    expect(board.opened).toEqual({ use: use('blink/input'), title: 'Blink · 2 input' });
+    board.open(use('blink/simple'), page.signal);
+    board.open(use('blink/input'), page.signal);
+    expect(board.opened).toEqual({ use: use('blink/input'), settings: false, imageless: true });
     page.abort();
 
     expect(board.opened).toBeUndefined();
@@ -119,23 +125,23 @@ describe('the sketch the visitor has open', () => {
   it('keeps the sketch the next page opened when the last page goes after it', () => {
     const board = createBoard(fakeSession().session);
     const last = new AbortController();
-    board.open(use('blink/simple'), 'Blink · 1 simple', last.signal);
-    board.open(use('servo/sweep'), 'Servo', new AbortController().signal);
+    board.open(use('blink/simple'), last.signal);
+    board.open(use('servo/sweep'), new AbortController().signal);
 
     last.abort();
 
-    expect(board.opened).toEqual({ use: use('servo/sweep'), title: 'Servo' });
+    expect(board.opened).toEqual({ use: use('servo/sweep'), settings: false, imageless: true });
   });
 
   it('keeps the sketch opened again by the same page when an earlier signal of that page aborts', () => {
     const board = createBoard(fakeSession().session);
     const first = new AbortController();
-    board.open(use('blink/simple'), 'Blink · 1 simple', first.signal);
-    board.open(use('blink/simple'), 'Blink · 1 simple', new AbortController().signal);
+    board.open(use('blink/simple'), first.signal);
+    board.open(use('blink/simple'), new AbortController().signal);
 
     first.abort();
 
-    expect(board.opened?.title).toBe('Blink · 1 simple');
+    expect(board.opened?.use.sketch).toBe('blink/simple');
   });
 });
 
