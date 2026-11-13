@@ -60,7 +60,7 @@ line the board is about to run.
 ### 1. simple: blink with `delay()`
 
 The whole sketch is one LED and a loop. `setup()` runs once when the board starts; `loop()` runs over and over after
-it. `DigitalOutPin` comes from the project's [library](../../library/): it wraps a GPIO pin so the sketch says *what*
+it. `BoardLed` comes from the project's [library](../../library/): it wraps the board's LED pin so the sketch says *what*
 it drives, and the driver knows *how*. `SerialOutput` comes from the same library: `output.begin("blink/simple")`
 opens the serial port and prints the sketch's name, which is how the workbench tells which step your board runs, and
 `output.println` prints a line. `delay(1000)` waits a thousand milliseconds, which is why the LED changes once a
@@ -95,6 +95,6 @@ A board whose LED is on another pin shows no blink. The serial lines still show 
 
 <div class="gap">
 
-Why the first sketch goes through the project's own `DigitalOutPin` instead of Arduino's `digitalWrite()`.
+Why the first sketch goes through the project's own `BoardLed` instead of Arduino's `digitalWrite()`.
 
 </div>

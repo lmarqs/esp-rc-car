@@ -17,8 +17,8 @@ The code has three layers, and each depends only on the ones below it:
   protocol. Every sketch builds with the same library. The [Library](../../library/) page shows them all.
 - **Pin interfaces**, also in `lib/`: the kinds of output a driver can ask for, such as a level or a PWM signal.
 
-A driver reaches the hardware only through a pin interface, so the H-bridge driver does not care whether its PWM
-comes from the ESP32's LEDC hardware or from Arduino's `analogWrite()`. Under all of them sits the ESP32 Arduino
+A driver asks for a pin through a pin interface, so the H-bridge driver works with any PWM source that implements
+`PwmOutPin`, today the ESP32's LEDC hardware. Under all of them sits the ESP32 Arduino
 core, which brings the Arduino API, ESP-IDF and the Bluetooth gamepad stack.
 
 <div class="gap">
