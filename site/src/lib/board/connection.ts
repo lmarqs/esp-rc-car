@@ -1,5 +1,7 @@
-import { wording, type SessionState } from '../flash';
+import { isBusy, wording, type SessionState } from '../flash';
+import { flashScene, type FlashScene } from './flashScene';
 import type { BoardModel } from './models';
+import { runs, type BoardRecord } from './record';
 
 /** What the board pane shows in place of the picture while the page talks to the board, or after it failed. */
 export interface BoardMessage {
@@ -53,4 +55,131 @@ export function boardMessage(
     default:
       return undefined;
   }
+}
+
+/** What a press of the board's button asks of the session. */
+export type ConnectionEvent = 'connect' | 'flash' | 'retry';
+
+/** The board's one button: what it says, which icon it wears, what it sends and whether it can be pressed. */
+export interface ConnectionAction {
+  /** The button's word. */
+  readonly label: string;
+  readonly icon: 'plug' | 'bolt' | 'again';
+  /**
+   * `connect` connects to a board; `flash` flashes the opened sketch onto the connected one; `retry` does both, after a
+   * flash failed and the session let go of the port.
+   */
+  readonly event: ConnectionEvent;
+  /** Set while the session works on the last press. */
+  readonly disabled: boolean;
+}
+
+/** The sketch the visitor has open on the page, as the board's button names it. */
+export interface OpenedSketch {
+  readonly key: string;
+  readonly title: string;
+}
+
+/** What {@link connectionView} reads: the session, what the site knows of the board and what the visitor has done. */
+export interface ConnectionInput {
+  readonly state: SessionState;
+  readonly record: BoardRecord;
+  /** The sketch the page has open; `undefined` on a page with none, which only connects. */
+  readonly opened: OpenedSketch | undefined;
+  /** The board the visitor picked, which the hints are for. */
+  readonly pick: BoardModel | undefined;
+  /** What the visitor pressed while the session works on it, which names that work. */
+  readonly pressed?: ConnectionEvent;
+  /** The press whose work the session last finished, as Try again repeats it after a failure. */
+  readonly tried?: ConnectionEvent;
+}
+
+/** What the board dock shows for the visitor's board. */
+export interface ConnectionView {
+  /** The dock's one button; absent when there is nothing to press. */
+  readonly action?: ConnectionAction;
+  readonly message?: BoardMessage;
+  readonly scene: FlashScene;
+  /** Whether the dock's panel is open: while the session works, waits in flash mode, failed, lost or refused. */
+  readonly open: boolean;
+}
+
+/** The failures a press may get past: the visitor fixes what the message says, then presses again. */
+const RETRYABLE: ReadonlySet<SessionState['kind']> = new Set(['noPort', 'portBusy', 'noAnswer', 'noDownload', 'dropped']);
+
+const FAILED: ReadonlySet<SessionState['kind']> = new Set([...RETRYABLE, 'noImage']);
+
+const ICONS: Readonly<Record<ConnectionEvent, ConnectionAction['icon']>> = {
+  connect: 'plug',
+  flash: 'bolt',
+  retry: 'again',
+};
+
+/** What to do when a board on a flash-switch adapter runs a sketch that has not named itself, which its reset button fixes. */
+function unnamedOnSwitch(opened: OpenedSketch | undefined): string {
+  return opened === undefined
+    ? 'Your board has not named its sketch. Press reset on its adapter to name it.'
+    : `Your board has not named its sketch. Press reset on its adapter, or flash ${opened.title} to use it here.`;
+}
+
+/** The session's refusal to flash `opened`, which the dock shows only while the page still has that sketch open. */
+function showsRefusal(state: SessionState, opened: OpenedSketch | undefined): boolean {
+  return state.kind === 'running' && state.flashRefused !== undefined && state.flashRefused.key === opened?.key;
+}
+
+function actionFor(
+  state: SessionState,
+  opened: OpenedSketch | undefined,
+  pressed: ConnectionEvent | undefined,
+  tried: ConnectionEvent | undefined,
+): ConnectionAction | undefined {
+  const flash = (event: ConnectionEvent): ConnectionAction | undefined =>
+    opened === undefined ? undefined : { label: `Flash ${opened.title}`, icon: 'bolt', event, disabled: false };
+  const connect = (label: string): ConnectionAction => ({ label, icon: 'plug', event: 'connect', disabled: false });
+  if (state.kind === 'unsupported') return undefined;
+  if (RETRYABLE.has(state.kind)) {
+    // A flash that failed is tried again in one press: the connection, then the flash.
+    const event = tried === 'flash' || tried === 'retry' ? 'retry' : 'connect';
+    return { label: 'Try again', icon: 'again', event, disabled: false };
+  }
+  if (isBusy(state)) {
+    // A press made elsewhere leaves `pressed` unset: what the session does names it.
+    const event = pressed ?? (state.kind === 'flashing' ? 'flash' : 'connect');
+    return { label: event === 'flash' ? 'Flashing…' : 'Connecting…', icon: ICONS[event], event, disabled: true };
+  }
+  switch (state.kind) {
+    case 'idle':
+      return flash('connect') ?? connect('Connect board');
+    case 'running':
+      return state.lost ? connect('Connect again') : flash('flash');
+    case 'flashMode':
+      return connect('Connect again');
+    default:
+      return connect('Connect board');
+  }
+}
+
+/**
+ * The board dock for the session's `state`: its one button, what it says and draws, and whether its panel is open.
+ * `record` is what the site knows of the board; `opened` the sketch the page has open, if any; `pick` the board the
+ * visitor picked. `pressed` and `tried` are the last press made while the session worked and the press whose work
+ * ended in the session's failure, which Try again repeats.
+ */
+export function connectionView({ state, record, opened, pick, pressed, tried }: ConnectionInput): ConnectionView {
+  const refusal = showsRefusal(state, opened);
+  const named = boardMessage(state, record.pending ?? opened?.key ?? 'This sketch', refusal, pick);
+  const unnamed =
+    state.kind === 'running' && !state.lost && runs(record) === undefined && pick?.flashSwitch === true
+      ? ({ text: unnamedOnSwitch(opened), notice: false } satisfies BoardMessage)
+      : undefined;
+  const message = named ?? unnamed;
+  const action = actionFor(state, opened, pressed, tried);
+  const lost = state.kind === 'running' && state.lost === true;
+  const open = isBusy(state) || state.kind === 'flashMode' || FAILED.has(state.kind) || lost || refusal;
+  return {
+    ...(action !== undefined && { action }),
+    ...(message !== undefined && { message }),
+    scene: flashScene(state, pick),
+    open,
+  };
 }
