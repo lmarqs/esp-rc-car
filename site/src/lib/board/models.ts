@@ -47,14 +47,6 @@ export function modelsWithImages(chips: readonly string[]): BoardModel[] {
   return BOARD_MODELS.filter((model) => chips.includes(model.chip));
 }
 
-/** What the site says when the chip that answered is not the picked board's, so it follows `answering` instead. */
-export function correctionNotice(picked: BoardModel, answering: BoardModel): string {
-  return (
-    `You picked an ${picked.name}, but the board that answered is an ${answering.chip}. ` +
-    `The site now gives the steps for an ${answering.name}.`
-  );
-}
-
 /** What a project's card says of the boards it runs on, `models`, for the board the visitor picked, if any. */
 export function boardsLine(models: readonly BoardModel[], picked: BoardModel | undefined): { text: string; fits?: boolean } {
   const names = models.map((model) => model.name);

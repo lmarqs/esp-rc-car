@@ -163,7 +163,7 @@ opens the rest. It connects a board, lets it go, and opens a serial monitor that
 clears them. It also holds the visitor's pick of board, which the card, the workbench and the project cards follow:
 the card and the workbench give that board's hints, such as the flash switch of an ESP-01S adapter, and each project
 card says whether the project runs on it. Once a board connects, its chip is
-certain, so the pick follows the chip and the dock says so when the visitor picked another board.
+certain, so the pick follows the chip, without a word when the visitor picked another board.
 Every page carries the names of every project's sketches and the whole manifest for it.
 
 The workbench has a simulated board, and it hears from a real one through the `sketch <key>` line. Every step of a

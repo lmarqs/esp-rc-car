@@ -221,7 +221,7 @@ test.describe('the board pick', () => {
     await expect(pick(page)).toHaveValue('esp01s');
   });
 
-  test('follows the chip that answers, and says so when it is not the picked one', async ({ page, fakeFlasher }) => {
+  test('follows the chip that answers without a word when it is not the picked one', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ chip: 'ESP32', lines: ['sketch blink/input'] });
     await page.goto('/robomania/learn/');
     await pick(page).selectOption({ label: 'ESP32-C3' });
@@ -229,9 +229,7 @@ test.describe('the board pick', () => {
     await dock(page).getByRole('button', { name: 'Connect board' }).click();
 
     await expect(pick(page)).toHaveValue('esp32');
-    await expect(dock(page).getByRole('status')).toHaveText(
-      'You picked an ESP32-C3, but the board that answered is an ESP32. The site now gives the steps for an ESP32 dev board.',
-    );
+    await expect(dock(page).getByRole('status')).toHaveCount(0);
   });
 
   test('reads a picked ESP-01S as it runs, without asking for flash mode', async ({ page, fakeFlasher }) => {
@@ -261,24 +259,11 @@ test.describe('the board pick', () => {
     }
   });
 
-  test('drops the note once the board that answered is disconnected', async ({ page, fakeFlasher }) => {
-    await fakeFlasher.install({ chip: 'ESP32', lines: ['sketch blink/input'] });
-    await page.goto('/robomania/learn/');
-    await pick(page).selectOption({ label: 'ESP32-C3' });
-    await dock(page).getByRole('button', { name: 'Connect board' }).click();
-    await expect(dock(page).getByRole('status')).toBeVisible();
-
-    await dock(page).getByRole('button', { name: 'Disconnect' }).click();
-
-    await expect(dock(page).getByRole('status')).toBeHidden();
-  });
-
   test('takes the board from the chip that answers when none was picked', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ chip: 'ESP8266', lines: ['sketch web-relay'] });
     await page.goto('/robomania/learn/');
     await dock(page).getByRole('button', { name: 'Connect board' }).click();
 
     await expect(pick(page)).toHaveValue('esp01s');
-    await expect(dock(page).getByRole('status')).toBeHidden();
   });
 });

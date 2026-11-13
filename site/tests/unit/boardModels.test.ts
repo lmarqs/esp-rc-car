@@ -3,7 +3,6 @@ import {
   BOARD_MODELS,
   boardModel,
   boardsLine,
-  correctionNotice,
   modelAnswering,
   modelsWithImages,
   restartConnection,
@@ -46,12 +45,6 @@ describe('the board models', () => {
   it('lists the models whose chip has an image, in the list order', () => {
     expect(modelsWithImages(['ESP8266', 'ESP32']).map((model) => model.id)).toEqual(['esp32', 'esp01s']);
     expect(modelsWithImages([])).toEqual([]);
-  });
-
-  it('says which board answered instead of the picked one', () => {
-    expect(correctionNotice(boardModel('esp01s')!, boardModel('esp32')!)).toBe(
-      'You picked an ESP-01S, but the board that answered is an ESP32. The site now gives the steps for an ESP32 dev board.',
-    );
   });
 
   it('has one model per chip, so a chip names its model', () => {
