@@ -83,19 +83,20 @@ The site also puts the firmware on a board. Its parts:
   flashing and running. The rest of the site takes from the slice the card, the manifest and its reader, and a
   public module, `site/src/lib/flash/index.ts`, that gives the board slice the session, the flasher and the wording of
   what the session says, and the workbench the wording for a browser without Web Serial.
-- **Board slice**: `site/src/lib/board/` holds the visitor's board, one for the whole site: the flash session that
-  holds its port, the sketch the visitor has open on the page, and what the site knows of the board beyond the
-  session's state: the sketch it runs and the lines it printed and was sent. A page names its sketch with
-  `board.open(use, signal)`, and the board forgets it when the signal aborts as the page goes or when another is
-  opened. A page part that opens sketch after sketch, the workbench's steps or the Flash page's picks, opens them
-  through `openerOn`, which ends each opening with the next and all of them with the page. The dock names an opened sketch as the site names it, from every project's titles and steps. Opening points nothing: `board.send` configures the session with the opened sketch when a press comes,
-  unless the session is busy, whose work belongs to the sketch it started with. The Board connection, in
-  `connection.ts`, turns the session's state, that record and the opened sketch into the dock's one view, which is
-  its bar, the board's one action, and the panel's message and picture, and presses the action. It is the
-  one module that words the session's failures. The slice also holds the board models the site has images for, one per
-  chip, and the visitor's pick of one, kept in the browser. `site/src/components/board/` holds the dock, along the
-  bottom of every page, and the flash picture its panel draws. The card, the workbench and the Flash page's pick open
-  their sketches on the board; the slice depends on the flash slice.
+- **Board slice**: `site/src/lib/board/` holds the visitor's board, one for the whole site: the flash session that holds
+  its port, the sketch the visitor has open on the page, and what the site knows of the board beyond the session's
+  state: the sketch it runs and the lines it printed and was sent. A page names its sketch with `board.open(use,
+  signal)`, and the board forgets it when the signal aborts as the page goes or when another is opened. A page part that
+  opens sketch after sketch, the workbench's steps or the Flash page's picks, opens them through `openerOn`, which ends
+  each opening with the next and all of them with the page. The dock names an opened sketch as the site names it, from
+  every project's titles and steps. Opening points nothing: `board.send` configures the session with the opened sketch
+  when a press comes, unless the session is busy, whose work belongs to the sketch it started with. The Board
+  connection, in `connection.ts`, turns the session's state, that record and the opened sketch into the dock's one view,
+  which is its bar, the board's one action, and the panel's message and picture, and presses the action. It is the one
+  module that words the session's failures. The slice also holds the board models the site has images for, one per chip,
+  and the visitor's pick of one, kept in the browser. `site/src/components/board/` holds the dock, along the bottom of
+  every page, and the flash picture its panel draws. The card, the workbench and the Flash page's pick open their
+  sketches on the board; the slice depends on the flash slice.
 - **Router**: the site swaps pages in place with Astro's client router, so the board keeps its port from page to page
   and the dock persists across the swap. A page's script runs once per visit to the site, so each one mounts on every
   page the router shows and stops what outlives its page, such as a timer or a subscription to the board, as the
@@ -180,27 +181,30 @@ The dock is the one surface where the visitor connects, flashes and retries. It 
 Board connection, and a panel for what happens between the computer and the board:
 
 - The action says what a press does: Connect board, or Connect again once the board is lost or left in flash mode,
-  which restart the board into what it holds and read it, and write nothing; Flash and the open sketch's title when a
-  page has a sketch open, the one action that writes the board; Try again after a failed connect or flash, which
-  repeats that press; and,
-  while the session works, what it does, Connecting…, Flashing… or Setting up… for the settings, which cannot be
-  pressed and which the workbench's tag and the switch's dot say in the same words. A sketch with no image for the board
-  opens the panel with its message, which names the sketch the visitor tried to flash, whichever is open by then. The action is then Connect board after a connect, and stays Flash and the sketch's
-  title after a flash refused over a running board. The sketch is the one the visitor has open: the workbench's
+  which restart the board into what it holds and read it, and write no sketch; Flash and the open sketch's title when
+  a page has a sketch open, the one action that writes a sketch; Try again after a failed connect or flash, which
+  repeats that press; and, while the session works, what it does, Connecting… or Flashing…, which cannot be pressed
+  and which the workbench's tag and the switch's dot say in the same words. While the board waits on its settings,
+  read, asked for or sent, the dock offers no action: the settings form in the card of their sketch is the action,
+  the panel says where that card is, the bar keeps Disconnect, and the tag and the dot say the board is waiting for
+  its settings. A sketch with no image for the board opens the panel with its message, which names the sketch the
+  visitor tried to flash, whichever is open by then, while the bar names the chip the session found. The action is
+  then Connect board after a connect, and stays Flash and the sketch's title after a flash refused over a running
+  board. The sketch is the one the visitor has open: the workbench's
   selected step, the project page's card, or the Flash page's pick, each opened with `board.open` until its page goes.
   A page with no sketch, such as Learn, or with a sketch the page has no image of, offers Connect, which restarts and
   reads the board, and no Flash.
-- Flash flashes the open sketch from idle and from running in one press, and Try again after a failed flash connects
-  and flashes in one press, also from another page, with one request for the port: the connection opens the settings form of a sketch that has
-  settings before it writes. From running, a sketch with settings that the board does not already run connects anew,
-  so its card's settings form comes before the write.
-- The panel opens while the session works, waits in flash mode, failed, is lost, or has no image of the open sketch for
-  the board, and closes when the session is idle or running. It draws the flash picture, the computer, the
-  cable and the board's chip with Find, Write and Restart under them, which marks where a failure happened, with the
-  action hanging above the cable; the hand hint, the BOOT button or the adapter's switch to PROG or to UART; and the
-  message, in a live region. The action is in the panel while the panel is open and in the bar otherwise, so the board
-  has one button at a time. While the panel is open, the bar names the state only, such as lost the connection, and
-  the panel alone says what to do.
+- Flash flashes the open sketch from idle and from running in one press, and Try again after a failed flash connects and
+  flashes in one press, also from another page, with one request for the port: the connection opens the settings form of
+  a sketch that has settings before it writes. From running, a sketch with settings that the board does not already run
+  connects anew, so its card's settings form comes before the write.
+- The panel opens while the session works, waits in flash mode or on the board's settings, failed, is lost, or has no
+  image of the open sketch for the board, and closes when the session is idle or running. It draws the flash picture,
+  the computer, the cable and the board's chip with Find, Write and Restart under them, which marks where a failure
+  happened, with the action hanging above the cable; the hand hint, the BOOT button or the adapter's switch to PROG or
+  to UART; and the message, in a live region. The action is in the panel while the panel is open and in the bar
+  otherwise, so the board has one button at a time. While the panel is open, the bar names the state only, such as lost
+  the connection, and the panel alone says what to do.
 - The bar's controls keep their room whether they show or not, so nothing moves as the action appears and goes, and
   they wrap to a row of their own below 840 px.
 
@@ -224,9 +228,10 @@ to a step:
 - When the key is another step's or another sketch's, the tab of the step it runs is marked, and under My board the
   pane waits.
 - Waiting, the pane shows the sketch only: the picture keeps its place, dimmed, drawn as the board starts, such as an
-  unlit LED or a servo at an unknown angle; each watch value reads `…`, and the terminal is inert. The frame's tag says why, as Not connected, Connecting…, Flashing…, Setting up…,
-  what the board runs, or that it has not named its sketch. The pane has the same layout and height in simulator, live and
-  waiting modes; the connecting, the flashing and the failures are the dock's.
+  unlit LED or a servo at an unknown angle; each watch value reads `…`, and the terminal is inert. The frame's tag says
+  why, as Not connected, Connecting…, Flashing…, Waiting for its settings, what the board runs, or that it has not named
+  its sketch. The pane has the same layout and height in simulator, live and waiting modes; the connecting, the flashing
+  and the failures are the dock's.
 - Pause, Step or Restart outside the simulator hands the pane to a fresh simulator with the port still open, and
   choosing My board brings the pane back to the board.
 - The frame names its source with a tag, Simulated, Live or My board, and a sentence; its border is dashed for
