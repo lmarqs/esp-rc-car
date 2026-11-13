@@ -183,7 +183,9 @@ Board connection, and a panel for what happens between the computer and the boar
   Connecting… or Flashing…, which cannot be pressed, while the session works. A sketch with no image for the board
   opens the panel with its message. The action is then Connect board after a connect, and stays Flash and the sketch's
   title after a flash refused over a running board. The sketch is the one the visitor has open: the workbench's
-  selected step, the project page's card, or the Flash page's pick, each opened with `board.open` until its page goes. A page with no sketch, such as Learn, offers Connect and no Flash.
+  selected step, the project page's card, or the Flash page's pick, each opened with `board.open` until its page goes.
+  A page with no sketch, such as Learn, or with a sketch the page has no image of, offers Connect, which restarts and
+  reads the board, and no Flash.
 - Flash flashes the open sketch from idle and from running in one press, and Try again after a failed flash connects
   and flashes in one press. From running, a sketch with settings that the board does not already run connects anew,
   so its card's settings form comes before the write.
