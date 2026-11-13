@@ -14,7 +14,7 @@ and the code layout; the chassis and its printed parts are in [Hardware](#hardwa
 ## Build a sketch
 
 [mise](https://mise.jdx.dev) installs every tool the build needs, at the versions `mise.toml` pins: arduino-cli,
-Python, uv and clang-format. From the repository root:
+Python, uv, ruff, clang-format, the-cook, Node and pnpm. From the repository root:
 
 ```sh
 mise install

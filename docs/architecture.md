@@ -35,8 +35,8 @@ The firmware has five parts:
   it and by running it on its board.
 - **Core**: the Arduino core that each sketch's `sketch.yaml` pins for its board. The ESP32 sketches pin the
   Bluepad32 ESP32 core, which gives the Arduino API, ESP-IDF and the Bluetooth gamepad stack. `sketches/web-relay`
-  pins the ESP8266 core for the ESP-01S, and `sketches/usb-key` the Digistump AVR core for the Digispark, which builds
-  without `lib/`.
+  pins the ESP8266 core for the ESP-01S and, in its `esp32` profile, the Bluepad32 core, and `sketches/usb-key` the
+  Digistump AVR core for the Digispark, which builds without `lib/`.
 
 ```mermaid
 flowchart TD
