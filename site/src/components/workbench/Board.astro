@@ -12,7 +12,7 @@ interface Props {
 }
 
 const { project, steps } = Astro.props;
-const simulated = paneTag('simulator', { kind: 'simulated' });
+const simulated = paneTag('simulator', { kind: 'simulated' }, { kind: 'idle' }, undefined);
 ---
 
 <div class="board">

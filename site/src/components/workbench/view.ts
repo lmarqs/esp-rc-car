@@ -230,8 +230,8 @@ export function changedRows(
 export function paneTag(
   mode: PaneMode,
   status: BoardStatus,
-  session?: SessionState,
-  board?: BoardModel,
+  session: SessionState,
+  board: BoardModel | undefined,
 ): { readonly word: string; readonly title: string } {
   switch (mode) {
     case 'simulator':
@@ -245,7 +245,7 @@ export function paneTag(
     case 'live':
       return { word: 'Live', title: 'Drawn from what your board prints' };
     case 'waiting':
-      return { word: 'My board', title: (session && busyWord(session)) ?? waitingTitle(status, board) };
+      return { word: 'My board', title: busyWord(session) ?? waitingTitle(status, board) };
   }
 }
 
