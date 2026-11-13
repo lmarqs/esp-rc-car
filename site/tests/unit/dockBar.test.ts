@@ -36,6 +36,17 @@ describe('the board dock', () => {
     });
   });
 
+  it('says a board let go with Disconnect was released and keeps running its sketch', () => {
+    expect(dockView({ kind: 'idle', released: true }, EMPTY_RECORD, names, boardModel('esp01s'))).toEqual({
+      shown: true,
+      connected: false,
+      chip: 'Your board',
+      doing: 'was released and keeps running its sketch.',
+      disconnect: false,
+      canSend: false,
+    });
+  });
+
   it('says only that no board is connected after a failure, whose panel says what to do', () => {
     const failures: SessionState[] = [
       { kind: 'noPort' },

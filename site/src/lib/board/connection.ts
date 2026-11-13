@@ -25,7 +25,12 @@ function notice(text: string): BoardMessage {
  * Why a board of `chip` cannot be flashed with the sketch `key`, named as the site names it, whose images are for the
  * chips `available`, and what to do: use another board, or, on a workbench, pick another step.
  */
-function noImageNotice(chip: string, available: readonly string[], key: string | undefined, names: SketchNames): BoardMessage {
+function noImageNotice(
+  chip: string,
+  available: readonly string[],
+  key: string | undefined,
+  names: SketchNames,
+): BoardMessage {
   const name = key === undefined ? { title: 'This sketch', step: false } : nameOf(names, key);
   return notice(`${wording.noImage(chip, available, name.title)} ${wording.otherBoardOrStep(available, name.step)}`);
 }
@@ -324,6 +329,11 @@ function barFor(
       canSend: false,
     };
   }
+  if (state.kind === 'idle' && state.released) {
+    // Disconnect let go of the port, not of the board, which goes on running what it holds.
+    const doing = 'was released and keeps running its sketch.';
+    return { shown: true, connected: false, chip: 'Your board', doing, ...NOTHING };
+  }
   // One line, beside the buttons: how to plug a board in, unless the panel says what to do.
   const plugIn = pick?.flashSwitch
     ? `is connected. Plug the ${pick.name} in with its adapter set to PROG.`
@@ -341,7 +351,9 @@ export function connectionView({ state, record, opened, pick, lastPress, names }
   // A missing image names the sketch the visitor tried to flash, whichever the page has open by now.
   const tried = lastPress?.event === 'flash' ? lastPress.key : opened?.use.sketch;
   const panel =
-    boardMessage(state, tried, names, pick) ?? refusalOf(state, opened, names) ?? settingsMessage(state, record, opened, names);
+    boardMessage(state, tried, names, pick) ??
+    refusalOf(state, opened, names) ??
+    settingsMessage(state, record, opened, names);
   const action = actionFor(state, opened, title, lastPress);
   return {
     bar: barFor(state, record, names, pick, panel !== undefined),

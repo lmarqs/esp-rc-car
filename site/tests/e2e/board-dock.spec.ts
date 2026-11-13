@@ -186,7 +186,10 @@ test.describe('the board dock', () => {
     await expect(dock(page).getByRole('button', { name: /^Flash/ })).toBeHidden();
   });
 
-  test('lets the board go on Disconnect, and offers to connect again', async ({ page, fakeFlasher }) => {
+  test('lets the board go on Disconnect, says it keeps running, and offers to connect again', async ({
+    page,
+    fakeFlasher,
+  }) => {
     await fakeFlasher.install({ lines: ['sketch blink/input'] });
     await page.goto('/robomania/learn/');
     await dock(page).getByRole('button', { name: 'Connect board' }).click();
@@ -195,7 +198,9 @@ test.describe('the board dock', () => {
     await dock(page).getByRole('button', { name: 'Disconnect' }).click();
 
     await expect(dock(page).getByRole('button', { name: 'Connect board' })).toBeVisible();
-    await expect(dock(page)).toContainText('No board');
+    await expect(dock(page).locator('[data-dock-status]')).toHaveText(
+      'Your board was released and keeps running its sketch.',
+    );
     expect((await fakeFlasher.calls()).at(-1)).toBe('disconnect');
   });
 
