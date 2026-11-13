@@ -263,7 +263,7 @@ test.describe('the board pick', () => {
   });
 
   test('keeps the bar on one row when the picked board needs its adapter set', async ({ page }) => {
-    await page.setViewportSize({ width: 1100, height: 700 });
+    await page.setViewportSize({ width: 860, height: 700 });
     await page.goto('/robomania/learn/');
     await pick(page).selectOption({ label: 'ESP-01S' });
 
