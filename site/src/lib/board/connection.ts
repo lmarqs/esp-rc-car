@@ -136,11 +136,6 @@ function showsRefusal(state: SessionState, opened: OpenedSketch | undefined): bo
   return state.kind === 'running' && state.flashRefused !== undefined && state.flashRefused.key === opened?.key;
 }
 
-/**
- * The press that flashes `opened` onto a running board: a flash on the open port, unless the sketch has settings the
- * board does not hold yet. Then it connects anew, which opens the settings form before the write, so a sketch such as
- * a hotspot never starts with its default password unasked.
- */
 /** Whether the session reads, waits on or sends the board's settings, which the card of their sketch shows. */
 function onSettings(state: SessionState): state is Extract<SessionState, { kind: 'settings' | 'reading' | 'applying' }> {
   return state.kind === 'settings' || state.kind === 'reading' || state.kind === 'applying';
@@ -181,6 +176,11 @@ function settingsMessage(
   };
 }
 
+/**
+ * The press that flashes `opened` onto a running board: a flash on the open port, unless the sketch has settings the
+ * board does not hold yet. Then it connects anew, which opens the settings form before the write, so a sketch such as
+ * a hotspot never starts with its default password unasked.
+ */
 function flashFromRunning(opened: OpenedSketch, record: BoardRecord): ConnectionEvent {
   return opened.settings === true && runs(record) !== opened.key ? 'connect' : 'flash';
 }
