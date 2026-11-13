@@ -72,13 +72,13 @@ describe('connectionView panel words', () => {
 
   it('names the step that has no image for the board, and the chips it has images for', () => {
     expect(viewOf({ kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] }).panel?.text).toBe(
-      'This board is an ESP8266. Blink · 2 input has images for: ESP32. Connect an ESP32, or pick another step.',
+      'This board is an ESP8266. Blink · input has images for: ESP32. Connect an ESP32, or pick another step.',
     );
     expect(viewOf({ kind: 'noImage', chip: 'ESP8266', available: ['ESP32', 'ESP32-C3'] }).panel?.text).toBe(
-      'This board is an ESP8266. Blink · 2 input has images for: ESP32, ESP32-C3. Connect an ESP32 or ESP32-C3, or pick another step.',
+      'This board is an ESP8266. Blink · input has images for: ESP32, ESP32-C3. Connect an ESP32 or ESP32-C3, or pick another step.',
     );
     expect(viewOf({ kind: 'noImage', chip: 'ESP8266', available: [] }).panel?.text).toBe(
-      'This board is an ESP8266. Blink · 2 input has no image to flash from the browser. Pick another step.',
+      'This board is an ESP8266. Blink · input has no image to flash from the browser. Pick another step.',
     );
   });
 
@@ -121,7 +121,7 @@ describe('connectionView panel words', () => {
   it('shows a refused flash until the page drops it', () => {
     const refused: SessionState = { ...running, flashRefused: { key: 'blink/input', available: ['ESP32'] } };
     expect(viewOf(refused).panel).toEqual({
-      text: 'This board is an ESP32. Blink · 2 input has images for: ESP32. Connect an ESP32, or pick another step.',
+      text: 'This board is an ESP32. Blink · input has images for: ESP32. Connect an ESP32, or pick another step.',
       notice: true,
     });
     expect(viewOf(refused, { opened: opening('blink/timer') }).panel).toBeUndefined();
@@ -129,8 +129,8 @@ describe('connectionView panel words', () => {
 });
 
 const NAMES = {
-  'blink/input': { title: 'Blink · 2 input', path: '/robomania/projects/blink/#input', step: true },
-  'blink/timer': { title: 'Blink · 3 timer', path: '/robomania/projects/blink/#timer', step: true },
+  'blink/input': { title: 'Blink · input', path: '/robomania/projects/blink/#input', step: true },
+  'blink/timer': { title: 'Blink · timer', path: '/robomania/projects/blink/#timer', step: true },
   omnidirectional: { title: 'Omnidirectional robot', path: '/robomania/projects/omnidirectional/', step: false },
   'web-relay': { title: 'Web-controlled relay', path: '/robomania/projects/web-relay/', step: false },
 };
@@ -153,7 +153,7 @@ function viewOf(state: SessionState, rest: Partial<ConnectionInput> = {}) {
 describe('connectionView action', () => {
   it('flashes the open sketch from idle, and only connects with none open', () => {
     expect(viewOf({ kind: 'idle' }).action).toEqual({
-      label: 'Flash Blink · 2 input',
+      label: 'Flash Blink · input',
       icon: 'bolt',
       event: 'flash',
       disabled: false,
@@ -195,7 +195,7 @@ describe('connectionView action', () => {
   });
 
   it('flashes the open sketch from a running board in one press, and offers nothing without a sketch', () => {
-    expect(viewOf(running).action).toEqual({ label: 'Flash Blink · 2 input', icon: 'bolt', event: 'flash', disabled: false });
+    expect(viewOf(running).action).toEqual({ label: 'Flash Blink · input', icon: 'bolt', event: 'flash', disabled: false });
     expect(viewOf(running, { opened: undefined }).action).toBeUndefined();
   });
 
@@ -212,7 +212,7 @@ describe('connectionView action', () => {
 
   it('flashes a sketch with settings over a running board too, whatever the board runs', () => {
     const withSettings = { ...sketch, settings: true };
-    const flash = { label: 'Flash Blink · 2 input', icon: 'bolt', event: 'flash', disabled: false };
+    const flash = { label: 'Flash Blink · input', icon: 'bolt', event: 'flash', disabled: false };
     for (const record of [EMPTY_RECORD, { lines: [], heard: 'blink/input' }, { lines: [], flashed: 'blink/input' }]) {
       expect(viewOf(running, { opened: withSettings, record }).action).toEqual(flash);
     }
@@ -263,7 +263,7 @@ describe('connectionView panel message', () => {
   it('words each state as the board message does, naming the open sketch by its title for a missing image', () => {
     const noImage: SessionState = { kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] };
     expect(viewOf(noImage).panel?.text).toBe(
-      'This board is an ESP8266. Blink · 2 input has images for: ESP32. Connect an ESP32, or pick another step.',
+      'This board is an ESP8266. Blink · input has images for: ESP32. Connect an ESP32, or pick another step.',
     );
     const card = opening('omnidirectional');
     expect(viewOf(noImage, { opened: card }).panel?.text).toBe(
@@ -338,7 +338,7 @@ describe('connectionView panel message', () => {
     const refused: SessionState = { ...running, flashRefused: { key: 'blink/input', available: ['ESP32-C3'] } };
     const shown = viewOf(refused);
     expect(shown.panel).toEqual({
-      text: 'This board is an ESP32. Blink · 2 input has images for: ESP32-C3. Connect an ESP32-C3, or pick another step.',
+      text: 'This board is an ESP32. Blink · input has images for: ESP32-C3. Connect an ESP32-C3, or pick another step.',
       notice: true,
     });
     expect(shown.action).toMatchObject({ event: 'flash' });
@@ -406,7 +406,7 @@ describe('createConnection', () => {
     const { fake, connection } = connectionOver((event, enter) => {
       if (event.type === 'connect') enter({ kind: 'flashing', chip: 'ESP32', pct: 0 });
     });
-    expect(connection.view.action?.label).toBe('Flash Blink · 2 input');
+    expect(connection.view.action?.label).toBe('Flash Blink · input');
 
     await connection.press();
 
@@ -568,7 +568,7 @@ describe('createConnection', () => {
 
     expect(fake.sent).toEqual([{ type: 'connect' }]);
     expect(connection.view.panel?.text).toBe(
-      'This board is an ESP8266. Blink · 2 input has images for: ESP32. Connect an ESP32, or pick another step.',
+      'This board is an ESP8266. Blink · input has images for: ESP32. Connect an ESP32, or pick another step.',
     );
   });
 
@@ -660,6 +660,6 @@ describe('createConnection', () => {
     page.abort();
     pick.choose('esp32');
 
-    expect(labels).toEqual(['Flash Blink · 2 input', undefined, undefined]);
+    expect(labels).toEqual(['Flash Blink · input', undefined, undefined]);
   });
 });

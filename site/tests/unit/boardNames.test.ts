@@ -20,15 +20,15 @@ describe('the names of the sketches', () => {
     ]);
 
     expect(names).toEqual({
-      'blink/simple': { title: 'Blink · 1 simple', path: '/projects/blink/#simple', step: true },
-      'blink/input': { title: 'Blink · 2 input', path: '/projects/blink/#input', step: true },
+      'blink/simple': { title: 'Blink · simple', path: '/projects/blink/#simple', step: true },
+      'blink/input': { title: 'Blink · input', path: '/projects/blink/#input', step: true },
       'web-relay': { title: 'Web relay', path: '/projects/web-relay/', step: false },
     });
   });
 });
 
 describe('the name of a sketch', () => {
-  const names = { 'blink/input': { title: 'Blink · 2 input', path: '/projects/blink/#input', step: true } };
+  const names = { 'blink/input': { title: 'Blink · input', path: '/projects/blink/#input', step: true } };
 
   it('is the site\'s name for it, or its key with no page for a sketch outside the site', () => {
     expect(nameOf(names, 'blink/input')).toEqual(names['blink/input']);

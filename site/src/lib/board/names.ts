@@ -27,9 +27,9 @@ export interface NamedProject {
   };
 }
 
-/** The name of a project's step, as the site names it beside the project: `Blink · 2 input` for its `index` 1. */
-function stepTitle(project: string, index: number, id: string): string {
-  return `${project} · ${index + 1} ${id}`;
+/** The name of a project's step, as the dock names it: `Blink · input` for the step `input` of Blink. */
+function stepTitle(project: string, id: string): string {
+  return `${project} · ${id}`;
 }
 
 /**
@@ -41,9 +41,9 @@ export function sketchNames(projects: readonly NamedProject[]): Record<string, S
   for (const { id, data } of projects) {
     const path = `/projects/${id}/`;
     if (data.steps !== undefined) {
-      data.steps.forEach((step, index) => {
+      data.steps.forEach((step) => {
         names[sketchKey(step.sketch)] = {
-          title: stepTitle(data.title, index, step.id),
+          title: stepTitle(data.title, step.id),
           path: `${path}#${step.id}`,
           step: true,
         };

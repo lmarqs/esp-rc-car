@@ -118,7 +118,7 @@ test.describe('the switch', () => {
     await connect(page);
 
     await expect(tag(page)).toHaveText('My board Runs commands');
-    await expect(dockAction(page)).toHaveAccessibleName('Flash Blink · 1 simple');
+    await expect(dockAction(page)).toHaveAccessibleName('Flash Blink · simple');
     expect(await pressed(page)).toEqual(['false', 'true']);
   });
 
@@ -133,7 +133,7 @@ test.describe('the switch', () => {
     await connect(page);
 
     await expect(tag(page)).toHaveText('My board Runs simple');
-    await expect(dockAction(page)).toHaveAccessibleName('Flash Blink · 4 commands');
+    await expect(dockAction(page)).toHaveAccessibleName('Flash Blink · commands');
   });
 
   test('names a sketch from outside the project', async ({ page, fakeFlasher }) => {
@@ -179,7 +179,7 @@ test.describe('the switch', () => {
     await connect(page);
 
     await expect(tag(page)).toHaveText('My board Waiting for it to name its sketch');
-    await expect(dockAction(page)).toHaveAccessibleName('Flash Blink · 1 simple');
+    await expect(dockAction(page)).toHaveAccessibleName('Flash Blink · simple');
   });
 
   test('asks to press reset on the adapter of a picked ESP-01S that has not named its sketch', async ({
@@ -254,7 +254,7 @@ test.describe('the pane while the dock works on the board', () => {
     scope: await onPage(bench(page).locator('.scope')),
   });
 
-  const flash = 'Flash Blink · 4 commands';
+  const flash = 'Flash Blink · commands';
   /** What the board does after the dock's button is pressed under My board, and what the tag and the button then say. */
   const states: { name: string; options: FakeFlasherOptions; tag: string; action: string }[] = [
     { name: 'connects', options: { holdConnect: true }, tag: 'My board Connecting…', action: 'Connecting…' },
@@ -333,11 +333,11 @@ test.describe('the pane while the dock works on the board', () => {
     await expect(tag(page)).toHaveText('My board Runs timer');
 
     for (const [name, word, action] of [
-      ['2 input', 'My board', 'Flash Blink · 2 input'],
-      ['3 timer', 'Live', 'Flash Blink · 3 timer'],
-      ['4 commands', 'My board', 'Flash Blink · 4 commands'],
-      ['1 simple', 'My board', 'Flash Blink · 1 simple'],
-      ['3 timer', 'Live', 'Flash Blink · 3 timer'],
+      ['2 input', 'My board', 'Flash Blink · input'],
+      ['3 timer', 'Live', 'Flash Blink · timer'],
+      ['4 commands', 'My board', 'Flash Blink · commands'],
+      ['1 simple', 'My board', 'Flash Blink · simple'],
+      ['3 timer', 'Live', 'Flash Blink · timer'],
     ]) {
       await tab(page, name).click();
       await expect(tagWord(page), name).toHaveText(word);
@@ -354,7 +354,7 @@ test.describe('the pane while the dock works on the board', () => {
 
     await dockAction(page).click();
 
-    await expect(dock(page).locator('[data-dock-message]')).toContainText('Blink · 2 input has images for: ESP32');
+    await expect(dock(page).locator('[data-dock-message]')).toContainText('Blink · input has images for: ESP32');
     await expect(tag(page)).toHaveText('My board Runs simple');
     await expect(picture(page)).toBeVisible();
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
@@ -394,7 +394,7 @@ test.describe('the flash card', () => {
 
     await expect(bench(page)).toBeVisible();
     await expect(card(page)).toHaveCount(0);
-    await expect(dockAction(page)).toHaveAccessibleName(/^Flash Servo · 1 /);
+    await expect(dockAction(page)).toHaveAccessibleName(/^Flash Servo · /);
   });
 
   test('stays on a single-sketch project', async ({ page, fakeFlasher }) => {

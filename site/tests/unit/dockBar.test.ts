@@ -10,7 +10,7 @@ function dockView(state: SessionState, record: BoardRecord, names: SketchNames, 
   return connectionView({ state, record, opened: undefined, pick, lastPress: undefined, names }).bar;
 }
 
-const names = { 'blink/input': { title: 'Blink · 2 input', path: '/robomania/projects/blink/#input', step: true } };
+const names = { 'blink/input': { title: 'Blink · input', path: '/robomania/projects/blink/#input', step: true } };
 const running: SessionState = { kind: 'running', chip: 'ESP32', output: [] };
 const heard: BoardRecord = {
   heard: 'blink/input',
@@ -65,7 +65,7 @@ describe('the board dock', () => {
       connected: true,
       chip: 'ESP32',
       doing: 'is running',
-      sketch: 'Blink · 2 input',
+      sketch: 'Blink · input',
       path: '/robomania/projects/blink/#input',
       last: 'wait 1000',
       disconnect: true,
@@ -93,7 +93,7 @@ describe('the board dock', () => {
     const pending: BoardRecord = { pending: 'blink/input', lines: [] };
     expect(dockView({ kind: 'flashing', chip: 'ESP32', pct: 40 }, pending, names)).toMatchObject({
       doing: 'is writing',
-      sketch: 'Blink · 2 input',
+      sketch: 'Blink · input',
       progress: 40,
       canSend: false,
     });
@@ -126,12 +126,12 @@ describe('the board dock', () => {
         connected: true,
         chip: 'ESP32',
         doing: 'is busy with the settings of',
-        sketch: 'Blink · 2 input',
+        sketch: 'Blink · input',
         path: '/robomania/projects/blink/#input',
         disconnect: true,
         canSend: false,
       });
-      expect(dockView(state, { heard: 'blink/input', lines: [] }, names).sketch, state.kind).toBe('Blink · 2 input');
+      expect(dockView(state, { heard: 'blink/input', lines: [] }, names).sketch, state.kind).toBe('Blink · input');
       expect(dockView(state, EMPTY_RECORD, names), state.kind).toEqual({
         shown: true,
         connected: true,

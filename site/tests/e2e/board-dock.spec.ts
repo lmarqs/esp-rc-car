@@ -51,14 +51,14 @@ test.describe('the board dock', () => {
 
     await dock(page).getByRole('button', { name: 'Connect board' }).click();
 
-    await expect(dock(page).getByRole('link', { name: 'Blink · 2 input' })).toHaveAttribute('href', '/robomania/projects/blink/#input');
-    await expect(dock(page)).toContainText('ESP32 is running Blink · 2 input');
+    await expect(dock(page).getByRole('link', { name: 'Blink · input' })).toHaveAttribute('href', '/robomania/projects/blink/#input');
+    await expect(dock(page)).toContainText('ESP32 is running Blink · input');
     await expect(dock(page).getByRole('button', { name: 'Serial' })).toHaveAccessibleDescription('wait 1000');
     await expect(dock(page).getByRole('button', { name: 'Connect board' })).toBeHidden();
     // The dock restarts the board into what it holds, read at the speed every ladder step prints at.
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
 
-    await dock(page).getByRole('link', { name: 'Blink · 2 input' }).click();
+    await dock(page).getByRole('link', { name: 'Blink · input' }).click();
     await expect(page.getByRole('tab', { name: '2 input' })).toHaveAttribute('aria-selected', 'true');
   });
 
@@ -67,7 +67,7 @@ test.describe('the board dock', () => {
     await page.goto('/robomania/learn/');
     await dock(page).getByRole('button', { name: 'Connect board' }).click();
 
-    await dock(page).getByRole('link', { name: 'Blink · 2 input' }).click();
+    await dock(page).getByRole('link', { name: 'Blink · input' }).click();
 
     await expect(page.getByRole('tab', { name: '2 input' })).toHaveAttribute('aria-selected', 'true');
     await expect(bench(page).locator('[data-pane-board]')).toHaveAttribute('aria-pressed', 'true');
@@ -79,7 +79,7 @@ test.describe('the board dock', () => {
     await fakeFlasher.install({ lines: ['sketch blink/input'] });
     await page.goto('/robomania/learn/');
     await dock(page).getByRole('button', { name: 'Connect board' }).click();
-    await expect(dock(page)).toContainText('Blink · 2 input');
+    await expect(dock(page)).toContainText('Blink · input');
 
     // A link anywhere on the site, which the router follows as the dock's.
     await page.evaluate(() => {
@@ -126,7 +126,7 @@ test.describe('the board dock', () => {
     await dock(page).getByRole('button', { name: 'Clear' }).click();
 
     await expect(monitor(page)).toHaveText('');
-    await expect(dock(page)).toContainText('ESP32 is running Blink · 2 input');
+    await expect(dock(page)).toContainText('ESP32 is running Blink · input');
     await fakeFlasher.print('HIGH');
     await expect(monitor(page)).toHaveText('HIGH');
   });
@@ -174,10 +174,10 @@ test.describe('the board dock', () => {
     await page.goto(BLINK);
     await connect(page);
     await expect(tagWord(page)).toHaveText('Live');
-    await expect(dock(page).getByRole('button', { name: 'Flash Blink · 1 simple' })).toBeVisible();
+    await expect(dock(page).getByRole('button', { name: 'Flash Blink · simple' })).toBeVisible();
 
     await bench(page).getByRole('tab', { name: /^2 input/ }).click();
-    await dock(page).getByRole('button', { name: 'Flash Blink · 2 input' }).click();
+    await dock(page).getByRole('button', { name: 'Flash Blink · input' }).click();
 
     await expect(tagWord(page)).toHaveText('Live');
     expect(await fakeFlasher.loaded()).toEqual([['blink/input/esp32/input.ino.bootloader.bin', 'blink/input/esp32/input.ino.bin']]);
@@ -193,7 +193,7 @@ test.describe('the board dock', () => {
     await fakeFlasher.install({ lines: ['sketch blink/input'] });
     await page.goto('/robomania/learn/');
     await dock(page).getByRole('button', { name: 'Connect board' }).click();
-    await expect(dock(page).getByRole('link', { name: 'Blink · 2 input' })).toBeVisible();
+    await expect(dock(page).getByRole('link', { name: 'Blink · input' })).toBeVisible();
 
     await dock(page).getByRole('button', { name: 'Disconnect' }).click();
 
@@ -248,7 +248,7 @@ test.describe('the board dock panel', () => {
     const serial = bar(page).getByRole('button', { name: 'Serial' });
     const before = (await serial.boundingBox())!;
 
-    await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+    await bar(page).getByRole('button', { name: 'Flash Blink · simple' }).click();
 
     await expect(panel(page)).toBeVisible();
     expect(await serial.boundingBox()).toEqual(before);
@@ -263,8 +263,8 @@ test.describe('the board dock panel', () => {
 
     await expect(panel(page)).toBeHidden();
     await expect(bar(page).getByRole('button', { name: 'Disconnect' })).toBeVisible();
-    await expect(bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' })).toBeFocused();
-    await expect(dock(page)).toContainText('ESP32 is running Blink · 1 simple');
+    await expect(bar(page).getByRole('button', { name: 'Flash Blink · simple' })).toBeFocused();
+    await expect(dock(page)).toContainText('ESP32 is running Blink · simple');
     expect(await serial.boundingBox()).toEqual(before);
     expect(await fakeFlasher.loaded()).toEqual([['blink/simple/esp32/simple.ino.bootloader.bin', 'blink/simple/esp32/simple.ino.bin']]);
   });
@@ -273,7 +273,7 @@ test.describe('the board dock panel', () => {
     await fakeFlasher.install({ announce: true, progress: [40], hold: true });
     await page.goto(BLINK);
 
-    await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+    await bar(page).getByRole('button', { name: 'Flash Blink · simple' }).click();
     const busy = panel(page).locator('[data-dock-action]');
     await expect(busy).toHaveAttribute('aria-disabled', 'true');
     // Playwright waits for an aria-disabled button to be enabled, so the press is dispatched.
@@ -294,7 +294,7 @@ test.describe('the board dock panel', () => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(BLINK);
 
-      await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+      await bar(page).getByRole('button', { name: 'Flash Blink · simple' }).click();
       await expect(panelMessage(page)).toHaveText('Connecting to the board.');
 
       const box = async (selector: string) => (await panel(page).locator(selector).first().boundingBox())!;
@@ -332,7 +332,7 @@ test.describe('the board dock panel', () => {
           return Math.round(text.getBoundingClientRect().height / 21);
         });
 
-      await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+      await bar(page).getByRole('button', { name: 'Flash Blink · simple' }).click();
       await expect(panelMessage(page)).toHaveText('Connecting to the board.');
       const fewLines = await lines();
       const before = await action.boundingBox();
@@ -351,7 +351,7 @@ test.describe('the board dock panel', () => {
     await connect(page);
     await expect(tagWord(page)).toHaveText('Live');
 
-    await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+    await bar(page).getByRole('button', { name: 'Flash Blink · simple' }).click();
 
     await expect(panelMessage(page)).toContainText('The connection dropped');
     await expect(panel(page).getByRole('button', { name: 'Try again' })).toBeVisible();
@@ -359,7 +359,7 @@ test.describe('the board dock panel', () => {
     await panel(page).getByRole('button', { name: 'Try again' }).click();
 
     await expect(panel(page)).toBeHidden();
-    await expect(dock(page)).toContainText('ESP32 is running Blink · 1 simple');
+    await expect(dock(page)).toContainText('ESP32 is running Blink · simple');
     expect((await fakeFlasher.calls()).filter((call) => call === 'write')).toHaveLength(2);
   });
 
@@ -371,7 +371,7 @@ test.describe('the board dock panel', () => {
     await fakeFlasher.install({ chip: 'ESP8266' });
     await page.goto(BLINK);
 
-    await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+    await bar(page).getByRole('button', { name: 'Flash Blink · simple' }).click();
 
     await expect(panel(page).getByRole('button', { name: 'Connect again' })).toBeVisible({ timeout: 10_000 });
     await expect(panelMessage(page)).toContainText('UART');
@@ -391,7 +391,7 @@ test.describe('the board dock panel', () => {
     await dock(page).getByRole('combobox', { name: 'My board' }).selectOption({ label: 'ESP-01S' });
     await page.goto(BLINK);
 
-    await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+    await bar(page).getByRole('button', { name: 'Flash Blink · simple' }).click();
 
     await expect(panelMessage(page)).toContainText("Set the adapter's switch to PROG");
     await expect(panel(page).locator('[data-hand-hint]')).toHaveAttribute('data-hint', 'prog');
@@ -407,7 +407,7 @@ test.describe('the board dock panel', () => {
     await page.goto(BLINK);
     await bench(page).locator('[data-pane-board]').click();
 
-    await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+    await bar(page).getByRole('button', { name: 'Flash Blink · simple' }).click();
 
     await expect(panelMessage(page)).toHaveText('No board was chosen. Plug it in and try again.');
     await expect(panelMessage(page)).toHaveAttribute('data-notice');
@@ -433,7 +433,7 @@ test.describe('the board dock panel', () => {
       }).observe(document.querySelector('[data-dock-message]')!, { childList: true });
     });
 
-    await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+    await bar(page).getByRole('button', { name: 'Flash Blink · simple' }).click();
 
     await expect(panelMessage(page)).toHaveText('The board stopped talking to the page. Plug it back in and connect again.');
     const messages = await page.evaluate(() => (window as unknown as { __messages: string[] }).__messages);
@@ -445,7 +445,7 @@ test.describe('the board dock panel', () => {
     await fakeFlasher.install({ announce: true, monitorEnds: true });
     await page.goto(BLINK);
 
-    await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+    await bar(page).getByRole('button', { name: 'Flash Blink · simple' }).click();
 
     await expect(panelMessage(page)).toHaveText('The board stopped talking to the page. Plug it back in and connect again.');
     await expect(panel(page).getByRole('button', { name: 'Connect again' })).toBeVisible();
@@ -455,7 +455,7 @@ test.describe('the board dock panel', () => {
     await panel(page).getByRole('button', { name: 'Connect again' }).click();
 
     // Connect again reads what the board holds: only Flash writes it.
-    await expect(dock(page)).toContainText('ESP32 is running Blink · 1 simple');
+    await expect(dock(page)).toContainText('ESP32 is running Blink · simple');
     expect((await fakeFlasher.calls()).filter((call) => call === 'load')).toHaveLength(1);
   });
 
@@ -468,10 +468,10 @@ test.describe('the board dock panel', () => {
     await connect(page);
     await bench(page).getByRole('tab', { name: /^2 input/ }).click();
 
-    await dock(page).getByRole('button', { name: 'Flash Blink · 2 input' }).click();
+    await dock(page).getByRole('button', { name: 'Flash Blink · input' }).click();
 
     await expect(panelMessage(page)).toHaveText(
-      'This board is an ESP32-C3. Blink · 2 input has images for: ESP32. Connect an ESP32, or pick another step.',
+      'This board is an ESP32-C3. Blink · input has images for: ESP32. Connect an ESP32, or pick another step.',
     );
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
 
@@ -487,9 +487,9 @@ test.describe('the board dock panel', () => {
     await fakeFlasher.install({ chip: 'ESP32-C3' });
     await page.goto(BLINK);
     await bench(page).getByRole('tab', { name: /^2 input/ }).click();
-    const said = 'This board is an ESP32-C3. Blink · 2 input has images for: ESP32. Connect an ESP32, or pick another step.';
+    const said = 'This board is an ESP32-C3. Blink · input has images for: ESP32. Connect an ESP32, or pick another step.';
 
-    await bar(page).getByRole('button', { name: 'Flash Blink · 2 input' }).click();
+    await bar(page).getByRole('button', { name: 'Flash Blink · input' }).click();
     await expect(panelMessage(page)).toHaveText(said);
     await bench(page).getByRole('tab', { name: /^3 timer/ }).click();
 
@@ -499,13 +499,13 @@ test.describe('the board dock panel', () => {
   test('connects without flashing on a page with no sketch open, whatever the last page opened', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['sketch blink/input'] });
     await page.goto(BLINK);
-    await expect(bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' })).toBeVisible();
+    await expect(bar(page).getByRole('button', { name: 'Flash Blink · simple' })).toBeVisible();
     await nav(page).getByRole('link', { name: 'Learn' }).click();
     await expect(page).toHaveURL(/\/learn\/$/);
 
     await bar(page).getByRole('button', { name: 'Connect board' }).click();
 
-    await expect(dock(page)).toContainText('ESP32 is running Blink · 2 input');
+    await expect(dock(page)).toContainText('ESP32 is running Blink · input');
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
   });
 
@@ -536,14 +536,14 @@ test.describe('the board dock panel', () => {
       };
       const idle = await controls();
 
-      await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+      await bar(page).getByRole('button', { name: 'Flash Blink · simple' }).click();
       await expect(panel(page)).toBeVisible();
       await expect(bar(page).getByRole('progressbar', { name: 'Flashing' })).toBeVisible();
       expect(await controls()).toEqual(idle);
 
       await fakeFlasher.release();
       await expect(bar(page).getByRole('button', { name: 'Disconnect' })).toBeVisible();
-      await expect(bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' })).toBeVisible();
+      await expect(bar(page).getByRole('button', { name: 'Flash Blink · simple' })).toBeVisible();
       expect(await controls()).toEqual(idle);
     });
   }
@@ -573,7 +573,7 @@ test.describe('the board dock panel', () => {
       };
       const idle = await controls();
 
-      await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+      await bar(page).getByRole('button', { name: 'Flash Blink · simple' }).click();
       await expect(bar(page).getByRole('progressbar', { name: 'Flashing' })).toBeVisible();
       expect(await controls()).toEqual(idle);
 
@@ -587,9 +587,9 @@ test.describe('the board dock panel', () => {
     await fakeFlasher.install();
     await page.goto(BLINK);
 
-    await expect(bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' })).toHaveAttribute(
+    await expect(bar(page).getByRole('button', { name: 'Flash Blink · simple' })).toHaveAttribute(
       'title',
-      'Flash Blink · 1 simple',
+      'Flash Blink · simple',
     );
   });
 });
