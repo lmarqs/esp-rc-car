@@ -90,6 +90,11 @@ export type SessionEvent =
    */
   | { type: 'flash'; key: string }
   /**
+   * From `running` on a board that is not lost and is read: restarts the board into the sketch it holds on the open
+   * port, as its reset button does, and stays `running`, so the board prints its `sketch <key>` line again.
+   */
+  | { type: 'restart' }
+  /**
    * From `settings`: checks the values against their limits, flashes the board unless it already runs the sketch,
    * then sends the board each value the visitor changed that differs from what it holds. `restoreDefaults`, from "Use
    * the defaults", sends every default that differs from what the board holds, and puts the default back over each
@@ -717,6 +722,11 @@ export function createSession(options: SessionOptions): FlashSession {
         case 'disconnect':
           if (kind === 'running') {
             await release(flasher, true);
+          }
+          break;
+        case 'restart':
+          if (state.kind === 'running' && !state.lost && live !== 0 && live === reading) {
+            await flasher.restart().catch((error: unknown) => console.error(error));
           }
           break;
       }

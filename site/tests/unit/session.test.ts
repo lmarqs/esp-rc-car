@@ -74,6 +74,12 @@ function fakeFlasher(options: FakeFlasherOptions = {}): FakeFlasher {
         endMonitor = (error) => (error === undefined ? resolve() : reject(error));
       });
     },
+    async restart() {
+      calls.push('restart open');
+      if (boot.length > 0) {
+        queueMicrotask(() => onLines!(boot));
+      }
+    },
     async send(line) {
       calls.push(`send ${line}`);
       const lines = answer(line);
@@ -1277,6 +1283,31 @@ describe('the lines of the board and the workbench connection', () => {
 
       expect(flasher.calls).toEqual(['connect', 'monitor 115200', 'restart']);
       expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [] });
+    });
+
+    it('restarts a running board on the open port it reads, and stays running with its lines', async () => {
+      const { flasher, session } = await attached();
+      flasher.print('old');
+      flasher.calls.length = 0;
+      const states: SessionState[] = [];
+      session.subscribe((state) => states.push(state));
+
+      await session.send({ type: 'restart' });
+
+      expect(flasher.calls).toEqual(['restart open']);
+      expect(states).toEqual([]);
+      expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: ['old'] });
+    });
+
+    it('restarts nothing on a lost board, whose port is gone', async () => {
+      const { flasher, session } = await attached();
+      flasher.endMonitor();
+      await vi.waitFor(() => expect(session.state).toMatchObject({ lost: true }));
+      flasher.calls.length = 0;
+
+      await session.send({ type: 'restart' });
+
+      expect(flasher.calls).toEqual([]);
     });
 
     it('resets the board with the flasher\'s reset when there is no baud to read at', async () => {

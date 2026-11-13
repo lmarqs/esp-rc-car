@@ -417,7 +417,10 @@ export interface Connection {
   press(): Promise<void>;
   /** Presses Connect board, which reads the board and writes no sketch; nothing while the view offers none. */
   pressConnect(): Promise<void>;
-  /** Restarts a running board into the sketch it holds and reads it again; nothing while the bar offers no Restart. */
+  /**
+   * Restarts a running board into the sketch it holds on the port the site reads it on, which stays open; nothing while
+   * the bar offers no Restart.
+   */
   restart(): Promise<void>;
   /**
    * Lets the board go: a running one, or one whose settings form waits. A settings exchange runs to its end first,
@@ -497,7 +500,7 @@ export function createConnection(board: Board, pick: BoardPick, names: SketchNam
     },
     async restart() {
       if (!viewNow().bar.restart) return;
-      await start('connect');
+      await board.send({ type: 'restart' });
     },
     async disconnect() {
       await exchanged();

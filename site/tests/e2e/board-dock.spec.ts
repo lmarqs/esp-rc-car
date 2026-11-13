@@ -265,7 +265,7 @@ test.describe('the board dock', () => {
     await oneLine();
   });
 
-  test('restarts a running board into the sketch it holds, and writes nothing', async ({ page, fakeFlasher }) => {
+  test('restarts a running board on the open port, staying connected, and writes nothing', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['sketch blink/input'] });
     await page.goto('/robomania/learn/');
     await dock(page).getByRole('button', { name: 'Connect board' }).click();
@@ -274,11 +274,12 @@ test.describe('the board dock', () => {
 
     await bar(page).getByRole('button', { name: 'Restart board' }).click();
 
+    await expect.poll(async () => (await fakeFlasher.calls()).slice(before)).toEqual(['restart']);
     await expect(dock(page).getByRole('link', { name: 'Blink · input' })).toBeVisible();
-    await expect(bar(page).getByRole('button', { name: 'Restart board' })).toBeVisible();
-    const calls = (await fakeFlasher.calls()).slice(before);
-    expect(calls).toContain('connect');
-    expect(calls).not.toContain('write');
+    await expect(dock(page).locator('[data-dock-dot]')).toHaveAttribute('data-tone', 'on');
+    await expect(bar(page).getByRole('button', { name: 'Disconnect' })).toBeVisible();
+    await dock(page).getByRole('button', { name: 'Serial' }).click();
+    await expect(dock(page).getByRole('log', { name: 'Board output' })).toHaveText('sketch blink/input\nsketch blink/input');
   });
 
   test('stays at the bottom of the window, over no part of the page at its end', async ({ page, fakeFlasher }) => {

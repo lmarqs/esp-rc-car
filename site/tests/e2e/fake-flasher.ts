@@ -142,6 +142,12 @@ function installFakeFlasher(options: FakeFlasherOptions) {
         stopMonitor = resolve;
       });
     },
+    async restart() {
+      calls.push('restart');
+      for (const line of options.announce && flashedKey ? [`sketch ${flashedKey}`] : (options.lines ?? [])) {
+        printLines([line]);
+      }
+    },
     async send(line) {
       calls.push(`send ${line}`);
       failOnce('send');

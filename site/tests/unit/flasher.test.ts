@@ -477,6 +477,31 @@ describe('EsptoolFlasher.monitor', () => {
     expect(esptool.after).not.toHaveBeenCalled();
   });
 
+  it('restarts a board it reads with an RTS pulse on the open port, and reads on', async () => {
+    esptool.setRTS.mockReset().mockImplementation(async (state: boolean) => {
+      order.push(`rts ${state}`);
+    });
+    const target = await connected();
+    const received: string[][] = [];
+    const monitoring = target.monitor(115200, (lines) => received.push(lines));
+    await vi.waitFor(() => expect(port.readable!.locked).toBe(true));
+
+    await target.restart();
+    controller.enqueue(encoder.encode('sketch blink/input\n'));
+    controller.close();
+    await monitoring;
+
+    expect(order).toEqual(['release', 'open', 'setSignals', 'rts true', 'rts false']);
+    expect(port.open).toHaveBeenCalledTimes(1);
+    expect(received.flat()).toEqual(['sketch blink/input']);
+  });
+
+  it('rejects a restart while it reads no board', async () => {
+    const target = await connected();
+
+    await expect(target.restart()).rejects.toThrow('Not reading');
+  });
+
   it('does not touch RTS when it is not asked to restart', async () => {
     esptool.setRTS.mockReset().mockResolvedValue(undefined);
     const target = await connected();

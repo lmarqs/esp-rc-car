@@ -45,6 +45,11 @@ export interface Flasher {
    * `disconnect` has released the port or the port is lost.
    */
   monitor(baud: number, onLines: (lines: string[]) => void, options?: MonitorOptions): Promise<void>;
+  /**
+   * Restarts the board into the sketch it holds, on the port `monitor` reads, which stays open and read. Rejects while
+   * `monitor` is not reading.
+   */
+  restart(): Promise<void>;
   /** Writes `line` and a line break to the sketch, at the baud `monitor` reads at. Rejects while `monitor` is not reading. */
   send(line: string): Promise<void>;
   /** Releases the port. Never rejects. */
@@ -256,6 +261,14 @@ export class EsptoolFlasher implements Flasher {
         this.reader = undefined;
       }
     }
+  }
+
+  async restart(): Promise<void> {
+    if (!this.reader || !this.transport) {
+      throw new Error('Not reading the board.');
+    }
+    // As `monitor`'s restart: DTR stays released, so the board restarts into the sketch, not the bootloader.
+    await pulseRts(this.transport);
   }
 
   async send(line: string): Promise<void> {
