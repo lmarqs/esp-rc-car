@@ -1,5 +1,5 @@
 ---
-description: Explains the four blink sketches, a ladder from a LED that toggles every second to one that takes commands: the LED on GPIO 2, the serial lines each step prints and reads, and what each adds.
+description: Explains the four blink sketches, from a LED toggling every second to one taking commands: the LED on GPIO 2, each step's serial lines, and what each adds.
 audience: Whoever sets up the toolchain or tries a new board, or changes a blink step
 ---
 # Blink

@@ -1,6 +1,6 @@
 ---
 description: Sets where code goes in site/, how logic stays off the page, that no UI framework is used, how colours and styles are named and where the code is tested.
-audience: Whoever writes or reviews an .astro, .ts or .css file or a test in site/; knows Astro, TypeScript and CSS
+audience: Whoever writes or reviews an .astro, .ts or .css file or a test in site/; knows Astro and TypeScript
 ---
 # Website sources
 

@@ -1,6 +1,6 @@
 ---
 description: Sets the twelve rules every page and component of the Robomania website follows for layout, colour, wording, input, accessibility and motion.
-audience: Whoever designs, builds or reviews a page or an interactive component in site/; knows HTML, CSS and TypeScript
+audience: Whoever designs or reviews a page or interactive component in site/; knows HTML, CSS and TypeScript
 ---
 # Website UX
 

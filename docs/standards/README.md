@@ -1,6 +1,6 @@
 ---
 description: Lists the standards the Robomania firmware's code and the Robomania website's pages and sources follow.
-audience: Whoever writes or reviews firmware code, or a page, component or script of the website, in the repository
+audience: Whoever writes or reviews firmware code, or a page, component or script of the website
 ---
 # Standards
 

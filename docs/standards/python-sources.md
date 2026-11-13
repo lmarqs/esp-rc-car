@@ -1,6 +1,6 @@
 ---
 description: Sets how Python scripts in the repository are run, found by the linter and documented.
-audience: Whoever writes or reviews a Python script here: a mise task, an editor helper or a sketch's bench tool; knows Python
+audience: Whoever writes or reviews a Python script here: such as a mise task or a bench tool; knows Python
 ---
 # Python sources
 
