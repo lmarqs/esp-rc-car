@@ -264,6 +264,82 @@ test.describe('the board dock panel', () => {
     expect(await fakeFlasher.loaded()).toEqual([['blink/simple/esp32/simple.ino.bootloader.bin', 'blink/simple/esp32/simple.ino.bin']]);
   });
 
+  test('starts nothing when its button is pressed while it flashes', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ announce: true, progress: [40], hold: true });
+    await page.goto(BLINK);
+
+    await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+    const busy = panel(page).locator('[data-dock-action]');
+    await expect(busy).toHaveAttribute('aria-disabled', 'true');
+    // Playwright waits for an aria-disabled button to be enabled, so the press is dispatched.
+    await busy.dispatchEvent('click');
+    await busy.dispatchEvent('click');
+
+    await fakeFlasher.release();
+    await expect(panel(page)).toBeHidden();
+    expect((await fakeFlasher.calls()).filter((call) => call === 'load')).toHaveLength(1);
+  });
+
+  for (const width of [380, 1100]) {
+    test(`hangs its button above the cable, with each step's word under its part, at ${width} px`, async ({
+      page,
+      fakeFlasher,
+    }) => {
+      await fakeFlasher.install({ holdConnect: true });
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(BLINK);
+
+      await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+      await expect(panelMessage(page)).toHaveText('Connecting to the board.');
+
+      const box = async (selector: string) => (await panel(page).locator(selector).first().boundingBox())!;
+      const cable = await box('.cable');
+      const button = await box('[data-dock-action]');
+      const words = await box('[data-dock-message]');
+      const picture = await box('.wire');
+      expect(button.y + button.height).toBeLessThanOrEqual(cable.y + cable.height / 2);
+      expect(button.x).toBeGreaterThan(cable.x);
+      expect(button.x + button.width).toBeLessThan(cable.x + cable.width);
+      // Beside the picture where the panel is wide; under it where the panel stacks them.
+      if (width > 640) expect(words.x).toBeGreaterThanOrEqual(picture.x + picture.width);
+      else expect(words.y).toBeGreaterThan(cable.y + cable.height);
+      for (const [part, step] of [['.computer', 0], ['.cable', 1], ['.chip', 2]] as const) {
+        const drawn = await box(part);
+        const word = (await panel(page).locator('[data-flash-step]').nth(step).boundingBox())!;
+        expect(Math.abs(word.x + word.width / 2 - (drawn.x + drawn.width / 2)), part).toBeLessThan(2);
+      }
+    });
+
+    test(`keeps its button where it is as the message grows from one line to more at ${width} px`, async ({
+      page,
+      fakeFlasher,
+    }) => {
+      // esptool-js failing to sync with the bootloader throws a plain error: the board did not answer.
+      await fakeFlasher.install({ holdConnect: true, failFirst: { connect: 'Error' } });
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(BLINK);
+      const action = panel(page).locator('[data-dock-action]');
+      // The text's own height, since the message keeps room for four lines whatever it says.
+      const lines = () =>
+        panelMessage(page).evaluate((message) => {
+          const text = document.createRange();
+          text.selectNodeContents(message);
+          return Math.round(text.getBoundingClientRect().height / 21);
+        });
+
+      await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+      await expect(panelMessage(page)).toHaveText('Connecting to the board.');
+      const fewLines = await lines();
+      const before = await action.boundingBox();
+
+      await fakeFlasher.release();
+
+      await expect(action).toHaveAccessibleName('Try again');
+      expect(await lines()).toBeGreaterThan(fewLines);
+      expect(await action.boundingBox()).toEqual(before);
+    });
+  }
+
   test('tries a dropped flash again in one press: it connects, then flashes the open sketch', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['sketch blink/simple'], announce: true, failFirst: { write: 'NetworkError' } });
     await page.goto(BLINK);

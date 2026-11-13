@@ -325,6 +325,15 @@ describe('createConnection', () => {
     expect(fake.sent).toEqual([]);
   });
 
+  it('does nothing while the session flashes', async () => {
+    const { fake, connection } = connectionOver(() => {});
+    fake.enter({ kind: 'flashing', chip: 'ESP32', pct: 40 });
+
+    await connection.press();
+
+    expect(fake.sent).toEqual([]);
+  });
+
   it('offers Try again after a failed flash, which connects, then flashes the board that answered', async () => {
     const running: SessionState = { kind: 'running', chip: 'ESP32', output: [] };
     let drops = 1;
