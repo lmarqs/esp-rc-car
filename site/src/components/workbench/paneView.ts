@@ -1,4 +1,4 @@
-import { flashScene, type FlashScene } from '../board/flashPicture';
+import { flashScene, type FlashScene } from '../../lib/board/flashScene';
 import type { PictureView, WatchRow } from '../../lib/workbench/board';
 import type { BoardModel } from '../../lib/board/models';
 import type { Followed } from '../../lib/workbench/live';

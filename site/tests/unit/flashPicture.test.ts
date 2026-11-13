@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chipLevel, flashScene } from '../../src/components/board/flashPicture';
+import { chipLevel, flashScene } from '../../src/lib/board/flashScene';
 import { boardModel } from '../../src/lib/board/models';
 
 const esp01s = boardModel('esp01s');
