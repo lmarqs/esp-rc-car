@@ -8,7 +8,7 @@ order: 6
 sketch: sketches/balance-beam
 flash:
   baud: 115200
-  next: "Join the WiFi hotspot named in the settings, balance-beam with the password thebalancebot by default, then open http://192.168.4.1. The motors stay off until you set the throttle band in the Settings step, which Change settings reopens."
+  next: "Join the WiFi hotspot named in the settings, balance-beam with the password thebalancebot by default, then open http://192.168.4.1. The motors stay off until you set the throttle band in the card's settings, which Change settings reopens."
 topics: [pid, brushless-and-esc, imu, dual-core]
 ---
 
@@ -48,8 +48,9 @@ sources and as STL and 3MF files ready to slice.
 
 ## Run it on your board
 
-The card above flashes this sketch onto your board from Chrome or Edge on a computer, with no tools installed. Its
-Settings step asks for the throttle band, the angle offset, the tilt limit and the hotspot, and sends them to the board.
+The board bar at the bottom of the page flashes this sketch onto your board from Chrome or Edge on a computer, with no
+tools installed. The card above asks for the throttle band, the angle offset, the tilt limit and the hotspot, and sends
+them to the board.
 
 To build and flash it yourself: a fresh build cannot spin a motor, since the range of throttle the loop may use is
 zero until you set it. Put your rig's values in `sketches/balance-beam/local.h`, a file Git ignores. The reference

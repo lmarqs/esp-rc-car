@@ -40,9 +40,10 @@ uploads over its own USB port.
 ## Run it on your board
 
 Put the ESP-01S in its USB adapter and set the adapter's switch to PROG, the flash position, or put its jumper on,
-before you plug the adapter in. The card above flashes this sketch onto your board from Chrome or Edge on a computer,
-with no tools installed. After the write, the card asks you to set the switch to UART, the run position, and to unplug
-the adapter and plug it back in. When you connect again, the card sends the settings to the running board. To build and flash it yourself, install the tools (the [tooling
+before you plug the adapter in. The board bar at the bottom of the page flashes this sketch onto your board from
+Chrome or Edge on a computer, with no tools installed. After the write, it asks you to set the switch to UART, the run
+position, and to unplug the adapter and plug it back in. When you connect again, it sends the card's settings to the
+running board. To build and flash it yourself, install the tools (the [tooling
 page](../../learn/tooling/) says how) and run, from the repository's root:
 
 ```sh
@@ -51,7 +52,7 @@ mise run arduino:run sketches/web-relay --port /dev/ttyUSB0
 
 Then move the ESP-01S to the relay carrier and power the carrier with 5 V.
 
-The hotspot's password is `web-relay-1234` until you set your own: in the card's Settings step, or, when you build
+The hotspot's password is `web-relay-1234` until you set your own: in the card's settings, or, when you build
 it yourself, in `sketches/web-relay/local.h`, a file Git ignores:
 
 ```cpp
