@@ -243,46 +243,46 @@ describe('connectionView action', () => {
   });
 });
 
-describe('connectionView message', () => {
+describe('connectionView panel message', () => {
   it('words each state as the board message does, naming the open sketch by its title for a missing image', () => {
     const noImage: SessionState = { kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] };
-    expect(viewOf(noImage, { record: { lines: [], pending: 'blink/timer' } }).message).toEqual(
+    expect(viewOf(noImage, { record: { lines: [], pending: 'blink/timer' } }).panel).toEqual(
       boardMessage(noImage, { name: 'Blink · 3 input', step: true }, true),
     );
-    expect(viewOf(noImage).message?.text).toBe(
+    expect(viewOf(noImage).panel?.text).toBe(
       'This board is an ESP8266. Blink · 3 input has images for: ESP32. Connect an ESP32, or pick another step.',
     );
     const card = { key: 'omnidirectional', title: 'Omnidirectional robot', step: false };
-    expect(viewOf(noImage, { opened: card }).message?.text).toBe(
+    expect(viewOf(noImage, { opened: card }).panel?.text).toBe(
       'This board is an ESP8266. Omnidirectional robot has images for: ESP32. Connect an ESP32.',
     );
-    expect(viewOf(noImage, { opened: undefined, record: { lines: [], pending: 'blink/timer' } }).message?.text).toContain(
+    expect(viewOf(noImage, { opened: undefined, record: { lines: [], pending: 'blink/timer' } }).panel?.text).toContain(
       'blink/timer has images for: ESP32',
     );
-    expect(viewOf(noImage, { opened: undefined }).message?.text).toContain('This sketch has images for: ESP32');
-    expect(viewOf({ kind: 'noAnswer' }, { pick: esp01s }).message).toEqual(boardMessage({ kind: 'noAnswer' }, STEP, true, esp01s));
-    expect(viewOf({ kind: 'flashMode', chip: 'ESP8266' }).message?.notice).toBe(true);
-    expect(viewOf(lost).message).toEqual(boardMessage(lost, STEP, true));
+    expect(viewOf(noImage, { opened: undefined }).panel?.text).toContain('This sketch has images for: ESP32');
+    expect(viewOf({ kind: 'noAnswer' }, { pick: esp01s }).panel).toEqual(boardMessage({ kind: 'noAnswer' }, STEP, true, esp01s));
+    expect(viewOf({ kind: 'flashMode', chip: 'ESP8266' }).panel?.notice).toBe(true);
+    expect(viewOf(lost).panel).toEqual(boardMessage(lost, STEP, true));
   });
 
   it('says nothing while idle, while a board runs, and in a browser that cannot reach one', () => {
-    expect(viewOf({ kind: 'idle' }).message).toBeUndefined();
-    expect(viewOf(running).message).toBeUndefined();
-    expect(viewOf({ kind: 'unsupported' }).message).toBeUndefined();
+    expect(viewOf({ kind: 'idle' }).panel).toBeUndefined();
+    expect(viewOf(running).panel).toBeUndefined();
+    expect(viewOf({ kind: 'unsupported' }).panel).toBeUndefined();
   });
 
   it('leaves a running board unremarked, whatever the adapter, since the bar and the pane say what it runs', () => {
-    expect(viewOf(running, { pick: esp01s }).message).toBeUndefined();
-    expect(viewOf(running, { pick: esp01s, opened: undefined }).message).toBeUndefined();
-    expect(viewOf(running, { pick: esp01s, record: { lines: [], heard: 'blink/input' } }).message).toBeUndefined();
-    expect(viewOf(running, { pick: boardModel('esp32') }).message).toBeUndefined();
+    expect(viewOf(running, { pick: esp01s }).panel).toBeUndefined();
+    expect(viewOf(running, { pick: esp01s, opened: undefined }).panel).toBeUndefined();
+    expect(viewOf(running, { pick: esp01s, record: { lines: [], heard: 'blink/input' } }).panel).toBeUndefined();
+    expect(viewOf(running, { pick: boardModel('esp32') }).panel).toBeUndefined();
   });
 
   it('points at the card on this page that holds the settings, as it waits on them, reads them or sends them', () => {
     const relay = { key: 'web-relay', title: 'Web-controlled relay', settings: true };
     const record = { lines: [], pending: 'web-relay' };
     const says = (state: SessionState, rest: Partial<ConnectionInput> = {}) =>
-      viewOf(state, { opened: relay, record, ...rest }).message;
+      viewOf(state, { opened: relay, record, ...rest }).panel;
     expect(says({ kind: 'settings', chip: 'ESP8266', opened: {} })).toEqual({
       text: 'The Web-controlled relay card on this page asks for the settings. Check them, then flash the board.',
       notice: false,
@@ -319,9 +319,9 @@ describe('connectionView message', () => {
         { key: 'web-relay', title: 'Web relay · 1 x', step: true },
       ];
       for (const opened of elsewhere) {
-        expect(viewOf(state, { opened, record, names }).message, state.kind).toEqual({ text: away, notice: false });
+        expect(viewOf(state, { opened, record, names }).panel, state.kind).toEqual({ text: away, notice: false });
       }
-      expect(viewOf(state, { opened: undefined, record }).message?.text, state.kind).toBe(
+      expect(viewOf(state, { opened: undefined, record }).panel?.text, state.kind).toBe(
         'Your board waits on its settings. Go back to the page that asked for them, or press Disconnect.',
       );
     }
@@ -330,22 +330,20 @@ describe('connectionView message', () => {
   it('shows a refusal only while the page has the refused sketch open', () => {
     const refused: SessionState = { ...running, flashRefused: { key: 'blink/input', available: ['ESP32-C3'] } };
     const shown = viewOf(refused);
-    expect(shown.message).toEqual({
+    expect(shown.panel).toEqual({
       text: 'This board is an ESP32. Blink · 3 input has images for: ESP32-C3. Connect an ESP32-C3, or pick another step.',
       notice: true,
     });
-    expect(shown.open).toBe(true);
     expect(shown.action?.event).toBe('flash');
 
     for (const opened of [{ key: 'blink/timer', title: 'Blink · 4 timer' }, undefined]) {
       const dropped = viewOf(refused, { opened });
-      expect(dropped.message).toBeUndefined();
-      expect(dropped.open).toBe(false);
+      expect(dropped.panel).toBeUndefined();
     }
   });
 });
 
-describe('connectionView open', () => {
+describe('connectionView panel', () => {
   it('opens while the session works, waits in flash mode, failed or lost', () => {
     const open: SessionState[] = [
       { kind: 'connecting' },
@@ -362,12 +360,12 @@ describe('connectionView open', () => {
       { kind: 'dropped', pct: 40 },
       lost,
     ];
-    for (const state of open) expect(viewOf(state).open, state.kind).toBe(true);
+    for (const state of open) expect(viewOf(state).panel, state.kind).toBeDefined();
   });
 
   it('stays closed while idle, while a board runs and in a browser that cannot reach one', () => {
     for (const state of [{ kind: 'idle' }, running, { kind: 'unsupported' }] as const) {
-      expect(viewOf(state).open, state.kind).toBe(false);
+      expect(viewOf(state).panel, state.kind).toBeUndefined();
     }
   });
 });

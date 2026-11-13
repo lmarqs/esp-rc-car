@@ -307,7 +307,8 @@ const manifest = readManifest();
 
     /** Paints the panel and the one action, in the panel while it is open, else in the bar. */
     function paintConnection() {
-      const { action, message: said, scene, open } = connection.view;
+      const { action, panel: said, scene } = connection.view;
+      const open = said !== undefined;
       const focused = document.activeElement === panelAction || document.activeElement === barAction;
       panel.hidden = !open;
       paintFlashPicture(panel, scene);

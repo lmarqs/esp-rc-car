@@ -116,16 +116,16 @@ export interface ConnectionInput {
 export interface ConnectionView {
   /** The dock's one button; absent when there is nothing to press. */
   readonly action?: ConnectionAction;
-  readonly message?: BoardMessage;
+  /**
+   * What the dock's panel says, which opens it: while the session works, waits in flash mode, failed, lost or refused.
+   * Absent while the dock shows only its bar.
+   */
+  readonly panel?: BoardMessage;
   readonly scene: FlashScene;
-  /** Whether the dock's panel is open: while the session works, waits in flash mode, failed, lost or refused. */
-  readonly open: boolean;
 }
 
 /** The failures a press may get past: the visitor fixes what the message says, then presses again. */
 const RETRYABLE: ReadonlySet<SessionState['kind']> = new Set(['noPort', 'portBusy', 'noAnswer', 'noDownload', 'dropped']);
-
-const FAILED: ReadonlySet<SessionState['kind']> = new Set([...RETRYABLE, 'noImage']);
 
 const ICONS: Readonly<Record<ConnectionEvent, ConnectionAction['icon']>> = {
   connect: 'plug',
@@ -226,7 +226,7 @@ function actionFor(
 }
 
 /**
- * The board dock for the session's `state`: its one button, what it says and draws, and whether its panel is open.
+ * The board dock for the session's `state`: its one button, and what its panel says and draws.
  * `record` is what the site knows of the board; `opened` the sketch the page has open, if any; `pick` the board the
  * visitor picked. `pressed` and `tried` are the last press made while the session worked and the press whose work
  * ended in the session's failure, which Try again repeats.
@@ -234,15 +234,12 @@ function actionFor(
 export function connectionView({ state, record, opened, pick, pressed, tried, names = {} }: ConnectionInput): ConnectionView {
   const refusal = showsRefusal(state, opened);
   const sketch = { name: opened?.title ?? record.pending ?? 'This sketch', step: opened?.step === true };
-  const message = boardMessage(state, sketch, refusal, pick) ?? settingsMessage(state, record, opened, names);
+  const panel = boardMessage(state, sketch, refusal, pick) ?? settingsMessage(state, record, opened, names);
   const action = actionFor(state, record, opened, pressed, tried);
-  const lost = state.kind === 'running' && state.lost === true;
-  const open = isBusy(state) || state.kind === 'flashMode' || FAILED.has(state.kind) || lost || refusal;
   return {
     ...(action !== undefined && { action }),
-    ...(message !== undefined && { message }),
+    ...(panel !== undefined && { panel }),
     scene: flashScene(state, pick),
-    open,
   };
 }
 
