@@ -111,6 +111,11 @@ describe('the board dock for the board the visitor picked', () => {
     );
   });
 
+  it('asks to press reset on an ESP-01S running a sketch it has not named, which it names as it restarts', () => {
+    const view = dockView({ kind: 'running', chip: 'ESP8266', output: [] }, EMPTY_RECORD, names, flashable, boardModel('esp01s'));
+    expect(view.doing).toBe('is running a sketch. Press reset on its adapter to name it.');
+  });
+
   it('says the board is still in flash mode after the write, and offers to connect', () => {
     expect(dockView({ kind: 'flashMode', chip: 'ESP8266' }, EMPTY_RECORD, names, flashable)).toMatchObject({
       chip: 'ESP8266',

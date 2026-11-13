@@ -19,6 +19,7 @@ import {
 } from '../../src/components/workbench/view';
 import { viewFor } from '../../src/components/flash/view';
 import type { SessionState } from '../../src/lib/flash/session';
+import { boardModel } from '../../src/lib/board/models';
 
 describe('codeRows', () => {
   it('numbers each line from 1, marks the new ones and colours the text', () => {
@@ -214,6 +215,13 @@ describe('waitingMessage', () => {
     expect(waitingMessage(lost, { kind: 'simulated' }, 'input', 'blink/input', true)).toEqual(
       boardMessage(lost, 'blink/input', true),
     );
+  });
+
+  it('asks to press reset on an ESP-01S that has not named its sketch', () => {
+    expect(waitingMessage(running, { kind: 'connected' }, 'input', 'blink/simple', true, boardModel('esp01s'))).toEqual({
+      text: 'Your board has not named its sketch. Press reset on its adapter, or flash input to use it here.',
+      notice: false,
+    });
   });
 
   it('says what to do next for each board status', () => {

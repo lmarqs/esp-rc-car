@@ -153,17 +153,17 @@ ESP8266 it waits 3 seconds for the `sketch <key>` line; without it, the board's 
 the port cannot undo, so the session releases the port and waits in `flashMode`. The next connect opens the port
 without the bootloader, reads the running board, and sends the settings the flash was asked with. The dock's and the
 workbench's Connect read a picked ESP-01S the same way: its adapter reaches the bootloader only in flash mode, so the
-board is read as it runs, named by the chip the pick gives, and needs flash mode only for a flash. Such a board does
-not restart, so it names its sketch only once flashed, and a pick that is wrong shows only when the flash finds the
-chip.
+board is read as it runs, named by the chip the pick gives, and needs flash mode only for a flash. The port cannot
+restart such a board, so it names its sketch once flashed or once the visitor presses the reset button on its
+adapter, which the dock and the workbench ask for; a pick that is wrong shows only when the flash finds the chip.
 
 The dock names the board's chip and the sketch it runs, by the `sketch <key>` line or the key the site last flashed,
 links the sketch's project, at the step's tab for a step, and shows the last line it printed in the Serial button that
 opens the rest. It connects a board, flashes the sketch it runs again, lets it go, and opens a serial monitor that
-shows the lines and sends one. It also holds the visitor's pick of board, which the card, the workbench and the project
-cards follow: the card and the workbench give that board's hints, such as the flash switch of an ESP-01S adapter, and
-each project card says whether the project runs on it. Once a board connects, its chip is certain, so the pick follows
-the chip and the dock says so when the visitor picked another board.
+shows the lines, sends one and clears them. It also holds the visitor's pick of board, which the card, the workbench
+and the project cards follow: the card and the workbench give that board's hints, such as the flash switch of an
+ESP-01S adapter, and each project card says whether the project runs on it. Once a board connects, its chip is
+certain, so the pick follows the chip and the dock says so when the visitor picked another board.
 Every page carries the names of every project's sketches and the whole manifest for it.
 
 The workbench has a simulated board, and it hears from a real one through the `sketch <key>` line. Every step of a

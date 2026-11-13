@@ -29,6 +29,12 @@ export interface DockView {
   readonly canSend: boolean;
 }
 
+/**
+ * A flash-switch board is reached without a restart, so it never printed its `sketch <key>` line; the reset button
+ * on its adapter restarts it, and it prints the line as it starts.
+ */
+const UNNAMED_ON_SWITCH = 'is running a sketch. Press reset on its adapter to name it.';
+
 const NOTHING = { connect: false, flashAgain: false, disconnect: false, canSend: false } as const;
 
 /** The name of the sketch `key`, or a plain one for a sketch outside the site. */
@@ -70,7 +76,7 @@ export function dockView(
       shown: true,
       connected: true,
       chip: state.chip,
-      doing: name === undefined ? 'is running a sketch' : 'is running',
+      doing: name !== undefined ? 'is running' : board?.flashSwitch ? UNNAMED_ON_SWITCH : 'is running a sketch',
       ...(name !== undefined && { sketch: name.title }),
       ...(name?.path && { path: name.path }),
       ...(last !== undefined && { last }),

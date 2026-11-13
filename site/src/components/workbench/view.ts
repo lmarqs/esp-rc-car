@@ -282,7 +282,11 @@ export function waitingMessage(
     case 'simulated':
       return say('No board connected. Plug it in with a USB cable, then connect.');
     case 'connected':
-      return say(`Your board is connected but has not named its sketch. Flash ${selectedId} to use it here.`);
+      return say(
+        board?.flashSwitch
+          ? `Your board has not named its sketch. Press reset on its adapter, or flash ${selectedId} to use it here.`
+          : `Your board is connected but has not named its sketch. Flash ${selectedId} to use it here.`,
+      );
     case 'live':
       return undefined;
     case 'step':
