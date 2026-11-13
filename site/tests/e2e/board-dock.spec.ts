@@ -110,6 +110,21 @@ test.describe('the board dock', () => {
     await expect(monitor(page)).toHaveText('sketch blink/input\nHIGH\nLOW\n› 500\nwait 500');
   });
 
+  test('clears the serial monitor and goes on showing what the board prints next', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/input', 'HIGH', 'LOW'] });
+    await page.goto('/robomania/learn/');
+    await dock(page).getByRole('button', { name: 'Connect board' }).click();
+    await dock(page).getByRole('button', { name: 'Serial' }).click();
+    await expect(monitor(page)).toHaveText('sketch blink/input\nHIGH\nLOW');
+
+    await dock(page).getByRole('button', { name: 'Clear' }).click();
+
+    await expect(monitor(page)).toHaveText('');
+    await expect(dock(page)).toContainText('ESP32 is running Blink · 2 input');
+    await fakeFlasher.print('HIGH');
+    await expect(monitor(page)).toHaveText('HIGH');
+  });
+
   test('says the open Serial button hides the output, and closes the monitor on Close with the focus back on Serial', async ({
     page,
     fakeFlasher,

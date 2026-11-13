@@ -70,6 +70,17 @@ describe('the board record', () => {
   });
 });
 
+describe('clearing the lines', () => {
+  it('forgets the lines and keeps what the board runs', () => {
+    const record: BoardRecord = { heard: 'blink/simple', lines: [{ text: 'HIGH', at: 1 }] };
+    expect(recordBoard(record, { kind: 'clear' })).toEqual({ heard: 'blink/simple', lines: [] });
+  });
+
+  it('keeps an empty record as it is', () => {
+    expect(recordBoard(EMPTY_RECORD, { kind: 'clear' })).toBe(EMPTY_RECORD);
+  });
+});
+
 describe('the record of a board left in flash mode', () => {
   const flashing: SessionState = { kind: 'flashing', chip: 'ESP8266', pct: 100 };
   const flashMode: SessionState = { kind: 'flashMode', chip: 'ESP8266' };

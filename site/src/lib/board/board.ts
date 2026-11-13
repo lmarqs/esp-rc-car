@@ -29,6 +29,8 @@ export interface Board {
   send(event: SessionEvent): Promise<void>;
   /** Writes `text` to the board and keeps it among the lines; rejects as {@link FlashSession.sendLine} does. */
   sendLine(text: string): Promise<void>;
+  /** Forgets the lines kept so far; what the board runs stays known. */
+  clearLines(): void;
   /** Adds `manifest`'s images to the ones the session knows, so a key it names can be flashed again from any page. */
   know(manifest: Manifest): void;
 }
@@ -99,6 +101,9 @@ export function createBoard(session: FlashSession): Board {
     async sendLine(text) {
       await session.sendLine(text);
       change({ kind: 'sent', line: { text, at: Date.now() } });
+    },
+    clearLines() {
+      change({ kind: 'clear' });
     },
     know(manifest) {
       session.configure({ ...current, manifest });

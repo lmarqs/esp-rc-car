@@ -34,7 +34,9 @@ export type RecordEvent =
   | { readonly kind: 'state'; readonly from: SessionState; readonly to: SessionState }
   | { readonly kind: 'line'; readonly line: BoardLine }
   /** The visitor sent the board `line`. */
-  | { readonly kind: 'sent'; readonly line: BoardLine };
+  | { readonly kind: 'sent'; readonly line: BoardLine }
+  /** The visitor cleared the serial monitor. */
+  | { readonly kind: 'clear' };
 
 export const EMPTY_RECORD: BoardRecord = { lines: [] };
 
@@ -56,6 +58,8 @@ export function recordBoard(record: BoardRecord, event: RecordEvent): BoardRecor
     }
     case 'sent':
       return { ...record, lines: [...record.lines, { ...event.line, sent: true as const }].slice(-KEPT_LINES) };
+    case 'clear':
+      return record.lines.length === 0 ? record : { ...record, lines: [] };
     case 'state':
       return recordState(record, event.from, event.to);
   }
