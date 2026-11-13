@@ -235,18 +235,19 @@ export function paneTag(
 ): { readonly word: string; readonly title: string } {
   switch (mode) {
     case 'simulator':
-      return {
-        word: 'Simulated',
-        title:
-          status.kind === 'live'
-            ? 'Running in the browser; your board runs this step under My board'
-            : 'Running in the browser',
-      };
+      return simulatorTag(status);
     case 'live':
       return { word: 'Live', title: 'Drawn from what your board prints' };
     case 'waiting':
       return { word: 'My board', title: sessionWord(session) ?? waitingTitle(status, board) };
   }
+}
+
+/** The tag while the pane shows the simulator, which says when the board runs the same step, as `status` has it. */
+export function simulatorTag(status: BoardStatus): { readonly word: string; readonly title: string } {
+  const title =
+    status.kind === 'live' ? 'Running in the browser; your board runs this step under My board' : 'Running in the browser';
+  return { word: 'Simulated', title };
 }
 
 /** What the switch's My board half says of the board, as its dot shows it: what the session does, or whether it reads one. */

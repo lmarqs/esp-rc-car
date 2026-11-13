@@ -4,7 +4,7 @@ import type { RailStep } from './rail';
 import Scope from './Scope.astro';
 import Stage from './Stage.astro';
 import Terminal from './Terminal.astro';
-import { paneTag } from './view';
+import { simulatorTag } from './view';
 
 interface Props {
   project: WorkbenchProject<unknown, unknown, unknown>;
@@ -12,7 +12,8 @@ interface Props {
 }
 
 const { project, steps } = Astro.props;
-const simulated = paneTag('simulator', { kind: 'simulated' }, { kind: 'idle' }, undefined);
+// The server knows of no board; the page's script paints the tag for the board it finds.
+const simulated = simulatorTag({ kind: 'simulated' });
 ---
 
 <div class="board">
