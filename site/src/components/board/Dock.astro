@@ -76,20 +76,25 @@ const manifest = readManifest();
     </select>
     <span class="dot" aria-hidden="true" data-dock-dot></span>
     <span class="status" aria-live="polite" data-dock-status>
-      <b class="chip" data-dock-chip>No board</b>{' '}<span data-dock-doing></span>{' '}<a data-dock-link hidden></a><span
-        data-dock-sketch
-      ></span>
+      <span class="said" data-dock-said
+        ><b class="chip" data-dock-chip>No board</b>{' '}<span data-dock-doing></span>{' '}<a data-dock-link hidden></a><span
+          data-dock-sketch
+        ></span></span
+      >
     </span>
-    <span class="meter" data-dock-meter hidden>
-      <span class="track" role="progressbar" aria-label="Flashing" aria-valuemin="0" aria-valuemax="100" data-dock-track>
-        <i data-dock-fill></i>
-      </span>
-      <span class="pct" data-dock-pct></span>
-    </span>
-    {/* Serial comes last, so the buttons that come and go never move it. */}
+    {/* Each control keeps its room while it does not show, so none moves as the board's state changes. */}
     <span class="acts">
-      <ActionButton label="Connect board" data-dock-action="bar" hidden />
-      <button type="button" data-dock-disconnect hidden>
+      {/* The meter takes the button's room while the button is in the panel. */}
+      <span class="slot">
+        <ActionButton label="Connect board" data-dock-action="bar" data-off />
+        <span class="meter" data-dock-meter hidden>
+          <span class="track" role="progressbar" aria-label="Flashing" aria-valuemin="0" aria-valuemax="100" data-dock-track>
+            <i data-dock-fill></i>
+          </span>
+          <span class="pct" data-dock-pct></span>
+        </span>
+      </span>
+      <button type="button" data-dock-disconnect data-off>
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v5M4.6 4.2a5 5 0 1 0 6.8 0"></path></svg>
         Disconnect
       </button>
@@ -117,23 +122,28 @@ const manifest = readManifest();
   /* At the foot of the page and stuck to the bottom of the window above it, so it covers none of the page's end. */
   .dock { position: sticky; bottom: 0; z-index: 10; background: var(--ink); color: var(--on-ink); font-size: 13px; line-height: 1.5; border-top: 1px solid var(--on-ink-edge); box-shadow: 0 -8px 20px var(--ink-shadow); }
   .dock:focus { outline: none; }
-  .bar { display: flex; align-items: center; gap: 10px; min-height: 44px; padding-top: 6px; padding-bottom: 6px; flex-wrap: wrap; }
-  .pick { font: inherit; font-weight: 700; font-size: 12px; color: var(--card); background: var(--ink-raised); border: 1px solid var(--on-ink-edge); border-radius: 999px; padding: 3px 8px; cursor: pointer; }
+  .bar { display: flex; align-items: center; gap: 10px; min-height: 44px; padding-top: 6px; padding-bottom: 6px; }
+  .pick { flex: none; font: inherit; font-weight: 700; font-size: 12px; color: var(--card); background: var(--ink-raised); border: 1px solid var(--on-ink-edge); border-radius: 999px; padding: 3px 8px; cursor: pointer; }
   .pick:hover { border-color: var(--yellow); }
   .pick:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
   .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--faint); flex: none; }
   .dot.on { background: var(--green); box-shadow: 0 0 0 3px var(--green-halo); }
-  /* Grows into the room the buttons leave and wraps there, so a long line moves no button to a row of its own. */
-  .status { min-width: 10em; flex: 1 1 0; }
+  /* Takes the room the controls leave, two lines high whatever it says, and cut beyond them, so the bar keeps its
+     height and one row. */
+  .status { flex: 1 1 0; min-width: 0; min-height: 3em; display: flex; align-items: center; }
+  .said { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
   .chip { color: var(--card); white-space: nowrap; }
   .status a { color: var(--on-ink); }
-  .meter { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 120px; min-width: 100px; }
+  .slot { display: grid; align-items: center; }
+  .slot > * { grid-area: 1 / 1; }
+  .meter { display: flex; align-items: center; gap: 8px; }
   .track { flex: 1; height: 6px; border-radius: 3px; background: var(--on-ink-line); overflow: hidden; }
   .track i { display: block; height: 100%; width: 0; background: var(--yellow); transition: width .15s; }
   .pct { font-family: var(--mono); color: var(--yellow); min-width: 4ch; text-align: right; }
   /* As tall as the board's button whether it shows or not, so Serial stays in place as the button moves between the
      bar and the panel. */
-  .acts { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; align-items: center; justify-content: flex-end; min-height: 35px; }
+  .acts { display: flex; flex: none; gap: 6px; margin-left: auto; align-items: center; justify-content: flex-end; min-height: 35px; }
+  .acts [data-off] { visibility: hidden; }
   .acts button, .head button { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-weight: 700; font-size: 12px; color: var(--on-ink); background: transparent; border: 1px solid var(--on-ink-edge); border-radius: 999px; padding: 3px 11px; cursor: pointer; white-space: nowrap; }
   .acts button:hover, .head button:hover { border-color: var(--yellow); color: var(--yellow); }
   /* Raised like the monitor it opened, and no yellow, which means new or sent. */
@@ -145,13 +155,16 @@ const manifest = readManifest();
   .cmd:has(input:focus-visible) { box-shadow: inset 0 0 0 2px var(--blue); }
   /* The same width whatever the board last printed, so the bar never shifts as lines arrive. */
   .acts .serial { width: 300px; gap: 8px; padding: 3px 12px; }
+  /* Narrower where the bar would not hold every control on one row. */
+  @media (max-width: 1000px) { .acts .serial { width: 220px; } }
   .last, .hide { flex: 1 1 0; min-width: 0; padding-left: 8px; border-left: 1px solid var(--on-ink-line); text-align: left; font-size: 13px; font-weight: 400; }
   .last { flex: 1 1 0; min-width: 0; padding-left: 8px; border-left: 1px solid var(--on-ink-line); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); }
   .serial[aria-expanded="false"] .hide, .serial[aria-expanded="true"] .last { display: none; }
   .last:empty::before { content: "Nothing printed yet"; opacity: .7; }
   .serial .caret { flex: none; }
   @media (max-width: 560px) {
-    .acts { flex: 1 1 100%; }
+    .bar { flex-wrap: wrap; }
+    .acts { flex: 1 1 100%; flex-wrap: wrap; }
     .acts .serial { flex: 1 1 100%; width: auto; }
   }
 
@@ -222,6 +235,8 @@ const manifest = readManifest();
     const pct = find<HTMLElement>('pct');
     const last = find<HTMLElement>('last');
     const disconnect = find<HTMLButtonElement>('disconnect');
+    const status = find<HTMLElement>('status');
+    const said = find<HTMLElement>('said');
     const panel = find<HTMLElement>('panel');
     const message = find<HTMLElement>('message');
     const panelAction = dock.querySelector<HTMLButtonElement>('[data-dock-action="panel"]')!;
@@ -280,7 +295,10 @@ const manifest = readManifest();
       last.textContent = view.last ?? '';
       paintConnection();
       if (!view.disconnect && document.activeElement === disconnect) dock.focus();
-      disconnect.hidden = !view.disconnect;
+      disconnect.toggleAttribute('data-off', !view.disconnect);
+      // The full status where two lines cut it.
+      if (said.scrollHeight > said.clientHeight) status.title = said.textContent ?? '';
+      else status.removeAttribute('title');
       monitor.show(view.canSend);
     }
 
@@ -294,14 +312,14 @@ const manifest = readManifest();
       // Set only on a change, since the message is a live region.
       if (message.textContent !== (said?.text ?? '')) message.textContent = said?.text ?? '';
       message.toggleAttribute('data-notice', said?.notice ?? false);
-      for (const button of [panelAction, barAction]) {
-        button.hidden = action === undefined || (button === panelAction) !== open;
-        if (action !== undefined) paintAction(button, action);
-      }
+      panelAction.hidden = action === undefined || !open;
+      // The bar's button keeps its room, so the controls after it stay in place.
+      barAction.toggleAttribute('data-off', action === undefined || open);
+      if (action !== undefined) for (const button of [panelAction, barAction]) paintAction(button, action);
       // The focus follows the action between the bar and the panel; with no action, the dock keeps it.
       if (focused) {
         const shown = open ? panelAction : barAction;
-        if (shown.hidden) dock.focus();
+        if (shown.hidden || shown.hasAttribute('data-off')) dock.focus();
         else if (document.activeElement !== shown) shown.focus();
       }
     }

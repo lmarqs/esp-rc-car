@@ -330,39 +330,54 @@ test.describe('the board dock panel', () => {
     expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200']);
   });
 
-  test('keeps Serial in place along the bar at 860 px, and the bar on one row before and while it flashes', async ({
-    page,
-    fakeFlasher,
-  }) => {
-    await fakeFlasher.install({ lines: ['sketch blink/simple'], announce: true, progress: [40], hold: true });
-    await page.setViewportSize({ width: 860, height: 700 });
+  for (const width of [860, 1280]) {
+    test(`keeps the action, Disconnect and Serial in place on one row at ${width} px as it flashes and runs`, async ({
+      page,
+      fakeFlasher,
+    }) => {
+      await fakeFlasher.install({ lines: ['sketch blink/simple'], announce: true, progress: [40], hold: true });
+      await page.setViewportSize({ width, height: 700 });
+      await page.goto(BLINK);
+      const picker = dock(page).getByRole('combobox', { name: 'My board' });
+      /** Where the bar's controls sit, shown or keeping their room, and whether each is on the picker's row. */
+      const controls = async () => {
+        const row = (await picker.boundingBox())!;
+        const boxes = await Promise.all(
+          ['[data-dock-action="bar"]', '[data-dock-disconnect]', '[data-dock-serial]'].map((selector) =>
+            bar(page)
+              .locator(selector)
+              .evaluate((element) => {
+                const { x, y, width } = element.getBoundingClientRect();
+                return { x, y, width };
+              }),
+          ),
+        );
+        for (const box of boxes) expect(box.y).toBeLessThan(row.y + row.height);
+        return boxes;
+      };
+      const idle = await controls();
+
+      await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+      await expect(panel(page)).toBeVisible();
+      await expect(bar(page).getByRole('progressbar', { name: 'Flashing' })).toBeVisible();
+      expect(await controls()).toEqual(idle);
+
+      await fakeFlasher.release();
+      await expect(bar(page).getByRole('button', { name: 'Disconnect' })).toBeVisible();
+      await expect(bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' })).toBeVisible();
+      await dock(page).screenshot({ path: test.info().outputPath('dock.png') });
+      expect(await controls()).toEqual(idle);
+    });
+  }
+
+  test('shows the whole name of a sketch its bar button cuts on hover', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install();
     await page.goto(BLINK);
-    const serial = bar(page).getByRole('button', { name: 'Serial' });
-    const picker = dock(page).getByRole('combobox', { name: 'My board' });
-    /** Whether each of the bar's buttons named sits on the picker's row. */
-    const onOneRow = async (...names: string[]) => {
-      const { y, height } = (await picker.boundingBox())!;
-      for (const name of names) {
-        expect((await bar(page).getByRole('button', { name }).boundingBox())!.y, name).toBeLessThan(y + height);
-      }
-    };
-    // The status wraps to fit beside the buttons, so Serial keeps its place along the bar.
-    const along = async () => {
-      const { x, width } = (await serial.boundingBox())!;
-      return { x, width };
-    };
-    const before = await along();
-    await onOneRow('Flash Blink · 1 simple', 'Serial');
 
-    await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
-    await expect(panel(page)).toBeVisible();
-
-    expect(await along()).toEqual(before);
-    await onOneRow('Serial');
-    await dock(page).screenshot({ path: test.info().outputPath('dock.png') });
-    await fakeFlasher.release();
-    await expect(bar(page).getByRole('button', { name: 'Disconnect' })).toBeVisible();
-    expect(await along()).toEqual(before);
+    await expect(bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' })).toHaveAttribute(
+      'title',
+      'Flash Blink · 1 simple',
+    );
   });
 });
 
