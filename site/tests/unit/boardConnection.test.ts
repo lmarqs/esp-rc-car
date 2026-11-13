@@ -177,6 +177,18 @@ describe('connectionView action', () => {
     expect(viewOf(running, { opened: undefined }).action).toBeUndefined();
   });
 
+  it('connects anew to flash a sketch with settings the running board does not run, so its form comes first', () => {
+    const withSettings = { ...sketch, settings: true };
+    expect(viewOf(running, { opened: withSettings }).action).toEqual({
+      label: 'Flash Blink · 3 input',
+      icon: 'bolt',
+      event: 'connect',
+      disabled: false,
+    });
+    expect(viewOf(running, { opened: withSettings, record: { lines: [], heard: 'blink/input' } }).action?.event).toBe('flash');
+    expect(viewOf(running, { opened: withSettings, record: { lines: [], flashed: 'blink/input' } }).action?.event).toBe('flash');
+  });
+
   it('connects again from flash mode and from a lost board, with a sketch open or not', () => {
     const again = { label: 'Connect again', icon: 'plug', event: 'connect', disabled: false };
     for (const opened of [sketch, undefined]) {
@@ -364,6 +376,21 @@ describe('createConnection', () => {
     await connection.press();
 
     expect(fake.sent).toEqual([{ type: 'flash', key: 'blink/input' }]);
+  });
+
+  it('connects anew to flash an opened sketch with settings over another running one, and flashes it once it runs', async () => {
+    const field = { key: 'ap_password', label: 'Hotspot password', type: 'password', default: 'web-relay-1234' } as const;
+    const relay = { manifest: { sketches: { 'web-relay': { images: [], settings: [field] } } }, sketch: 'web-relay', baud: 115200 };
+    const { fake, board, connection } = connectionOver(() => {}, false);
+    board.open(relay, 'Web-controlled relay', new AbortController().signal);
+    fake.enter({ kind: 'running', chip: 'ESP8266', output: [] });
+    expect(connection.view.action).toMatchObject({ label: 'Flash Web-controlled relay', event: 'connect' });
+
+    await connection.press();
+
+    expect(fake.sent).toEqual([{ type: 'connect' }]);
+    fake.print('sketch web-relay');
+    expect(connection.view.action).toMatchObject({ label: 'Flash Web-controlled relay', event: 'flash' });
   });
 
   it('does nothing while the session works on the last press', async () => {

@@ -1,4 +1,5 @@
 import { isBusy, wording, type SessionState } from '../flash';
+import { settingsOf } from '../flash/settings';
 import type { Board } from './board';
 import { flashScene, type FlashScene } from './flashScene';
 import { restartConnection, type BoardModel } from './models';
@@ -88,6 +89,8 @@ export interface OpenedSketch {
   readonly title: string;
   /** Set for a step of a workbench, whose page lets the visitor pick another step. */
   readonly step?: boolean;
+  /** Set for a sketch with settings, whose form comes before its flash. */
+  readonly settings?: boolean;
 }
 
 /** What {@link connectionView} reads: the session, what the site knows of the board and what the visitor has done. */
@@ -137,8 +140,18 @@ function showsRefusal(state: SessionState, opened: OpenedSketch | undefined): bo
   return state.kind === 'running' && state.flashRefused !== undefined && state.flashRefused.key === opened?.key;
 }
 
+/**
+ * The press that flashes `opened` onto a running board: a flash on the open port, unless the sketch has settings the
+ * board does not hold yet. Then it connects anew, which opens the settings form before the write, so a sketch such as
+ * a hotspot never starts with its default password unasked.
+ */
+function flashFromRunning(opened: OpenedSketch, record: BoardRecord): ConnectionEvent {
+  return opened.settings === true && runs(record) !== opened.key ? 'connect' : 'flash';
+}
+
 function actionFor(
   state: SessionState,
+  record: BoardRecord,
   opened: OpenedSketch | undefined,
   pressed: ConnectionEvent | undefined,
   tried: ConnectionEvent | undefined,
@@ -163,7 +176,8 @@ function actionFor(
     case 'idle':
       return flash('connect') ?? connect('Connect board');
     case 'running':
-      return state.lost ? connect('Connect again') : flash('flash');
+      if (state.lost) return connect('Connect again');
+      return opened && flash(flashFromRunning(opened, record));
     case 'flashMode':
       return connect('Connect again');
     default:
@@ -186,7 +200,7 @@ export function connectionView({ state, record, opened, pick, pressed, tried }: 
       ? ({ text: unnamedOnSwitch(opened), notice: false } satisfies BoardMessage)
       : undefined;
   const message = named ?? unnamed;
-  const action = actionFor(state, opened, pressed, tried);
+  const action = actionFor(state, record, opened, pressed, tried);
   const lost = state.kind === 'running' && state.lost === true;
   const open = isBusy(state) || state.kind === 'flashMode' || FAILED.has(state.kind) || lost || refusal;
   return {
@@ -229,6 +243,7 @@ export function createConnection(board: Board, pick: BoardPick): Connection {
         key: opened.use.sketch,
         title: opened.title,
         step: opened.step === true,
+        settings: settingsOf(opened.use.manifest, opened.use.sketch, opened.use.baud).length > 0,
       },
       pick: pick.model,
       ...(pressed !== undefined && { pressed }),

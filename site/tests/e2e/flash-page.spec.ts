@@ -170,7 +170,7 @@ test.describe('the Flash page', () => {
     await expect(card(page).getByText('Your board is running Omnidirectional robot.')).toBeVisible();
   });
 
-  test('keeps the board connected when another project is picked, whose card points at the dock that flashes it', async ({
+  test('keeps the board connected when another project is picked, whose dock press opens its settings before the flash', async ({
     page,
     fakeFlasher,
   }) => {
@@ -191,9 +191,9 @@ test.describe('the Flash page', () => {
 
     await pick(page, 'Balance beam').click();
     await dockAction(page).click();
-    await expect(card(page).locator('[data-message]')).toContainText('Your board is running Balance beam.');
-    await expect(card(page).getByRole('button')).toHaveText(['Change settings']);
-    await expect(dock(page)).toContainText('is running Balance beam');
+    await expect(card(page).locator('[data-message]')).toHaveText('Found ESP32. Check the settings, then flash the board.');
+    await expect(card(page).getByRole('button', { name: 'Flash with these settings' })).toBeVisible();
+    expect(await fakeFlasher.calls()).toContain('disconnect');
   });
 
   test("words the settings only on the card of the sketch being flashed, not on another project's", async ({

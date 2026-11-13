@@ -42,6 +42,33 @@ test.describe('a project whose sketch has settings', () => {
     expect(await fakeFlasher.calls()).toEqual(['connect']);
   });
 
+  test('asks for them first when the dock flashes the sketch over another one the board runs', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ board: { values: DEFAULTS } });
+    await page.goto('/robomania/learn/');
+    await dock(page).getByRole('button', { name: 'Connect board' }).click();
+    await expect(dock(page)).toContainText('is running a sketch');
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Projects' }).click();
+    await page.getByRole('main').getByRole('link', { name: /Balance beam/ }).click();
+    await expect(dockAction(page)).toHaveAccessibleName('Flash Balance beam');
+
+    await dockAction(page).click();
+
+    await expect(card(page).locator('[data-message]')).toHaveText('Found ESP32. Check the settings, then flash the board.');
+    await expect(field(page, 'Hotspot password')).toBeVisible();
+    expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200', 'disconnect', 'connect']);
+
+    await field(page, 'Tilt limit (degrees)').fill('30');
+    await card(page).getByRole('button', { name: 'Flash with these settings' }).click();
+
+    await expect(card(page).locator('[data-message]')).toContainText('Your board is running Balance beam.');
+    expect((await fakeFlasher.calls()).slice(4)).toEqual([
+      'load', 'write', 'reset', 'monitor 115200',
+      'send cfg get',
+      'send cfg set tilt_limit_deg 30',
+      'send cfg restart',
+    ]);
+  });
+
   test('keeps what the board stores in each field the visitor left as it opened', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ board: { values: { ...DEFAULTS, ap_ssid: 'old-name', throttle_max: '0.09' } } });
     await page.goto('/robomania/projects/balance-beam/');
