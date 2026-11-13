@@ -159,6 +159,7 @@ const ownCard = flashable.filter(({ ladder }) => !ladder);
     if (buttons.length === 0) return;
     let picked: string | undefined;
     let pick = new AbortController();
+    signal.addEventListener('abort', () => pick.abort());
 
     function show(id: string | undefined) {
       if (id === picked) return;
@@ -170,7 +171,7 @@ const ownCard = flashable.filter(({ ladder }) => !ladder);
       pick = new AbortController();
       const card = panels.find((panel) => panel.dataset.panel === id)?.querySelector<HTMLElement>('[data-flash-card]');
       if (card) {
-        theBoard().open(cardUse(card), card.dataset.title!, AbortSignal.any([signal, pick.signal]));
+        theBoard().open(cardUse(card), card.dataset.title!, pick.signal);
       }
     }
 
