@@ -95,7 +95,7 @@ The site also puts the firmware on a board. Its parts:
   which is its bar, the board's one action, and the panel's message and picture, and presses the action. It is the one
   module that words the session's failures. The slice also holds the board models the site has images for, one per chip,
   and the visitor's pick of one, kept in the browser. `site/src/components/board/` holds the dock, along the bottom of
-  every page, and the flash picture its panel draws. The card, the workbench and the Flash page's pick open their
+  every page, and the flash rail its panel draws. The card, the workbench and the Flash page's pick open their
   sketches on the board; the slice depends on the flash slice.
 - **Router**: the site swaps pages in place with Astro's client router, so the board keeps its port from page to page
   and the dock persists across the swap. A page's script runs once per visit to the site, so each one mounts on every
@@ -193,17 +193,18 @@ Board connection, and a panel for what happens between the computer and the boar
   flash refused over a running board. The sketch is the one the visitor has open: the workbench's selected step, the
   project page's card, or the Flash page's pick, each opened with `board.open` until its page goes. A page with no
   sketch, such as Learn, or with a sketch the page has no image of, offers Connect, which restarts and reads the
-  board, and no Flash.
+  board, and no Flash. While no board is connected, a page with a sketch offers Connect board in the bar beside Flash,
+  in the room Disconnect takes once a board is connected.
 - Flash flashes the open sketch from idle and from running in one press, and Try again after a failed flash connects and
   flashes in one press, also from another page, with one request for the port: the connection opens the settings form of
   a sketch that has settings before it writes. From running, a sketch with settings that the board does not already run
   connects anew, so its card's settings form comes before the write.
 - The panel opens while the session works, waits in flash mode or on the board's settings, failed, has no image of the
   open sketch for the board, or is running a board it lost or refused to flash; it closes while the session is idle or
-  runs a board that answers and refused nothing. It draws the flash picture, the computer, the cable and the board's
-  chip with Find, Write and Restart under them, which marks where a failure happened, with the action hanging above
-  the cable; the hand hint, the BOOT button or the adapter's switch to PROG or to UART; and the message, in a live
-  region. The action is in the panel while the panel is open and in the bar otherwise, so the board has one button at
+  runs a board that answers and refused nothing. It draws the flash rail, Find, Write and Restart as nodes on a line, each
+  with its icon, a spinner while it runs, a check once done and a cross where a failure happened, the line filling as
+  the image goes down; the hand hint, the BOOT button or the adapter's switch to PROG or to UART; the message, in a
+  live region; and the action, on one row with them from 1000 px and one under the other below it. The action is in the panel while the panel is open and in the bar otherwise, so the board has one button at
   a time. While the panel is open, the bar names the state only, such as lost the connection, and the panel alone says
   what to do.
 - The bar's controls keep their room whether they show or not, so nothing moves as the action appears and goes, and

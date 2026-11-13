@@ -159,8 +159,10 @@ export interface DockBar {
 /** What the board dock shows for the visitor's board. */
 export interface ConnectionView {
   readonly bar: DockBar;
-  /** The dock's one button; absent when there is nothing to press. */
+  /** The dock's main button; absent when there is nothing to press. */
   readonly action?: ConnectionAction;
+  /** Connect board beside a Flash that would connect and write in one press: present while no board is connected. */
+  readonly connect?: ConnectionAction;
   /**
    * What the dock's panel says, which opens it: while the session works, waits in flash mode, failed, lost or refused.
    * Absent while the dock shows only its bar.
@@ -227,6 +229,8 @@ function flashEvent(state: SessionState, opened: OpenedSketch, record: BoardReco
   if (!running || (opened.settings && runs(record) !== opened.use.sketch)) return { type: 'connect' };
   return { type: 'flash', key: opened.use.sketch };
 }
+
+const CONNECT: ConnectionAction = { label: 'Connect board', icon: 'plug', event: 'connect', disabled: false };
 
 function actionFor(
   state: SessionState,
@@ -368,6 +372,7 @@ export function connectionView({ state, record, opened, pick, lastPress, names }
   return {
     bar: barFor(state, record, names, pick, panel !== undefined),
     ...(action !== undefined && { action }),
+    ...(action !== undefined && !action.disabled && action.event === 'flash' && state.kind === 'idle' && { connect: CONNECT }),
     ...(panel !== undefined && { panel }),
     scene: flashScene(state, pick),
   };
@@ -380,6 +385,8 @@ export interface Connection {
   subscribe(listener: () => void): () => void;
   /** Presses the view's button, unless there is none or the session works: resolves once its work is done. */
   press(): Promise<void>;
+  /** Presses Connect board, which reads the board and writes no sketch; nothing while the view offers none. */
+  pressConnect(): Promise<void>;
   /**
    * Lets the board go: a running one, or one whose settings form waits. A settings exchange runs to its end first,
    * since the session takes no event until then.
@@ -451,6 +458,10 @@ export function createConnection(board: Board, pick: BoardPick, names: SketchNam
       const { action } = viewNow();
       if (action === undefined || action.disabled) return;
       await start(action.event);
+    },
+    async pressConnect() {
+      if (viewNow().connect === undefined) return;
+      await start('connect');
     },
     async disconnect() {
       await exchanged();

@@ -1,7 +1,7 @@
 ---
 import { BOARD_MODELS } from '../../lib/board/models';
 import ActionButton from './ActionButton.astro';
-import FlashPicture from './FlashPicture.astro';
+import FlashRail from './FlashRail.astro';
 import HandHint from './HandHint.astro';
 import { sketchNames } from '../../lib/board/names';
 import { readManifest } from '../../lib/flash/readManifest';
@@ -61,12 +61,13 @@ const manifest = readManifest();
   </div>
   {/* What happens between the computer and the board while the session works, waits in flash mode or failed. */}
   <div class="panel" data-dock-panel hidden>
-    <div class="scene wrap">
-      <FlashPicture><ActionButton label="Connect board" data-dock-action="panel" /></FlashPicture>
+    <div class="row wrap">
+      <FlashRail />
       <div class="words">
         <HandHint />
         <p class="message" aria-live="polite" data-dock-message></p>
       </div>
+      <ActionButton label="Connect board" data-dock-action="panel" />
     </div>
   </div>
   <div class="bar wrap">
@@ -94,10 +95,14 @@ const manifest = readManifest();
           <span class="pct" data-dock-pct></span>
         </span>
       </span>
-      <button type="button" data-dock-disconnect data-off>
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v5M4.6 4.2a5 5 0 1 0 6.8 0"></path></svg>
-        Disconnect
-      </button>
+      {/* Connect board and Disconnect never show together, so they share a room, at the button's width. */}
+      <span class="slot ends">
+        <ActionButton label="Connect board" data-dock-action="connect" data-off />
+        <button type="button" data-dock-disconnect data-off>
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v5M4.6 4.2a5 5 0 1 0 6.8 0"></path></svg>
+          Disconnect
+        </button>
+      </span>
       <button
         type="button"
         class="serial"
@@ -136,6 +141,7 @@ const manifest = readManifest();
   .status a { color: var(--on-ink); }
   .slot { display: grid; align-items: center; }
   .slot > * { grid-area: 1 / 1; }
+  .ends > * { justify-self: end; }
   .meter { display: flex; align-items: center; gap: 8px; }
   .track { flex: 1; height: 6px; border-radius: 3px; background: var(--on-ink-line); overflow: hidden; }
   .track i { display: block; height: 100%; width: 0; background: var(--yellow); transition: width .15s; }
@@ -171,14 +177,16 @@ const manifest = readManifest();
     .acts .serial { flex: 1 1 100%; width: auto; }
   }
 
-  /* The picture draws in ink on a card: here, light on the dark dock. */
-  .panel { --ink: var(--on-ink); --card: var(--ink-raised); --faint: var(--on-ink-edge); --muted: var(--quiet-light); --green-text: var(--green); --coral-text: var(--coral); border-bottom: 1px solid var(--on-ink-line); }
-  .scene { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 12px 28px; align-items: center; padding-top: 12px; padding-bottom: 12px; }
-  @media (max-width: 640px) { .scene { grid-template-columns: minmax(0, 1fr); } }
+  .panel { border-bottom: 1px solid var(--on-ink-line); }
+  /* The steps, the message and the action on one row; each under the one before where the row would squeeze the message. */
+  .row { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr) auto; gap: 10px 24px; align-items: center; padding-top: 12px; padding-bottom: 12px; }
+  @media (max-width: 999px) { .row { grid-template-columns: minmax(0, 1fr); justify-items: start; } }
+  /* The hand hint draws in ink on a card: here, light on the dark dock. */
+  .words :global(.hand-hint) { --ink: var(--on-ink); --card: var(--ink-raised); --muted: var(--quiet-light); }
   .words { display: flex; gap: 10px; align-items: flex-start; }
   /* Room for the longest message, four lines, so the dock keeps its height as the message changes. */
   .message { flex: 1; min-width: 0; min-height: calc(4 * 1.5em); margin: 0; font-size: 14px; line-height: 1.5; }
-  .message[data-notice] { padding-left: 10px; border-left: 4px solid var(--yellow); }
+  .message[data-notice] { padding-left: 12px; border-left: 2px solid var(--yellow); }
 
   .monitor { background: var(--ink-raised); border-bottom: 1px solid var(--on-ink-line); }
   .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0 6px; border-bottom: 1px solid var(--on-ink-line); }
@@ -208,7 +216,7 @@ const manifest = readManifest();
   import type { Manifest } from '../../lib/flash';
   import { paintAction } from './actionButton';
   import { mountDockMonitor } from './dockMonitor';
-  import { paintFlashPicture, paintHandHint } from './flashPicture';
+  import { paintFlashRail, paintHandHint } from './flashRail';
 
   // The dock persists from page to page, so this runs once, on the first page the visitor opens.
   const dock = document.querySelector<HTMLElement>('[data-board-dock]');
@@ -243,6 +251,7 @@ const manifest = readManifest();
     const message = find<HTMLElement>('message');
     const panelAction = dock.querySelector<HTMLButtonElement>('[data-dock-action="panel"]')!;
     const barAction = dock.querySelector<HTMLButtonElement>('[data-dock-action="bar"]')!;
+    const connectAction = dock.querySelector<HTMLButtonElement>('[data-dock-action="connect"]')!;
 
     const pick = thePick();
     const connection = createConnection(board, pick, names);
@@ -265,6 +274,7 @@ const manifest = readManifest();
     }
 
     for (const action of [panelAction, barAction]) action.addEventListener('click', () => void connection.press());
+    connectAction.addEventListener('click', () => void connection.pressConnect());
     disconnect.addEventListener('click', () => void connection.disconnect());
 
     function render() {
@@ -306,11 +316,11 @@ const manifest = readManifest();
     }
 
     /** Paints the panel and the one action, in the panel while it is open, else in the bar. */
-    function paintPanel({ action, panel: told, scene }: ConnectionView) {
+    function paintPanel({ action, connect, panel: told, scene }: ConnectionView) {
       const open = told !== undefined;
-      const focused = document.activeElement === panelAction || document.activeElement === barAction;
+      const focused = [panelAction, barAction, connectAction].includes(document.activeElement as HTMLButtonElement);
       panel.hidden = !open;
-      paintFlashPicture(panel, scene);
+      paintFlashRail(panel, scene);
       paintHandHint(panel, scene.hint);
       // Set only on a change, since the message is a live region.
       if (message.textContent !== (told?.text ?? '')) message.textContent = told?.text ?? '';
@@ -319,6 +329,8 @@ const manifest = readManifest();
       // The bar's button keeps its room, so the controls after it stay in place.
       barAction.toggleAttribute('data-off', action === undefined || open);
       if (action !== undefined) for (const button of [panelAction, barAction]) paintAction(button, action);
+      connectAction.toggleAttribute('data-off', connect === undefined || open);
+      if (connect !== undefined) paintAction(connectAction, connect);
       // The focus follows the action between the bar and the panel; with no action, the dock keeps it.
       if (focused) {
         const shown = open ? panelAction : barAction;

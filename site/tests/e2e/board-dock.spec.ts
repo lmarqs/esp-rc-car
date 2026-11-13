@@ -116,6 +116,22 @@ test.describe('the board dock', () => {
     await expect(monitor(page)).toHaveText('sketch blink/input\nHIGH\nLOW\n› 500\nwait 500');
   });
 
+  test('connects a board without flashing from a page with a sketch, where Flash sits beside Connect board', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/input', 'HIGH'] });
+    await page.goto(BLINK);
+    await expect(bar(page).getByRole('button', { name: 'Flash Blink · simple' })).toBeVisible();
+
+    await bar(page).getByRole('button', { name: 'Connect board' }).click();
+
+    await expect(dock(page)).toContainText('ESP32 is running Blink · input');
+    await expect(bar(page).getByRole('button', { name: 'Connect board' })).toBeHidden();
+    await expect(bar(page).getByRole('button', { name: 'Disconnect' })).toBeVisible();
+    expect(await fakeFlasher.calls()).not.toContain('write');
+  });
+
   test('clears the serial monitor and goes on showing what the board prints next', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['sketch blink/input', 'HIGH', 'LOW'] });
     await page.goto('/robomania/learn/');
@@ -257,7 +273,7 @@ test.describe('the board dock panel', () => {
     const busy = panel(page).locator('[data-dock-action]');
     await expect(busy).toHaveAttribute('aria-disabled', 'true');
     await expect(busy).toBeFocused();
-    await expect(bar(page).locator('[data-dock-action]')).toBeHidden();
+    await expect(bar(page).locator('[data-dock-action="bar"]')).toBeHidden();
 
     await fakeFlasher.release();
 
@@ -286,7 +302,7 @@ test.describe('the board dock panel', () => {
   });
 
   for (const width of [380, 1100]) {
-    test(`hangs its button above the cable, with each step's word under its part, at ${width} px`, async ({
+    test(`puts the steps, the message and the button in a row where it is wide and in a column where it is not, at ${width} px`, async ({
       page,
       fakeFlasher,
     }) => {
@@ -298,21 +314,19 @@ test.describe('the board dock panel', () => {
       await expect(panelMessage(page)).toHaveText('Connecting to the board.');
 
       const box = async (selector: string) => (await panel(page).locator(selector).first().boundingBox())!;
-      const cable = await box('.cable');
-      const button = await box('[data-dock-action]');
+      const rail = await box('[data-flash-rail]');
       const words = await box('[data-dock-message]');
-      const picture = await box('.wire');
-      expect(button.y + button.height).toBeLessThanOrEqual(cable.y + cable.height / 2);
-      expect(button.x).toBeGreaterThan(cable.x);
-      expect(button.x + button.width).toBeLessThan(cable.x + cable.width);
-      // Beside the picture where the panel is wide; under it where the panel stacks them.
-      if (width > 640) expect(words.x).toBeGreaterThanOrEqual(picture.x + picture.width);
-      else expect(words.y).toBeGreaterThan(cable.y + cable.height);
-      for (const [part, step] of [['.computer', 0], ['.cable', 1], ['.chip', 2]] as const) {
-        const drawn = await box(part);
-        const word = (await panel(page).locator('[data-flash-step]').nth(step).boundingBox())!;
-        expect(Math.abs(word.x + word.width / 2 - (drawn.x + drawn.width / 2)), part).toBeLessThan(2);
+      const button = await box('[data-dock-action]');
+      if (width >= 1000) {
+        expect(words.x).toBeGreaterThanOrEqual(rail.x + rail.width);
+        expect(button.x).toBeGreaterThanOrEqual(words.x + words.width);
+      } else {
+        expect(words.y).toBeGreaterThanOrEqual(rail.y + rail.height);
+        expect(button.y).toBeGreaterThanOrEqual(words.y + words.height);
       }
+      // Find is under way, so the rail marks it and nothing after it.
+      const marks = await panel(page).locator('[data-flash-step]').evaluateAll((all) => all.map((step) => (step as HTMLElement).dataset.mark));
+      expect(marks).toEqual(['now', 'todo', 'todo']);
     });
 
     test(`keeps its button where it is as the message grows from one line to more at ${width} px`, async ({

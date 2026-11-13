@@ -166,6 +166,14 @@ describe('connectionView action', () => {
     });
   });
 
+  it('offers Connect board beside Flash only while no board is connected', () => {
+    const connect = { label: 'Connect board', icon: 'plug', event: 'connect', disabled: false };
+    expect(viewOf({ kind: 'idle' }).connect).toEqual(connect);
+    expect(viewOf({ kind: 'idle', released: true }, { opened: undefined }).connect).toBeUndefined();
+    expect(viewOf({ kind: 'running', chip: 'ESP32', output: [] }).connect).toBeUndefined();
+    expect(viewOf({ kind: 'connecting' }).connect).toBeUndefined();
+  });
+
   it('is disabled while the session works, named by what the session does', () => {
     const busy: [SessionState, string][] = [
       [{ kind: 'connecting' }, 'Connecting…'],
