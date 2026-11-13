@@ -25,7 +25,7 @@ const { label, ...attributes } = Astro.props;
 </button>
 
 <style>
-  /* As wide as its longest fixed label, Connect my board, so it keeps its width as its label changes; a sketch's name
+  /* As wide as its longest fixed label, such as Connect board, so it keeps its width as its label changes; a sketch's name
      longer than that is cut, and read out whole. */
   .action { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 164px; height: 32px; font: inherit; font-size: 13px; font-weight: 700; line-height: 1.5; white-space: nowrap; color: var(--card); background: var(--coral); border: 2px solid var(--ink); border-radius: 999px; box-shadow: 0 3px 0 var(--ink); cursor: pointer; }
   .action[hidden] { display: none; }
