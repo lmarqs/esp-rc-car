@@ -4,7 +4,7 @@ import type { WatchRow } from '../../lib/workbench/board';
 import type { OutputLine, RunnerView, RunStatus } from '../../lib/workbench/simulator';
 import { sketchSourcePath } from '../../lib/workbench/source';
 import type { SessionState } from '../../lib/flash';
-import { busyWord, onSettings } from '../../lib/board/connection';
+import { busyWord } from '../../lib/board/connection';
 import { isConnected, type BoardStatus, type PaneMode } from '../../lib/workbench/link';
 import type { SliderShortcut } from '../../lib/workbench/step';
 
@@ -257,9 +257,18 @@ export function dotTitle(session: SessionState): string {
   return isConnected(session) ? 'My board: connected' : 'My board: not connected';
 }
 
-/** What the page does with the board, or that the board waits for its settings; `undefined` otherwise. */
+/** What the page does with the board, or what it does with the board's settings; `undefined` otherwise. */
 function sessionWord(session: SessionState): string | undefined {
-  return busyWord(session) ?? (onSettings(session) ? 'Waiting for its settings' : undefined);
+  switch (session.kind) {
+    case 'settings':
+      return 'Waiting for its settings';
+    case 'reading':
+      return 'Reading its settings';
+    case 'applying':
+      return 'Sending its settings';
+    default:
+      return busyWord(session);
+  }
 }
 
 function waitingTitle(status: BoardStatus, board: BoardModel | undefined): string {

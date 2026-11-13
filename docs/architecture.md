@@ -185,15 +185,15 @@ Board connection, and a panel for what happens between the computer and the boar
   a page has a sketch open, the one action that writes a sketch; Try again after a failed connect or flash, which
   repeats that press; and, while the session works, what it does, Connecting… or Flashing…, which cannot be pressed
   and which the workbench's tag and the switch's dot say in the same words. While the board waits on its settings,
-  read, asked for or sent, the dock offers no action: the settings form in the card of their sketch is the action,
-  the panel says where that card is, the bar keeps Disconnect, and the tag and the dot say the board is waiting for
-  its settings. A sketch with no image for the board opens the panel with its message, which names the sketch the
-  visitor tried to flash, whichever is open by then, while the bar names the chip the session found. The action is
-  then Connect board after a connect, and stays Flash and the sketch's title after a flash refused over a running
-  board. The sketch is the one the visitor has open: the workbench's
-  selected step, the project page's card, or the Flash page's pick, each opened with `board.open` until its page goes.
-  A page with no sketch, such as Learn, or with a sketch the page has no image of, offers Connect, which restarts and
-  reads the board, and no Flash.
+  read, asked for or sent, the dock offers no action: the settings form in the card of their sketch is the action, the
+  panel says where that card is, the bar keeps Disconnect, and the tag and the dot say Waiting for its settings,
+  Reading its settings or Sending its settings. A sketch with no image for the board opens the panel with its message,
+  which names the sketch the visitor tried to flash, whichever is open by then, while the bar names the chip the
+  session found. The action is then Connect board after a connect, and stays Flash and the sketch's title after a
+  flash refused over a running board. The sketch is the one the visitor has open: the workbench's selected step, the
+  project page's card, or the Flash page's pick, each opened with `board.open` until its page goes. A page with no
+  sketch, such as Learn, or with a sketch the page has no image of, offers Connect, which restarts and reads the
+  board, and no Flash.
 - Flash flashes the open sketch from idle and from running in one press, and Try again after a failed flash connects and
   flashes in one press, also from another page, with one request for the port: the connection opens the settings form of
   a sketch that has settings before it writes. From running, a sketch with settings that the board does not already run
@@ -229,9 +229,9 @@ to a step:
   pane waits.
 - Waiting, the pane shows the sketch only: the picture keeps its place, dimmed, drawn as the board starts, such as an
   unlit LED or a servo at an unknown angle; each watch value reads `…`, and the terminal is inert. The frame's tag says
-  why, as Not connected, Connecting…, Flashing…, Waiting for its settings, what the board runs, or that it has not named
-  its sketch. The pane has the same layout and height in simulator, live and waiting modes; the connecting, the flashing
-  and the failures are the dock's.
+  why, as Not connected, Connecting…, Flashing…, Waiting for its settings, Reading its settings, Sending its settings,
+  what the board runs, or that it has not named its sketch. The pane has the same layout and height in simulator, live
+  and waiting modes; the connecting, the flashing and the failures are the dock's.
 - Pause, Step or Restart outside the simulator hands the pane to a fresh simulator with the port still open, and
   choosing My board brings the pane back to the board.
 - The frame names its source with a tag, Simulated, Live or My board, and a sentence; its border is dashed for
