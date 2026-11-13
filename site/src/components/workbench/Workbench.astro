@@ -92,7 +92,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
   import { tabAfterKey } from '../../lib/workbench/tabs';
   import type { PictureView } from '../../lib/workbench/board';
   import type { Manifest } from '../../lib/flash';
-  import { DEFAULT_BAUD, theBoard } from '../../lib/board/board';
+  import { DEFAULT_BAUD, openerOn, theBoard } from '../../lib/board/board';
   import { thePick } from '../../lib/board/pick';
   import { initialPane, reducePane, type PaneEvent, type PaneProject, type PaneState } from '../../lib/workbench/pane';
   import { CLOCK_DASH } from './view';
@@ -170,9 +170,9 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     const manifest = JSON.parse(root.dataset.manifest ?? '{"sketches":{}}') as Manifest;
     const baud = root.dataset.baud ? Number(root.dataset.baud) : DEFAULT_BAUD;
 
-    /** Opens the selected step on the site's board. */
+    /** Opens the selected step on the site's board, in place of the step it opened before. */
     function openOnBoard() {
-      board.open({ manifest, sketch: paneProject.steps[pane.selected].key, baud }, signal);
+      openStepOnBoard({ manifest, sketch: paneProject.steps[pane.selected].key, baud });
     }
 
     /** Applies `event` to the pane, then does what its change asks of the page and paints it. */
@@ -348,6 +348,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     // The site's board, which may already be connected from another page, and running one of these steps.
     const board = theBoard();
     const { session } = board;
+    const openStepOnBoard = openerOn(board, signal);
     let pane: PaneState<unknown> = initialPane(paneProject, session.state, board.record.heard, openingStep());
     openOnBoard();
     const boardLink = mountBoardLink(root, {

@@ -136,6 +136,21 @@ export function createBoard(session: FlashSession): Board {
   };
 }
 
+/**
+ * Opens sketch after sketch on `board` for one part of a page, such as the workbench's steps: each call ends what the
+ * last opened and opens `use`, or nothing when it is `undefined`, until `signal` aborts as the page goes. The page's
+ * signal gets one listener, however many sketches are opened.
+ */
+export function openerOn(board: Board, signal: AbortSignal): (use: BoardUse | undefined) => void {
+  let opening = new AbortController();
+  signal.addEventListener('abort', () => opening.abort(), { once: true });
+  return (use) => {
+    opening.abort();
+    opening = new AbortController();
+    if (use !== undefined) board.open(use, opening.signal);
+  };
+}
+
 const KEY = Symbol.for('robomania.board');
 
 /**

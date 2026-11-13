@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { createBoard, keyFlashedBy, type BoardUse } from '../../src/lib/board/board';
+import { describe, expect, it, vi } from 'vitest';
+import { createBoard, keyFlashedBy, openerOn, type BoardUse } from '../../src/lib/board/board';
 import type { ManifestImage } from '../../src/lib/flash/manifest';
 import { fakeSession } from './fakeSession';
 
@@ -142,6 +142,44 @@ describe('the sketch the visitor has open', () => {
     first.abort();
 
     expect(board.opened?.use.sketch).toBe('blink/simple');
+  });
+});
+
+describe('an opener of sketch after sketch', () => {
+  const use = (sketch: string) => ({ manifest, sketch, baud: 115200 });
+
+  it('opens each sketch in place of the last, and ends the last as the page goes', () => {
+    const board = createBoard(fakeSession().session);
+    const page = new AbortController();
+    const open = openerOn(board, page.signal);
+
+    open(use('blink/simple'));
+    open(use('blink/input'));
+    expect(board.opened?.use.sketch).toBe('blink/input');
+    page.abort();
+
+    expect(board.opened).toBeUndefined();
+  });
+
+  it('ends the last sketch and opens none for no use', () => {
+    const board = createBoard(fakeSession().session);
+    const open = openerOn(board, new AbortController().signal);
+
+    open(use('blink/simple'));
+    open(undefined);
+
+    expect(board.opened).toBeUndefined();
+  });
+
+  it("adds one listener to the page's signal, however many sketches it opens", () => {
+    const board = createBoard(fakeSession().session);
+    const page = new AbortController();
+    const listen = vi.spyOn(page.signal, 'addEventListener');
+    const open = openerOn(board, page.signal);
+
+    for (const sketch of ['blink/simple', 'blink/input', 'blink/timer', 'blink/simple']) open(use(sketch));
+
+    expect(listen).toHaveBeenCalledTimes(1);
   });
 });
 

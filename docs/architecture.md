@@ -87,7 +87,8 @@ The site also puts the firmware on a board. Its parts:
   holds its port, the sketch the visitor has open on the page, and what the site knows of the board beyond the
   session's state: the sketch it runs and the lines it printed and was sent. A page names its sketch with
   `board.open(use, signal)`, and the board forgets it when the signal aborts as the page goes or when another is
-  opened. The dock names an opened sketch as the site names it, from every project's titles and steps. Opening points nothing: `board.send` configures the session with the opened sketch when a press comes,
+  opened. A page part that opens sketch after sketch, the workbench's steps or the Flash page's picks, opens them
+  through `openerOn`, which ends each opening with the next and all of them with the page. The dock names an opened sketch as the site names it, from every project's titles and steps. Opening points nothing: `board.send` configures the session with the opened sketch when a press comes,
   unless the session is busy, whose work belongs to the sketch it started with. The Board connection, in
   `connection.ts`, turns the session's state, that record and the opened sketch into the dock's one view, which is
   its bar, the board's one action, and the panel's message and picture, and presses the action. It is the
