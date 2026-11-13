@@ -204,7 +204,8 @@ Board connection, and a panel for what happens between the computer and the boar
 - Flash flashes the open sketch from idle and from running in one press, and Try again after a failed flash connects and
   flashes in one press, also from another page, with one request for the port: the connection opens the settings form of
   a sketch that has settings before it writes. From running, a sketch with settings that the board does not already run
-  connects anew, so its card's settings form comes before the write.
+  connects anew on the port the site holds, without asking for one, so its card's settings form comes before the
+  write. The site asks for a port again only when it holds none or the board was lost.
 - The panel opens while the session writes, waits in flash mode or on the board's settings, failed, has no image of
   the open sketch for the board, or is running a board it lost or refused to flash; it stays shut while the session is
   idle, connects, or runs a board that answers and refused nothing, since the bar says those. It draws the flash rail: a

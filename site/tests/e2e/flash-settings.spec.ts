@@ -44,7 +44,7 @@ test.describe('a project whose sketch has settings', () => {
     expect(await fakeFlasher.calls()).toEqual(['connect']);
   });
 
-  test('asks for them first when the dock flashes the sketch over another one the board runs', async ({ page, fakeFlasher }) => {
+  test('asks for them first, and for no port, when the dock flashes the sketch over another one the board runs', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ board: { values: DEFAULTS } });
     await page.goto('/robomania/learn/');
     await dock(page).getByRole('button', { name: 'Connect board' }).click();
@@ -57,7 +57,7 @@ test.describe('a project whose sketch has settings', () => {
 
     await expect(card(page).locator('[data-message]')).toHaveText('Found ESP32. Check the settings, then flash the board.');
     await expect(field(page, 'Hotspot password')).toBeVisible();
-    expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200', 'disconnect', 'connect']);
+    expect(await fakeFlasher.calls()).toEqual(['connect', 'monitor 115200', 'disconnect', 'connect reuse']);
 
     await field(page, 'Tilt limit (degrees)').fill('30');
     await card(page).getByRole('button', { name: 'Flash with these settings' }).click();

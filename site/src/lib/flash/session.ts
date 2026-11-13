@@ -71,7 +71,8 @@ export type SessionState =
 export type SessionEvent =
   /**
    * From `idle`, a failure or `running`: asks for a port and connects to the board. From `running`, it releases the
-   * port first, so "Flash again" flashes in the same click. With `reset`, it flashes nothing and asks for no settings:
+   * port first, so "Flash again" flashes in the same click, and reaches the bootloader again on that port without
+   * asking for one, unless the board was lost. With `reset`, it flashes nothing and asks for no settings:
    * it restarts the board into the sketch it holds, so the board prints its `sketch <key>` line, and goes to
    * `running`, reading at the session's baud. It is the connection of the workbench, which flashes with `flash`.
    * From `flashMode`, or a failure to connect after it, it asks for a port and reads the board as it runs, without its
@@ -250,11 +251,11 @@ export function createSession(options: SessionOptions): FlashSession {
     listeners.forEach((listener) => listener(next));
   }
 
-  async function connect(active: Flasher, resetOnly?: true) {
+  async function connect(active: Flasher, resetOnly?: true, reusePort?: true) {
     enter({ kind: 'connecting' });
     let chip: string;
     try {
-      chip = await active.connect();
+      chip = await active.connect(reusePort && { reusePort });
     } catch (error) {
       console.error(error);
       await active.disconnect();
@@ -439,9 +440,14 @@ export function createSession(options: SessionOptions): FlashSession {
     enter({ kind: 'running', chip, output });
   }
 
-  /** Connects as `event` asks: to the bootloader, or to the running board when it is to listen. */
-  function open(active: Flasher, event: Extract<SessionEvent, { type: 'connect' }>) {
-    return event.reset && event.listen !== undefined ? listen(active, event.listen) : connect(active, event.reset);
+  /**
+   * Connects as `event` asks: to the bootloader, or to the running board when it is to listen. With `reusePort`, it
+   * reaches the bootloader on the port the session holds, without asking for one.
+   */
+  function open(active: Flasher, event: Extract<SessionEvent, { type: 'connect' }>, reusePort?: true) {
+    return event.reset && event.listen !== undefined
+      ? listen(active, event.listen)
+      : connect(active, event.reset, reusePort);
   }
 
   /** Reads a board that came out of flash mode, through a port opened without its bootloader. */
@@ -684,12 +690,14 @@ export function createSession(options: SessionOptions): FlashSession {
         case 'connect':
           if (awaitingRun && (kind === 'flashMode' || FAILURE_KINDS.has(kind))) {
             await reattach(flasher, awaitingRun);
-          } else if (kind === 'running') {
+          } else if (state.kind === 'running') {
+            // A lost board was unplugged, so its port may now be another board's: the visitor picks it again.
+            const reusePort = state.lost ? undefined : true;
             reading++;
             // Ignores a second click while the old port is released.
             enter({ kind: 'connecting' });
             await flasher.disconnect();
-            await open(flasher, event);
+            await open(flasher, event, reusePort);
           } else if (kind === 'idle' || FAILURE_KINDS.has(kind)) {
             await open(flasher, event);
           }

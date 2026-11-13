@@ -1062,7 +1062,7 @@ describe('a session with a baud rate', () => {
     expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [] });
   });
 
-  it('flashes again from a running board in one connect: releases the port, then flashes with no old lines', async () => {
+  it('flashes again from a running board in one connect on the port it holds, asking for none, with no old lines', async () => {
     const { flasher, session } = await running();
     flasher.print('old');
     flasher.calls.length = 0;
@@ -1070,7 +1070,7 @@ describe('a session with a baud rate', () => {
     await session.send({ type: 'connect' });
 
     expect(session.state).toEqual({ kind: 'running', chip: 'ESP32', output: [] });
-    expect(flasher.calls).toEqual(['disconnect', 'connect', 'load', 'write 4096,65536', 'reset', 'monitor 9600']);
+    expect(flasher.calls).toEqual(['disconnect', 'connect reuse', 'load', 'write 4096,65536', 'reset', 'monitor 9600']);
   });
 
   it('ignores the end of an old monitor once the board is flashed again', async () => {
