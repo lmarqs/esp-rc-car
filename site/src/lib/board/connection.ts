@@ -1,6 +1,8 @@
 import { isBusy, wording, type SessionState } from '../flash';
+import type { Board } from './board';
 import { flashScene, type FlashScene } from './flashScene';
-import type { BoardModel } from './models';
+import { restartConnection, type BoardModel } from './models';
+import type { BoardPick } from './pick';
 import { runs, type BoardRecord } from './record';
 
 /** What the board pane shows in place of the picture while the page talks to the board, or after it failed. */
@@ -183,5 +185,90 @@ export function connectionView({ state, record, opened, pick, pressed, tried }: 
     ...(message !== undefined && { message }),
     scene: flashScene(state, pick),
     open,
+  };
+}
+
+/** The board's connection as the dock shows it: the view, kept current, and the press of its one button. */
+export interface Connection {
+  readonly view: ConnectionView;
+  /** Calls `listener` after the view may have changed; returns a function that stops it. */
+  subscribe(listener: () => void): () => void;
+  /** Presses the view's button, unless there is none or the session works: resolves once its work is done. */
+  press(): Promise<void>;
+}
+
+/**
+ * The connection of `board`, the site's, for the board the visitor picked, `pick`. It remembers what the visitor
+ * pressed while the session works on it, and the press whose work last ended, as Try again repeats it.
+ */
+export function createConnection(board: Board, pick: BoardPick): Connection {
+  const listeners = new Set<() => void>();
+  let state = board.session.state;
+  let pressed: ConnectionEvent | undefined;
+  let tried: ConnectionEvent | undefined;
+
+  function notify() {
+    for (const listener of [...listeners]) listener();
+  }
+
+  function viewNow(): ConnectionView {
+    const opened = board.opened;
+    return connectionView({
+      state: board.session.state,
+      record: board.record,
+      opened: opened && { key: opened.use.sketch, title: opened.title },
+      pick: pick.model,
+      ...(pressed !== undefined && { pressed }),
+      ...(tried !== undefined && { tried }),
+    });
+  }
+
+  board.subscribe(() => {
+    const next = board.session.state;
+    if (next !== state) {
+      const busy = isBusy(next);
+      // Once the session is done with the press, a press elsewhere, such as the workbench's, names its work.
+      tried = busy || !isBusy(state) ? tried : pressed;
+      pressed = busy ? pressed : undefined;
+      state = next;
+    }
+    notify();
+  });
+  pick.subscribe(notify);
+
+  /** Starts `event`'s work; {@link Board.send} first points the session at the opened sketch. */
+  async function start(event: ConnectionEvent): Promise<void> {
+    pressed = event;
+    notify();
+    const opened = board.opened;
+    switch (event) {
+      case 'connect':
+        // A connection that is not a restart flashes the opened sketch; with none, the session's sketch is another
+        // page's, so the board is only restarted and read.
+        return board.send(opened === undefined ? restartConnection(pick.model) : { type: 'connect' });
+      case 'flash':
+        if (opened !== undefined) await board.send({ type: 'flash', key: opened.use.sketch });
+        return;
+      case 'retry':
+        await board.send(restartConnection(pick.model));
+        if (board.session.state.kind === 'running' && !board.session.state.lost && board.opened !== undefined) {
+          await start('flash');
+        }
+    }
+  }
+
+  return {
+    get view() {
+      return viewNow();
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    async press() {
+      const { action } = viewNow();
+      if (action === undefined || action.disabled) return;
+      await start(action.event);
+    },
   };
 }

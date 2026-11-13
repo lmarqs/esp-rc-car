@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { viewFor } from '../../src/components/flash/view';
-import { boardMessage, connectionView, type ConnectionInput } from '../../src/lib/board/connection';
+import { createBoard } from '../../src/lib/board/board';
+import { boardMessage, connectionView, createConnection, type ConnectionInput } from '../../src/lib/board/connection';
 import { flashScene } from '../../src/lib/board/flashScene';
 import { boardModel } from '../../src/lib/board/models';
+import { createPick } from '../../src/lib/board/pick';
 import { EMPTY_RECORD } from '../../src/lib/board/record';
-import type { SessionState } from '../../src/lib/flash/session';
+import type { SessionEvent, SessionState } from '../../src/lib/flash/session';
+import { fakeSession } from './fakeSession';
 
 describe('boardMessage', () => {
   const running: SessionState = { kind: 'running', chip: 'ESP32', output: [] };
@@ -257,5 +260,121 @@ describe('connectionView scene', () => {
     const state: SessionState = { kind: 'noAnswer' };
     expect(viewOf(state, { pick: esp01s }).scene).toEqual(flashScene(state, esp01s));
     expect(viewOf(running).scene).toEqual(flashScene(running));
+  });
+});
+
+describe('createConnection', () => {
+  const use = { manifest: { sketches: {} }, sketch: 'blink/input', baud: 115200 };
+
+  /**
+   * The site's board over a fake session that answers each event as `answer` says, with `blink/input` open unless
+   * `opened` is false, and the visitor's pick.
+   */
+  function connectionOver(answer: (event: SessionEvent, enter: (state: SessionState) => void) => void, opened = true) {
+    const fake = fakeSession({ kind: 'idle' }, (event) => answer(event, fake.enter));
+    const board = createBoard(fake.session);
+    const page = new AbortController();
+    if (opened) board.open(use, 'Blink · 2 input', page.signal);
+    const pick = createPick(undefined);
+    return { fake, board, page, pick, connection: createConnection(board, pick) };
+  }
+
+  it('labels its action from the opened title, and connects and flashes the opened sketch in one press', async () => {
+    const { fake, connection } = connectionOver((event, enter) => {
+      if (event.type === 'connect') enter({ kind: 'flashing', chip: 'ESP32', pct: 0 });
+    });
+    expect(connection.view.action?.label).toBe('Flash Blink · 2 input');
+
+    await connection.press();
+
+    expect(fake.sent).toEqual([{ type: 'connect' }]);
+    expect(fake.configured).toEqual([use]);
+    expect(connection.view.action).toMatchObject({ event: 'connect', disabled: true });
+  });
+
+  it('with no sketch open, restarts the picked board to read it, and flashes none', async () => {
+    const { fake, connection, pick } = connectionOver(() => {}, false);
+    pick.choose('esp01s');
+    expect(connection.view.action?.label).toBe('Connect board');
+
+    await connection.press();
+
+    expect(fake.sent).toEqual([{ type: 'connect', reset: true, listen: 'ESP8266' }]);
+    expect(fake.configured).toEqual([]);
+  });
+
+  it('flashes the opened sketch onto a running board', async () => {
+    const { fake, connection } = connectionOver(() => {});
+    fake.enter({ kind: 'running', chip: 'ESP32', output: [] });
+
+    await connection.press();
+
+    expect(fake.sent).toEqual([{ type: 'flash', key: 'blink/input' }]);
+  });
+
+  it('does nothing while the session works on the last press', async () => {
+    const { fake, connection } = connectionOver(() => {});
+    fake.enter({ kind: 'connecting' });
+
+    await connection.press();
+
+    expect(fake.sent).toEqual([]);
+  });
+
+  it('offers Try again after a failed flash, which connects, then flashes the board that answered', async () => {
+    const running: SessionState = { kind: 'running', chip: 'ESP32', output: [] };
+    let drops = 1;
+    const { fake, connection } = connectionOver((event, enter) => {
+      if (event.type === 'connect') {
+        enter({ kind: 'connecting' });
+        enter(running);
+      }
+      if (event.type === 'flash') {
+        enter({ kind: 'flashing', chip: 'ESP32', pct: 40 });
+        enter(drops-- > 0 ? { kind: 'dropped', pct: 40 } : running);
+      }
+    });
+    fake.enter(running);
+    await connection.press();
+    expect(connection.view.action).toEqual({ label: 'Try again', icon: 'again', event: 'retry', disabled: false });
+
+    await connection.press();
+
+    expect(fake.sent.slice(1)).toEqual([
+      { type: 'connect', reset: true },
+      { type: 'flash', key: 'blink/input' },
+    ]);
+    expect(fake.session.state).toEqual(running);
+  });
+
+  it('tries only the connection again when a connection failed', async () => {
+    const { fake, connection } = connectionOver((event, enter) => {
+      if (event.type === 'connect') enter({ kind: 'noPort' });
+    });
+    await connection.press();
+    expect(connection.view.action).toMatchObject({ label: 'Try again', event: 'connect' });
+
+    await connection.press();
+
+    expect(fake.sent).toEqual([{ type: 'connect' }, { type: 'connect' }]);
+  });
+
+  it('names work the visitor started elsewhere by what the session does', () => {
+    const { fake, connection } = connectionOver(() => {});
+    fake.enter({ kind: 'running', chip: 'ESP32', output: [] });
+    fake.enter({ kind: 'flashing', chip: 'ESP32', pct: 10 });
+    expect(connection.view.action).toMatchObject({ label: 'Flashing…', event: 'flash' });
+  });
+
+  it('tells its listeners when the board, the opened sketch or the pick changes', () => {
+    const { fake, connection, page, pick } = connectionOver(() => {});
+    const labels: (string | undefined)[] = [];
+    connection.subscribe(() => labels.push(connection.view.action?.label));
+
+    fake.enter({ kind: 'running', chip: 'ESP32', output: [] });
+    page.abort();
+    pick.choose('esp32');
+
+    expect(labels).toEqual(['Flash Blink · 2 input', undefined, undefined]);
   });
 });
