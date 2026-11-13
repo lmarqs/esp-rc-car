@@ -110,7 +110,11 @@ describe('connectionView action', () => {
       expect(viewOf({ kind: 'settings', chip: 'ESP32', opened: {} }, { opened }).action).toEqual(connecting);
     }
     expect(viewOf({ kind: 'connecting' }, { pressed: 'flash' }).action).toEqual(flashing);
-    expect(viewOf({ kind: 'flashing', chip: 'ESP32', pct: 10 }, { pressed: 'connect' }).action).toEqual(connecting);
+    expect(viewOf({ kind: 'flashing', chip: 'ESP32', pct: 10 }, { pressed: 'connect' }).action).toEqual({
+      ...flashing,
+      icon: 'plug',
+      event: 'connect',
+    });
     expect(viewOf({ kind: 'connecting' }, { pressed: 'retry' }).action).toEqual({
       ...connecting,
       icon: 'again',
@@ -118,7 +122,7 @@ describe('connectionView action', () => {
     });
   });
 
-  it('says Flashing… once Try again, which connects first, has the session write', () => {
+  it('says Flashing… once Try again, which connects first, has the session write, as a connection that flashes does', () => {
     expect(viewOf({ kind: 'flashing', chip: 'ESP32', pct: 10 }, { pressed: 'retry' }).action).toEqual({
       label: 'Flashing…',
       icon: 'again',

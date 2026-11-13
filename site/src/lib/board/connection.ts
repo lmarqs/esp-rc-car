@@ -147,8 +147,8 @@ function actionFor(
   if (isBusy(state)) {
     // A press made elsewhere leaves `pressed` unset: what the session does names it.
     const event = pressed ?? (state.kind === 'flashing' ? 'flash' : 'connect');
-    // Try again connects, then flashes: once the session writes, the button says so.
-    const flashing = event === 'flash' || (event === 'retry' && state.kind === 'flashing');
+    // A connection with a sketch open, and Try again, flash once connected: once the session writes, the button says so.
+    const flashing = event === 'flash' || state.kind === 'flashing';
     return { label: flashing ? 'Flashing…' : 'Connecting…', icon: ICONS[event], event, disabled: true };
   }
   switch (state.kind) {
