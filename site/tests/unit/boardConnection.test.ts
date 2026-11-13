@@ -5,6 +5,7 @@ import { flashScene } from '../../src/lib/board/flashScene';
 import { boardModel } from '../../src/lib/board/models';
 import { createPick } from '../../src/lib/board/pick';
 import { EMPTY_RECORD } from '../../src/lib/board/record';
+import type { ManifestImage } from '../../src/lib/flash/manifest';
 import type { SessionEvent, SessionState } from '../../src/lib/flash/session';
 import { fakeSession } from './fakeSession';
 
@@ -175,6 +176,17 @@ describe('connectionView action', () => {
   it('flashes the open sketch from a running board in one press, and offers nothing without a sketch', () => {
     expect(viewOf(running).action).toEqual({ label: 'Flash Blink · 3 input', icon: 'bolt', event: 'flash', disabled: false });
     expect(viewOf(running, { opened: undefined }).action).toBeUndefined();
+  });
+
+  it('offers no flash of an open sketch the page has no image of: it connects, as with no sketch open', () => {
+    const imageless = { ...sketch, imageless: true };
+    expect(viewOf({ kind: 'idle' }, { opened: imageless }).action).toEqual({
+      label: 'Connect board',
+      icon: 'plug',
+      event: 'connect',
+      disabled: false,
+    });
+    expect(viewOf(running, { opened: imageless }).action).toBeUndefined();
   });
 
   it('connects anew to flash a sketch with settings the running board does not run, so its form comes first', () => {
@@ -369,7 +381,8 @@ describe('connectionView scene', () => {
 });
 
 describe('createConnection', () => {
-  const use = { manifest: { sketches: {} }, sketch: 'blink/input', baud: 115200 };
+  const image: ManifestImage = { profile: 'esp32', chipFamily: 'ESP32', parts: [{ path: 'blink/input/esp32/input.ino.bin', offset: 65536 }] };
+  const use = { manifest: { sketches: { 'blink/input': { images: [image] } } }, sketch: 'blink/input', baud: 115200 };
 
   /**
    * The site's board over a fake session that answers each event as `answer` says, with `blink/input` open unless
@@ -408,6 +421,17 @@ describe('createConnection', () => {
     expect(fake.configured).toEqual([]);
   });
 
+  it('restarts the picked board to read it when the opened sketch has no image, and flashes none', async () => {
+    const { fake, board, page, connection } = connectionOver(() => {});
+    page.abort();
+    board.open({ ...use, manifest: { sketches: {} } }, 'Blink · 2 input', new AbortController().signal);
+    expect(connection.view.action?.label).toBe('Connect board');
+
+    await connection.press();
+
+    expect(fake.sent).toEqual([{ type: 'connect', reset: true }]);
+  });
+
   it('flashes the opened sketch onto a running board', async () => {
     const { fake, connection } = connectionOver(() => {});
     fake.enter({ kind: 'running', chip: 'ESP32', output: [] });
@@ -419,7 +443,7 @@ describe('createConnection', () => {
 
   it('connects anew to flash an opened sketch with settings over another running one, and flashes it once it runs', async () => {
     const field = { key: 'ap_password', label: 'Hotspot password', type: 'password', default: 'web-relay-1234' } as const;
-    const relay = { manifest: { sketches: { 'web-relay': { images: [], settings: [field] } } }, sketch: 'web-relay', baud: 115200 };
+    const relay = { manifest: { sketches: { 'web-relay': { images: [image], settings: [field] } } }, sketch: 'web-relay', baud: 115200 };
     const { fake, board, connection } = connectionOver(() => {}, false);
     board.open(relay, 'Web-controlled relay', new AbortController().signal);
     fake.enter({ kind: 'running', chip: 'ESP8266', output: [] });
@@ -478,7 +502,7 @@ describe('createConnection', () => {
 
   it('asks for the settings first when Try again flashes a sketch with settings opened after the flash failed', async () => {
     const field = { key: 'ap_password', label: 'Hotspot password', type: 'password', default: 'web-relay-1234' } as const;
-    const relay = { manifest: { sketches: { 'web-relay': { images: [], settings: [field] } } }, sketch: 'web-relay', baud: 115200 };
+    const relay = { manifest: { sketches: { 'web-relay': { images: [image], settings: [field] } } }, sketch: 'web-relay', baud: 115200 };
     const running: SessionState = { kind: 'running', chip: 'ESP8266', output: [] };
     const { fake, board, page, connection } = connectionOver((event, enter) => {
       if (event.type === 'connect' && event.reset) enter(running);

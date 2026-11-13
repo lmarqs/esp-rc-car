@@ -92,6 +92,8 @@ export interface OpenedSketch {
   readonly step?: boolean;
   /** Set for a sketch with settings, whose form comes before its flash. */
   readonly settings?: boolean;
+  /** Set for a sketch the page has no image of, which the board's button only connects to and reads. */
+  readonly imageless?: boolean;
 }
 
 /** What {@link connectionView} reads: the session, what the site knows of the board and what the visitor has done. */
@@ -193,7 +195,9 @@ function actionFor(
   tried: ConnectionEvent | undefined,
 ): ConnectionAction | undefined {
   const flash = (event: ConnectionEvent): ConnectionAction | undefined =>
-    opened === undefined ? undefined : { label: `Flash ${opened.title}`, icon: 'bolt', event, disabled: false };
+    opened === undefined || opened.imageless === true
+      ? undefined
+      : { label: `Flash ${opened.title}`, icon: 'bolt', event, disabled: false };
   const connect = (label: string): ConnectionAction => ({ label, icon: 'plug', event: 'connect', disabled: false });
   if (state.kind === 'unsupported') return undefined;
   if (RETRYABLE.has(state.kind)) {
@@ -213,7 +217,7 @@ function actionFor(
       return flash('connect') ?? connect('Connect board');
     case 'running':
       if (state.lost) return connect('Connect again');
-      return opened && flash(flashFromRunning(opened, record));
+      return opened === undefined ? undefined : flash(flashFromRunning(opened, record));
     case 'flashMode':
       return connect('Connect again');
     default:
@@ -284,6 +288,7 @@ export function createConnection(
         title: opened.title,
         step: opened.step === true,
         settings: settingsOf(opened.use.manifest, opened.use.sketch, opened.use.baud).length > 0,
+        imageless: (opened.use.manifest.sketches[opened.use.sketch]?.images.length ?? 0) === 0,
       }
     );
   }
@@ -334,8 +339,8 @@ export function createConnection(
     switch (event) {
       case 'connect':
         // A connection that is not a restart flashes the opened sketch; with none, the session's sketch is another
-        // page's, so the board is only restarted and read.
-        return board.send(opened === undefined ? restartConnection(pick.model) : { type: 'connect' });
+        // page's, and with one the page has no image of, nothing can be flashed: the board is only restarted and read.
+        return board.send(openedNow()?.imageless === false ? { type: 'connect' } : restartConnection(pick.model));
       case 'flash':
         if (opened !== undefined) await board.send({ type: 'flash', key: opened.use.sketch });
         return;
@@ -343,7 +348,7 @@ export function createConnection(
         await board.send(restartConnection(pick.model));
         // The sketch open now may be another page's, with settings: it is flashed as from any running board.
         const now = openedNow();
-        if (board.session.state.kind === 'running' && !board.session.state.lost && now !== undefined) {
+        if (board.session.state.kind === 'running' && !board.session.state.lost && now?.imageless === false) {
           await start(flashFromRunning(now, board.record));
         }
       }
