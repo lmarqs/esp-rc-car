@@ -6,7 +6,7 @@ export function sketchOf(line: string): string | undefined {
   return /^sketch (\S+)$/.exec(line)?.[1];
 }
 
-/** How many of the board's last lines the card shows. */
+/** How many of the board's last lines `running` keeps in its output. */
 export const OUTPUT_LINES = 6;
 
 /** A line this long without a line break is cut, so a board at another speed than the reader's cannot grow it forever. */

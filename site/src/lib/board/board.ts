@@ -5,7 +5,7 @@ import { EMPTY_RECORD, recordBoard, type BoardRecord, type RecordEvent } from '.
 /** The speed a board connected from a page with no sketch of its own is read at: every ladder step prints at it. */
 export const DEFAULT_BAUD = 115200;
 
-/** What a page points the board's session at: its images, the sketch its card flashes and the speed it prints at. */
+/** What a page points the board's session at: its images, the sketch it has open and the speed it prints at. */
 export type BoardUse = Omit<SessionOptions, 'flasher'>;
 
 /** The sketch a page part opened: what the session needs to work with it, and the name the visitor knows it by. */

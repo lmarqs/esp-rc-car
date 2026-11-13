@@ -107,7 +107,7 @@ export function dockView(
     shown: true,
     connected: false,
     chip: 'No board',
-    // One line, beside the buttons: the card the visitor flashes from gives the whole of it.
+    // One line, beside the buttons: how to plug a board in.
     doing: board?.flashSwitch
       ? `is connected. Plug the ${board.name} in with its adapter set to PROG.`
       : 'is connected. Plug one in over USB.',

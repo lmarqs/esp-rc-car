@@ -594,8 +594,8 @@ export function createSession(options: SessionOptions): FlashSession {
   }
 
   /**
-   * Reads the board until the port is released: hands each `cfg` line to the settings exchange, and shows the other
-   * lines while the card is on `running`.
+   * Reads the board until the port is released: hands each `cfg` line to the settings exchange, and keeps the other
+   * lines in the output of `running`.
    */
   function read(active: Flasher, speed: number, options?: MonitorOptions) {
     const reader = ++reading;

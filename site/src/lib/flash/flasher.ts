@@ -15,7 +15,7 @@ export interface ConnectOptions {
 }
 
 /**
- * A board the card flashes. Its methods reject with what the layer below throws, unchanged, so the session can tell
+ * A board the site flashes. Its methods reject with what the layer below throws, unchanged, so the session can tell
  * a closed port picker (`NotFoundError`) from a busy port (`InvalidStateError`, `NetworkError`) by the error's name.
  */
 export interface Flasher {
