@@ -215,8 +215,8 @@ to a step:
   and the arrow are drawn from the lines the board prints, and what the visitor sends goes to the board.
 - When the key is another step's or another sketch's, the tab of the step it runs is marked, and under My board the
   pane waits.
-- Waiting, the pane shows the sketch only: the LED keeps its place, dimmed, each watch value reads `…`, and
-  the terminal is inert. The frame's tag says why, as Not connected, Connecting…, Flashing…, what the
+- Waiting, the pane shows the sketch only: the picture keeps its place, dimmed, drawn as the board starts, such as an
+  unlit LED or a servo at an unknown angle; each watch value reads `…`, and the terminal is inert. The frame's tag says why, as Not connected, Connecting…, Flashing…, what the
   board runs, or that it has not named its sketch. The pane has the same layout and height in simulator, live and
   waiting modes; the connecting, the flashing and the failures are the dock's.
 - Pause, Step or Restart outside the simulator hands the pane to a fresh simulator with the port still open, and

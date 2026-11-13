@@ -58,7 +58,7 @@ export function paneView<B>(
     // The picture and the watch keep their place, dimmed, and claim no value of a board the pane does not follow.
     return {
       board,
-      picture: project.board.picture(step.key, board),
+      picture: project.board.picture(step.key, project.board.initial()),
       rows: project.board.watch(step.key, board, undefined).map((row) => ({ ...row, value: '…' })),
       serial: [],
       controls,

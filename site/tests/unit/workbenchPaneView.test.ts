@@ -4,7 +4,7 @@ import { boardModel } from '../../src/lib/board/models';
 import type { SessionState } from '../../src/lib/flash/session';
 import type { BlinkBoard } from '../../src/lib/workbench/blinkBoard';
 import { initialPane, reducePane, type PaneEvent, type PaneProject, type PaneState } from '../../src/lib/workbench/pane';
-import { blinkWorkbench } from '../../src/lib/workbench/projects';
+import { blinkWorkbench, servoWorkbench } from '../../src/lib/workbench/projects';
 import { createSimulation, type Snapshot } from '../../src/lib/workbench/simulation';
 import { readStepSource } from '../../src/lib/workbench/readSource';
 import { emptyTrace, traceShape } from '../../src/lib/workbench/trace';
@@ -90,6 +90,23 @@ describe('paneView', () => {
     expect(shown.live).toEqual({ blinkDelay: '…' });
     expect(shown.problem).toBeUndefined();
     expect(shown.controls).toEqual(paneView(blink, pane(...live), snapshot, source).controls);
+  });
+
+  it("draws a board the page knows nothing of while My board waits, not the paused simulator's", () => {
+    const servo = { ...servoWorkbench, ids: ['sweep', 'angle', 'commands', 'speed'] } as unknown as PaneProject<unknown>;
+    const clock = fakeClock();
+    const simulation = createSimulation(servo.board, { has: () => true, reduceMotion: () => false, changed: () => {}, clock });
+    simulation.open(servo.steps[0]);
+    clock.advance(2500);
+    const snapshot = simulation.snapshot() as Snapshot<unknown, unknown>;
+    const waiting = reducePane(servo, initialPane(servo, idle), myBoard);
+    expect(servo.board.picture('servo/sweep', snapshot.board).label).toMatch(/its horn at \d+°$/);
+
+    expect(paneView(servo, waiting, snapshot, '').picture).toEqual({
+      flags: { known: false, aiming: false },
+      values: { angle: 90, target: 90 },
+      label: 'A servo on GPIO 13, its angle not known yet',
+    });
   });
 });
 
