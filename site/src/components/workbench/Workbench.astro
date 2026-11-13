@@ -96,6 +96,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
   import type { PictureView } from '../../lib/workbench/board';
   import type { Manifest } from '../../lib/flash';
   import { DEFAULT_BAUD, theBoard } from '../../lib/board/board';
+  import { stepTitle } from '../../lib/board/names';
   import { thePick } from '../../lib/board/pick';
   import { initialPane, reducePane, type PaneEvent, type PaneProject, type PaneState } from '../../lib/workbench/pane';
   import { CLOCK_DASH } from './view';
@@ -178,7 +179,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       const step = paneProject.steps[pane.selected];
       board.open(
         { manifest, sketch: step.key, baud },
-        `${root.dataset.title} · ${pane.selected + 1} ${steps[pane.selected].id}`,
+        stepTitle(root.dataset.title!, pane.selected, steps[pane.selected].id),
         signal,
         { step: true },
       );
