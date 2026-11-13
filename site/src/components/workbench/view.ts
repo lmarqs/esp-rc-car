@@ -4,7 +4,7 @@ import type { WatchRow } from '../../lib/workbench/board';
 import type { OutputLine, RunnerView, RunStatus } from '../../lib/workbench/simulator';
 import { sketchSourcePath } from '../../lib/workbench/source';
 import type { SessionState } from '../../lib/flash';
-import { busyWord } from '../../lib/board/connection';
+import { busyWord, onSettings } from '../../lib/board/connection';
 import { isConnected, type BoardStatus, type PaneMode } from '../../lib/workbench/link';
 import type { SliderShortcut } from '../../lib/workbench/step';
 
@@ -245,15 +245,20 @@ export function paneTag(
     case 'live':
       return { word: 'Live', title: 'Drawn from what your board prints' };
     case 'waiting':
-      return { word: 'My board', title: busyWord(session) ?? waitingTitle(status, board) };
+      return { word: 'My board', title: sessionWord(session) ?? waitingTitle(status, board) };
   }
 }
 
 /** What the switch's My board half says of the board, as its dot shows it: what the session does, or whether it reads one. */
 export function dotTitle(session: SessionState): string {
-  const busy = busyWord(session);
-  if (busy !== undefined) return `My board: ${busy.toLowerCase()}`;
+  const word = sessionWord(session);
+  if (word !== undefined) return `My board: ${word.toLowerCase()}`;
   return isConnected(session) ? 'My board: connected' : 'My board: not connected';
+}
+
+/** What the page does with the board, or that the board waits for its settings; `undefined` otherwise. */
+function sessionWord(session: SessionState): string | undefined {
+  return busyWord(session) ?? (onSettings(session) ? 'Waiting for its settings' : undefined);
 }
 
 function waitingTitle(status: BoardStatus, board: BoardModel | undefined): string {

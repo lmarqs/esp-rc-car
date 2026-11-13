@@ -170,13 +170,26 @@ describe('connectionView action', () => {
     const busy: [SessionState, string][] = [
       [{ kind: 'connecting' }, 'Connecting…'],
       [{ kind: 'flashing', chip: 'ESP32', pct: 10 }, 'Flashing…'],
-      [{ kind: 'settings', chip: 'ESP32', opened: {} }, 'Setting up…'],
-      [{ kind: 'reading', chip: 'ESP32' }, 'Setting up…'],
-      [{ kind: 'applying', chip: 'ESP32' }, 'Setting up…'],
     ];
     for (const [state, label] of busy) {
       for (const opened of [sketch, undefined]) {
         expect(viewOf(state, { opened }).action, state.kind).toEqual({ label, disabled: true });
+      }
+    }
+  });
+
+  it('offers no action while the board waits on its settings, whose form is the action, and keeps Disconnect', () => {
+    const settings: SessionState[] = [
+      { kind: 'settings', chip: 'ESP32', opened: {} },
+      { kind: 'reading', chip: 'ESP32' },
+      { kind: 'applying', chip: 'ESP32' },
+    ];
+    for (const state of settings) {
+      for (const opened of [sketch, undefined]) {
+        const view = viewOf(state, { opened, record: { pending: 'blink/input', lines: [] } });
+        expect(view.action, state.kind).toBeUndefined();
+        expect(view.panel?.text, state.kind).toMatch(/settings/);
+        expect(view.bar, state.kind).toMatchObject({ connected: true, disconnect: true });
       }
     }
   });

@@ -1,4 +1,4 @@
-import { isBusy, wording, type SessionState } from '../flash';
+import { wording, type SessionState } from '../flash';
 import type { SessionEvent } from '../flash/session';
 import type { Board, OpenedSketch } from './board';
 import { flashScene, type FlashScene } from './flashScene';
@@ -96,20 +96,26 @@ export type ConnectionAction =
     }
   | { readonly label: string; readonly disabled: true };
 
-/** What the session does while it is busy, in a word, such as `Flashing…`; `undefined` while it is not busy. */
+/**
+ * What the page does with the board, in a word, such as `Flashing…`; `undefined` while it does nothing the visitor
+ * waits on, which includes the board's settings: their card shows them, and the next step is the visitor's.
+ */
 export function busyWord(state: SessionState): string | undefined {
   switch (state.kind) {
     case 'connecting':
       return 'Connecting…';
     case 'flashing':
       return 'Flashing…';
-    case 'settings':
-    case 'reading':
-    case 'applying':
-      return 'Setting up…';
     default:
       return undefined;
   }
+}
+
+/** Whether the session reads, waits on or sends the board's settings, which the card of their sketch shows. */
+export function onSettings(
+  state: SessionState,
+): state is Extract<SessionState, { kind: 'settings' | 'reading' | 'applying' }> {
+  return state.kind === 'settings' || state.kind === 'reading' || state.kind === 'applying';
 }
 
 /** What {@link connectionView} reads: the session, what the site knows of the board and what the visitor has done. */
@@ -173,11 +179,6 @@ function refusalOf(state: SessionState, opened: OpenedSketch | undefined, names:
   return key === opened?.use.sketch ? noImageNotice(state.chip, available, key, names) : undefined;
 }
 
-/** Whether the session reads, waits on or sends the board's settings, which the card of their sketch shows. */
-function onSettings(state: SessionState): state is Extract<SessionState, { kind: 'settings' | 'reading' | 'applying' }> {
-  return state.kind === 'settings' || state.kind === 'reading' || state.kind === 'applying';
-}
-
 /**
  * Where the settings the session works on are: in the card of `opened` on this page, or on the page of the sketch they
  * belong to, the one the session flashes or the board runs. Away from the card, Disconnect lets the board go.
@@ -238,7 +239,8 @@ function actionFor(
       ? undefined
       : { label: `Flash ${title}`, icon: 'bolt', event: 'flash', disabled: false };
   const connect = (label: string): ConnectionAction => ({ label, icon: 'plug', event: 'connect', disabled: false });
-  if (state.kind === 'unsupported') return undefined;
+  // During the settings, the form in their card is the action.
+  if (state.kind === 'unsupported' || onSettings(state)) return undefined;
   if (RETRYABLE.has(state.kind)) {
     return { label: 'Try again', icon: 'again', event: lastPress?.event ?? 'connect', disabled: false };
   }
@@ -277,43 +279,9 @@ function barFor(
   open: boolean,
 ): DockBar {
   const nameOfKey = (key: string | undefined) => (key === undefined ? undefined : nameOf(names, key));
-  if (state.kind === 'unsupported') {
-    return { shown: false, connected: false, chip: '', doing: '', ...NOTHING };
-  }
-  if (state.kind === 'running') {
-    if (state.lost) {
-      return { shown: true, connected: false, chip: state.chip, doing: 'lost the connection', ...NOTHING };
-    }
-    const name = nameOfKey(runs(record));
-    const last = record.lines.findLast((line) => !line.sent)?.text;
-    return {
-      shown: true,
-      connected: true,
-      chip: state.chip,
-      doing: name !== undefined ? 'is running' : pick?.flashSwitch ? UNNAMED_ON_SWITCH : 'is running a sketch',
-      ...(name !== undefined && { sketch: name.title }),
-      ...(name?.path && { path: name.path }),
-      ...(last !== undefined && { last }),
-      disconnect: true,
-      canSend: true,
-    };
-  }
-  if (state.kind === 'flashing') {
-    const title = nameOfKey(record.pending)?.title;
-    const writing = title ? { doing: 'is writing', sketch: title } : { doing: 'is writing a sketch' };
-    const doing = state.pct >= 100 ? { doing: 'is restarting' } : writing;
-    return { shown: true, connected: true, chip: state.chip, ...doing, progress: state.pct, ...NOTHING };
-  }
-  if (state.kind === 'flashMode') {
-    return { shown: true, connected: false, chip: state.chip, doing: 'is in flash mode', ...NOTHING };
-  }
-  if (state.kind === 'connecting') {
-    return { shown: true, connected: false, chip: 'Board', doing: 'is connecting', ...NOTHING };
-  }
-  if (isBusy(state)) {
+  if (onSettings(state)) {
     // Settings, read or sent: the card that asked for them shows the form and what the board answered, on the page the
     // sketch's name links to. The board stays connected, so Disconnect lets it go from any page.
-    const chip = 'chip' in state ? state.chip : 'Board';
     const name = nameOfKey(settingsOwner(record));
     const doing =
       name === undefined
@@ -322,23 +290,61 @@ function barFor(
     return {
       shown: true,
       connected: true,
-      chip,
+      chip: state.chip,
       ...doing,
       ...(name?.path && { path: name.path }),
       disconnect: true,
       canSend: false,
     };
   }
-  if (state.kind === 'noImage') {
-    // The session found the chip, then let go of the port: the board is plugged in, but not read.
-    return { shown: true, connected: false, chip: state.chip, doing: 'cannot be flashed with this sketch', ...NOTHING };
+  switch (state.kind) {
+    case 'unsupported':
+      return { shown: false, connected: false, chip: '', doing: '', ...NOTHING };
+    case 'running': {
+      if (state.lost) {
+        return { shown: true, connected: false, chip: state.chip, doing: 'lost the connection', ...NOTHING };
+      }
+      const name = nameOfKey(runs(record));
+      const last = record.lines.findLast((line) => !line.sent)?.text;
+      return {
+        shown: true,
+        connected: true,
+        chip: state.chip,
+        doing: name !== undefined ? 'is running' : pick?.flashSwitch ? UNNAMED_ON_SWITCH : 'is running a sketch',
+        ...(name !== undefined && { sketch: name.title }),
+        ...(name?.path && { path: name.path }),
+        ...(last !== undefined && { last }),
+        disconnect: true,
+        canSend: true,
+      };
+    }
+    case 'flashing': {
+      const title = nameOfKey(record.pending)?.title;
+      const writing = title ? { doing: 'is writing', sketch: title } : { doing: 'is writing a sketch' };
+      const doing = state.pct >= 100 ? { doing: 'is restarting' } : writing;
+      return { shown: true, connected: true, chip: state.chip, ...doing, progress: state.pct, ...NOTHING };
+    }
+    case 'flashMode':
+      return { shown: true, connected: false, chip: state.chip, doing: 'is in flash mode', ...NOTHING };
+    case 'connecting':
+      return { shown: true, connected: false, chip: 'Board', doing: 'is connecting', ...NOTHING };
+    case 'noImage':
+      // The session found the chip, then let go of the port: the board is plugged in, but not read.
+      return { shown: true, connected: false, chip: state.chip, doing: 'cannot be flashed with this sketch', ...NOTHING };
+    case 'idle':
+      if (state.released) {
+        // Disconnect let go of the port, not of the board, which goes on running what it holds.
+        const doing = 'was released and keeps running its sketch.';
+        return { shown: true, connected: false, chip: 'Your board', doing, ...NOTHING };
+      }
+      return noBoard(pick, open);
+    default:
+      return noBoard(pick, open);
   }
-  if (state.kind === 'idle' && state.released) {
-    // Disconnect let go of the port, not of the board, which goes on running what it holds.
-    const doing = 'was released and keeps running its sketch.';
-    return { shown: true, connected: false, chip: 'Your board', doing, ...NOTHING };
-  }
-  // One line, beside the buttons: how to plug a board in, unless the panel says what to do.
+}
+
+/** The bar with no board read: one line, beside the buttons, how to plug a board in, unless the panel is `open`. */
+function noBoard(pick: BoardModel | undefined, open: boolean): DockBar {
   const plugIn = pick?.flashSwitch
     ? `is connected. Plug the ${pick.name} in with its adapter set to PROG.`
     : 'is connected. Plug one in over USB.';
@@ -406,7 +412,7 @@ export function createConnection(board: Board, pick: BoardPick, names: SketchNam
 
   /** Resolves once the session no longer reads or sends the board's settings. */
   function exchanged(): Promise<void> {
-    const exchanging = () => board.session.state.kind === 'reading' || board.session.state.kind === 'applying';
+    const exchanging = () => onSettings(board.session.state) && board.session.state.kind !== 'settings';
     return new Promise((resolve) => {
       if (!exchanging()) return resolve();
       const stop = board.subscribe(() => {

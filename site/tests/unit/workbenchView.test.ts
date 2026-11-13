@@ -204,7 +204,7 @@ describe('paneTag', () => {
     });
   });
 
-  it('names what the session works on while it connects, flashes or sets the board up, as the dock does', () => {
+  it('names what the session works on while it connects or flashes, as the dock does, and that the board waits for its settings', () => {
     expect(paneTag('waiting', { kind: 'simulated' }, { kind: 'connecting' }, undefined)).toEqual({
       word: 'My board',
       title: 'Connecting…',
@@ -215,7 +215,7 @@ describe('paneTag', () => {
     });
     expect(paneTag('waiting', { kind: 'simulated' }, { kind: 'reading', chip: 'ESP32' }, undefined)).toEqual({
       word: 'My board',
-      title: 'Setting up…',
+      title: 'Waiting for its settings',
     });
     expect(paneTag('waiting', { kind: 'simulated' }, { kind: 'noPort' }, undefined)).toEqual({ word: 'My board', title: 'Not connected' });
   });
@@ -225,7 +225,7 @@ describe('dotTitle', () => {
   it('names what the session does while it works, else whether it reads a board', () => {
     expect(dotTitle({ kind: 'connecting' })).toBe('My board: connecting…');
     expect(dotTitle({ kind: 'flashing', chip: 'ESP32', pct: 40 })).toBe('My board: flashing…');
-    expect(dotTitle({ kind: 'settings', chip: 'ESP32', opened: {} })).toBe('My board: setting up…');
+    expect(dotTitle({ kind: 'settings', chip: 'ESP32', opened: {} })).toBe('My board: waiting for its settings');
     expect(dotTitle({ kind: 'running', chip: 'ESP32', output: [] })).toBe('My board: connected');
     expect(dotTitle({ kind: 'running', chip: 'ESP32', output: [], lost: true })).toBe('My board: not connected');
     expect(dotTitle({ kind: 'idle' })).toBe('My board: not connected');
