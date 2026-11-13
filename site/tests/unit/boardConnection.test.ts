@@ -391,6 +391,12 @@ describe('connectionView scene', () => {
     expect(viewOf(state, { pick: esp01s }).scene).toEqual(flashScene(state, esp01s));
     expect(viewOf(running).scene).toEqual(flashScene(running));
   });
+
+  it('draws a connection or a flash by the visitor\'s last press', () => {
+    const state: SessionState = { kind: 'connecting' };
+    expect(viewOf(state, { lastPress: { event: 'connect' } }).scene.work).toBe('connect');
+    expect(viewOf(state, { lastPress: { event: 'flash', key: 'blink' } }).scene.work).toBe('flash');
+  });
 });
 
 describe('createConnection', () => {

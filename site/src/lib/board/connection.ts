@@ -374,7 +374,7 @@ export function connectionView({ state, record, opened, pick, lastPress, names }
     ...(action !== undefined && { action }),
     ...(action !== undefined && !action.disabled && action.event === 'flash' && state.kind === 'idle' && { connect: CONNECT }),
     ...(panel !== undefined && { panel }),
-    scene: flashScene(state, pick),
+    scene: flashScene(state, pick, lastPress?.event),
   };
 }
 

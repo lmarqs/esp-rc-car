@@ -1,9 +1,10 @@
 ---
 /**
- * A flash in three steps, Find, Write and Restart, as nodes on a line: a node shows its step's icon, a spinner while
- * the step runs, a check once it is done and a cross where it failed, and the line between them fills as the flash
- * goes on. `paintFlashRail` draws a `FlashScene` in it.
+ * The session's work as nodes on a line: a flash in three steps, Find, Write and Restart, or a connection in one,
+ * Connect. A node shows its step's icon, a spinner while the step runs, a check once it is done and a cross where it
+ * failed, and the line between them fills as the flash goes on. `paintFlashRail` draws a `FlashScene` in it.
  */
+const PLUG = 'M6 2v3M10 2v3M4 5h8v2a4 4 0 0 1-8 0zM8 11v3';
 const STEPS = [
   { word: 'Find', icon: 'M7 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM10 10l3.5 3.5' },
   { word: 'Write', icon: 'M8 2.5v8M4.5 7.5 8 11l3.5-3.5M3 13.5h10' },
@@ -11,7 +12,15 @@ const STEPS = [
 ];
 ---
 
-<div class="flash-rail" aria-label="Flashing" aria-valuemin="0" aria-valuemax="100" data-flash-rail>
+<div class="flash-rail" aria-label="Connecting" aria-valuemin="0" aria-valuemax="100" data-flash-rail data-work="connect">
+  <span class="node" aria-hidden="true" data-connect-step data-mark="todo">
+    <i class="dot">
+      <svg class="step" viewBox="0 0 16 16"><path d={PLUG}></path></svg>
+      <svg class="done" viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7"></path></svg>
+      <svg class="failed" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"></path></svg>
+    </i>
+    <span class="word">Connect</span>
+  </span>
   {
     STEPS.map(({ word, icon }, index) => (
       <>
@@ -36,6 +45,7 @@ const STEPS = [
   .dot { position: relative; display: grid; place-items: center; width: 22px; height: 22px; flex: none; border-radius: 50%; border: 1px solid var(--on-ink-edge); }
   svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
   .done, .failed { display: none; }
+  [data-work="connect"] :is([data-flash-step], .seg), [data-work="flash"] [data-connect-step] { display: none; }
   .pct { min-width: 4ch; font: 400 12px var(--mono); font-style: normal; color: var(--yellow); }
 
   /* A line that fills from the left as far as its step has gone. */

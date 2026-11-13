@@ -7,15 +7,16 @@ const esp32 = boardModel('esp32');
 
 describe('the flash rail', () => {
   it('marks no step before a board is connected', () => {
-    expect(flashScene({ kind: 'idle' })).toEqual({ steps: ['todo', 'todo', 'todo'] });
+    expect(flashScene({ kind: 'idle' })).toEqual({ work: 'connect', steps: ['todo', 'todo', 'todo'] });
   });
 
   it('is on Find while it looks for the board', () => {
-    expect(flashScene({ kind: 'connecting' })).toEqual({ steps: ['now', 'todo', 'todo'] });
+    expect(flashScene({ kind: 'connecting' })).toEqual({ work: 'connect', steps: ['now', 'todo', 'todo'] });
   });
 
   it('is on Write while the image goes down, reporting the percentage', () => {
     expect(flashScene({ kind: 'flashing', chip: 'ESP32', pct: 40 })).toEqual({
+      work: 'flash',
       fill: { pct: 40, tone: 'writing' },
       steps: ['done', 'now', 'todo'],
       pct: 40,
@@ -44,6 +45,7 @@ describe('the flash rail', () => {
 
   it('keeps what a dropped write reached', () => {
     expect(flashScene({ kind: 'dropped', pct: 43 })).toEqual({
+      work: 'flash',
       fill: { pct: 43, tone: 'failed' },
       steps: ['done', 'failed', 'todo'],
     });
@@ -57,10 +59,23 @@ describe('the flash rail', () => {
 
   it('shows a board still in flash mode as written but not started, with its switch to UART', () => {
     expect(flashScene({ kind: 'flashMode', chip: 'ESP8266' })).toEqual({
+      work: 'flash',
       fill: { pct: 100, tone: 'waiting' },
       steps: ['done', 'done', 'failed'],
       hint: 'uart',
     });
+  });
+
+  it('shows a connection as one step, and a flash as three from the press that asks for it', () => {
+    expect(flashScene({ kind: 'connecting' }, undefined, 'connect').work).toBe('connect');
+    expect(flashScene({ kind: 'noAnswer' }, undefined, 'connect').work).toBe('connect');
+    expect(flashScene({ kind: 'connecting' }, undefined, 'flash').work).toBe('flash');
+    expect(flashScene({ kind: 'noPort' }, undefined, 'flash').work).toBe('flash');
+  });
+
+  it('shows a write as a flash whatever was pressed, and a lost board as one to connect', () => {
+    expect(flashScene({ kind: 'flashing', chip: 'ESP32', pct: 40 }, undefined, 'connect').work).toBe('flash');
+    expect(flashScene({ kind: 'running', chip: 'ESP32', output: [], lost: true }, undefined, 'flash').work).toBe('connect');
   });
 
   it('reports no progress outside a write', () => {

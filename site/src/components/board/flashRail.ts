@@ -13,7 +13,10 @@ export function paintFlashRail(root: HTMLElement, scene: FlashScene): void {
     rail.setAttribute('aria-valuenow', String(scene.pct));
   }
 
+  rail.dataset.work = scene.work;
+  rail.setAttribute('aria-label', scene.work === 'flash' ? 'Flashing' : 'Connecting');
   const [find, write] = scene.steps;
+  rail.querySelector<HTMLElement>('[data-connect-step]')!.dataset.mark = find;
   rail.querySelectorAll<HTMLElement>('[data-flash-step]').forEach((step, index) => {
     step.dataset.mark = scene.steps[index]!;
   });

@@ -201,7 +201,8 @@ Board connection, and a panel for what happens between the computer and the boar
   connects anew, so its card's settings form comes before the write.
 - The panel opens while the session works, waits in flash mode or on the board's settings, failed, has no image of the
   open sketch for the board, or is running a board it lost or refused to flash; it closes while the session is idle or
-  runs a board that answers and refused nothing. It draws the flash rail, Find, Write and Restart as nodes on a line, each
+  runs a board that answers and refused nothing. It draws the flash rail: a flash as Find, Write and Restart, and a
+  connection that writes nothing as Connect alone, nodes on a line, each
   with its icon, a spinner while it runs, a check once done and a cross where a failure happened, the line filling as
   the image goes down; the hand hint, the BOOT button or the adapter's switch to PROG or to UART; the message, in a
   live region; and the action, on one row with them from 1000 px and one under the other below it. The action is in the panel while the panel is open and in the bar otherwise, so the board has one button at

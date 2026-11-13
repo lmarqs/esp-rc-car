@@ -5,15 +5,18 @@ import type { SessionState } from '../flash';
 export type StepMark = 'todo' | 'now' | 'done' | 'failed';
 
 /**
- * What `FlashRail` shows of a flash: its three steps, Find, Write and Restart, and how much of the image went down.
+ * What `FlashRail` shows of the session's work: a connection as its one step, Connect, or a flash as its three, Find,
+ * Write and Restart, with how much of the image went down.
  */
 export interface FlashScene {
+  /** What the visitor asked for: `connect` reads the board and writes nothing, `flash` writes a sketch. */
+  readonly work: 'connect' | 'flash';
   /**
    * How much of the image the board holds, 0 to 100, and what that part is: being written, written, cut short, or
    * written but not started.
    */
   readonly fill?: { readonly pct: number; readonly tone: 'writing' | 'written' | 'failed' | 'waiting' };
-  /** Find, Write and Restart. */
+  /** Find, Write and Restart. A connection is the first alone. */
   readonly steps: readonly [StepMark, StepMark, StepMark];
   /** The percentage written while the image goes down the cable, which the rail reports as its progress. */
   readonly pct?: number;
@@ -26,8 +29,21 @@ export interface FlashScene {
 
 const NO_STEPS = ['todo', 'todo', 'todo'] as const;
 
-/** The scene for the session's `state`, with `board` the board the visitor picked, which the hints are for. */
-export function flashScene(state: SessionState, board?: BoardModel): FlashScene {
+/** The states only a flash reaches, whatever the visitor pressed last. */
+const FLASH_ONLY: ReadonlySet<SessionState['kind']> = new Set(['flashing', 'flashMode', 'noImage', 'noDownload', 'dropped']);
+
+/**
+ * The scene for the session's `state`, with `board` the board the visitor picked, which the hints are for, and
+ * `pressed` the visitor's last press, which tells a connection from a flash that has not reached the board yet.
+ */
+export function flashScene(state: SessionState, board?: BoardModel, pressed?: 'connect' | 'flash'): FlashScene {
+  // A board that was running and is lost is one to connect again, whatever wrote its sketch.
+  const lost = state.kind === 'running' && state.lost === true;
+  const flash = FLASH_ONLY.has(state.kind) || (pressed === 'flash' && !lost);
+  return { work: flash ? 'flash' : 'connect', ...stepsOf(state, board) };
+}
+
+function stepsOf(state: SessionState, board: BoardModel | undefined): Omit<FlashScene, 'work'> {
   switch (state.kind) {
     case 'unsupported':
     case 'idle':

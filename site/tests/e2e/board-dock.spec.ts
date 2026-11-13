@@ -301,6 +301,19 @@ test.describe('the board dock panel', () => {
     expect((await fakeFlasher.calls()).filter((call) => call === 'load')).toHaveLength(1);
   });
 
+  test('shows a connection as its one step, Connect, with no step of a flash', async ({ page, fakeFlasher }) => {
+    await fakeFlasher.install({ holdConnect: true });
+    await page.goto(BLINK);
+
+    await bar(page).getByRole('button', { name: 'Connect board' }).click();
+    await expect(panelMessage(page)).toHaveText('Connecting to the board.');
+
+    await expect(panel(page).locator('[data-connect-step]')).toHaveAttribute('data-mark', 'now');
+    await expect(panel(page).locator('[data-connect-step]')).toHaveText('Connect');
+    await expect(panel(page).locator('[data-flash-step]:visible')).toHaveCount(0);
+    await expect(panel(page).locator('[data-flash-rail]')).toHaveAttribute('aria-label', 'Connecting');
+  });
+
   for (const width of [380, 1100]) {
     test(`puts the steps, the message and the button in a row where it is wide and in a column where it is not, at ${width} px`, async ({
       page,
@@ -327,6 +340,7 @@ test.describe('the board dock panel', () => {
       // Find is under way, so the rail marks it and nothing after it.
       const marks = await panel(page).locator('[data-flash-step]').evaluateAll((all) => all.map((step) => (step as HTMLElement).dataset.mark));
       expect(marks).toEqual(['now', 'todo', 'todo']);
+      await expect(panel(page).locator('[data-connect-step]')).toBeHidden();
     });
 
     test(`keeps its button where it is as the message grows from one line to more at ${width} px`, async ({
