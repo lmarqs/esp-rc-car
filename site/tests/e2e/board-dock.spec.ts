@@ -414,6 +414,28 @@ test.describe('the board dock panel', () => {
     expect((await fakeFlasher.calls()).filter((call) => call === 'load')).toHaveLength(1);
   });
 
+  test('announces what it does and why it stopped once each, however many percentages the flash goes through', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ announce: true, progress: [20, 40, 60], monitorEnds: true });
+    await page.goto(BLINK);
+    await page.evaluate(() => {
+      const added: string[] = [];
+      (window as unknown as { __messages: string[] }).__messages = added;
+      new MutationObserver((records) => {
+        for (const record of records) record.addedNodes.forEach((node) => added.push(node.textContent ?? ''));
+      }).observe(document.querySelector('[data-dock-message]')!, { childList: true });
+    });
+
+    await bar(page).getByRole('button', { name: 'Flash Blink · 1 simple' }).click();
+
+    await expect(panelMessage(page)).toHaveText('The board stopped talking to the page. Plug it back in and connect again.');
+    const messages = await page.evaluate(() => (window as unknown as { __messages: string[] }).__messages);
+    expect(messages.filter((message) => message === 'Found ESP32. Keep the board plugged in.')).toHaveLength(1);
+    expect(messages.filter((message) => message.startsWith('The board stopped'))).toHaveLength(1);
+  });
+
   test('says the board stopped talking once the port is lost, and offers Connect again', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ announce: true, monitorEnds: true });
     await page.goto(BLINK);
