@@ -170,18 +170,13 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     const manifest = JSON.parse(root.dataset.manifest ?? '{"sketches":{}}') as Manifest;
     const baud = root.dataset.baud ? Number(root.dataset.baud) : DEFAULT_BAUD;
 
-    /** Opens the selected step on the site's board, in place of the step it opened before. */
-    function openOnBoard() {
-      openStepOnBoard({ manifest, sketch: paneProject.steps[pane.selected].key, baud });
-    }
-
     /** Applies `event` to the pane, then does what its change asks of the page and paints it. */
     function dispatch(event: PaneEvent) {
       const before = pane;
       pane = reducePane(paneProject, pane, event);
       if (pane.selected !== before.selected) {
         openStep(pane.selected);
-        openOnBoard();
+        openOnBoard({ manifest, sketch: paneProject.steps[pane.selected].key, baud });
       }
       if (pane.mode !== before.mode) commandLine.dropTyping();
       if (pane.simulation !== before.simulation) {
@@ -348,9 +343,9 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     // The site's board, which may already be connected from another page, and running one of these steps.
     const board = theBoard();
     const { session } = board;
-    const openStepOnBoard = openerOn(board, signal);
+    const openOnBoard = openerOn(board, signal);
     let pane: PaneState<unknown> = initialPane(paneProject, session.state, board.record.heard, openingStep());
-    openOnBoard();
+    openOnBoard({ manifest, sketch: paneProject.steps[pane.selected].key, baud });
     const boardLink = mountBoardLink(root, {
       // The board keeps running its step; the simulator starts it again in the pane.
       simulator() {
