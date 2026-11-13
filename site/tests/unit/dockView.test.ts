@@ -19,14 +19,13 @@ describe('the board dock', () => {
     expect(dockView({ kind: 'unsupported' }, EMPTY_RECORD, names).shown).toBe(false);
   });
 
-  it('offers to connect with no board, or after a failure', () => {
+  it('says no board is connected with none, or after a failure', () => {
     for (const state of [{ kind: 'idle' }, { kind: 'noPort' }, { kind: 'dropped', pct: 30 }] as SessionState[]) {
       expect(dockView(state, EMPTY_RECORD, names)).toMatchObject({
         shown: true,
         connected: false,
         chip: 'No board',
         doing: 'is connected. Plug one in over USB.',
-        connect: true,
         disconnect: false,
         canSend: false,
       });
@@ -42,17 +41,9 @@ describe('the board dock', () => {
       sketch: 'Blink · 2 input',
       path: '/robomania/projects/blink/#input',
       last: 'wait 1000',
-      connect: false,
       disconnect: true,
       canSend: true,
     });
-  });
-
-  it('offers to flash the sketch the visitor has open, by its name, onto a running board', () => {
-    expect(dockView(running, EMPTY_RECORD, names, undefined, 'blink/input').flash).toBe('Flash Blink · 2 input');
-    expect(dockView(running, EMPTY_RECORD, names).flash).toBeUndefined();
-    expect(dockView({ ...running, lost: true }, EMPTY_RECORD, names, undefined, 'blink/input').flash).toBeUndefined();
-    expect(dockView({ kind: 'idle' }, EMPTY_RECORD, names, undefined, 'blink/input').flash).toBeUndefined();
   });
 
   it('names a sketch the site does not know by its key', () => {
@@ -96,12 +87,12 @@ describe('the board dock', () => {
     });
   });
 
-  it('says the board stopped talking, and offers to connect again, when the port is lost', () => {
+  it('says the board stopped talking when the port is lost', () => {
     expect(dockView({ ...running, lost: true }, heard, names)).toMatchObject({
       connected: false,
       chip: 'ESP32',
       doing: 'stopped talking to the page. Plug it back in and connect again.',
-      connect: true,
+      disconnect: false,
       canSend: false,
     });
   });
@@ -119,11 +110,11 @@ describe('the board dock for the board the visitor picked', () => {
     expect(view.doing).toBe('is running a sketch. Press reset on its adapter to name it.');
   });
 
-  it('says the board is still in flash mode after the write, and offers to connect', () => {
+  it('says the board is still in flash mode after the write', () => {
     expect(dockView({ kind: 'flashMode', chip: 'ESP8266' }, EMPTY_RECORD, names)).toMatchObject({
       chip: 'ESP8266',
       doing: 'is still in flash mode. Set the adapter to UART and plug it in again.',
-      connect: true,
+      disconnect: false,
     });
   });
 });

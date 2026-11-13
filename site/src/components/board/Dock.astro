@@ -1,5 +1,8 @@
 ---
 import { BOARD_MODELS } from '../../lib/board/models';
+import ActionButton from './ActionButton.astro';
+import FlashPicture from './FlashPicture.astro';
+import HandHint from './HandHint.astro';
 import { sketchNames } from '../../lib/board/names';
 import { readManifest } from '../../lib/flash/readManifest';
 import { href } from '../../lib/href';
@@ -56,6 +59,16 @@ const manifest = readManifest();
       <p class="problem" role="alert" data-dock-problem hidden></p>
     </div>
   </div>
+  {/* What happens between the computer and the board while the session works, waits in flash mode or failed. */}
+  <div class="panel" data-dock-panel hidden>
+    <div class="scene wrap">
+      <FlashPicture><ActionButton label="Connect board" data-dock-action="panel" /></FlashPicture>
+      <div class="words">
+        <HandHint />
+        <p class="message" aria-live="polite" data-dock-message></p>
+      </div>
+    </div>
+  </div>
   <div class="bar wrap">
     <select class="pick" aria-label="My board" data-dock-pick>
       <option value="">Which board?</option>
@@ -75,14 +88,7 @@ const manifest = readManifest();
     </span>
     {/* Serial comes last, so the buttons that come and go never move it. */}
     <span class="acts">
-      <button type="button" class="primary" data-dock-connect hidden>
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 1.6v3M10 1.6v3M4 4.6h8v2.6a4 4 0 0 1-8 0zM8 11.2v3.2"></path></svg>
-        Connect board
-      </button>
-      <button type="button" data-dock-flash hidden>
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9 1.5 3.5 9H8l-1 5.5L12.5 7H8z"></path></svg>
-        <span data-dock-flash-label>Flash</span>
-      </button>
+      <ActionButton label="Connect board" data-dock-action="bar" hidden />
       <button type="button" data-dock-disconnect hidden>
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v5M4.6 4.2a5 5 0 1 0 6.8 0"></path></svg>
         Disconnect
@@ -125,12 +131,13 @@ const manifest = readManifest();
   .track { flex: 1; height: 6px; border-radius: 3px; background: var(--on-ink-line); overflow: hidden; }
   .track i { display: block; height: 100%; width: 0; background: var(--yellow); transition: width .15s; }
   .pct { font-family: var(--mono); color: var(--yellow); min-width: 4ch; text-align: right; }
-  .acts { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
+  /* As tall as the board's button whether it shows or not, so Serial stays in place as the button moves between the
+     bar and the panel. */
+  .acts { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; align-items: center; justify-content: flex-end; min-height: 35px; }
   .acts button, .head button { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-weight: 700; font-size: 12px; color: var(--on-ink); background: transparent; border: 1px solid var(--on-ink-edge); border-radius: 999px; padding: 3px 11px; cursor: pointer; white-space: nowrap; }
   .acts button:hover, .head button:hover { border-color: var(--yellow); color: var(--yellow); }
   /* Raised like the monitor it opened, and no yellow, which means new or sent. */
   .acts button[aria-expanded="true"] { background: var(--ink-raised); border-color: var(--on-ink); color: var(--card); }
-  .acts button.primary { background: var(--yellow); border-color: var(--yellow); color: var(--ink); }
   .acts svg, .head svg { width: 12px; height: 12px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .caret { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 5px solid currentColor; }
   [aria-expanded="true"] .caret { border-bottom: 0; border-top: 5px solid currentColor; }
@@ -147,6 +154,15 @@ const manifest = readManifest();
     .acts { flex: 1 1 100%; }
     .acts .serial { flex: 1 1 100%; width: auto; }
   }
+
+  /* The picture draws in ink on a card: here, light on the dark dock. */
+  .panel { --ink: var(--on-ink); --card: var(--ink-raised); --faint: var(--on-ink-edge); --muted: var(--quiet-light); --green-text: var(--green); --coral-text: var(--coral); border-bottom: 1px solid var(--on-ink-line); }
+  .scene { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 12px 28px; align-items: center; padding-top: 12px; padding-bottom: 12px; }
+  @media (max-width: 640px) { .scene { grid-template-columns: minmax(0, 1fr); } }
+  .words { display: flex; gap: 10px; align-items: flex-start; }
+  /* Room for the longest message, four lines, so the dock keeps its height as the message changes. */
+  .message { flex: 1; min-width: 0; min-height: calc(4 * 1.5em); margin: 0; font-size: 14px; line-height: 1.5; }
+  .message[data-notice] { padding-left: 10px; border-left: 4px solid var(--yellow); }
 
   .monitor { background: var(--ink-raised); border-bottom: 1px solid var(--on-ink-line); }
   .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0 6px; border-bottom: 1px solid var(--on-ink-line); }
@@ -169,11 +185,14 @@ const manifest = readManifest();
 
 <script>
   import { theBoard } from '../../lib/board/board';
-  import { modelAnswering, restartConnection } from '../../lib/board/models';
+  import { createConnection } from '../../lib/board/connection';
+  import { modelAnswering } from '../../lib/board/models';
   import { thePick } from '../../lib/board/pick';
   import type { SketchName } from '../../lib/board/names';
   import type { Manifest } from '../../lib/flash';
+  import { paintAction } from './actionButton';
   import { mountDockMonitor } from './dockMonitor';
+  import { paintFlashPicture, paintHandHint } from './flashPicture';
   import { dockView } from './dockView';
 
   // The dock persists from page to page, so this runs once, on the first page the visitor opens.
@@ -203,11 +222,13 @@ const manifest = readManifest();
     const pct = find<HTMLElement>('pct');
     const last = find<HTMLElement>('last');
     const disconnect = find<HTMLButtonElement>('disconnect');
-    const connect = find<HTMLButtonElement>('connect');
-    const flash = find<HTMLButtonElement>('flash');
-    const flashLabel = find<HTMLElement>('flash-label');
+    const panel = find<HTMLElement>('panel');
+    const message = find<HTMLElement>('message');
+    const panelAction = dock.querySelector<HTMLButtonElement>('[data-dock-action="panel"]')!;
+    const barAction = dock.querySelector<HTMLButtonElement>('[data-dock-action="bar"]')!;
 
     const pick = thePick();
+    const connection = createConnection(board, pick);
     const select = find<HTMLSelectElement>('pick');
     select.value = pick.model?.id ?? '';
     select.addEventListener('change', () => {
@@ -226,14 +247,11 @@ const manifest = readManifest();
       if (answering !== undefined && answering !== pick.model) pick.choose(answering.id);
     }
 
-    connect.addEventListener('click', () => void board.send(restartConnection(pick.model)));
+    for (const action of [panelAction, barAction]) action.addEventListener('click', () => void connection.press());
     disconnect.addEventListener('click', () => void board.send({ type: 'disconnect' }));
-    flash.addEventListener('click', () => {
-      if (board.opened !== undefined) void board.send({ type: 'flash', key: board.opened.use.sketch });
-    });
 
     function render() {
-      const view = dockView(session.state, board.record, names, pick.model, board.opened?.use.sketch);
+      const view = dockView(session.state, board.record, names, pick.model);
       dock.hidden = !view.shown;
       if (!view.shown) return;
       dot.classList.toggle('on', view.connected);
@@ -259,22 +277,37 @@ const manifest = readManifest();
         fill.style.width = `${view.progress}%`;
         pct.textContent = `${view.progress}%`;
       }
-      if (view.flash !== undefined) flashLabel.textContent = view.flash;
       last.textContent = view.last ?? '';
-      // A hidden button cannot keep the focus, which would fall to the page; the dock keeps it.
-      for (const [button, shown] of [
-        [flash, view.flash !== undefined],
-        [disconnect, view.disconnect],
-        [connect, view.connect],
-      ] as const) {
-        if (!shown && document.activeElement === button) dock.focus();
-        button.hidden = !shown;
-      }
+      paintConnection();
+      if (!view.disconnect && document.activeElement === disconnect) dock.focus();
+      disconnect.hidden = !view.disconnect;
       monitor.show(view.canSend);
     }
 
+    /** Paints the panel and the one action, in the panel while it is open, else in the bar. */
+    function paintConnection() {
+      const { action, message: said, scene, open } = connection.view;
+      const focused = document.activeElement === panelAction || document.activeElement === barAction;
+      panel.hidden = !open;
+      paintFlashPicture(panel, scene);
+      paintHandHint(panel, scene.hint);
+      // Set only on a change, since the message is a live region.
+      if (message.textContent !== (said?.text ?? '')) message.textContent = said?.text ?? '';
+      message.toggleAttribute('data-notice', said?.notice ?? false);
+      for (const button of [panelAction, barAction]) {
+        button.hidden = action === undefined || (button === panelAction) !== open;
+        if (action !== undefined) paintAction(button, action);
+      }
+      // The focus follows the action between the bar and the panel; with no action, the dock keeps it.
+      if (focused) {
+        const shown = open ? panelAction : barAction;
+        if (shown.hidden) dock.focus();
+        else if (document.activeElement !== shown) shown.focus();
+      }
+    }
+
     board.subscribe(followChip);
-    board.subscribe(render);
+    connection.subscribe(render);
     render();
   }
 </script>

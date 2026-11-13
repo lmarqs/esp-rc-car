@@ -21,10 +21,7 @@ export interface DockView {
   readonly last?: string;
   /** The flash's percentage while one writes. */
   readonly progress?: number;
-  /** The label of the button that flashes the sketch the visitor has open, such as `Flash Blink · 1 simple`. */
-  readonly flash?: string;
-  /** Which buttons the dock offers. */
-  readonly connect: boolean;
+  /** Whether the dock offers Disconnect: while the site reads a board. */
   readonly disconnect: boolean;
   /** Whether the serial monitor can send a line: only while the site reads a board that is not busy. */
   readonly canSend: boolean;
@@ -36,7 +33,7 @@ export interface DockView {
  */
 const UNNAMED_ON_SWITCH = 'is running a sketch. Press reset on its adapter to name it.';
 
-const NOTHING = { connect: false, disconnect: false, canSend: false } as const;
+const NOTHING = { disconnect: false, canSend: false } as const;
 
 /** The name of the sketch `key`, or a plain one for a sketch outside the site. */
 function nameOf(names: Readonly<Record<string, SketchName>>, key: string | undefined): SketchName | undefined {
@@ -46,15 +43,14 @@ function nameOf(names: Readonly<Record<string, SketchName>>, key: string | undef
 }
 
 /**
- * The dock for the session's `state`, the record of the board, the names of the site's sketches, the board the visitor
- * picked and the key of the sketch the visitor has open, `opened`.
+ * The dock's bar for the session's `state`, the record of the board, the names of the site's sketches and the board the
+ * visitor picked. The board's button, its picture and its messages are the connection's: see `connectionView`.
  */
 export function dockView(
   state: SessionState,
   record: BoardRecord,
   names: Readonly<Record<string, SketchName>>,
   board?: BoardModel,
-  opened?: string,
 ): DockView {
   if (state.kind === 'unsupported') {
     return { shown: false, connected: false, chip: '', doing: '', ...NOTHING };
@@ -67,7 +63,6 @@ export function dockView(
         chip: state.chip,
         doing: wording.STOPPED_TALKING,
         ...NOTHING,
-        connect: true,
       };
     }
     const key = runs(record);
@@ -81,8 +76,6 @@ export function dockView(
       ...(name !== undefined && { sketch: name.title }),
       ...(name?.path && { path: name.path }),
       ...(last !== undefined && { last }),
-      ...(opened !== undefined && { flash: `Flash ${nameOf(names, opened)!.title}` }),
-      connect: false,
       disconnect: true,
       canSend: true,
     };
@@ -100,7 +93,6 @@ export function dockView(
       chip: state.chip,
       doing: 'is still in flash mode. Set the adapter to UART and plug it in again.',
       ...NOTHING,
-      connect: true,
     };
   }
   if (state.kind === 'connecting') {
@@ -120,6 +112,5 @@ export function dockView(
       ? `is connected. Plug the ${board.name} in with its adapter set to PROG.`
       : 'is connected. Plug one in over USB.',
     ...NOTHING,
-    connect: true,
   };
 }
