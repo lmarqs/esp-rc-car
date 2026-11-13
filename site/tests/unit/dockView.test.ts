@@ -48,6 +48,13 @@ describe('the board dock', () => {
     });
   });
 
+  it('offers to flash the sketch the visitor has open, by its name, onto a running board', () => {
+    expect(dockView(running, EMPTY_RECORD, names, undefined, 'blink/input').flash).toBe('Flash Blink · 2 input');
+    expect(dockView(running, EMPTY_RECORD, names).flash).toBeUndefined();
+    expect(dockView({ ...running, lost: true }, EMPTY_RECORD, names, undefined, 'blink/input').flash).toBeUndefined();
+    expect(dockView({ kind: 'idle' }, EMPTY_RECORD, names, undefined, 'blink/input').flash).toBeUndefined();
+  });
+
   it('names a sketch the site does not know by its key', () => {
     const view = dockView(running, { heard: 'mine/sketch', lines: [] }, names);
     expect(view).toMatchObject({ doing: 'is running', sketch: 'mine/sketch', disconnect: true });

@@ -124,6 +124,35 @@ describe('the site board', () => {
   });
 });
 
+describe('the sketch the visitor has open', () => {
+  it('names the opened sketch until the page that opened it goes', () => {
+    const board = createBoard(fakeSession().session);
+    const page = new AbortController();
+    let heard = 0;
+    board.subscribe(() => heard++);
+
+    board.open('blink/simple', page.signal);
+    expect(board.opened).toBe('blink/simple');
+    board.open('blink/input', page.signal);
+    expect(board.opened).toBe('blink/input');
+    page.abort();
+
+    expect(board.opened).toBeUndefined();
+    expect(heard).toBe(3);
+  });
+
+  it('keeps the sketch the next page opened when the last page goes after it', () => {
+    const board = createBoard(fakeSession().session);
+    const last = new AbortController();
+    board.open('blink/simple', last.signal);
+    board.open('servo/sweep', new AbortController().signal);
+
+    last.abort();
+
+    expect(board.opened).toBe('servo/sweep');
+  });
+});
+
 describe('the key a press flashes', () => {
   it("is a flash's own key, the sketch for a connection that flashes, and none for a restart or anything else", () => {
     expect(keyFlashedBy({ type: 'flash', key: 'blink/input' }, 'servo')).toBe('blink/input');

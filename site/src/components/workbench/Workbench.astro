@@ -180,7 +180,10 @@ const flashable = Object.keys(manifest.sketches).length > 0;
     function dispatch(event: PaneEvent) {
       const before = pane;
       pane = reducePane(paneProject, pane, event);
-      if (pane.selected !== before.selected) openStep(pane.selected);
+      if (pane.selected !== before.selected) {
+        openStep(pane.selected);
+        board.open(paneProject.steps[pane.selected].key, signal);
+      }
       if (pane.mode !== before.mode) commandLine.dropTyping();
       if (pane.simulation !== before.simulation) {
         watch.reset();
@@ -352,6 +355,7 @@ const flashable = Object.keys(manifest.sketches).length > 0;
       baud: root.dataset.baud ? Number(root.dataset.baud) : DEFAULT_BAUD,
     });
     let pane: PaneState<unknown> = initialPane(paneProject, session.state, board.record.heard, openingStep());
+    board.open(paneProject.steps[pane.selected].key, signal);
     const boardLink = mountBoardLink(root, {
       // The board keeps running its step; the simulator starts it again in the pane.
       simulator() {

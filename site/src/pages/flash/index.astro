@@ -146,6 +146,7 @@ const ownCard = flashable.filter(({ ladder }) => !ladder);
 </style>
 
 <script>
+  import { theBoard } from '../../lib/board/board';
   import { onEveryPage } from '../../lib/page';
 
   onEveryPage((signal) => {
@@ -156,12 +157,19 @@ const ownCard = flashable.filter(({ ladder }) => !ladder);
     // The router runs this on every page; only the Flash page has picks.
     if (buttons.length === 0) return;
     let picked: string | undefined;
+    let pick = new AbortController();
 
     function show(id: string | undefined) {
       if (id === picked) return;
       picked = id;
       for (const button of buttons) button.setAttribute('aria-pressed', String(button.dataset.pick === id));
       for (const panel of panels) panel.hidden = panel.dataset.panel !== id;
+      // The picked project's sketch is the one the visitor has open, until another pick or the page goes.
+      pick.abort();
+      pick = new AbortController();
+      const sketch = panels.find((panel) => panel.dataset.panel === id)?.querySelector<HTMLElement>('[data-flash-card]')
+        ?.dataset.sketch;
+      if (sketch !== undefined) theBoard().open(sketch, AbortSignal.any([signal, pick.signal]));
     }
 
     function shownHeading() {

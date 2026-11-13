@@ -18,6 +18,8 @@ export interface Board {
   readonly record: BoardRecord;
   /** The page part that last pointed the session at its sketches, such as `card:blink/simple`. */
   readonly owner: string | undefined;
+  /** The key of the sketch the visitor has open, such as the workbench's selected step, which the dock flashes. */
+  readonly opened: string | undefined;
   /** Calls `listener` after the session's state or the record changed; returns a function that stops it. */
   subscribe(listener: () => void): () => void;
   /**
@@ -31,6 +33,8 @@ export interface Board {
   sendLine(text: string): Promise<void>;
   /** Forgets the lines kept so far; what the board runs stays known. */
   clearLines(): void;
+  /** Names `key` the sketch the visitor has open, until `signal` aborts as its page goes or another is opened. */
+  open(key: string, signal: AbortSignal): void;
   /** Adds `manifest`'s images to the ones the session knows, so a key it names can be flashed again from any page. */
   know(manifest: Manifest): void;
 }
@@ -50,6 +54,7 @@ export function createBoard(session: FlashSession): Board {
   const listeners = new Set<() => void>();
   let record = EMPTY_RECORD;
   let owner: string | undefined;
+  let opened: string | undefined;
   let state: SessionState = session.state;
   let current: BoardUse = { manifest: { sketches: {} }, sketch: '', baud: DEFAULT_BAUD };
 
@@ -79,6 +84,9 @@ export function createBoard(session: FlashSession): Board {
     get owner() {
       return owner;
     },
+    get opened() {
+      return opened;
+    },
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -104,6 +112,19 @@ export function createBoard(session: FlashSession): Board {
     },
     clearLines() {
       change({ kind: 'clear' });
+    },
+    open(key, signal) {
+      opened = key;
+      notify();
+      signal.addEventListener(
+        'abort',
+        () => {
+          if (opened !== key) return;
+          opened = undefined;
+          notify();
+        },
+        { once: true },
+      );
     },
     know(manifest) {
       session.configure({ ...current, manifest });

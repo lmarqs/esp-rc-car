@@ -160,6 +160,26 @@ test.describe('the board dock', () => {
     await expect(monitor(page)).toHaveText('sketch blink/input\nHIGH\nLOW');
   });
 
+  test('flashes the sketch the visitor has open, named on its button, and offers none where no sketch is open', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ lines: ['sketch blink/simple'], announce: true });
+    await page.goto(BLINK);
+    await connect(page);
+    await expect(tagWord(page)).toHaveText('Live');
+    await expect(dock(page).getByRole('button', { name: 'Flash Blink · 1 simple' })).toBeVisible();
+
+    await bench(page).getByRole('tab', { name: /^2 input/ }).click();
+    await dock(page).getByRole('button', { name: 'Flash Blink · 2 input' }).click();
+
+    await expect(tagWord(page)).toHaveText('Live');
+    expect(await fakeFlasher.loaded()).toEqual([['blink/input/esp32/input.ino.bootloader.bin', 'blink/input/esp32/input.ino.bin']]);
+    await nav(page).getByRole('link', { name: 'Learn' }).click();
+    await expect(page).toHaveURL(/\/learn\/$/);
+    await expect(dock(page).getByRole('button', { name: /^Flash/ })).toBeHidden();
+  });
+
   test('lets the board go on Disconnect, and offers to connect again', async ({ page, fakeFlasher }) => {
     await fakeFlasher.install({ lines: ['sketch blink/input'] });
     await page.goto('/robomania/learn/');

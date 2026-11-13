@@ -79,6 +79,10 @@ const manifest = readManifest();
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 1.6v3M10 1.6v3M4 4.6h8v2.6a4 4 0 0 1-8 0zM8 11.2v3.2"></path></svg>
         Connect board
       </button>
+      <button type="button" data-dock-flash hidden>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9 1.5 3.5 9H8l-1 5.5L12.5 7H8z"></path></svg>
+        <span data-dock-flash-label>Flash</span>
+      </button>
       <button type="button" data-dock-disconnect hidden>
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v5M4.6 4.2a5 5 0 1 0 6.8 0"></path></svg>
         Disconnect
@@ -200,6 +204,8 @@ const manifest = readManifest();
     const last = find<HTMLElement>('last');
     const disconnect = find<HTMLButtonElement>('disconnect');
     const connect = find<HTMLButtonElement>('connect');
+    const flash = find<HTMLButtonElement>('flash');
+    const flashLabel = find<HTMLElement>('flash-label');
 
     const pick = thePick();
     const select = find<HTMLSelectElement>('pick');
@@ -222,9 +228,12 @@ const manifest = readManifest();
 
     connect.addEventListener('click', () => void board.send(restartConnection(pick.model)));
     disconnect.addEventListener('click', () => void board.send({ type: 'disconnect' }));
+    flash.addEventListener('click', () => {
+      if (board.opened !== undefined) void board.send({ type: 'flash', key: board.opened });
+    });
 
     function render() {
-      const view = dockView(session.state, board.record, names, pick.model);
+      const view = dockView(session.state, board.record, names, pick.model, board.opened);
       dock.hidden = !view.shown;
       if (!view.shown) return;
       dot.classList.toggle('on', view.connected);
@@ -250,9 +259,11 @@ const manifest = readManifest();
         fill.style.width = `${view.progress}%`;
         pct.textContent = `${view.progress}%`;
       }
+      if (view.flash !== undefined) flashLabel.textContent = view.flash;
       last.textContent = view.last ?? '';
       // A hidden button cannot keep the focus, which would fall to the page; the dock keeps it.
       for (const [button, shown] of [
+        [flash, view.flash !== undefined],
         [disconnect, view.disconnect],
         [connect, view.connect],
       ] as const) {

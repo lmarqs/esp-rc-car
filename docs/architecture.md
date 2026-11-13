@@ -160,7 +160,9 @@ adapter, which the dock and the workbench ask for; a pick that is wrong shows on
 The dock names the board's chip and the sketch it runs, by the `sketch <key>` line or the key the site last flashed,
 links the sketch's project, at the step's tab for a step, and shows the last line it printed in the Serial button that
 opens the rest. It connects a board, lets it go, and opens a serial monitor that shows the lines, sends one and
-clears them. It also holds the visitor's pick of board, which the card, the workbench and the project cards follow:
+clears them. Its Flash button names and flashes the sketch the visitor has open: the workbench's selected step, the
+project page's card, or the Flash page's pick. Each names it with `board.open` until its page goes, so a page with no
+sketch, such as Learn, offers no Flash. It also holds the visitor's pick of board, which the card, the workbench and the project cards follow:
 the card and the workbench give that board's hints, such as the flash switch of an ESP-01S adapter, and each project
 card says whether the project runs on it. Once a board connects, its chip is
 certain, so the pick follows the chip, without a word when the visitor picked another board.

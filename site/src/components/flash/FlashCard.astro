@@ -193,6 +193,8 @@ const helpOf = (field: (typeof fields)[number]) =>
       const use = { manifest, sketch: sketch!, baud };
       const claim = () => board.owner === owner || board.use(owner, use);
       if (runs(board.record) === sketch) claim();
+      // A card on the Flash page waits for its project to be picked, which names its sketch the opened one.
+      if (card.closest('[hidden]') === null) board.open(sketch!, signal);
       const settings = settingsOf(manifest, sketch!, baud);
       const context = {
         title: title!,

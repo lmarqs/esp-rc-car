@@ -21,6 +21,8 @@ export interface DockView {
   readonly last?: string;
   /** The flash's percentage while one writes. */
   readonly progress?: number;
+  /** The label of the button that flashes the sketch the visitor has open, such as `Flash Blink · 1 simple`. */
+  readonly flash?: string;
   /** Which buttons the dock offers. */
   readonly connect: boolean;
   readonly disconnect: boolean;
@@ -44,13 +46,15 @@ function nameOf(names: Readonly<Record<string, SketchName>>, key: string | undef
 }
 
 /**
- * The dock for the session's `state`, the record of the board and the names of the site's sketches.
+ * The dock for the session's `state`, the record of the board, the names of the site's sketches, the board the visitor
+ * picked and the key of the sketch the visitor has open, `opened`.
  */
 export function dockView(
   state: SessionState,
   record: BoardRecord,
   names: Readonly<Record<string, SketchName>>,
   board?: BoardModel,
+  opened?: string,
 ): DockView {
   if (state.kind === 'unsupported') {
     return { shown: false, connected: false, chip: '', doing: '', ...NOTHING };
@@ -77,6 +81,7 @@ export function dockView(
       ...(name !== undefined && { sketch: name.title }),
       ...(name?.path && { path: name.path }),
       ...(last !== undefined && { last }),
+      ...(opened !== undefined && { flash: `Flash ${nameOf(names, opened)!.title}` }),
       connect: false,
       disconnect: true,
       canSend: true,
