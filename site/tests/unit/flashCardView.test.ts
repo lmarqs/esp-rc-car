@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TO_THE_BOARD_BAR, viewFor, worksOn } from '../../src/components/flash/view';
+import { TO_THE_BOARD_BAR, viewFor } from '../../src/components/flash/view';
 import type { SessionState } from '../../src/lib/flash';
 import type { ManifestImage, SettingField } from '../../src/lib/flash/manifest';
 
@@ -149,19 +149,5 @@ describe('viewFor a sketch with settings', () => {
       action: { label: 'Change settings', event: 'changeSettings' },
     });
     expect(viewFor({ ...running, lost: true }, true, withSettings).action).toBeUndefined();
-  });
-});
-
-describe('worksOn', () => {
-  it('holds for the sketch a flash writes, until it settles', () => {
-    expect(worksOn({ lines: [], pending: 'web-relay', heard: 'blink/simple' }, 'web-relay')).toBe(true);
-    expect(worksOn({ lines: [], pending: 'blink/simple', heard: 'web-relay' }, 'web-relay')).toBe(false);
-  });
-
-  it('holds for the sketch the board runs, by what it said or else what the site flashed', () => {
-    expect(worksOn({ lines: [], heard: 'web-relay' }, 'web-relay')).toBe(true);
-    expect(worksOn({ lines: [], flashed: 'web-relay' }, 'web-relay')).toBe(true);
-    expect(worksOn({ lines: [], heard: 'blink/simple', flashed: 'web-relay' }, 'web-relay')).toBe(false);
-    expect(worksOn({ lines: [] }, 'web-relay')).toBe(false);
   });
 });

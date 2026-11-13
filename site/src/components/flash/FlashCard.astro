@@ -132,7 +132,8 @@ const helpOf = (field: (typeof fields)[number]) =>
   import { isBusy } from '../../lib/flash/session';
   import { settingsOf } from '../../lib/flash/settings';
   import { cardUse } from './cardUse';
-  import { viewFor, worksOn } from './view';
+  import { settingsOwner } from '../../lib/board/record';
+  import { viewFor } from './view';
 
   onEveryPage((signal) => {
     for (const card of document.querySelectorAll<HTMLElement>('[data-flash-card]')) {
@@ -199,7 +200,7 @@ const helpOf = (field: (typeof fields)[number]) =>
         const state = session.state;
         // The page that lists several cards reads this to keep a visitor from leaving a write half-done.
         card.toggleAttribute('data-busy', isBusy(state));
-        const view = viewFor(state, worksOn(board.record, sketch!), context);
+        const view = viewFor(state, settingsOwner(board.record) === sketch, context);
         if (message.textContent !== view.message) message.textContent = view.message;
         message.className = view.notice ? 'notice' : '';
 

@@ -4,7 +4,7 @@ import { flashScene, type FlashScene } from './flashScene';
 import { restartConnection, type BoardModel } from './models';
 import { nameOf, type SketchNames } from './names';
 import type { BoardPick } from './pick';
-import { runs, type BoardRecord } from './record';
+import { runs, settingsOwner, type BoardRecord } from './record';
 
 /** What the board pane shows in place of the picture while the page talks to the board, or after it failed. */
 export interface BoardMessage {
@@ -166,7 +166,7 @@ function settingsMessage(
   names: SketchNames,
 ): BoardMessage | undefined {
   if (!onSettings(state)) return undefined;
-  const key = record.pending ?? runs(record);
+  const key = settingsOwner(record);
   const own = key !== undefined && opened?.use.sketch === key ? nameOf(names, key) : undefined;
   if (own !== undefined && !own.step) {
     const card = `The ${own.title} card on this page`;
@@ -181,12 +181,12 @@ function settingsMessage(
         return { text: `${card} is sending the settings to the board.`, notice: false };
     }
   }
-  const title = key !== undefined && Object.hasOwn(names, key) ? names[key]!.title : undefined;
+  // A sketch with a page of its own on the site is named; any other is the page's that asked for its settings.
+  const name = key === undefined ? undefined : nameOf(names, key);
   return {
-    text:
-      title === undefined
-        ? 'Your board waits on its settings. Go back to the page that asked for them, or press Disconnect.'
-        : `Your board waits on the settings of ${title}. Go back to its page to finish them, or press Disconnect.`,
+    text: name?.path
+      ? `Your board waits on the settings of ${name.title}. Go back to its page to finish them, or press Disconnect.`
+      : 'Your board waits on its settings. Go back to the page that asked for them, or press Disconnect.',
     notice: false,
   };
 }
@@ -296,7 +296,7 @@ function barFor(
     // Settings, read or sent: the card that asked for them shows the form and what the board answered, on the page the
     // sketch's name links to. The board stays connected, so Disconnect lets it go from any page.
     const chip = 'chip' in state ? state.chip : 'Board';
-    const name = nameOfKey(record.pending ?? runs(record));
+    const name = nameOfKey(settingsOwner(record));
     const doing =
       name === undefined
         ? { doing: 'is busy with its settings' }

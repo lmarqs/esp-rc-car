@@ -1,4 +1,3 @@
-import { runs, type BoardRecord } from '../../lib/board/record';
 import type { ManifestImage, SettingField } from '../../lib/flash/manifest';
 import type { SessionEvent, SessionState } from '../../lib/flash/session';
 import type { FieldErrors, SettingValues } from '../../lib/flash/settings';
@@ -60,14 +59,6 @@ const CHANGE_SETTINGS: ViewAction = { label: 'Change settings', event: 'changeSe
 
 const BUILD_IT_YOURSELF = '#run-it-on-your-board';
 
-/**
- * Whether the session works on `sketch`: the board is being written with it, or runs it. The session's settings belong
- * to the sketch it flashes or the board runs, so only that sketch's card shows them.
- */
-export function worksOn(record: BoardRecord, sketch: string): boolean {
-  return (record.pending ?? runs(record)) === sketch;
-}
-
 function imageLinks(images: readonly ManifestImage[], firmwareUrl: string): ViewLink[] {
   return images.flatMap((image) =>
     image.parts.map((part) => ({
@@ -113,7 +104,7 @@ function settingsView(state: Extract<SessionState, { kind: 'settings' }>, title:
 
 /**
  * Maps what the session is doing to what the card shows. `ownSketch` says whether the session works on the card's
- * sketch (see {@link worksOn}); the card shows the settings, and what the board runs, only for its own.
+ * sketch, its settings' owner; the card shows the settings, and what the board runs, only for its own.
  */
 export function viewFor(
   state: SessionState,

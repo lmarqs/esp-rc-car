@@ -45,6 +45,14 @@ export function runs(record: BoardRecord): string | undefined {
   return record.heard ?? record.flashed;
 }
 
+/**
+ * The key of the sketch the session works on: the one a page asked to flash, until the flash settles, or else the one
+ * the board runs. The session's settings are that sketch's.
+ */
+export function settingsOwner(record: BoardRecord): string | undefined {
+  return record.pending ?? runs(record);
+}
+
 /** The record after `event`. */
 export function recordBoard(record: BoardRecord, event: RecordEvent): BoardRecord {
   switch (event.kind) {

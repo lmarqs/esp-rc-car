@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EMPTY_RECORD, KEPT_LINES, recordBoard, runs, type BoardRecord } from '../../src/lib/board/record';
+import { EMPTY_RECORD, KEPT_LINES, recordBoard, runs, settingsOwner, type BoardRecord } from '../../src/lib/board/record';
 import { sketchOf } from '../../src/lib/flash/lines';
 import type { SessionState } from '../../src/lib/flash';
 
@@ -19,6 +19,14 @@ describe('the board record', () => {
     expect(runs({ lines: [], flashed: 'blink/simple' })).toBe('blink/simple');
     expect(runs({ lines: [], flashed: 'blink/simple', heard: 'blink/input' })).toBe('blink/input');
     expect(runs(EMPTY_RECORD)).toBeUndefined();
+  });
+
+  it('gives the settings to the sketch a flash writes until it settles, else to the one the board runs', () => {
+    expect(settingsOwner({ lines: [], pending: 'web-relay', heard: 'blink/simple' })).toBe('web-relay');
+    expect(settingsOwner({ lines: [], heard: 'web-relay' })).toBe('web-relay');
+    expect(settingsOwner({ lines: [], flashed: 'web-relay' })).toBe('web-relay');
+    expect(settingsOwner({ lines: [], heard: 'blink/simple', flashed: 'web-relay' })).toBe('blink/simple');
+    expect(settingsOwner(EMPTY_RECORD)).toBeUndefined();
   });
 
   it('hears the sketch a line names, and keeps the printed lines but not the blank or cfg ones', () => {
