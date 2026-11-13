@@ -1,3 +1,4 @@
+import { boardMessage, type BoardMessage } from '../../lib/board/connection';
 import { flashScene, type FlashScene } from '../../lib/board/flashScene';
 import type { PictureView, WatchRow } from '../../lib/workbench/board';
 import type { BoardModel } from '../../lib/board/models';
@@ -8,7 +9,6 @@ import type { Snapshot } from '../../lib/workbench/simulation';
 import { lineNumber } from '../../lib/workbench/source';
 import { emptyTrace, traceShape, traceTime, type TraceShape } from '../../lib/workbench/trace';
 import {
-  boardMessage,
   clockFace,
   liveClockFace,
   notSent,
@@ -16,7 +16,6 @@ import {
   serialRows,
   toolbar,
   waitingMessage,
-  type BoardMessage,
   type ClockFace,
   type SerialRow,
   type Toolbar,

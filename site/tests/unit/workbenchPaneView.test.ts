@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { linkView, paneMotion, paneView } from '../../src/components/workbench/paneView';
-import { boardMessage } from '../../src/components/workbench/view';
+import { boardMessage } from '../../src/lib/board/connection';
 import { boardModel } from '../../src/lib/board/models';
 import type { SessionState } from '../../src/lib/flash/session';
 import type { BlinkBoard } from '../../src/lib/workbench/blinkBoard';
