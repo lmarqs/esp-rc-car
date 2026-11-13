@@ -198,13 +198,14 @@ Board connection, and a panel for what happens between the computer and the boar
   flashes in one press, also from another page, with one request for the port: the connection opens the settings form of
   a sketch that has settings before it writes. From running, a sketch with settings that the board does not already run
   connects anew, so its card's settings form comes before the write.
-- The panel opens while the session works, waits in flash mode or on the board's settings, failed, is lost, or has no
-  image of the open sketch for the board, and closes when the session is idle or running. It draws the flash picture,
-  the computer, the cable and the board's chip with Find, Write and Restart under them, which marks where a failure
-  happened, with the action hanging above the cable; the hand hint, the BOOT button or the adapter's switch to PROG or
-  to UART; and the message, in a live region. The action is in the panel while the panel is open and in the bar
-  otherwise, so the board has one button at a time. While the panel is open, the bar names the state only, such as lost
-  the connection, and the panel alone says what to do.
+- The panel opens while the session works, waits in flash mode or on the board's settings, failed, has no image of the
+  open sketch for the board, or is running a board it lost or refused to flash; it closes while the session is idle or
+  runs a board that answers and refused nothing. It draws the flash picture, the computer, the cable and the board's
+  chip with Find, Write and Restart under them, which marks where a failure happened, with the action hanging above
+  the cable; the hand hint, the BOOT button or the adapter's switch to PROG or to UART; and the message, in a live
+  region. The action is in the panel while the panel is open and in the bar otherwise, so the board has one button at
+  a time. While the panel is open, the bar names the state only, such as lost the connection, and the panel alone says
+  what to do.
 - The bar's controls keep their room whether they show or not, so nothing moves as the action appears and goes, and
   they wrap to a row of their own below 840 px.
 
