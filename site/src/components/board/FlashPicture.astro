@@ -1,8 +1,8 @@
 ---
 /**
  * The visitor's desk during a flash: the computer, the cable and the board's chip, with the steps Find, Write and
- * Restart named under them. `paintFlashPicture` draws a `FlashScene` in it. The default slot hangs above the cable, tied
- * to it: the button that joins the computer to the board.
+ * Restart named under them. `paintFlashPicture` draws a `FlashScene` in it. The default slot sits above the cable: the
+ * button that joins the computer to the board.
  */
 const hasSlot = Astro.slots.has('default');
 ---
@@ -12,7 +12,6 @@ const hasSlot = Astro.slots.has('default');
     hasSlot && (
       <div class="slot">
         <slot />
-        <i class="stem" aria-hidden="true" />
       </div>
     )
   }
@@ -47,10 +46,8 @@ const hasSlot = Astro.slots.has('default');
 
 <style>
   .flash-picture { --computer: 56px; --chip: 62px; position: relative; display: grid; gap: 2px; }
-  /* Between the computer and the chip, above the cable's dip, with a stem down to the cable. */
+  /* Between the computer and the chip, above the cable's dip. */
   .slot { position: relative; z-index: 1; display: flex; justify-content: center; margin: 0 var(--chip) 4px var(--computer); }
-  .stem { position: absolute; top: 100%; left: 50%; width: 2.6px; height: 12px; margin-left: -1.3px; background: var(--ink); pointer-events: none; }
-  .stem::after { content: ""; position: absolute; bottom: -6px; left: 50%; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: var(--card); border: 2.6px solid var(--ink); box-sizing: border-box; }
   .wire { position: relative; display: grid; grid-template-columns: var(--computer) 1fr var(--chip); align-items: center; height: 48px; }
   .wire svg { width: 100%; height: 48px; display: block; overflow: visible; }
   .ink, .edge, .pins { stroke: var(--ink); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
@@ -71,12 +68,8 @@ const hasSlot = Astro.slots.has('default');
 
   .packets, .ping, .tick, .unknown, .percent { display: none; }
   [data-cable="loose"] .line { stroke: var(--faint); stroke-dasharray: 3 7; }
-  [data-cable="loose"] .stem { background: var(--faint); }
-  [data-cable="loose"] .stem::after { border-color: var(--faint); }
   [data-cable="ping"] .ping, [data-cable="packets"] .packets { display: inline; }
   [data-cable="broken"] .line { stroke: var(--coral); stroke-dasharray: 6 6; }
-  [data-cable="broken"] .stem { background: var(--coral); }
-  [data-cable="broken"] .stem::after { border-color: var(--coral); }
   [data-chip="faint"] .chip { opacity: .35; }
   [data-chip="unknown"] .edge { stroke-dasharray: 5 5; }
   [data-chip="unknown"] .pins { stroke: var(--faint); }
