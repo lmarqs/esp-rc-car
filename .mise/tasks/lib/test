@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#MISE description="Build and run the tests of the drivers in lib/ on this machine"
+# [MISE] description="Build and run the tests of the drivers in lib/ on this machine"
 """Each test/test_*.cpp is one program, linked with the lib/ sources behind the headers it includes."""
 
 import os
