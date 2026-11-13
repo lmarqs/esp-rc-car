@@ -9,5 +9,5 @@ package = false
 
 [tool.ruff]
 line-length = 120
-extend-include = [".mise/tasks/lib/test", ".mise/tasks/arduino/firmware"]
+extend-include = [".mise/tasks/lib/test", ".mise/tasks/arduino/firmware", ".mise/tasks/arduino/hexdump"]
 extend-exclude = [".arduino"]
