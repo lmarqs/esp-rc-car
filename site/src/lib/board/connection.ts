@@ -347,6 +347,16 @@ function barFor(
         return { shown: true, connected: false, chip: 'Your board', doing, ...NOTHING };
       }
       return noBoard(pick, open);
+    case 'noPort':
+      return { shown: true, connected: false, chip: 'Board', doing: 'is not chosen.', ...NOTHING };
+    case 'portBusy':
+      return { shown: true, connected: false, chip: 'Board', doing: 'is busy in another program.', ...NOTHING };
+    case 'noAnswer':
+      return { shown: true, connected: false, chip: 'Board', doing: 'is silent.', ...NOTHING };
+    case 'noDownload':
+      return { shown: true, connected: false, chip: 'Sketch', doing: 'is not downloaded.', ...NOTHING };
+    case 'dropped':
+      return { shown: true, connected: false, chip: 'Board', doing: 'dropped the connection.', ...NOTHING };
     default:
       return noBoard(pick, open);
   }

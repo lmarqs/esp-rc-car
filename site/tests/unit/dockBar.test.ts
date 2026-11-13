@@ -49,14 +49,23 @@ describe('the board dock', () => {
     });
   });
 
-  it('says only that no board is connected after a failure, whose panel says what to do', () => {
-    const failures: SessionState[] = [{ kind: 'noPort' }, { kind: 'dropped', pct: 30 }];
-    for (const state of failures) {
-      expect(dockView(state, EMPTY_RECORD, names, boardModel('esp01s')), state.kind).toMatchObject({
+  it('names what failed, whose panel says what to do', () => {
+    const failures: [SessionState, string, string][] = [
+      [{ kind: 'noPort' }, 'Board', 'is not chosen.'],
+      [{ kind: 'portBusy' }, 'Board', 'is busy in another program.'],
+      [{ kind: 'noAnswer' }, 'Board', 'is silent.'],
+      [{ kind: 'noDownload' }, 'Sketch', 'is not downloaded.'],
+      [{ kind: 'dropped', pct: 30 }, 'Board', 'dropped the connection.'],
+    ];
+    for (const [state, chip, doing] of failures) {
+      expect(dockView(state, EMPTY_RECORD, names, boardModel('esp01s')), state.kind).toEqual({
+        shown: true,
         connected: false,
-        chip: 'No board',
-        doing: 'yet.',
+        chip,
+        doing,
         disconnect: false,
+        restart: false,
+        canSend: false,
       });
     }
   });
