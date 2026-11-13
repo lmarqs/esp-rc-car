@@ -918,6 +918,13 @@ test.describe('the finish of the switch and the frame', () => {
     expect(button.x).toBeGreaterThan(cable.x);
     expect(button.x + button.width).toBeLessThan(cable.x + cable.width);
     expect(words.y).toBeGreaterThan(cable.y + cable.height);
+    // Each step's word sits centred under its part of the drawing: Find, Write and Restart.
+    const link = bench(page).locator('[data-board-link]');
+    for (const [part, step] of [['.computer', 0], ['.cable', 1], ['.chip', 2]] as const) {
+      const drawn = (await link.locator(part).boundingBox())!;
+      const word = (await link.locator('[data-flash-step]').nth(step).boundingBox())!;
+      expect(Math.abs(word.x + word.width / 2 - (drawn.x + drawn.width / 2)), part).toBeLessThan(2);
+    }
   });
 
   for (const width of [380, 1100]) {

@@ -95,7 +95,8 @@ const hasSlot = Astro.slots.has('default');
   [data-broken="chip"] .chip .edge { stroke: var(--coral); }
   [data-broken="chip"] .unknown { fill: var(--coral-text); }
 
-  .steps { display: grid; grid-template-columns: repeat(3, auto); justify-content: space-between; font-size: 12px; font-weight: 700; line-height: 1.5; color: var(--muted); white-space: nowrap; }
+  /* The wire's columns, so each step's word sits centred under the part it names, marked or not. */
+  .steps { display: grid; grid-template-columns: var(--computer) 1fr var(--chip); justify-items: center; font-size: 12px; font-weight: 700; line-height: 1.5; color: var(--muted); white-space: nowrap; }
   [data-mark="done"] { color: var(--green-text); }
   [data-mark="now"] { color: var(--ink); background: linear-gradient(transparent 60%, var(--yellow) 60%); }
   [data-mark="failed"] { color: var(--coral-text); }
