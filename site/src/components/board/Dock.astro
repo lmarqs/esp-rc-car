@@ -87,7 +87,7 @@ const manifest = readManifest();
     <span class="acts">
       {/* The meter takes the button's room while the button is in the panel. */}
       <span class="slot">
-        <ActionButton label="Connect board" data-dock-action="bar" data-off />
+        <ActionButton label="Connect board" ghost data-dock-action="bar" data-off />
         <span class="meter" data-dock-meter hidden>
           <span class="track" role="progressbar" aria-label="Flashing" aria-valuemin="0" aria-valuemax="100" data-dock-track>
             <i data-dock-fill></i>
@@ -97,11 +97,8 @@ const manifest = readManifest();
       </span>
       {/* Connect board and Disconnect never show together, so they share a room, at the button's width. */}
       <span class="slot ends">
-        <ActionButton label="Connect board" data-dock-action="connect" data-off />
-        <button type="button" data-dock-disconnect data-off>
-          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v5M4.6 4.2a5 5 0 1 0 6.8 0"></path></svg>
-          Disconnect
-        </button>
+        <ActionButton label="Connect board" ghost data-dock-action="connect" data-off />
+        <ActionButton label="Disconnect" icon="power" ghost data-dock-disconnect data-off />
       </span>
       <button
         type="button"
@@ -150,8 +147,8 @@ const manifest = readManifest();
      bar and the panel. */
   .acts { display: flex; flex: none; gap: 6px; margin-left: auto; align-items: center; justify-content: flex-end; min-height: 35px; }
   .acts [data-off] { visibility: hidden; }
-  .acts button, .head button { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-weight: 700; font-size: 12px; color: var(--on-ink); background: transparent; border: 1px solid var(--on-ink-edge); border-radius: 999px; padding: 3px 11px; cursor: pointer; white-space: nowrap; }
-  .acts button:hover, .head button:hover { border-color: var(--yellow); color: var(--yellow); }
+  .acts button:not(.action), .head button { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-weight: 700; font-size: 12px; color: var(--on-ink); background: transparent; border: 1px solid var(--on-ink-edge); border-radius: 999px; padding: 3px 11px; cursor: pointer; white-space: nowrap; }
+  .acts button:not(.action):hover, .head button:hover { border-color: var(--yellow); color: var(--yellow); }
   /* Raised like the monitor it opened, and no yellow, which means new or sent. */
   .acts button[aria-expanded="true"] { background: var(--ink-raised); border-color: var(--on-ink); color: var(--card); }
   .acts svg, .head svg { width: 12px; height: 12px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
