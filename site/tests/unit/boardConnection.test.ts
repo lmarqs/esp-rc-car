@@ -74,8 +74,8 @@ describe('boardMessage', () => {
     expect(boardMessage({ kind: 'noImage', chip: 'ESP8266', available: ['ESP32', 'ESP32-C3'] }, STEP, true)?.text).toBe(
       'This board is an ESP8266. blink/input has images for: ESP32, ESP32-C3. Connect an ESP32 or ESP32-C3, or pick another step.',
     );
-    expect(boardMessage({ kind: 'noImage', chip: 'ESP8266', available: [] }, STEP, true)?.text).toMatch(
-      /\. Pick another step\.$/,
+    expect(boardMessage({ kind: 'noImage', chip: 'ESP8266', available: [] }, STEP, true)?.text).toBe(
+      'This board is an ESP8266. blink/input has no image to flash from the browser. Pick another step.',
     );
   });
 
@@ -84,8 +84,8 @@ describe('boardMessage', () => {
     expect(boardMessage({ kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] }, project, true)?.text).toBe(
       'This board is an ESP8266. Omnidirectional robot has images for: ESP32. Connect an ESP32.',
     );
-    expect(boardMessage({ kind: 'noImage', chip: 'ESP8266', available: [] }, project, true)?.text).toMatch(
-      /\. Build and flash it from your computer instead\.$/,
+    expect(boardMessage({ kind: 'noImage', chip: 'ESP8266', available: [] }, project, true)?.text).toBe(
+      'This board is an ESP8266. Omnidirectional robot has no image to flash from the browser. Build and flash it from your computer instead.',
     );
     const refused: SessionState = { ...running, flashRefused: { key: 'omnidirectional', available: ['ESP32-C3'] } };
     expect(boardMessage(refused, project, true)?.text).toBe(

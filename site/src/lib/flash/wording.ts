@@ -45,7 +45,9 @@ export function found(chip: string): string {
 
 /** `title` names what has no image for the chip: a project or a step as the page names it, or else a sketch's key. */
 export function noImage(state: Extract<SessionState, { kind: 'noImage' }>, title: string): string {
-  return `This board is an ${state.chip}. ${title} has images for: ${state.available.join(', ')}.`;
+  const images =
+    state.available.length === 0 ? 'has no image to flash from the browser' : `has images for: ${state.available.join(', ')}`;
+  return `This board is an ${state.chip}. ${title} ${images}.`;
 }
 
 /**
