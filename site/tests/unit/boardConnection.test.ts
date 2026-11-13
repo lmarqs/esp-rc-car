@@ -115,6 +115,15 @@ describe('connectionView action', () => {
     });
   });
 
+  it('says Flashing… once Try again, which connects first, has the session write', () => {
+    expect(viewOf({ kind: 'flashing', chip: 'ESP32', pct: 10 }, { pressed: 'retry' }).action).toEqual({
+      label: 'Flashing…',
+      icon: 'again',
+      event: 'retry',
+      disabled: true,
+    });
+  });
+
   it('flashes the open sketch from a running board in one press, and offers nothing without a sketch', () => {
     expect(viewOf(running).action).toEqual({ label: 'Flash Blink · 3 input', icon: 'bolt', event: 'flash', disabled: false });
     expect(viewOf(running, { opened: undefined }).action).toBeUndefined();
