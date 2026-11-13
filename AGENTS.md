@@ -12,8 +12,8 @@ website: Astro 7 in `site/package.json`, Node 24 in `mise.toml`, pnpm 12 in `mis
 ## Quick reference
 
 - Install or add a dependency: `mise install && mise run '*:setup'`, including `node:setup`; a Python package:
-  `uv add <package>` (unverified); a core or Arduino library: add it to a profile in the sketch's `sketch.yaml`
-  (unverified); a website package: `pnpm --filter @robomania/site add <package>`
+  `uv add <package>`; a core or Arduino library: add it to a profile in the sketch's `sketch.yaml`;
+  a website package: `pnpm --filter @robomania/site add <package>`
 - Run: `mise run arduino:run <sketch> --port <port>` (unverified)
 - Flash a compiled sketch: `mise run arduino:upload <sketch> --port <port>`
 - Build: `mise run arduino:compile sketches/<name>`, or `sketches/<project>/<variant>`; every sketch:
@@ -39,7 +39,7 @@ website: Astro 7 in `site/package.json`, Node 24 in `mise.toml`, pnpm 12 in `mis
 - Run the Quick check before moving on. A change is done when the Done check passes.
 - Report each check's result, or that it did not run.
 - Update this file in the change that alters a command, path or rule it names.
-- Keep this file under 800 words; past 1,200, move a section into a skill or memory file before adding. All
+- Keep this file under 800 words; past 1,200, move a section into a skill or `.agents/memory/` file before adding. All
   `AGENTS.md` files together stay under 16 KiB.
 
 **Never**
@@ -75,7 +75,6 @@ Enforced by `.agents/permission/policy.yaml`. A refusal is the rule working.
 - Follow the standards: [C++ and Python](docs/standards/README.md), website [UX](docs/standards/website-ux.md),
   [sources](docs/standards/website-sources.md).
 - Change only what the task needs, matching the surrounding code.
-- Format with `.clang-format`.
 - Commits: one change per commit, pushed straight to `main`; no pull requests
 - Deploy: a push to `main` releases the website on a `#site-release` commit message, and the library on
   `#lib-release` after raising `version` in `lib/library.properties`; the library goes first: the
