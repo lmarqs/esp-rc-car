@@ -252,9 +252,9 @@ const manifest = readManifest();
     select.addEventListener('change', () => {
       pick.choose(select.value || undefined);
     });
+    // The connection paints the dock on a new pick, since its hints follow the pick.
     pick.subscribe(() => {
       select.value = pick.model?.id ?? '';
-      render();
     });
 
     /** Once a board answers, its chip is certain: the pick follows it. */
