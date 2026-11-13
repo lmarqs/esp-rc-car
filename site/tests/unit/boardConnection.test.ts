@@ -476,6 +476,32 @@ describe('createConnection', () => {
     expect(fake.session.state).toEqual(running);
   });
 
+  it('asks for the settings first when Try again flashes a sketch with settings opened after the flash failed', async () => {
+    const field = { key: 'ap_password', label: 'Hotspot password', type: 'password', default: 'web-relay-1234' } as const;
+    const relay = { manifest: { sketches: { 'web-relay': { images: [], settings: [field] } } }, sketch: 'web-relay', baud: 115200 };
+    const running: SessionState = { kind: 'running', chip: 'ESP8266', output: [] };
+    const { fake, board, page, connection } = connectionOver((event, enter) => {
+      if (event.type === 'connect' && event.reset) enter(running);
+      if (event.type === 'flash') {
+        enter({ kind: 'flashing', chip: 'ESP8266', pct: 40 });
+        enter({ kind: 'dropped', pct: 40 });
+      }
+    });
+    fake.enter(running);
+    await connection.press();
+    page.abort();
+    board.open(relay, 'Web-controlled relay', new AbortController().signal);
+    expect(connection.view.action).toMatchObject({ label: 'Try again', event: 'retry' });
+
+    await connection.press();
+
+    expect(fake.sent).toEqual([
+      { type: 'flash', key: 'blink/input' },
+      { type: 'connect', reset: true },
+      { type: 'connect' },
+    ]);
+  });
+
   it('tries only the connection again when a connection failed', async () => {
     const { fake, connection } = connectionOver((event, enter) => {
       if (event.type === 'connect') enter({ kind: 'noPort' });

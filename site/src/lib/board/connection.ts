@@ -275,17 +275,24 @@ export function createConnection(
     for (const listener of [...listeners]) listener();
   }
 
-  function viewNow(): ConnectionView {
+  /** The sketch the page has open, as the board's button names it. */
+  function openedNow(): OpenedSketch | undefined {
     const opened = board.opened;
-    return connectionView({
-      state: board.session.state,
-      record: board.record,
-      opened: opened && {
+    return (
+      opened && {
         key: opened.use.sketch,
         title: opened.title,
         step: opened.step === true,
         settings: settingsOf(opened.use.manifest, opened.use.sketch, opened.use.baud).length > 0,
-      },
+      }
+    );
+  }
+
+  function viewNow(): ConnectionView {
+    return connectionView({
+      state: board.session.state,
+      record: board.record,
+      opened: openedNow(),
       pick: pick.model,
       ...(pressed !== undefined && { pressed }),
       ...(tried !== undefined && { tried }),
@@ -332,11 +339,14 @@ export function createConnection(
       case 'flash':
         if (opened !== undefined) await board.send({ type: 'flash', key: opened.use.sketch });
         return;
-      case 'retry':
+      case 'retry': {
         await board.send(restartConnection(pick.model));
-        if (board.session.state.kind === 'running' && !board.session.state.lost && board.opened !== undefined) {
-          await start('flash');
+        // The sketch open now may be another page's, with settings: it is flashed as from any running board.
+        const now = openedNow();
+        if (board.session.state.kind === 'running' && !board.session.state.lost && now !== undefined) {
+          await start(flashFromRunning(now, board.record));
         }
+      }
     }
   }
 
