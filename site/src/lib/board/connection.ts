@@ -69,18 +69,38 @@ export function boardMessage(
 /** What a press of the board's button asks of the session. */
 export type ConnectionEvent = 'connect' | 'flash' | 'retry';
 
-/** The board's one button: what it says, which icon it wears, what it sends and whether it can be pressed. */
-export interface ConnectionAction {
-  /** The button's word. */
-  readonly label: string;
-  readonly icon: 'plug' | 'bolt' | 'again';
-  /**
-   * `connect` connects to a board; `flash` flashes the opened sketch onto the connected one; `retry` does both, after a
-   * flash failed and the session let go of the port.
-   */
-  readonly event: ConnectionEvent;
-  /** Set while the session works on the last press. */
-  readonly disabled: boolean;
+/**
+ * The board's one button: what it says, and, unless the session works, which icon it wears and what it sends. While
+ * the session works, it says what the session does and cannot be pressed.
+ */
+export type ConnectionAction =
+  | {
+      /** The button's word. */
+      readonly label: string;
+      readonly icon: 'plug' | 'bolt' | 'again';
+      /**
+       * `connect` connects to a board; `flash` flashes the opened sketch onto the connected one; `retry` does both,
+       * after a flash failed and the session let go of the port.
+       */
+      readonly event: ConnectionEvent;
+      readonly disabled: false;
+    }
+  | { readonly label: string; readonly disabled: true };
+
+/** What the session does while it is busy, in a word, such as `Flashing…`; `undefined` while it is not busy. */
+export function busyWord(state: SessionState): string | undefined {
+  switch (state.kind) {
+    case 'connecting':
+      return 'Connecting…';
+    case 'flashing':
+      return 'Flashing…';
+    case 'settings':
+    case 'reading':
+    case 'applying':
+      return 'Setting up…';
+    default:
+      return undefined;
+  }
 }
 
 /** What {@link connectionView} reads: the session, what the site knows of the board and what the visitor has done. */
@@ -91,10 +111,8 @@ export interface ConnectionInput {
   readonly opened: OpenedSketch | undefined;
   /** The board the visitor picked, which the hints are for. */
   readonly pick: BoardModel | undefined;
-  /** What the visitor pressed while the session works on it, which names that work. */
-  readonly pressed?: ConnectionEvent;
-  /** The press whose work the session last finished, as Try again repeats it after a failure. */
-  readonly tried?: ConnectionEvent;
+  /** The visitor's last press of the button, which Try again repeats after a failure. */
+  readonly lastPress: ConnectionEvent | undefined;
   /** The site's sketches by key, which name the opened sketch and the one whose settings the session waits on. */
   readonly names: SketchNames;
 }
@@ -138,12 +156,6 @@ export interface ConnectionView {
 
 /** The failures a press may get past: the visitor fixes what the message says, then presses again. */
 const RETRYABLE: ReadonlySet<SessionState['kind']> = new Set(['noPort', 'portBusy', 'noAnswer', 'noDownload', 'dropped']);
-
-const ICONS: Readonly<Record<ConnectionEvent, ConnectionAction['icon']>> = {
-  connect: 'plug',
-  flash: 'bolt',
-  retry: 'again',
-};
 
 /** The session's refusal to flash `opened`, which the dock shows only while the page still has that sketch open. */
 function showsRefusal(state: SessionState, opened: OpenedSketch | undefined): boolean {
@@ -205,8 +217,7 @@ function actionFor(
   record: BoardRecord,
   opened: OpenedSketch | undefined,
   title: string,
-  pressed: ConnectionEvent | undefined,
-  tried: ConnectionEvent | undefined,
+  lastPress: ConnectionEvent | undefined,
 ): ConnectionAction | undefined {
   const flash = (event: ConnectionEvent): ConnectionAction | undefined =>
     opened === undefined || opened.imageless
@@ -216,16 +227,11 @@ function actionFor(
   if (state.kind === 'unsupported') return undefined;
   if (RETRYABLE.has(state.kind)) {
     // A flash that failed is tried again in one press: the connection, then the flash.
-    const event = tried === 'flash' || tried === 'retry' ? 'retry' : 'connect';
+    const event = lastPress === 'flash' || lastPress === 'retry' ? 'retry' : 'connect';
     return { label: 'Try again', icon: 'again', event, disabled: false };
   }
-  if (isBusy(state)) {
-    // A press made elsewhere leaves `pressed` unset: what the session does names it.
-    const event = pressed ?? (state.kind === 'flashing' ? 'flash' : 'connect');
-    // A connection with a sketch open, and Try again, flash once connected: once the session writes, the button says so.
-    const flashing = event === 'flash' || state.kind === 'flashing';
-    return { label: flashing ? 'Flashing…' : 'Connecting…', icon: ICONS[event], event, disabled: true };
-  }
+  const busy = busyWord(state);
+  if (busy !== undefined) return { label: busy, disabled: true };
   switch (state.kind) {
     case 'idle':
       return flash('connect') ?? connect('Connect board');
@@ -321,15 +327,14 @@ function barFor(
 /**
  * The board dock for the session's `state`: its bar, its one button, and what its panel says and draws.
  * `record` is what the site knows of the board; `opened` the sketch the page has open, if any; `pick` the board the
- * visitor picked. `pressed` and `tried` are the last press made while the session worked and the press whose work
- * ended in the session's failure, which Try again repeats.
+ * visitor picked; `lastPress` the visitor's last press, which Try again repeats.
  */
-export function connectionView({ state, record, opened, pick, pressed, tried, names }: ConnectionInput): ConnectionView {
+export function connectionView({ state, record, opened, pick, lastPress, names }: ConnectionInput): ConnectionView {
   const refusal = showsRefusal(state, opened);
   const name = opened && nameOf(names, opened.use.sketch);
   const sketch = { name: name?.title ?? record.pending ?? 'This sketch', step: name?.step === true };
   const panel = boardMessage(state, sketch, refusal, pick) ?? settingsMessage(state, record, opened, names);
-  const action = actionFor(state, record, opened, sketch.name, pressed, tried);
+  const action = actionFor(state, record, opened, sketch.name, lastPress);
   return {
     bar: barFor(state, record, names, pick, panel !== undefined),
     ...(action !== undefined && { action }),
@@ -354,14 +359,11 @@ export interface Connection {
 
 /**
  * The connection of `board`, the site's, for the board the visitor picked, `pick`, with `names` naming the site's
- * sketches. It remembers what the visitor pressed while the session works on it, and the press whose work last ended,
- * as Try again repeats it.
+ * sketches. It remembers the visitor's last press, as Try again repeats it.
  */
 export function createConnection(board: Board, pick: BoardPick, names: SketchNames): Connection {
   const listeners = new Set<() => void>();
-  let state = board.session.state;
-  let pressed: ConnectionEvent | undefined;
-  let tried: ConnectionEvent | undefined;
+  let lastPress: ConnectionEvent | undefined;
 
   function notify() {
     for (const listener of [...listeners]) listener();
@@ -373,8 +375,7 @@ export function createConnection(board: Board, pick: BoardPick, names: SketchNam
       record: board.record,
       opened: board.opened,
       pick: pick.model,
-      ...(pressed !== undefined && { pressed }),
-      ...(tried !== undefined && { tried }),
+      lastPress,
       names,
     });
   }
@@ -392,23 +393,12 @@ export function createConnection(board: Board, pick: BoardPick, names: SketchNam
     });
   }
 
-  board.subscribe(() => {
-    const next = board.session.state;
-    if (next !== state) {
-      const busy = isBusy(next);
-      // Once the session is done with the press, a press elsewhere, such as the workbench's, names its work.
-      tried = busy || !isBusy(state) ? tried : pressed;
-      pressed = busy ? pressed : undefined;
-      state = next;
-    }
-    notify();
-  });
+  board.subscribe(notify);
   pick.subscribe(notify);
 
   /** Starts `event`'s work; {@link Board.send} first points the session at the opened sketch. */
   async function start(event: ConnectionEvent): Promise<void> {
-    pressed = event;
-    notify();
+    lastPress = event;
     const opened = board.opened;
     switch (event) {
       case 'connect':

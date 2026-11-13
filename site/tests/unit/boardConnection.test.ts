@@ -134,7 +134,7 @@ const lost: SessionState = { ...running, lost: true };
 
 /** The dock's view for `state`, with a sketch open unless `opened` says otherwise. */
 function viewOf(state: SessionState, rest: Partial<ConnectionInput> = {}) {
-  return connectionView({ state, record: EMPTY_RECORD, opened: sketch, pick: undefined, names: NAMES, ...rest });
+  return connectionView({ state, record: EMPTY_RECORD, opened: sketch, pick: undefined, lastPress: undefined, names: NAMES, ...rest });
 }
 
 describe('connectionView action', () => {
@@ -153,36 +153,21 @@ describe('connectionView action', () => {
     });
   });
 
-  it('is disabled while the session works, named by the press or else by what the session does', () => {
-    const connecting = { label: 'Connecting…', icon: 'plug', event: 'connect', disabled: true };
-    const flashing = { label: 'Flashing…', icon: 'bolt', event: 'flash', disabled: true };
-    for (const opened of [sketch, undefined]) {
-      expect(viewOf({ kind: 'connecting' }, { opened }).action).toEqual(connecting);
-      expect(viewOf({ kind: 'flashing', chip: 'ESP32', pct: 10 }, { opened }).action).toEqual(flashing);
-      expect(viewOf({ kind: 'reading', chip: 'ESP32' }, { opened }).action).toEqual(connecting);
-      expect(viewOf({ kind: 'applying', chip: 'ESP32' }, { opened }).action).toEqual(connecting);
-      expect(viewOf({ kind: 'settings', chip: 'ESP32', opened: {} }, { opened }).action).toEqual(connecting);
+  it('is disabled while the session works, named by what the session does, whatever was pressed', () => {
+    const busy: [SessionState, string][] = [
+      [{ kind: 'connecting' }, 'Connecting…'],
+      [{ kind: 'flashing', chip: 'ESP32', pct: 10 }, 'Flashing…'],
+      [{ kind: 'settings', chip: 'ESP32', opened: {} }, 'Setting up…'],
+      [{ kind: 'reading', chip: 'ESP32' }, 'Setting up…'],
+      [{ kind: 'applying', chip: 'ESP32' }, 'Setting up…'],
+    ];
+    for (const [state, label] of busy) {
+      for (const opened of [sketch, undefined]) {
+        for (const lastPress of [undefined, 'connect', 'flash', 'retry'] as const) {
+          expect(viewOf(state, { opened, lastPress }).action, state.kind).toEqual({ label, disabled: true });
+        }
+      }
     }
-    expect(viewOf({ kind: 'connecting' }, { pressed: 'flash' }).action).toEqual(flashing);
-    expect(viewOf({ kind: 'flashing', chip: 'ESP32', pct: 10 }, { pressed: 'connect' }).action).toEqual({
-      ...flashing,
-      icon: 'plug',
-      event: 'connect',
-    });
-    expect(viewOf({ kind: 'connecting' }, { pressed: 'retry' }).action).toEqual({
-      ...connecting,
-      icon: 'again',
-      event: 'retry',
-    });
-  });
-
-  it('says Flashing… once Try again, which connects first, has the session write, as a connection that flashes does', () => {
-    expect(viewOf({ kind: 'flashing', chip: 'ESP32', pct: 10 }, { pressed: 'retry' }).action).toEqual({
-      label: 'Flashing…',
-      icon: 'again',
-      event: 'retry',
-      disabled: true,
-    });
   });
 
   it('flashes the open sketch from a running board in one press, and offers nothing without a sketch', () => {
@@ -209,8 +194,8 @@ describe('connectionView action', () => {
       event: 'connect',
       disabled: false,
     });
-    expect(viewOf(running, { opened: withSettings, record: { lines: [], heard: 'blink/input' } }).action?.event).toBe('flash');
-    expect(viewOf(running, { opened: withSettings, record: { lines: [], flashed: 'blink/input' } }).action?.event).toBe('flash');
+    expect(viewOf(running, { opened: withSettings, record: { lines: [], heard: 'blink/input' } }).action).toMatchObject({ event: 'flash' });
+    expect(viewOf(running, { opened: withSettings, record: { lines: [], flashed: 'blink/input' } }).action).toMatchObject({ event: 'flash' });
   });
 
   it('connects again from flash mode and from a lost board, with a sketch open or not', () => {
@@ -231,7 +216,7 @@ describe('connectionView action', () => {
     ];
     for (const state of failures) {
       for (const opened of [sketch, undefined]) {
-        const press = (tried?: 'connect' | 'flash' | 'retry') => viewOf(state, { opened, tried }).action;
+        const press = (lastPress?: 'connect' | 'flash' | 'retry') => viewOf(state, { opened, lastPress }).action;
         const again = { label: 'Try again', icon: 'again', disabled: false };
         expect(press()).toEqual({ ...again, event: 'connect' });
         expect(press('connect')).toEqual({ ...again, event: 'connect' });
@@ -340,7 +325,7 @@ describe('connectionView panel message', () => {
       text: 'This board is an ESP32. Blink · 2 input has images for: ESP32-C3. Connect an ESP32-C3, or pick another step.',
       notice: true,
     });
-    expect(shown.action?.event).toBe('flash');
+    expect(shown.action).toMatchObject({ event: 'flash' });
 
     for (const opened of [opening('blink/timer'), undefined]) {
       const dropped = viewOf(refused, { opened });
@@ -411,7 +396,7 @@ describe('createConnection', () => {
 
     expect(fake.sent).toEqual([{ type: 'connect' }]);
     expect(fake.configured).toEqual([use]);
-    expect(connection.view.action).toMatchObject({ event: 'connect', disabled: true });
+    expect(connection.view.action).toEqual({ label: 'Flashing…', disabled: true });
   });
 
   it('with no sketch open, restarts the picked board to read it, and flashes none', async () => {
@@ -546,7 +531,19 @@ describe('createConnection', () => {
     const { fake, connection } = connectionOver(() => {});
     fake.enter({ kind: 'running', chip: 'ESP32', output: [] });
     fake.enter({ kind: 'flashing', chip: 'ESP32', pct: 10 });
-    expect(connection.view.action).toMatchObject({ label: 'Flashing…', event: 'flash' });
+    expect(connection.view.action).toEqual({ label: 'Flashing…', disabled: true });
+  });
+
+  it('says Connecting… while a flash from a running board connects to its bootloader, as the workbench tag does', async () => {
+    const { fake, connection } = connectionOver((event, enter) => {
+      if (event.type === 'flash') enter({ kind: 'connecting' });
+    });
+    fake.enter({ kind: 'running', chip: 'ESP32', output: [] });
+
+    await connection.press();
+
+    expect(fake.sent).toEqual([{ type: 'flash', key: 'blink/input' }]);
+    expect(connection.view.action).toEqual({ label: 'Connecting…', disabled: true });
   });
 
   it('disconnects a running board', async () => {

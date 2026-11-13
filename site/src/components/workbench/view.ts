@@ -4,7 +4,8 @@ import type { WatchRow } from '../../lib/workbench/board';
 import type { OutputLine, RunnerView, RunStatus } from '../../lib/workbench/simulator';
 import { sketchSourcePath } from '../../lib/workbench/source';
 import type { SessionState } from '../../lib/flash';
-import type { BoardStatus, PaneMode } from '../../lib/workbench/link';
+import { busyWord } from '../../lib/board/connection';
+import { isConnected, type BoardStatus, type PaneMode } from '../../lib/workbench/link';
 import type { SliderShortcut } from '../../lib/workbench/step';
 
 /** How many lines of serial output the terminal shows, the newest at the bottom. */
@@ -244,14 +245,15 @@ export function paneTag(
     case 'live':
       return { word: 'Live', title: 'Drawn from what your board prints' };
     case 'waiting':
-      return { word: 'My board', title: busyTitle(session) ?? waitingTitle(status, board) };
+      return { word: 'My board', title: (session && busyWord(session)) ?? waitingTitle(status, board) };
   }
 }
 
-function busyTitle(session: SessionState | undefined): string | undefined {
-  if (session?.kind === 'connecting') return 'Connecting…';
-  if (session?.kind === 'flashing') return 'Flashing…';
-  return undefined;
+/** What the switch's My board half says of the board, as its dot shows it: what the session does, or whether it reads one. */
+export function dotTitle(session: SessionState): string {
+  const busy = busyWord(session);
+  if (busy !== undefined) return `My board: ${busy.toLowerCase()}`;
+  return isConnected(session) ? 'My board: connected' : 'My board: not connected';
 }
 
 function waitingTitle(status: BoardStatus, board: BoardModel | undefined): string {

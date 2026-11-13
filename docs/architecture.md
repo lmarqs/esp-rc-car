@@ -179,8 +179,9 @@ The dock is the one surface where the visitor connects, flashes and retries. It 
 Board connection, and a panel for what happens between the computer and the board:
 
 - The action says what a press does: Connect board, or Connect again once the board is lost or left in flash mode;
-  Flash and the open sketch's title when a page has a sketch open; Try again after a failed connect or flash; and
-  Connecting… or Flashing…, which cannot be pressed, while the session works. A sketch with no image for the board
+  Flash and the open sketch's title when a page has a sketch open; Try again after a failed connect or flash; and,
+  while the session works, what it does, Connecting…, Flashing… or Setting up… for the settings, which cannot be
+  pressed and which the workbench's tag and the switch's dot say in the same words. A sketch with no image for the board
   opens the panel with its message. The action is then Connect board after a connect, and stays Flash and the sketch's
   title after a flash refused over a running board. The sketch is the one the visitor has open: the workbench's
   selected step, the project page's card, or the Flash page's pick, each opened with `board.open` until its page goes.
@@ -219,8 +220,8 @@ to a step:
 - When the key is another step's or another sketch's, the tab of the step it runs is marked, and under My board the
   pane waits.
 - Waiting, the pane shows the sketch only: the picture keeps its place, dimmed, drawn as the board starts, such as an
-  unlit LED or a servo at an unknown angle; each watch value reads `…`, and the terminal is inert. The frame's tag says why, as Not connected, Connecting…, Flashing…, what the
-  board runs, or that it has not named its sketch. The pane has the same layout and height in simulator, live and
+  unlit LED or a servo at an unknown angle; each watch value reads `…`, and the terminal is inert. The frame's tag says why, as Not connected, Connecting…, Flashing…, Setting up…,
+  what the board runs, or that it has not named its sketch. The pane has the same layout and height in simulator, live and
   waiting modes; the connecting, the flashing and the failures are the dock's.
 - Pause, Step or Restart outside the simulator hands the pane to a fresh simulator with the port still open, and
   choosing My board brings the pane back to the board.

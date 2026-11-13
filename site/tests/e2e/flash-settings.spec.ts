@@ -39,6 +39,9 @@ test.describe('a project whose sketch has settings', () => {
     await expect(card(page).getByRole('button', { name: 'Flash with these settings' })).toBeVisible();
     await expect(card(page).getByRole('button', { name: 'Use the defaults' })).toBeVisible();
     await expect(card(page).locator('[data-form-help]')).toHaveText(KEEPS);
+    // The dock's button says what the session does while the form waits, which is no connecting.
+    await expect(dockAction(page)).toHaveAccessibleName('Setting up…');
+    await expect(dockAction(page)).toHaveAttribute('aria-disabled', 'true');
     expect(await fakeFlasher.calls()).toEqual(['connect']);
   });
 

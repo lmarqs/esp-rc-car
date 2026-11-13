@@ -150,7 +150,7 @@ describe('linkView', () => {
       mode: 'simulator',
       reachable: true,
       dot: 'off',
-      flashing: false,
+      dotTitle: 'My board: not connected',
       onBoard: undefined,
     });
   });
@@ -195,7 +195,7 @@ describe('linkView', () => {
     expect(linkView(blink, pane(...live, { kind: 'session', state: flashing }))).toMatchObject({
       mode: 'waiting',
       dot: 'busy',
-      flashing: true,
+      dotTitle: 'My board: flashing…',
       tag: { word: 'My board', title: 'Flashing…' },
     });
   });

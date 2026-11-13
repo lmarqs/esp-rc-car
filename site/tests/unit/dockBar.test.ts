@@ -7,7 +7,7 @@ import type { SessionState } from '../../src/lib/flash';
 
 /** The dock's bar for `state` and `record`, with no sketch open. */
 function dockView(state: SessionState, record: BoardRecord, names: SketchNames, pick?: BoardModel) {
-  return connectionView({ state, record, opened: undefined, pick, names }).bar;
+  return connectionView({ state, record, opened: undefined, pick, lastPress: undefined, names }).bar;
 }
 
 const names = { 'blink/input': { title: 'Blink · 2 input', path: '/robomania/projects/blink/#input', step: true } };
@@ -183,7 +183,8 @@ describe('the board dock beside its open panel', () => {
       { kind: 'flashing', chip: 'ESP32', pct: 40 },
     ];
     for (const state of open) {
-      const view = connectionView({ state, record: EMPTY_RECORD, opened: undefined, pick: boardModel('esp01s'), names });
+      const pick = boardModel('esp01s');
+      const view = connectionView({ state, record: EMPTY_RECORD, opened: undefined, pick, lastPress: undefined, names });
       expect(view.panel, state.kind).toBeDefined();
       expect(view.bar.doing, state.kind).not.toMatch(/\.\s/);
       expect(view.panel!.text, state.kind).not.toContain(view.bar.doing);

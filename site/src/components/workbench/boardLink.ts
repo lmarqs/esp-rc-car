@@ -8,13 +8,6 @@ export interface BoardLinkHandlers {
   board(): void;
 }
 
-const DOT_TITLES: Readonly<Record<LinkView['dot'], string>> = {
-  off: 'My board: not connected',
-  busy: 'My board: connecting…',
-  on: 'My board: connected',
-};
-const FLASHING_TITLE = 'My board: flashing…';
-
 /** The switch and the board pane's frame in `root`: writes what `linkView` says. */
 export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
   const simulatorButton = root.querySelector<HTMLButtonElement>('[data-pane-simulator]')!;
@@ -37,7 +30,7 @@ export function mountBoardLink(root: HTMLElement, handlers: BoardLinkHandlers) {
       if (boardButton !== null && dot !== null) {
         boardButton.hidden = !view.reachable;
         boardButton.setAttribute('aria-pressed', String(view.chosen === 'board'));
-        boardButton.title = view.dot === 'busy' && view.flashing ? FLASHING_TITLE : DOT_TITLES[view.dot];
+        boardButton.title = view.dotTitle;
         dot.dataset.link = view.dot;
       }
 

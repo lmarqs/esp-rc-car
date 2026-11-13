@@ -8,6 +8,7 @@ import { lineNumber } from '../../lib/workbench/source';
 import { emptyTrace, traceShape, traceTime, type TraceShape } from '../../lib/workbench/trace';
 import {
   clockFace,
+  dotTitle,
   liveClockFace,
   notSent,
   paneTag,
@@ -143,8 +144,8 @@ export interface LinkView {
   readonly reachable: boolean;
   /** The dot on the switch's My board half. */
   readonly dot: 'off' | 'busy' | 'on';
-  /** Whether the session writes the board, which the busy dot names. */
-  readonly flashing: boolean;
+  /** What the switch's My board half says of the board in its title, as its dot shows it. */
+  readonly dotTitle: string;
   /** The key of the step the board runs, which the rail marks; absent when the board runs none of them. */
   readonly onBoard: string | undefined;
 }
@@ -160,7 +161,7 @@ export function linkView<B>(project: PaneProject<B>, pane: PaneState<B>, board?:
     mode,
     reachable: session.kind !== 'unsupported',
     dot: boardDot(session),
-    flashing: session.kind === 'flashing',
+    dotTitle: dotTitle(session),
     onBoard: status.kind === 'live' || status.kind === 'step' ? pane.heard : undefined,
   };
 }
