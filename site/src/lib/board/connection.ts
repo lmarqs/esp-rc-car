@@ -131,13 +131,6 @@ const ICONS: Readonly<Record<ConnectionEvent, ConnectionAction['icon']>> = {
   retry: 'again',
 };
 
-/** What to do when a board on a flash-switch adapter runs a sketch that has not named itself, which its reset button fixes. */
-function unnamedOnSwitch(opened: OpenedSketch | undefined): string {
-  return opened === undefined
-    ? 'Your board has not named its sketch. Press reset on its adapter to name it.'
-    : `Your board has not named its sketch. Press reset on its adapter, or flash ${opened.title} to use it here.`;
-}
-
 /** The session's refusal to flash `opened`, which the dock shows only while the page still has that sketch open. */
 function showsRefusal(state: SessionState, opened: OpenedSketch | undefined): boolean {
   return state.kind === 'running' && state.flashRefused !== undefined && state.flashRefused.key === opened?.key;
@@ -237,12 +230,7 @@ function actionFor(
 export function connectionView({ state, record, opened, pick, pressed, tried, names = {} }: ConnectionInput): ConnectionView {
   const refusal = showsRefusal(state, opened);
   const sketch = { name: opened?.title ?? record.pending ?? 'This sketch', step: opened?.step === true };
-  const named = boardMessage(state, sketch, refusal, pick);
-  const unnamed =
-    state.kind === 'running' && !state.lost && runs(record) === undefined && pick?.flashSwitch === true
-      ? ({ text: unnamedOnSwitch(opened), notice: false } satisfies BoardMessage)
-      : undefined;
-  const message = named ?? settingsMessage(state, record, opened, names) ?? unnamed;
+  const message = boardMessage(state, sketch, refusal, pick) ?? settingsMessage(state, record, opened, names);
   const action = actionFor(state, record, opened, pressed, tried);
   const lost = state.kind === 'running' && state.lost === true;
   const open = isBusy(state) || state.kind === 'flashMode' || FAILED.has(state.kind) || lost || refusal;

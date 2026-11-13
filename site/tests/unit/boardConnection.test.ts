@@ -259,20 +259,10 @@ describe('connectionView message', () => {
     expect(viewOf({ kind: 'unsupported' }).message).toBeUndefined();
   });
 
-  it('asks to press reset on an adapter whose board runs a sketch that has not named itself', () => {
-    expect(viewOf(running, { pick: esp01s }).message).toEqual({
-      text: 'Your board has not named its sketch. Press reset on its adapter, or flash Blink · 3 input to use it here.',
-      notice: false,
-    });
-    expect(viewOf(running, { pick: esp01s, opened: undefined }).message).toEqual({
-      text: 'Your board has not named its sketch. Press reset on its adapter to name it.',
-      notice: false,
-    });
-  });
-
-  it('leaves a board that has named its sketch, or whose adapter has no switch, unremarked', () => {
+  it('leaves a running board unremarked, whatever the adapter, since the bar and the pane say what it runs', () => {
+    expect(viewOf(running, { pick: esp01s }).message).toBeUndefined();
+    expect(viewOf(running, { pick: esp01s, opened: undefined }).message).toBeUndefined();
     expect(viewOf(running, { pick: esp01s, record: { lines: [], heard: 'blink/input' } }).message).toBeUndefined();
-    expect(viewOf(running, { pick: esp01s, record: { lines: [], flashed: 'blink/input' } }).message).toBeUndefined();
     expect(viewOf(running, { pick: boardModel('esp32') }).message).toBeUndefined();
   });
 
