@@ -446,6 +446,12 @@ test.describe('the board dock panel', () => {
     await expect(panel(page).getByRole('button', { name: 'Connect again' })).toBeVisible();
     // The bar names the state; what to do is the panel's alone.
     await expect(bar(page).locator('[data-dock-status]')).toHaveText('ESP32 lost the connection');
+
+    await panel(page).getByRole('button', { name: 'Connect again' }).click();
+
+    // Connect again reads what the board holds: only Flash writes it.
+    await expect(dock(page)).toContainText('ESP32 is running Blink · 1 simple');
+    expect((await fakeFlasher.calls()).filter((call) => call === 'load')).toHaveLength(1);
   });
 
   test('names the chips the open sketch has images for when the board has none, until another step is opened', async ({

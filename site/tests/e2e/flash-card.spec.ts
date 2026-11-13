@@ -101,8 +101,11 @@ test.describe('the Running step', () => {
     expect((await fakeFlasher.calls()).at(-1)).toBe('disconnect');
   });
 
-  test('points at the board bar when the port is lost, and the dock flashes once more', async ({ page, fakeFlasher }) => {
-    await fakeFlasher.install({ lines: ['HIGH'], monitorEnds: true });
+  test('points at the board bar when the port is lost, and the dock connects again without flashing', async ({
+    page,
+    fakeFlasher,
+  }) => {
+    await fakeFlasher.install({ lines: ['sketch omnidirectional', 'HIGH'], monitorEnds: true });
     await page.goto('/robomania/flash/#omnidirectional');
 
     await dockAction(page).click();
@@ -113,11 +116,13 @@ test.describe('the Running step', () => {
 
     await dockPanel(page).getByRole('button', { name: 'Connect again' }).click();
 
+    // The board restarts into what it holds and is read: only the dock's Flash writes it.
+    await expect(dock(page)).toContainText('ESP32 is running Omnidirectional robot');
     await expect(message(page)).toHaveText(RUNNING);
     expect(await fakeFlasher.calls()).toEqual([
       'connect', 'load', 'write', 'reset', 'monitor 115200',
       'disconnect',
-      'connect', 'load', 'write', 'reset', 'monitor 115200',
+      'connect', 'monitor 115200',
     ]);
   });
 
@@ -162,11 +167,13 @@ test.describe('a failure', () => {
       calls: ['connect', 'disconnect', ...flashed],
     },
     {
+      // Connect board reads the board as it runs, and writes nothing: the pick followed the ESP8266 that answered,
+      // an ESP-01S, which is read without its bootloader.
       name: 'noImage',
-      install: { chip: ['ESP8266', 'ESP32'] },
+      install: { chip: ['ESP8266', 'ESP32'], lines: ['sketch omnidirectional'] },
       said: 'This board is an ESP8266. Omnidirectional robot has images for: ESP32. Connect an ESP32.',
       button: 'Connect board',
-      calls: ['connect', 'disconnect', ...flashed],
+      calls: ['connect', 'disconnect', 'attach', 'monitor 115200'],
     },
     {
       name: 'noDownload',
@@ -185,7 +192,7 @@ test.describe('a failure', () => {
   ];
 
   for (const { name, install, said, button, calls } of failures) {
-    test(`${name}: the dock says what went wrong and flashes on its next press, while the card points at it`, async ({
+    test(`${name}: the dock says what went wrong and goes on at its next press, while the card points at it`, async ({
       page,
       fakeFlasher,
     }) => {

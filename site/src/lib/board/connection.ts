@@ -1,4 +1,5 @@
 import { isBusy, wording, type SessionState } from '../flash';
+import type { SessionEvent } from '../flash/session';
 import type { Board, OpenedSketch } from './board';
 import { flashScene, type FlashScene } from './flashScene';
 import { restartConnection, type BoardModel } from './models';
@@ -79,8 +80,9 @@ export type ConnectionAction =
       readonly label: string;
       readonly icon: 'plug' | 'bolt' | 'again';
       /**
-       * `connect` connects to a board, and flashes the opened sketch once it answers; `flash` flashes the opened sketch
-       * onto the connected one. After a failure, the session let go of the port, so Try again connects.
+       * `connect` restarts the board into the sketch it holds and reads it, and writes nothing; `flash` writes the
+       * opened sketch, on the port of a running board or once a new connection answers. Only an action labelled Flash
+       * sends `flash`, and Try again repeats the visitor's last press.
        */
       readonly event: ConnectionEvent;
       readonly disabled: false;
@@ -111,6 +113,8 @@ export interface ConnectionInput {
   readonly opened: OpenedSketch | undefined;
   /** The board the visitor picked, which the hints are for. */
   readonly pick: BoardModel | undefined;
+  /** The visitor's last press of the button, which Try again repeats after a failure. */
+  readonly lastPress: ConnectionEvent | undefined;
   /** The site's sketches by key, which name the opened sketch and the one whose settings the session waits on. */
   readonly names: SketchNames;
 }
@@ -202,39 +206,41 @@ function settingsMessage(
 }
 
 /**
- * The press that flashes `opened` onto a running board: a flash on the open port, unless the sketch has settings the
- * board does not hold yet. Then it connects anew, which opens the settings form before the write, so a sketch such as
- * a hotspot never starts with its default password unasked.
+ * What writes `opened` onto the board the session holds as `state`: a connection, which flashes once the board
+ * answers, after a failure with a single request for the port, which the browser grants only on the visitor's press;
+ * or a flash on the open port of a running board, unless the sketch has settings the board does not hold yet. Then it
+ * connects anew, which opens the settings form before the write, so a sketch such as a hotspot never starts with its
+ * default password unasked.
  */
-function flashFromRunning(opened: OpenedSketch, record: BoardRecord): ConnectionEvent {
-  return opened.settings && runs(record) !== opened.use.sketch ? 'connect' : 'flash';
+function flashEvent(state: SessionState, opened: OpenedSketch, record: BoardRecord): SessionEvent {
+  const running = state.kind === 'running' && !state.lost;
+  if (!running || (opened.settings && runs(record) !== opened.use.sketch)) return { type: 'connect' };
+  return { type: 'flash', key: opened.use.sketch };
 }
 
 function actionFor(
   state: SessionState,
-  record: BoardRecord,
   opened: OpenedSketch | undefined,
   title: string,
+  lastPress: ConnectionEvent | undefined,
 ): ConnectionAction | undefined {
-  const flash = (event: ConnectionEvent): ConnectionAction | undefined =>
+  const flash: ConnectionAction | undefined =
     opened === undefined || opened.imageless
       ? undefined
-      : { label: `Flash ${title}`, icon: 'bolt', event, disabled: false };
+      : { label: `Flash ${title}`, icon: 'bolt', event: 'flash', disabled: false };
   const connect = (label: string): ConnectionAction => ({ label, icon: 'plug', event: 'connect', disabled: false });
   if (state.kind === 'unsupported') return undefined;
   if (RETRYABLE.has(state.kind)) {
-    // One connection, which flashes the opened sketch once the board answers: a single port request, which the
-    // browser grants only on the visitor's press.
-    return { label: 'Try again', icon: 'again', event: 'connect', disabled: false };
+    return { label: 'Try again', icon: 'again', event: lastPress ?? 'connect', disabled: false };
   }
   const busy = busyWord(state);
   if (busy !== undefined) return { label: busy, disabled: true };
   switch (state.kind) {
     case 'idle':
-      return flash('connect') ?? connect('Connect board');
+      return flash ?? connect('Connect board');
     case 'running':
       if (state.lost) return connect('Connect again');
-      return opened === undefined ? undefined : flash(flashFromRunning(opened, record));
+      return flash;
     case 'flashMode':
       return connect('Connect again');
     default:
@@ -324,14 +330,14 @@ function barFor(
 /**
  * The board dock for the session's `state`: its bar, its one button, and what its panel says and draws.
  * `record` is what the site knows of the board; `opened` the sketch the page has open, if any; `pick` the board the
- * visitor picked.
+ * visitor picked; `lastPress` the visitor's last press, which Try again repeats.
  */
-export function connectionView({ state, record, opened, pick, names }: ConnectionInput): ConnectionView {
+export function connectionView({ state, record, opened, pick, lastPress, names }: ConnectionInput): ConnectionView {
   const refusal = showsRefusal(state, opened);
   const name = opened && nameOf(names, opened.use.sketch);
   const sketch = { name: name?.title ?? record.pending ?? 'This sketch', step: name?.step === true };
   const panel = boardMessage(state, sketch, refusal, pick) ?? settingsMessage(state, record, opened, names);
-  const action = actionFor(state, record, opened, sketch.name);
+  const action = actionFor(state, opened, sketch.name, lastPress);
   return {
     bar: barFor(state, record, names, pick, panel !== undefined),
     ...(action !== undefined && { action }),
@@ -356,10 +362,11 @@ export interface Connection {
 
 /**
  * The connection of `board`, the site's, for the board the visitor picked, `pick`, with `names` naming the site's
- * sketches.
+ * sketches. It remembers the visitor's last press, as Try again repeats it.
  */
 export function createConnection(board: Board, pick: BoardPick, names: SketchNames): Connection {
   const listeners = new Set<() => void>();
+  let lastPress: ConnectionEvent | undefined;
 
   function notify() {
     for (const listener of [...listeners]) listener();
@@ -371,6 +378,7 @@ export function createConnection(board: Board, pick: BoardPick, names: SketchNam
       record: board.record,
       opened: board.opened,
       pick: pick.model,
+      lastPress,
       names,
     });
   }
@@ -393,15 +401,11 @@ export function createConnection(board: Board, pick: BoardPick, names: SketchNam
 
   /** Starts `event`'s work; {@link Board.send} first points the session at the opened sketch. */
   async function start(event: ConnectionEvent): Promise<void> {
+    lastPress = event;
     const opened = board.opened;
-    switch (event) {
-      case 'connect':
-        // A connection that is not a restart flashes the opened sketch; with none, the session's sketch is another
-        // page's, and with one the page has no image of, nothing can be flashed: the board is only restarted and read.
-        return board.send(opened?.imageless === false ? { type: 'connect' } : restartConnection(pick.model));
-      case 'flash':
-        if (opened !== undefined) await board.send({ type: 'flash', key: opened.use.sketch });
-    }
+    // A Flash repeated by Try again on a page with nothing to flash only reads the board, as Connect does.
+    const flashing = event === 'flash' && opened !== undefined && !opened.imageless;
+    await board.send(flashing ? flashEvent(board.session.state, opened, board.record) : restartConnection(pick.model));
   }
 
   return {

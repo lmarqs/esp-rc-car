@@ -178,8 +178,10 @@ monitor that shows the lines, sends one and clears them.
 The dock is the one surface where the visitor connects, flashes and retries. It has one action for the board, from the
 Board connection, and a panel for what happens between the computer and the board:
 
-- The action says what a press does: Connect board, or Connect again once the board is lost or left in flash mode;
-  Flash and the open sketch's title when a page has a sketch open; Try again after a failed connect or flash; and,
+- The action says what a press does: Connect board, or Connect again once the board is lost or left in flash mode,
+  which restart the board into what it holds and read it, and write nothing; Flash and the open sketch's title when a
+  page has a sketch open, the one action that writes the board; Try again after a failed connect or flash, which
+  repeats that press; and,
   while the session works, what it does, Connecting…, Flashing… or Setting up… for the settings, which cannot be
   pressed and which the workbench's tag and the switch's dot say in the same words. A sketch with no image for the board
   opens the panel with its message. The action is then Connect board after a connect, and stays Flash and the sketch's
@@ -188,7 +190,7 @@ Board connection, and a panel for what happens between the computer and the boar
   A page with no sketch, such as Learn, or with a sketch the page has no image of, offers Connect, which restarts and
   reads the board, and no Flash.
 - Flash flashes the open sketch from idle and from running in one press, and Try again after a failed flash connects
-  and flashes in one press, with one request for the port: the connection opens the settings form of a sketch that has
+  and flashes in one press, also from another page, with one request for the port: the connection opens the settings form of a sketch that has
   settings before it writes. From running, a sketch with settings that the board does not already run connects anew,
   so its card's settings form comes before the write.
 - The panel opens while the session works, waits in flash mode, failed, is lost, or has no image of the open sketch for

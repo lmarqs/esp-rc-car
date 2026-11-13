@@ -134,15 +134,15 @@ const lost: SessionState = { ...running, lost: true };
 
 /** The dock's view for `state`, with a sketch open unless `opened` says otherwise. */
 function viewOf(state: SessionState, rest: Partial<ConnectionInput> = {}) {
-  return connectionView({ state, record: EMPTY_RECORD, opened: sketch, pick: undefined, names: NAMES, ...rest });
+  return connectionView({ state, record: EMPTY_RECORD, opened: sketch, pick: undefined, lastPress: undefined, names: NAMES, ...rest });
 }
 
 describe('connectionView action', () => {
-  it('connects from idle, and flashes the open sketch in the same press', () => {
+  it('flashes the open sketch from idle, and only connects with none open', () => {
     expect(viewOf({ kind: 'idle' }).action).toEqual({
       label: 'Flash Blink · 2 input',
       icon: 'bolt',
-      event: 'connect',
+      event: 'flash',
       disabled: false,
     });
     expect(viewOf({ kind: 'idle', released: true }, { opened: undefined }).action).toEqual({
@@ -184,16 +184,12 @@ describe('connectionView action', () => {
     expect(viewOf(running, { opened: imageless }).action).toBeUndefined();
   });
 
-  it('connects anew to flash a sketch with settings the running board does not run, so its form comes first', () => {
+  it('flashes a sketch with settings over a running board too, whatever the board runs', () => {
     const withSettings = { ...sketch, settings: true };
-    expect(viewOf(running, { opened: withSettings }).action).toEqual({
-      label: 'Flash Blink · 2 input',
-      icon: 'bolt',
-      event: 'connect',
-      disabled: false,
-    });
-    expect(viewOf(running, { opened: withSettings, record: { lines: [], heard: 'blink/input' } }).action).toMatchObject({ event: 'flash' });
-    expect(viewOf(running, { opened: withSettings, record: { lines: [], flashed: 'blink/input' } }).action).toMatchObject({ event: 'flash' });
+    const flash = { label: 'Flash Blink · 2 input', icon: 'bolt', event: 'flash', disabled: false };
+    for (const record of [EMPTY_RECORD, { lines: [], heard: 'blink/input' }, { lines: [], flashed: 'blink/input' }]) {
+      expect(viewOf(running, { opened: withSettings, record }).action).toEqual(flash);
+    }
   });
 
   it('connects again from flash mode and from a lost board, with a sketch open or not', () => {
@@ -204,7 +200,7 @@ describe('connectionView action', () => {
     }
   });
 
-  it('offers Try again after a failure, which connects once, flashing the open sketch once the board answers', () => {
+  it('offers Try again after a failure, which repeats the last press, or connects when there was none', () => {
     const failures: SessionState[] = [
       { kind: 'noPort' },
       { kind: 'portBusy' },
@@ -214,7 +210,11 @@ describe('connectionView action', () => {
     ];
     for (const state of failures) {
       for (const opened of [sketch, undefined]) {
-        expect(viewOf(state, { opened }).action).toEqual({ label: 'Try again', icon: 'again', event: 'connect', disabled: false });
+        const again = (lastPress?: 'connect' | 'flash') => viewOf(state, { opened, lastPress }).action;
+        const tryAgain = { label: 'Try again', icon: 'again', disabled: false };
+        expect(again()).toEqual({ ...tryAgain, event: 'connect' });
+        expect(again('connect')).toEqual({ ...tryAgain, event: 'connect' });
+        expect(again('flash')).toEqual({ ...tryAgain, event: 'flash' });
       }
     }
   });
@@ -429,13 +429,14 @@ describe('createConnection', () => {
     const { fake, board, connection } = connectionOver(() => {}, false);
     board.open(relay, new AbortController().signal);
     fake.enter({ kind: 'running', chip: 'ESP8266', output: [] });
-    expect(connection.view.action).toMatchObject({ label: 'Flash Web-controlled relay', event: 'connect' });
+    expect(connection.view.action).toMatchObject({ label: 'Flash Web-controlled relay', event: 'flash' });
 
     await connection.press();
-
     expect(fake.sent).toEqual([{ type: 'connect' }]);
     fake.print('sketch web-relay');
-    expect(connection.view.action).toMatchObject({ label: 'Flash Web-controlled relay', event: 'flash' });
+    await connection.press();
+
+    expect(fake.sent).toEqual([{ type: 'connect' }, { type: 'flash', key: 'web-relay' }]);
   });
 
   it('does nothing while the session works on the last press', async () => {
@@ -471,7 +472,7 @@ describe('createConnection', () => {
     });
     fake.enter(running);
     await connection.press();
-    expect(connection.view.action).toEqual({ label: 'Try again', icon: 'again', event: 'connect', disabled: false });
+    expect(connection.view.action).toEqual({ label: 'Try again', icon: 'again', event: 'flash', disabled: false });
 
     await connection.press();
 
@@ -494,7 +495,7 @@ describe('createConnection', () => {
     await connection.press();
     page.abort();
     board.open(relay, new AbortController().signal);
-    expect(connection.view.action).toMatchObject({ label: 'Try again', event: 'connect' });
+    expect(connection.view.action).toMatchObject({ label: 'Try again', event: 'flash' });
 
     await connection.press();
 
@@ -506,13 +507,45 @@ describe('createConnection', () => {
   it('tries only the connection again when a connection failed', async () => {
     const { fake, connection } = connectionOver((event, enter) => {
       if (event.type === 'connect') enter({ kind: 'noPort' });
-    });
+    }, false);
     await connection.press();
     expect(connection.view.action).toMatchObject({ label: 'Try again', event: 'connect' });
 
     await connection.press();
 
-    expect(fake.sent).toEqual([{ type: 'connect' }, { type: 'connect' }]);
+    expect(fake.sent).toEqual([
+      { type: 'connect', reset: true },
+      { type: 'connect', reset: true },
+    ]);
+  });
+
+  it('restarts and reads the board on Connect again or Connect board with a sketch open, and flashes nothing', async () => {
+    const states: [SessionState, string][] = [
+      [{ kind: 'running', chip: 'ESP32', output: [], lost: true }, 'Connect again'],
+      [{ kind: 'noImage', chip: 'ESP8266', available: ['ESP32'] }, 'Connect board'],
+    ];
+    for (const [state, label] of states) {
+      const { fake, connection } = connectionOver(() => {});
+      fake.enter(state);
+      expect(connection.view.action, state.kind).toMatchObject({ label, event: 'connect' });
+
+      await connection.press();
+
+      expect(fake.sent, state.kind).toEqual([{ type: 'connect', reset: true }]);
+    }
+  });
+
+  it('only reads the board when Try again repeats a flash on a page with nothing to flash', async () => {
+    const { fake, page, connection } = connectionOver((event, enter) => {
+      if (event.type === 'connect') enter({ kind: 'noPort' });
+    });
+    await connection.press();
+    page.abort();
+    expect(connection.view.action).toMatchObject({ label: 'Try again', event: 'flash' });
+
+    await connection.press();
+
+    expect(fake.sent).toEqual([{ type: 'connect' }, { type: 'connect', reset: true }]);
   });
 
   it('names work the visitor started elsewhere by what the session does', () => {
