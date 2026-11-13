@@ -52,12 +52,6 @@ const horn = (page: Page, value: 'angle' | 'target' = 'angle') =>
 const freeze = async (page: Page) => page.clock.pauseAt((await page.evaluate(() => Date.now())) + 500);
 const nextFrame = (page: Page) => page.clock.runFor(20);
 
-/** Turns Slow off, so the simulator runs at the board's pace. */
-async function fullSpeed(page: Page) {
-  await button(page, 'Slow').click();
-  await expect(button(page, 'Slow')).toHaveAttribute('aria-pressed', 'false');
-}
-
 async function send(page: Page, text: string) {
   await commandLine(page).fill(text);
   await commandLine(page).press('Enter');
@@ -120,7 +114,6 @@ test.describe('the Servo workbench', () => {
   test('answers a bad angle with an error in the serial output and leaves the horn where it is', async ({ page }) => {
     await page.goto(SERVO);
     await tab(page, '2 angle').click();
-    await fullSpeed(page);
     await expect(serial(page)).toContainText('angle 90');
     expect(await horn(page)).toBe('90');
 
@@ -150,8 +143,6 @@ test.describe('the Servo workbench', () => {
     await button(page, 'Pause').click();
     await button(page, 'Restart').click();
     await expect(trace(page).locator('[data-trace-level]')).toHaveAttribute('d', '');
-
-    await fullSpeed(page);
     await button(page, 'Continue').click();
     await expect(serial(page)).toContainText('angle 90');
     await expect.poll(() => levelNow(page)).toBe((HIGH_Y + LOW_Y) / 2);
@@ -186,7 +177,6 @@ test.describe('the Servo workbench', () => {
     await page.goto(SERVO);
     await tab(page, '2 angle').click();
     await expect(shortcuts(page)).toHaveCount(1);
-    await fullSpeed(page);
     await freeze(page);
     await slider(page, 'angle in degrees').focus();
     for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight');
@@ -207,7 +197,6 @@ test.describe('the Servo workbench', () => {
     test(`on ${name}, the sweep and stop chips and the angle slider type the commands they send`, async ({ page }) => {
       await page.goto(SERVO);
       await tab(page, `${number} ${name}`).click();
-      await fullSpeed(page);
       await expect(chip(page, 'sweep')).toBeVisible();
       await expect(chip(page, 'stop')).toBeVisible();
 
@@ -229,7 +218,6 @@ test.describe('the Servo workbench', () => {
   test('on speed, the speed slider sends speed <n>, and a bad speed gets an error', async ({ page }) => {
     await page.goto(SERVO);
     await tab(page, '4 speed').click();
-    await fullSpeed(page);
     await expect(shortcuts(page)).toHaveCount(4);
     await slider(page, 'speed in degrees a second').fill('10');
     await expect(sentLines(page).last()).toHaveText('› speed 10');
@@ -245,7 +233,6 @@ test.describe('the Servo workbench', () => {
   test('moves each slider to the value last sent or reported, not the one it was left at', async ({ page }) => {
     await page.goto(SERVO);
     await tab(page, '2 angle').click();
-    await fullSpeed(page);
     await send(page, '120');
     await expect(slider(page, 'angle in degrees')).toHaveValue('120');
     await expect(shortcutRow(page).locator('output')).toHaveText('120');
@@ -290,7 +277,6 @@ test.describe('the Servo workbench', () => {
     await expect(slider(page, 'angle in degrees')).toHaveValue('180');
 
     // A value the board reports later moves it.
-    await fullSpeed(page);
     await send(page, '30');
     await expect(serial(page)).toContainText('angle 30');
     await expect(slider(page, 'angle in degrees')).toHaveValue('30');
@@ -326,7 +312,6 @@ test.describe('the Servo workbench', () => {
   test('on speed, shows the target as a dashed horn and the estimate as the solid one while it moves', async ({ page }) => {
     await page.goto(SERVO);
     await tab(page, '4 speed').click();
-    await fullSpeed(page);
     await expect(serial(page)).toContainText('angle 90');
     await expect(picture(page)).toHaveClass(/\baiming\b/);
     await send(page, 'speed 20');
@@ -353,7 +338,6 @@ test.describe('the Servo workbench', () => {
   test('on commands, sweeps from the angle it holds until stop', async ({ page }) => {
     await page.goto(SERVO);
     await tab(page, '3 commands').click();
-    await fullSpeed(page);
     await send(page, 'sweep');
     await expect(serial(page)).toContainText('angle 100');
     await expect(watchValue(page, 'sweeping')).toHaveText('true');

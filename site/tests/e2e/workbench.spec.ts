@@ -44,6 +44,13 @@ const clockFill = (row: Locator) =>
   row.locator('[data-pie] .fill').evaluate((fill) => parseFloat(getComputedStyle(fill).strokeDasharray));
 
 /** Stops the page's time from flowing on its own, then moves it on until the arrow is on `line`. */
+/** Turns Slow on and restarts, so the step runs from its first line at half a second a line. */
+async function slowFromStart(page: Page) {
+  await button(page, 'Slow').click();
+  await expect(button(page, 'Slow')).toHaveAttribute('aria-pressed', 'true');
+  await button(page, 'Restart').click();
+}
+
 async function freezeUntilRunning(page: Page, line: number) {
   // Far enough ahead that the page time, which flows until then, has not passed it yet.
   await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 500);
@@ -184,7 +191,8 @@ test.describe('the Blink workbench', () => {
     await expect(watchValue(page, 'paused')).toHaveText('false');
   });
 
-  test('opens running the selected step, slowly enough to follow', async ({ page }) => {
+  test('runs the selected step slowly enough to follow once Slow is on', async ({ page }) => {
+    await slowFromStart(page);
     const simple = source('sketches/blink/simple');
     await expect(visibleCode(page).locator('[data-running]')).toHaveAttribute(
       'data-line',
@@ -215,6 +223,7 @@ test.describe('the Blink workbench', () => {
   });
 
   test('starts the picked step afresh', async ({ page }) => {
+    await slowFromStart(page);
     await page.clock.runFor(3000);
     await expect(serial(page)).toContainText('sketch blink/simple');
 
@@ -239,6 +248,7 @@ test.describe('the Blink workbench', () => {
   });
 
   test('ends each delay( line with a clock that is empty when idle and fills while it waits', async ({ page }) => {
+    await slowFromStart(page);
     const delays = linesOf('sketches/blink/simple', 'delay(1000);');
     const pies = visibleCode(page).locator('.ln:has([data-pie])');
     await expect(pies).toHaveCount(delays.length);
@@ -306,6 +316,7 @@ test.describe('the Blink workbench', () => {
   });
 
   test('turns Pause into a green-play Continue of the same width, and back', async ({ page }) => {
+    await slowFromStart(page);
     const pause = button(page, 'Pause');
     const before = await pause.boundingBox();
     await expect(pause.locator('.i-pause')).toBeVisible();
@@ -330,17 +341,20 @@ test.describe('the Blink workbench', () => {
     expect(await runningLine(page)).not.toBe(line);
   });
 
-  test('opens with Slow pressed and lets the visitor turn it off with the keyboard', async ({ page }) => {
+  test('opens with Slow off and lets the visitor turn it on and off with the keyboard', async ({ page }) => {
     const slow = button(page, 'Slow');
-    await expect(slow).toHaveAttribute('aria-pressed', 'true');
-    await expect(slow).toHaveCSS('background-color', 'rgb(31, 45, 58)');
+    await expect(slow).toHaveAttribute('aria-pressed', 'false');
+    await expect(slow).toHaveCSS('background-color', 'rgb(255, 255, 255)');
 
     await slow.focus();
     await expect(slow).toHaveCSS('outline-color', 'rgb(59, 130, 196)');
     await expect(slow).toHaveCSS('outline-style', 'solid');
     await page.keyboard.press('Space');
+    await expect(slow).toHaveAttribute('aria-pressed', 'true');
+    await expect(slow).toHaveCSS('background-color', 'rgb(31, 45, 58)');
+    await page.keyboard.press('Space');
     await expect(slow).toHaveAttribute('aria-pressed', 'false');
-    await expect(slow).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+    await button(page, 'Restart').click();
     // At full speed the lines before the first delay take no time, so the arrow goes straight to it.
     await page.clock.runFor(50);
     await expect(runningRow(page)).toHaveAttribute('data-line', String(linesOf('sketches/blink/simple', 'delay(1000);')[0]));
@@ -395,6 +409,7 @@ test.describe('the Blink workbench', () => {
   test('Restart starts again from the first line with the output and watch cleared, and keeps on running', async ({
     page,
   }) => {
+    await slowFromStart(page);
     const first = String(lineNumber(source('sketches/blink/simple'), 'output.begin("blink/simple");'));
     await page.clock.runFor(5100);
     await expect(serial(page)).toContainText('LOW');
@@ -424,6 +439,8 @@ test.describe('the Blink workbench', () => {
 
   test('highlights a watch value briefly when it changes, but not the clock', async ({ page }) => {
     const led = watchValue(page, 'LED');
+    await button(page, 'Slow').click();
+    await expect(button(page, 'Slow')).toHaveAttribute('aria-pressed', 'true');
     await freeze(page);
     await button(page, 'Restart').click();
     await expect(led).not.toHaveAttribute('data-changed');
@@ -504,6 +521,7 @@ test.describe('the Blink workbench', () => {
     page,
   }) => {
     await tab(page, '4 commands').click();
+    await slowFromStart(page);
     await expect(commandLine(page)).toHaveAttribute('placeholder', 'a command, then Enter');
     const term = bench(page).locator('.term');
     const output = await serial(page).boundingBox();
@@ -695,6 +713,8 @@ test.describe('the Blink workbench', () => {
     page,
   }) => {
     await expect(bench(page).locator('.scope figcaption')).toHaveText(/GPIO 2, last 10 s\s*you sent\s*board applied/);
+    await button(page, 'Slow').click();
+    await expect(button(page, 'Slow')).toHaveAttribute('aria-pressed', 'true');
     await freeze(page);
     await button(page, 'Restart').click();
     await nextFrame(page);
@@ -720,6 +740,7 @@ test.describe('the Blink workbench', () => {
     const input = source('sketches/blink/input');
     const at = (text: string, occurrence = 1) => lineNumber(input, text, occurrence)!;
     await tab(page, '2 input').click();
+    await slowFromStart(page);
     const live = visibleCode(page).locator('[data-live="blinkDelay"]');
     await freezeUntilRunning(page, at('delay(blinkDelay);'));
 

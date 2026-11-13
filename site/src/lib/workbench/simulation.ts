@@ -4,7 +4,7 @@ import type { StepDefinition } from './step';
 import { emptyTrace, recordEffects, recordLevel, traceTime, type Trace } from './trace';
 
 /** How a step's simulator starts when the page opens it or the visitor picks its tab. */
-export const OPENING = { slow: true, running: true } as const;
+export const OPENING = { slow: false, running: true } as const;
 
 /** The simulation at one moment: what the pane paints of it. */
 export interface Snapshot<S, B> {

@@ -21,16 +21,16 @@ function opened(over: { has?: () => boolean } = {}) {
 }
 
 describe('the simulation', () => {
-  it('opens running in slow mode, with the LED off', () => {
-    expect(OPENING).toEqual({ slow: true, running: true });
+  it('opens running at full speed, with the LED off', () => {
+    expect(OPENING).toEqual({ slow: false, running: true });
     const { simulation } = opened();
-    expect(simulation.view).toMatchObject({ status: 'running', slow: true, line: 'output.begin("blink/simple");' });
+    expect(simulation.view).toMatchObject({ status: 'running', slow: false, line: 'output.begin("blink/simple");' });
     expect(simulation.board.ledOn).toBe(false);
   });
 
   it('runs the program on the simulated board: the LED lights once led.write(HIGH) has run', () => {
     const { simulation, clock, changed } = opened();
-    clock.advance(3000);
+    clock.advance(500);
     expect(simulation.board.ledOn).toBe(true);
     expect(changed).toHaveBeenCalled();
   });
@@ -86,11 +86,11 @@ describe('the simulation', () => {
     expect(simulation.view?.status).toBe('running');
   });
 
-  it('keeps slow mode across steps once the visitor turned it off', () => {
+  it('keeps slow mode across steps once the visitor turned it on', () => {
     const { simulation } = opened();
     simulation.toggleSlow();
     simulation.open(INPUT);
-    expect(simulation.slow).toBe(false);
-    expect(simulation.view).toMatchObject({ slow: false });
+    expect(simulation.slow).toBe(true);
+    expect(simulation.view).toMatchObject({ slow: true });
   });
 });

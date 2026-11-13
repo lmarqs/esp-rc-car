@@ -52,10 +52,12 @@ async function connect(page: Page) {
  * Connects under My board from the `name` tab to a board that prints `sketch <key>` first, then waits for the frame's
  * tag to read `shown`, such as `Live` or `Runs input`.
  */
-async function connectTo(page: Page, fakeFlasher: FakeFlasher, key: string, name: string, shown: string) {
+/** Connects a board that runs `key` on the step tab `name`; with `slow`, turns Slow on first, as the visitor can. */
+async function connectTo(page: Page, fakeFlasher: FakeFlasher, key: string, name: string, shown: string, slow = false) {
   await fakeFlasher.install({ lines: ['', `sketch ${key}`] });
   await page.goto(BLINK);
   await tab(page, name).click();
+  if (slow) await debuggerButton(page, 'Slow').click();
   await connect(page);
   await expect(tag(page)).toContainText(shown);
 }
@@ -342,7 +344,7 @@ test.describe('live mode', () => {
     page,
     fakeFlasher,
   }) => {
-    await connectTo(page, fakeFlasher, 'blink/input', '2 input', 'Live');
+    await connectTo(page, fakeFlasher, 'blink/input', '2 input', 'Live', true);
 
     await expect(debuggerButton(page, 'Slow')).toBeDisabled();
     await expect(debuggerButton(page, 'Slow')).toHaveAttribute('aria-pressed', 'false');
@@ -432,7 +434,7 @@ test.describe('back to the board', () => {
       fakeFlasher,
     }) => {
       await page.clock.install();
-      await connectTo(page, fakeFlasher, 'blink/input', '2 input', 'Live');
+      await connectTo(page, fakeFlasher, 'blink/input', '2 input', 'Live', true);
       await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 500);
       await fakeFlasher.print('HIGH');
       await nextFrame(page);
@@ -480,6 +482,7 @@ test.describe('back to the board', () => {
         await fakeFlasher.install();
         await page.goto(BLINK);
         await tab(page, '2 input').click();
+        await debuggerButton(page, 'Slow').click();
         await myBoardButton(page).click();
         await expect(tag(page)).toHaveText('My board Not connected');
       },
@@ -487,7 +490,7 @@ test.describe('back to the board', () => {
     {
       name: 'with the board on another step',
       open: (page: Page, fakeFlasher: FakeFlasher) =>
-        connectTo(page, fakeFlasher, 'blink/commands', '2 input', 'Runs commands'),
+        connectTo(page, fakeFlasher, 'blink/commands', '2 input', 'Runs commands', true),
     },
   ];
   for (const pressed of ['Pause', 'Step', 'Restart'] as const) {
